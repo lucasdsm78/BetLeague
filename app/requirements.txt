@@ -1,0 +1,6 @@
+fastapi~=0.115.6
+sqlmodel
+sqlalchemy
+psycopg2
+uvicorn[standard]
+pydantic
