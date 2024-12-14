@@ -4,24 +4,23 @@ services:
   web:
     build: .
     container_name: fastapi_app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - ./app:/app
+      - ./:/app
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
-      # Variables d'environnement pour la connexion à la DB
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/mydatabase"
+      SQLALCHEMY_DATABASE_URL: ${SQLALCHEMY_DATABASE_URL}
     depends_on:
       - db
 
   db:
     image: postgres:15-alpine
-    container_name: fastapi_db
+    container_name: betleague_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mydatabase
+      POSTGRES_DB: betleague
     ports:
       - "5432:5432"
     volumes:
