@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     refresh_token_expire_minutes: int
     secret_key_token: str
     secret_key_token_refresh: str
+    encryption_key: str
 
     class Config:
         env_file = ".env"

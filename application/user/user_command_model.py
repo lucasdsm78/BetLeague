@@ -22,6 +22,7 @@ class UserDeleteResponse(BaseModel):
 class UserLoginModel(BaseModel):
     email: str
     password: str
+    code: Optional[str]
 
 
 class UserLoginResponse(BaseModel):

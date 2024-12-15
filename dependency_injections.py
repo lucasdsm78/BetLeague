@@ -2,12 +2,14 @@ from application.user.user_command_usecase import UserCommandUseCase, UserComman
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
+from domain.services.authentication.totp_service import TOTPService
 from domain.user.repository.user_repository import UserRepository
 
 from functools import lru_cache
 from typing import Iterator
 
 from fastapi import Depends
+from fastapi import Request
 from sqlalchemy.orm.session import Session
 
 from infrastructure.config import Settings
@@ -17,6 +19,7 @@ from infrastructure.services.authentication.authentication import Authentication
 from infrastructure.services.authentication.hash import HashImpl
 from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
+from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 
 jwt_auth = JwtBearer()
 
@@ -42,6 +45,10 @@ def hash_dependency() -> Hash:
     return HashImpl()
 
 
+def totp_service() -> TOTPService:
+    return TOTPServiceImpl()
+
+
 def user_repository_dependency(session: Session = Depends(get_session)) -> UserRepository:
     return UserRepositoryImpl(session)
 
@@ -50,11 +57,15 @@ def user_command_usecase(
         user_repository: UserRepository = Depends(user_repository_dependency),
         hasher: Hash = Depends(hash_dependency),
         manager_token: ManagerToken = Depends(manager_token_dependency),
+        totp_service: TOTPService = Depends(totp_service),
+        settings: Settings = Depends(get_settings)
 ) -> UserCommandUseCase:
     return UserCommandUseCaseImpl(
         user_repository=user_repository,
         hasher=hasher,
-        manager_token=manager_token
+        manager_token=manager_token,
+        totp_service=totp_service,
+        settings=settings
     )
 
 
