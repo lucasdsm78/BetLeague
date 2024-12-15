@@ -4,7 +4,6 @@ import shortuuid
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
-from application.user.constants import FAILED_ATTEMPTS
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
     InvalidPasswordError, UserDeleteResponse
 from domain.services.authentication.hash import Hash
