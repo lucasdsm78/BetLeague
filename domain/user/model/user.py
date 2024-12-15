@@ -16,6 +16,9 @@ class User:
             id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None,
+            two_factor_secret: Optional[str] = None,
+            is_two_factor_enabled: bool = False,
+            is_two_factor_verified: bool = False
     ):
         self.id: Optional[int] = id
         self.password: Password = password
@@ -26,6 +29,9 @@ class User:
         self.first_name: str = first_name
         self.last_name: str = last_name
         self.updated_at: Optional[int] = updated_at
+        self.two_factor_secret = two_factor_secret
+        self.is_two_factor_enabled = is_two_factor_enabled
+        self.is_two_factor_verified = is_two_factor_verified
 
     def token_details(self) -> dict:
         return dict(

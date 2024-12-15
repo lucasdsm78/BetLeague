@@ -1,4 +1,8 @@
+import io
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
     UserLoginModel, UserDeleteResponse
@@ -76,13 +80,23 @@ async def get_users(
 
 @router.post(
     "/user/login",
-    response_model=UserLoginResponse
+    response_model=UserLoginResponse,
+    summary="User Login with 2FA",
 )
 async def login(
         user_login_model: UserLoginModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
 ):
-    return user_command_usecase.login(user_login_model).for_login()
+    try:
+        user = user_command_usecase.login(user_login_model)
+        return user.for_login()
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed."
+        )
 
 
 @router.delete(
@@ -114,3 +128,50 @@ async def delete_user(
         )
 
     return delete_user
+
+
+@router.post(
+    "/user/enable-2fa",
+    summary="Enable Two-Factor Authentication",
+    status_code=status.HTTP_200_OK,
+)
+async def enable_2fa(
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        qr_code_bytes = user_command_usecase.enable_2fa(current_user.get('email', ''))
+        return StreamingResponse(io.BytesIO(qr_code_bytes), media_type="image/png")
+    except HTTPException as e:
+        print(e)
+        raise e
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to enable 2FA."
+            )
+
+
+@router.post(
+    "/user/verify-2fa",
+    summary="Verify Two-Factor Authentication",
+    status_code=status.HTTP_200_OK,
+)
+async def verify_2fa(
+        code: str,
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        is_valid = user_command_usecase.verify_2fa(current_user.get('email', ''), code)
+        if is_valid:
+            return {"message": "2FA verified successfully."}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify 2FA."
+        )
