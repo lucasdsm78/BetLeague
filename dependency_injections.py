@@ -1,5 +1,7 @@
+from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
+from domain.league.repository.league_repository import LeagueRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
@@ -14,6 +16,7 @@ from sqlalchemy.orm.session import Session
 
 from infrastructure.config import Settings
 from infrastructure.postgresql.database import SessionLocal
+from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
@@ -53,6 +56,10 @@ def user_repository_dependency(session: Session = Depends(get_session)) -> UserR
     return UserRepositoryImpl(session)
 
 
+def league_repository_dependency(session: Session = Depends(get_session)) -> LeagueRepository:
+    return LeagueRepositoryImpl(session)
+
+
 def user_command_usecase(
         user_repository: UserRepository = Depends(user_repository_dependency),
         hasher: Hash = Depends(hash_dependency),
@@ -66,6 +73,16 @@ def user_command_usecase(
         manager_token=manager_token,
         totp_service=totp_service,
         settings=settings
+    )
+
+
+def league_command_usecase(
+        league_repository: LeagueRepository = Depends(league_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
+) -> LeagueCommandUseCase:
+    return LeagueCommandUseCaseImpl(
+        league_repository=league_repository,
+        user_repository=user_repository,
     )
 
 
