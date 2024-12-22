@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Union, Optional
 
 from sqlalchemy import Column, Integer, String, BigInteger, Boolean
+from sqlalchemy.orm import relationship
 
 from domain.user.model.email import Email
 from domain.user.model.password import Password
@@ -27,6 +28,7 @@ class DBUser(Base):
     two_factor_secret: Union[Optional[str], Column] = Column(String, nullable=True)
     is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
+    leagues = relationship("DBLeague", back_populates="user")
 
     def to_entity(self) -> User:
         return User(
