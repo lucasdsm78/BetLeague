@@ -3,7 +3,7 @@ version: "3.9"
 services:
   web:
     build: .
-    container_name: fastapi_app
+    container_name: betleague_app_back
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./:/app
@@ -22,7 +22,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: betleague
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
 
