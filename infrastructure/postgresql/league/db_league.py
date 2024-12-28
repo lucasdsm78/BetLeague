@@ -22,6 +22,7 @@ class DBLeague(Base):
     name: Union[str, Column] = Column(String, nullable=False)
     is_free: Union[bool, Column] = Column(Boolean, nullable=False)
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
+    is_started: Union[bool, Column] = Column(Boolean, nullable=False, default=False)
     start_date: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     end_date: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     max_players: Union[Integer, Column] = Column(Integer, nullable=False)
@@ -36,6 +37,7 @@ class DBLeague(Base):
             id=self.id,
             uuid=self.uuid,
             is_free=self.is_free,
+            is_started=self.is_started,
             is_private=self.is_private,
             max_players=self.max_players,
             name=self.name,
@@ -53,6 +55,7 @@ class DBLeague(Base):
         league_db_to_update.id = league.id
         league_db_to_update.uuid = league.uuid
         league_db_to_update.is_free = league.is_free
+        league_db_to_update.is_started = league.is_started
         league_db_to_update.is_private = league.is_private
         league_db_to_update.name = league.name
         league_db_to_update.max_players = league.max_players

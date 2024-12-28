@@ -39,6 +39,13 @@ class LeagueRepositoryImpl(LeagueRepository):
         except Exception as e:
             raise
 
+    def update(self, league: League):
+        try:
+            _league = self.session.query(DBLeague).filter_by(id=league.id).one()
+            league_db = DBLeague.from_entity(league, _league)
+        except:
+            raise
+
     def begin(self):
         self.session.begin()
 
