@@ -7,7 +7,10 @@ class LeagueFreeCreateModel(BaseModel):
     name: str
     max_players: int
     is_private: bool
-    end_date: int
+
+
+class LeagueJoinResponse(BaseModel):
+    message: str = "Your participation is well saved for this league"
 
 
 class LeagueFreeCreateResponse(BaseModel):
