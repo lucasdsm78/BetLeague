@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 import shortuuid
 
-from application.league.constants import MAX_PLAYERS
+from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError
@@ -10,7 +10,6 @@ from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
-from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
 
@@ -93,6 +92,12 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             current_count_players = self.league_players_repository.count_players(league.id)
             if current_count_players == league.max_players:
                 raise LeagueMaxPlayersError
+
+            count_players = self.league_players_repository.count_players(league_id=league.id)
+            if count_players != 0 and count_players == MIN_PLAYERS - 1:
+                league.is_started = True
+                self.league_repository.update(league)
+                self.league_repository.commit()
 
             self.league_players_repository.join_league(league_players)
             self.league_players_repository.commit()

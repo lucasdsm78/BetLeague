@@ -14,6 +14,7 @@ class League:
             end_date: int,
             is_private: bool,
             user: UserSummary,
+            is_started: Optional[bool] = None,
             id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
@@ -22,6 +23,7 @@ class League:
         self.uuid: str = uuid
         self.name: str = name
         self.is_free: bool = is_free
+        self.is_started: Optional[bool] = is_started
         self.max_players: int = max_players
         self.is_private: bool = is_private
         self.start_date: int = start_date
