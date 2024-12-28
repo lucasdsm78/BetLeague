@@ -29,6 +29,7 @@ class DBUser(Base):
     is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
     leagues = relationship("DBLeague", back_populates="user")
+    league_players = relationship("DBLeaguePlayers", back_populates="user")
 
     def to_entity(self) -> User:
         return User(
