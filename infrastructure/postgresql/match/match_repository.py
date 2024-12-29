@@ -1,0 +1,52 @@
+from typing import List
+
+from sqlalchemy.orm.session import Session
+
+from domain.match.model.match import Match
+from domain.match.repository.match_repository import MatchRepository
+from infrastructure.postgresql.match.db_match import DBMatch
+
+
+class MatchRepositoryImpl(MatchRepository):
+
+    def __init__(self, session: Session):
+        self.session: Session = session
+
+    def find_match(self, home_team: str, away_team: str, cote_home: float, cote_draw: float, cote_away: float) -> bool:
+        try:
+            match_db = self.session.query(DBMatch).filter_by(
+                home_team=home_team,
+                away_team=away_team,
+                cote_home=cote_home,
+                cote_draw=cote_draw,
+                cote_away=cote_away
+            ).one_or_none()
+            if not match_db:
+                return False
+            return True
+
+        except Exception as e:
+            raise
+
+    def find_matches(self) -> List[Match]:
+        try:
+            match_dbs = (
+                self.session.query(DBMatch)
+                .all()
+            )
+        except:
+            raise
+
+        if len(match_dbs) == 0:
+            return []
+
+        return list(map(lambda match_db: match_db.to_entity(), match_dbs))
+
+    def begin(self):
+        self.session.begin()
+
+    def commit(self):
+        self.session.commit()
+
+    def rollback(self):
+        self.session.rollback()
