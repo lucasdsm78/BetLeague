@@ -31,3 +31,10 @@ class LeagueParticipantNotFoundError(Exception):
 
     def __str__(self):
         return LeagueParticipantNotFoundError.message
+
+
+class NbBTLHasReached0(Exception):
+    message = "Your number of BTL in this league has been reached 0."
+
+    def __str__(self):
+        return NbBTLHasReached0.message

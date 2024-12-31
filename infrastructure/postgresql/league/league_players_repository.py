@@ -1,5 +1,7 @@
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
+from domain.league.exception.league_exception import LeagueParticipantNotFoundError
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
@@ -47,6 +49,19 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             raise
 
         return result
+
+    def get_participation(self, league_id: int, user_id: int) -> LeaguePlayers:
+        try:
+            league_players_db = self.session.query(DBLeaguePlayers).filter_by(
+                league_id=league_id,
+                user_id=user_id
+            ).one()
+        except NoResultFound:
+            raise LeagueParticipantNotFoundError
+        except Exception:
+            raise
+
+        return league_players_db.to_entity()
 
     def begin(self):
         self.session.begin()

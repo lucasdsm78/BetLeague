@@ -3,7 +3,7 @@ from application.ticket.ticket_command_model import TicketCreateResponse, Ticket
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
 from dependency_injections import current_user, ticket_command_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, \
-    LeagueParticipantNotFoundError
+    LeagueParticipantNotFoundError, NbBTLHasReached0
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 
@@ -48,6 +48,12 @@ async def create_ticket(
     except LeagueParticipantNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except NbBTLHasReached0 as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 
