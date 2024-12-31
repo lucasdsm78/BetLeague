@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
-from typing import List
-
 import shortuuid
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse
+from domain.league.exception.league_exception import LeagueParticipantNotFoundError
+from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
 from domain.ticket.model.match_choice import MatchChoice
@@ -30,18 +29,28 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             user_repository: UserRepository,
             match_choices_repository: MatchChoiceRepository,
             match_repository: MatchRepository,
+            league_players_repository: LeaguePlayersRepository,
     ):
         self.ticket_repository: TicketRepository = ticket_repository
         self.user_repository: UserRepository = user_repository
         self.league_repository: LeagueRepository = league_repository
         self.match_choices_repository: MatchChoiceRepository = match_choices_repository
         self.match_repository: MatchRepository = match_repository
+        self.league_players_repository: LeaguePlayersRepository = league_players_repository
 
     def create_ticket(self, league_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
         try:
             existing_user = self.user_repository.find_by_email(email)
 
             existing_league = self.league_repository.find_by_id(league_id=league_id)
+
+            is_participate = self.league_players_repository.find_participation(
+                league_id=existing_league.id,
+                user_id=existing_user.id
+            )
+
+            if is_participate is False:
+                raise LeagueParticipantNotFoundError
 
             uuid = shortuuid.uuid()
 

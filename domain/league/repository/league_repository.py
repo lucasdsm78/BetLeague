@@ -19,6 +19,10 @@ class LeagueRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self, league: League) -> Optional[League]:
         raise NotImplementedError
 
