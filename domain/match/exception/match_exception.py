@@ -3,3 +3,10 @@ class MatchesNotFoundError(Exception):
 
     def __str__(self):
         return MatchesNotFoundError.message
+
+
+class MatchNotFoundError(Exception):
+    message = "The match does not exist."
+
+    def __str__(self):
+        return MatchNotFoundError.message
