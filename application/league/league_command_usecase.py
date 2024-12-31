@@ -59,11 +59,21 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             if existing_league is True:
                 raise LeagueNameAlreadyExistsError
 
-            if league.max_players > MAX_PLAYERS:
+            if data.max_players > MAX_PLAYERS:
                 raise LeagueMaxPlayersError
 
             self.league_repository.create(league)
             self.league_repository.commit()
+
+            league_created = self.league_repository.find_by_uuid(league.uuid)
+
+            league_player = LeaguePlayers(
+                user_id=existing_user.id,
+                league_id=league_created.id
+            )
+
+            self.league_players_repository.join_league(league_player)
+            self.league_players_repository.commit()
 
         except:
             self.league_repository.rollback()

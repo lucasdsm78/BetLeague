@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
 from dependency_injections import current_user, ticket_command_usecase
-from domain.league.exception.league_exception import LeagueNotFoundError
+from domain.league.exception.league_exception import LeagueNotFoundError, \
+    LeagueParticipantNotFoundError
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 
@@ -39,6 +40,12 @@ async def create_ticket(
         )
 
     except MatchNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueParticipantNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message,

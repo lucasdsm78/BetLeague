@@ -119,13 +119,15 @@ def ticket_command_usecase(
         ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
         match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
         match_repository: MatchRepository = Depends(match_repository_dependency),
+        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency)
 ) -> TicketCommandUseCase:
     return TicketCommandUseCaseImpl(
         league_repository=league_repository,
         user_repository=user_repository,
         ticket_repository=ticket_repository,
         match_choices_repository=match_choices_repository,
-        match_repository=match_repository
+        match_repository=match_repository,
+        league_players_repository=league_players_repository
     )
 
 

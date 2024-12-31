@@ -24,3 +24,10 @@ class LeagueParticipantFoundError(Exception):
 
     def __str__(self):
         return LeagueParticipantFoundError.message
+
+
+class LeagueParticipantNotFoundError(Exception):
+    message = "You are not participating in this league."
+
+    def __str__(self):
+        return LeagueParticipantNotFoundError.message

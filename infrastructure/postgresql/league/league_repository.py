@@ -39,6 +39,15 @@ class LeagueRepositoryImpl(LeagueRepository):
         except Exception as e:
             raise
 
+    def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+        try:
+            league_db = self.session.query(DBLeague).filter_by(uuid=league_uuid).one()
+        except NoResultFound:
+            raise LeagueNotFoundError
+        except Exception as e:
+            raise
+        return league_db.to_entity()
+
     def update(self, league: League):
         try:
             _league = self.session.query(DBLeague).filter_by(id=league.id).one()
