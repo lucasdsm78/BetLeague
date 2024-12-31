@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Union, Optional
 
 from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.orm import relationship
 
 from domain.match.model.match import Match
 from infrastructure.postgresql.database import Base
@@ -24,6 +25,7 @@ class DBMatch(Base):
     time: Union[str, Column] = Column(String, nullable=False)
     created_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
+    match_choices = relationship("DBMatchChoices", back_populates="match")
 
     def to_entity(self) -> Match:
         return Match(

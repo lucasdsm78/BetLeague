@@ -19,7 +19,7 @@ class DBLeaguePlayers(Base):
     user = relationship("DBUser", back_populates='league_players')
     league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'))
     league = relationship("DBLeague", back_populates='league_players')
-    nb_btl: Union[Integer, Column] = Column(Integer, default=300)
+    nb_btl: Union[Integer, Column] = Column(Integer, default=100)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
 

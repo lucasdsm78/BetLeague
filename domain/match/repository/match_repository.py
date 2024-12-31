@@ -11,6 +11,10 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_by_id(self, match_id: int) -> Optional[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
     def find_matches(self) -> List[Match]:
         raise NotImplementedError
 

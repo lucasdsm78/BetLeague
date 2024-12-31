@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Optional
 
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
+from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
 from infrastructure.postgresql.match.db_match import DBMatch
@@ -41,6 +43,15 @@ class MatchRepositoryImpl(MatchRepository):
             return []
 
         return list(map(lambda match_db: match_db.to_entity(), match_dbs))
+
+    def find_by_id(self, match_id: int) -> Optional[Match]:
+        try:
+            match_db = self.session.query(DBMatch).filter_by(id=match_id).one()
+        except NoResultFound:
+            raise MatchNotFoundError
+        except Exception as e:
+            raise
+        return match_db.to_entity()
 
     def begin(self):
         self.session.begin()

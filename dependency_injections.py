@@ -1,5 +1,6 @@
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
+from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -8,6 +9,8 @@ from domain.match.repository.match_repository import MatchRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
+from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
+from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.user.repository.user_repository import UserRepository
 
 from functools import lru_cache
@@ -21,6 +24,8 @@ from infrastructure.postgresql.database import SessionLocal
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
+from infrastructure.postgresql.ticket.league_players_repository import MatchChoicesRepositoryImpl
+from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
@@ -60,6 +65,14 @@ def user_repository_dependency(session: Session = Depends(get_session)) -> UserR
     return UserRepositoryImpl(session)
 
 
+def ticket_repository_dependency(session: Session = Depends(get_session)) -> TicketRepository:
+    return TicketRepositoryImpl(session)
+
+
+def match_choices_repository_dependency(session: Session = Depends(get_session)) -> MatchChoiceRepository:
+    return MatchChoicesRepositoryImpl(session)
+
+
 def league_repository_dependency(session: Session = Depends(get_session)) -> LeagueRepository:
     return LeagueRepositoryImpl(session)
 
@@ -97,6 +110,22 @@ def league_command_usecase(
         league_repository=league_repository,
         user_repository=user_repository,
         league_players_repository=league_players_repository
+    )
+
+
+def ticket_command_usecase(
+        league_repository: LeagueRepository = Depends(league_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
+        match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
+        match_repository: MatchRepository = Depends(match_repository_dependency),
+) -> TicketCommandUseCase:
+    return TicketCommandUseCaseImpl(
+        league_repository=league_repository,
+        user_repository=user_repository,
+        ticket_repository=ticket_repository,
+        match_choices_repository=match_choices_repository,
+        match_repository=match_repository
     )
 
 

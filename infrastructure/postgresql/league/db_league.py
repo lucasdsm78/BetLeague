@@ -31,6 +31,7 @@ class DBLeague(Base):
     created_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     league_players = relationship("DBLeaguePlayers", back_populates="league")
+    tickets = relationship("DBTicket", back_populates="league")
 
     def to_entity(self) -> League:
         return League(
