@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import shortuuid
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse
-from domain.league.exception.league_exception import LeagueParticipantNotFoundError
+from domain.league.exception.league_exception import LeagueParticipantNotFoundError, NbBTLHasReached0
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
@@ -51,6 +51,14 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
             if is_participate is False:
                 raise LeagueParticipantNotFoundError
+
+            league_player = self.league_players_repository.get_participation(
+                league_id=existing_league.id,
+                user_id=existing_user.id
+            )
+
+            if league_player.nb_btl == 0:
+                raise NbBTLHasReached0
 
             uuid = shortuuid.uuid()
 

@@ -19,6 +19,10 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_participation(self, league_id: int, user_id: int) -> Optional[LeaguePlayers]:
+        raise NotImplementedError
+
+    @abstractmethod
     def count_players(self, league_id: int) -> int:
         raise NotImplementedError
 
