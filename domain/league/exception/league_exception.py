@@ -38,3 +38,10 @@ class NbBTLHasReached0(Exception):
 
     def __str__(self):
         return NbBTLHasReached0.message
+
+
+class LeagueNotStartedError(Exception):
+    message = "The league is not started."
+
+    def __str__(self):
+        return LeagueNotStartedError.message
