@@ -1,9 +1,15 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, status, HTTPException
 
+from application.match.match_command_model import MatchScoreUpdatedResponse
+from application.match.match_command_usecase import MatchCommandUseCase
 from application.match.match_query_usecase import MatchQueryUseCase
 from domain.match.exception.match_exception import MatchesNotFoundError
+from domain.token.token_exception import TokenInvalidError
+from infrastructure.config import Settings
 from presentation.match.match_error_message import ErrorMessageMatchesNotFound
-from dependency_injections import current_user, match_query_usecase
+from dependency_injections import current_user, match_query_usecase, match_command_usecase
 
 router = APIRouter(
     tags=['match']
@@ -37,3 +43,39 @@ async def get_matches(
         )
 
     return matches
+
+
+@router.post(
+    "/match/check_score",
+    response_model=MatchScoreUpdatedResponse,
+    summary="Check scores from API",
+    status_code=status.HTTP_200_OK,
+)
+async def check_scores(
+        token: str,
+        match_command_usecase: MatchCommandUseCase = Depends(match_command_usecase),
+):
+    try:
+        now = datetime.now()
+        from_date_str = "2024-12-29"
+        to_date_str = "2025-01-03"
+
+        from_date = now
+        to_date = now
+
+        # from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        # to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+
+        return match_command_usecase.check_scores(token=token, from_date=from_date, to_date=to_date)
+
+    except TokenInvalidError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

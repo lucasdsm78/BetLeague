@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 
@@ -11,8 +12,9 @@ class Match:
             cote_home: float,
             cote_draw: float,
             cote_away: float,
-            time: str,
+            time: datetime,
             id: Optional[int] = None,
+            winner: Optional[str] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None,
     ):
@@ -23,6 +25,7 @@ class Match:
         self.cote_home: float = cote_home
         self.cote_draw: float = cote_draw
         self.cote_away: float = cote_away
-        self.time: str = time
+        self.time: datetime = time
         self.created_at: Optional[int] = created_at
+        self.winner: Optional[str] = winner
         self.updated_at: Optional[int] = updated_at

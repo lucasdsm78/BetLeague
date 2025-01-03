@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 
+from sqlalchemy import cast, DateTime
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
@@ -52,6 +54,29 @@ class MatchRepositoryImpl(MatchRepository):
         except Exception as e:
             raise
         return match_db.to_entity()
+
+    def update(self, match: Match):
+        try:
+            _match = self.session.query(DBMatch).filter_by(id=match.id).one()
+            match_db = DBMatch.from_entity(match, _match)
+        except:
+            raise
+
+    def get_matches_from_dates(self, to_date: datetime, from_date: datetime) -> List[Match]:
+        try:
+            match_dbs = (
+                self.session.query(DBMatch)
+                .filter(cast(DBMatch.time, DateTime) >= from_date)
+                .filter(cast(DBMatch.time, DateTime) <= to_date)
+                .all()
+            )
+        except:
+            raise
+
+        if len(match_dbs) == 0:
+            return []
+
+        return list(map(lambda match_db: match_db.to_entity(), match_dbs))
 
     def begin(self):
         self.session.begin()

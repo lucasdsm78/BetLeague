@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import relationship
 
 from domain.match.model.match import Match
@@ -22,8 +22,9 @@ class DBMatch(Base):
     cote_home: Union[float, Column] = Column(Float, nullable=False)
     cote_draw: Union[float, Column] = Column(Float, nullable=False)
     cote_away: Union[float, Column] = Column(Float, nullable=False)
-    time: Union[str, Column] = Column(String, nullable=False)
+    time: Union[datetime, Column] = Column(DateTime, nullable=False)
     created_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
+    winner: Union[str, Column] = Column(String, nullable=True)
     updated_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
     match_choices = relationship("DBMatchChoices", back_populates="match")
 
@@ -36,6 +37,7 @@ class DBMatch(Base):
             cote_home=self.cote_home,
             cote_draw=self.cote_draw,
             cote_away=self.cote_away,
+            winner=self.winner,
             time=self.time,
             created_at=self.created_at,
             updated_at=self.updated_at
@@ -49,6 +51,7 @@ class DBMatch(Base):
         match_db_to_update.uuid = match.uuid
         match_db_to_update.home_team = match.home_team
         match_db_to_update.away_team = match.away_team
+        match_db_to_update.winner = match.winner
         match_db_to_update.cote_home = match.cote_home
         match_db_to_update.cote_draw = match.cote_draw
         match_db_to_update.cote_away = match.cote_away

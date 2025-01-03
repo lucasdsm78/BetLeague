@@ -1,3 +1,4 @@
+from datetime import datetime
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -12,6 +13,14 @@ class MatchRepository(ABC):
 
     @abstractmethod
     def find_by_id(self, match_id: int) -> Optional[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, match: Match) -> Optional[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_matches_from_dates(self, to_date: datetime, from_date: datetime) -> List[Match]:
         raise NotImplementedError
 
     @abstractmethod

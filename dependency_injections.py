@@ -1,4 +1,5 @@
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
+from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
@@ -9,6 +10,7 @@ from domain.match.repository.match_repository import MatchRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
+from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.user.repository.user_repository import UserRepository
@@ -32,6 +34,7 @@ from infrastructure.services.authentication.hash import HashImpl
 from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
+from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
 
 jwt_auth = JwtBearer()
 
@@ -59,6 +62,10 @@ def hash_dependency() -> Hash:
 
 def totp_service() -> TOTPService:
     return TOTPServiceImpl()
+
+
+def match_score_api(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+    return MatchScoreApiImpl(settings=settings)
 
 
 def user_repository_dependency(session: Session = Depends(get_session)) -> UserRepository:
@@ -144,6 +151,18 @@ def match_query_usecase(
 ) -> MatchQueryUseCase:
     return MatchQueryUseCaseImpl(
         match_repository=match_repository
+    )
+
+
+def match_command_usecase(
+        match_repository: MatchRepository = Depends(match_repository_dependency),
+        settings: Settings = Depends(get_settings),
+        match_score_api_dependency: MatchScoreApi = Depends(match_score_api)
+) -> MatchCommandUseCase:
+    return MatchCommandUseCaseImpl(
+        match_repository=match_repository,
+        settings=settings,
+        match_score_api=match_score_api_dependency
     )
 
 

@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     secret_key_token: str
     secret_key_token_refresh: str
     encryption_key: str
+    api_football_data_token: str
+    url_api_football_data: str
 
     class Config:
         env_file = ".env"
