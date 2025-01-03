@@ -10,3 +10,13 @@ class MatchNotFoundError(Exception):
 
     def __str__(self):
         return MatchNotFoundError.message
+
+
+class InvalidMatchPossibilityException(Exception):
+    message = "This match possibility is not a valid match possibility"
+
+    def __init__(self, match_possibility: str):
+        self.match_possibility = match_possibility
+
+    def __str__(self):
+        return f"{self.match_possibility} is not a valid match possibility"

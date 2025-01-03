@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from domain.match.model.match import Match
@@ -12,7 +14,7 @@ class MatchReadModel(BaseModel):
     cote_home: float
     cote_draw: float
     cote_away: float
-    time: str
+    time: datetime
     created_at: int
     updated_at: int
 
