@@ -1,5 +1,7 @@
 from typing import Optional
 
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
+
 
 class MatchChoice:
 
@@ -7,10 +9,12 @@ class MatchChoice:
             self,
             match_id: int,
             ticket_id: int,
-            choice: int,
+            choice: str,
+            status: MatchChoiceStatus,
             id: Optional[int] = None
     ):
         self.id: Optional[int] = id
         self.match_id: int = match_id
         self.ticket_id: int = ticket_id
-        self.choice: int = choice
+        self.choice: str = choice
+        self.status: MatchChoiceStatus = status

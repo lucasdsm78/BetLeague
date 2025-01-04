@@ -26,7 +26,7 @@ from infrastructure.postgresql.database import SessionLocal
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
-from infrastructure.postgresql.ticket.league_players_repository import MatchChoicesRepositoryImpl
+from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
@@ -126,7 +126,8 @@ def ticket_command_usecase(
         ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
         match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
         match_repository: MatchRepository = Depends(match_repository_dependency),
-        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency)
+        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
+        settings: Settings = Depends(get_settings)
 ) -> TicketCommandUseCase:
     return TicketCommandUseCaseImpl(
         league_repository=league_repository,
@@ -134,7 +135,8 @@ def ticket_command_usecase(
         ticket_repository=ticket_repository,
         match_choices_repository=match_choices_repository,
         match_repository=match_repository,
-        league_players_repository=league_players_repository
+        league_players_repository=league_players_repository,
+        settings=settings
     )
 
 

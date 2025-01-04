@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from domain.match.model.match import Match
+from domain.ticket.model.match_choice import MatchChoice
 
 
 class MatchRepository(ABC):
@@ -21,6 +22,10 @@ class MatchRepository(ABC):
 
     @abstractmethod
     def get_matches_from_dates(self, to_date: datetime, from_date: datetime) -> List[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_correct_score(self, choice: str) -> bool:
         raise NotImplementedError
 
     @abstractmethod

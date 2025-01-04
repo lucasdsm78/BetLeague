@@ -11,6 +11,14 @@ class MatchChoiceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all_match_choices_pending(self) -> List[MatchChoice]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, match_choice: MatchChoice) -> Optional[MatchChoice]:
+        raise NotImplementedError
+
+    @abstractmethod
     def commit(self):
         raise NotImplementedError
 
