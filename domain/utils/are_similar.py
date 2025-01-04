@@ -1,6 +1,6 @@
-from difflib import SequenceMatcher
+from fuzzywuzzy import fuzz
 
 
-def are_similar(str1: str, str2: str, threshold: float = 0.7) -> bool:
-    ratio = SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
-    return ratio >= threshold
+def are_similar(str1: str, str2: str, threshold: int = 70) -> bool:
+    score = fuzz.partial_ratio(str1.lower(), str2.lower())
+    return score >= threshold

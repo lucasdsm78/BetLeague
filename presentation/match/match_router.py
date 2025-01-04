@@ -63,8 +63,8 @@ async def check_scores(
         from_date = now
         to_date = now
 
-        # from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
-        # to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
 
         return match_command_usecase.check_scores(token=token, from_date=from_date, to_date=to_date)
 
