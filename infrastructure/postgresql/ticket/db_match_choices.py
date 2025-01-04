@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 
 from domain.ticket.model.match_choice import MatchChoice
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from infrastructure.postgresql.database import Base
 
 
@@ -14,15 +15,17 @@ class DBMatchChoices(Base):
     match = relationship("DBMatch", back_populates='match_choices')
     ticket_id: Union[int, Column] = Column(Integer, ForeignKey('ticket.id'))
     ticket = relationship("DBTicket", back_populates='match_choices')
-    choice: Union[Integer, Column] = Column(Integer)
+    choice: Union[str, Column] = Column(String, nullable=False)
+    status: Union[str, Column] = Column(String, nullable=False)
 
     def to_entity(self) -> MatchChoice:
-        return MatchChoice(
-            id=self.id,
-            match_id=self.match_id,
-            ticket_id=self.ticket_id,
-            choice=self.choice
-        )
+            return MatchChoice(
+                id=self.id,
+                match_id=self.match_id,
+                ticket_id=self.ticket_id,
+                choice=self.choice,
+                status=MatchChoiceStatus.from_str(self.status),
+            )
 
     @staticmethod
     def from_entity(match_choices: MatchChoice, db_match_choices:
@@ -32,5 +35,6 @@ class DBMatchChoices(Base):
         match_choices_db_to_update.id = match_choices.id
         match_choices_db_to_update.match_id = match_choices.match_id
         match_choices_db_to_update.ticket_id = match_choices.ticket_id
+        match_choices_db_to_update.status = match_choices.status.value
         match_choices_db_to_update.choice = match_choices.choice
         return match_choices_db_to_update

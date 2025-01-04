@@ -3,3 +3,13 @@ class TicketNotFoundError(Exception):
 
     def __str__(self):
         return TicketNotFoundError.message
+
+
+class InvalidMatchChoiceStatusException(Exception):
+    message = "This match choice status is not a valid match choice status"
+
+    def __init__(self, match_choice_status: str):
+        self.match_choice_status = match_choice_status
+
+    def __str__(self):
+        return f"{self.match_choice_status} is not a valid match choice status"

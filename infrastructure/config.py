@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     encryption_key: str
     api_football_data_token: str
     url_api_football_data: str
+    private_key: str
+    public_key: str
 
     class Config:
         env_file = ".env"

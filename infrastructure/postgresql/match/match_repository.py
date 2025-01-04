@@ -8,7 +8,9 @@ from sqlalchemy.orm.session import Session
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
+from domain.ticket.model.match_choice import MatchChoice
 from infrastructure.postgresql.match.db_match import DBMatch
+from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 
 
 class MatchRepositoryImpl(MatchRepository):
@@ -77,6 +79,21 @@ class MatchRepositoryImpl(MatchRepository):
             return []
 
         return list(map(lambda match_db: match_db.to_entity(), match_dbs))
+
+    def is_correct_score(self, choice: str) -> bool:
+        try:
+            result = False
+            match_db = (
+                self.session.query(DBMatch)
+                .filter_by(winner=choice)
+                ).count()
+
+            if match_db != 0:
+                result = True
+        except Exception:
+            raise
+
+        return result
 
     def begin(self):
         self.session.begin()

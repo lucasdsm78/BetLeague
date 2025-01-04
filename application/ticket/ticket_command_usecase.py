@@ -1,5 +1,9 @@
-from abc import ABC, abstractmethod
+import logging
+from abc import abstractmethod, ABC
+
 import shortuuid
+
+from application.match.match_command_model import NoMatchChoiceUpdatedResponse, MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, NbBTLHasReached0, \
     LeagueNotStartedError
@@ -7,17 +11,24 @@ from domain.league.repository.league_players_repository import LeaguePlayersRepo
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
 from domain.ticket.model.match_choice import MatchChoice
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
+from domain.token.token_exception import TokenInvalidError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
+from infrastructure.config import Settings
 
 
 class TicketCommandUseCase(ABC):
 
     @abstractmethod
     def create_ticket(self, league_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_match_choices(self, token: str):
         raise NotImplementedError
 
 
@@ -31,6 +42,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             match_choices_repository: MatchChoiceRepository,
             match_repository: MatchRepository,
             league_players_repository: LeaguePlayersRepository,
+            settings: Settings
     ):
         self.ticket_repository: TicketRepository = ticket_repository
         self.user_repository: UserRepository = user_repository
@@ -38,6 +50,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         self.match_choices_repository: MatchChoiceRepository = match_choices_repository
         self.match_repository: MatchRepository = match_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
+        self.settings: Settings = settings
 
     def create_ticket(self, league_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
         try:
@@ -83,7 +96,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 new_match_choice = MatchChoice(
                     match_id=match.id,
                     ticket_id=ticket_creating.id,
-                    choice=match_choice.choice
+                    choice=match_choice.choice.__str__(),
+                    status=MatchChoiceStatus.pending,
                 )
                 self.match_choices_repository.create(new_match_choice)
                 self.match_choices_repository.commit()
@@ -94,3 +108,34 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             raise
 
         return TicketCreateResponse()
+
+    def check_match_choices(self, token: str):
+        try:
+            if token != self.settings.secret_key_token:
+                raise TokenInvalidError("Invalid token provided.")
+
+            match_choices = self.match_choices_repository.get_all_match_choices_pending()
+            updated = False
+            for match_choice in match_choices:
+                is_correct_score = self.match_repository.is_correct_score(choice=match_choice.choice)
+                if is_correct_score is True:
+                    match_choice.status = MatchChoiceStatus.correct
+                else:
+                    match_choice.status = MatchChoiceStatus.wrong
+
+                self.match_choices_repository.update(match_choice)
+                updated = True
+                break
+
+            if updated:
+                self.match_choices_repository.commit()
+                return MatchChoiceUpdatedResponse()
+            else:
+                return NoMatchChoiceUpdatedResponse()
+
+        except TokenInvalidError as err:
+            logging.error(f"Token invalid: {err}")
+            raise
+        except Exception as exc:
+            logging.error(f"An error occurred while checking scores: {exc}")
+            return NoMatchChoiceUpdatedResponse()

@@ -13,19 +13,6 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-  scrapper:
-    build: ../ScrapperBet
-    container_name: scrapper_app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ../ScrapperBet:/app
-    ports:
-      - "8000:8000"
-    environment:
-      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
-    depends_on:
-      - db
-
   backend:
     build: .
     container_name: fastapi_app
@@ -34,6 +21,19 @@ services:
       - ./:/app
     ports:
       - "8001:8001"
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+    depends_on:
+      - db
+
+  scrapper:
+    build: ../ScrapperBet
+    container_name: scrapper_app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../ScrapperBet:/app
+    ports:
+      - "8000:8000"
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
     depends_on:
