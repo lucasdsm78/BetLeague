@@ -8,7 +8,6 @@ passlib~=1.7.4
 shortuuid~=1.0.13
 
 starlette~=0.41.3
-python-jose ~=3.3.0
 pydantic_settings
 pyotp~=2.9.0
 qrcode~=8.0
@@ -17,3 +16,5 @@ Pillow
 
 jose~=1.0.0
 requests~=2.32.3
+fuzzywuzzy
+python-Levenshtein
