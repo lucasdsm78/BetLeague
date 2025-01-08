@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
+from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 
 
@@ -12,6 +13,10 @@ class TicketRepository(ABC):
 
     @abstractmethod
     def find_by_id(self, ticket_id: int) -> Optional[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
         raise NotImplementedError
 
     @abstractmethod
