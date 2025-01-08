@@ -10,6 +10,7 @@ from domain.league.exception.league_exception import LeagueParticipantNotFoundEr
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
+from domain.ticket.exception.ticket_exception import GainNotEqualsError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
@@ -77,10 +78,15 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             if existing_league.is_started is False:
                 raise LeagueNotStartedError
 
+            gain = self.ticket_repository.get_gain(ticket_create_model.match_choices, ticket_create_model.mise)
+            if gain != ticket_create_model.gain:
+                raise GainNotEqualsError
+
             uuid = shortuuid.uuid()
 
             ticket = Ticket(
                 uuid=uuid,
+                gain=gain,
                 league_id=existing_league.id,
                 mise=ticket_create_model.mise,
                 user=UserSummary(id=existing_user.id, email=existing_user.email)

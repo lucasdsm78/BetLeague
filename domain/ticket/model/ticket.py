@@ -10,6 +10,7 @@ class Ticket:
             mise: int,
             league_id: int,
             uuid: str,
+            gain: float,
             user: UserSummary,
             id: Optional[int] = None,
             created_at: Optional[int] = None,
@@ -17,6 +18,7 @@ class Ticket:
     ):
         self.id: Optional[int] = id
         self.uuid: str = uuid
+        self.gain: int = gain
         self.league_id: int = league_id
         self.mise: int = mise
         self.user: UserSummary = user
