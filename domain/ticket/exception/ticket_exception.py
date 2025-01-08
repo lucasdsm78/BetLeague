@@ -13,3 +13,10 @@ class InvalidMatchChoiceStatusException(Exception):
 
     def __str__(self):
         return f"{self.match_choice_status} is not a valid match choice status"
+
+
+class GainNotEqualsError(Exception):
+    message = "The gain for this match is not equals"
+
+    def __str__(self):
+        return self.message
