@@ -17,14 +17,6 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, match: Match) -> Optional[Match]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_matches_from_dates(self, to_date: datetime, from_date: datetime) -> List[Match]:
-        raise NotImplementedError
-
-    @abstractmethod
     def is_correct_score(self, choice: str) -> bool:
         raise NotImplementedError
 
