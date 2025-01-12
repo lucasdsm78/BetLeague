@@ -17,10 +17,6 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def is_correct_score(self, choice: str) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
     def find_matches(self) -> List[Match]:
         raise NotImplementedError
 

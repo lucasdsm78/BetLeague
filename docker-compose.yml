@@ -54,5 +54,20 @@ services:
       - backend
       - db
 
+
+  match_choice_service:
+    build: ../BetLeagueMatchChoiceService
+    container_name: match_choice_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8003 --reload
+    volumes:
+      - ../BetLeagueMatchChoiceService:/app
+    ports:
+      - "8003:8003"
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+    depends_on:
+      - backend
+      - db
+
 volumes:
   db_data:
