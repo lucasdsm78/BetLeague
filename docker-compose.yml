@@ -37,6 +37,7 @@ services:
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
     depends_on:
+      - backend
       - db
 
   score_service:
@@ -50,6 +51,7 @@ services:
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
     depends_on:
+      - backend
       - db
 
 volumes:
