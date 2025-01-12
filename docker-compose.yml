@@ -39,5 +39,18 @@ services:
     depends_on:
       - db
 
+  score_service:
+    build: ../BetLeagueScoreService
+    container_name: score_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+    volumes:
+      - ../BetLeagueScoreService:/app
+    ports:
+      - "8002:8002"
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+    depends_on:
+      - db
+
 volumes:
   db_data:
