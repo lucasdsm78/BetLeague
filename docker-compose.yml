@@ -13,6 +13,16 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
   backend:
     build: .
     container_name: fastapi_app
@@ -23,8 +33,10 @@ services:
       - "8001:8001"
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
     depends_on:
       - db
+      - rabbitmq
 
   scrapper:
     build: ../ScrapperBet
@@ -50,9 +62,11 @@ services:
       - "8002:8002"
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
     depends_on:
       - backend
       - db
+      - rabbitmq
 
 
   match_choice_service:
@@ -65,9 +79,11 @@ services:
       - "8003:8003"
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
     depends_on:
       - backend
       - db
+      - rabbitmq
 
 volumes:
   db_data:
