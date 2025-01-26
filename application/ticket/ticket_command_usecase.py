@@ -98,7 +98,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 new_match_choice = MatchChoice(
                     match_id=match.id,
                     ticket_id=ticket_creating.id,
-                    choice=match_choice.choice.__str__(),
+                    choice=match_choice.choice,
                     status=MatchChoiceStatus.pending,
                 )
                 self.match_choices_repository.create(new_match_choice)
