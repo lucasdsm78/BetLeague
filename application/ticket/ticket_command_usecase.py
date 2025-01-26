@@ -28,10 +28,6 @@ class TicketCommandUseCase(ABC):
     def create_ticket(self, league_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
         raise NotImplementedError
 
-    @abstractmethod
-    def check_match_choices(self, token: str):
-        raise NotImplementedError
-
 
 class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
@@ -79,8 +75,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 raise LeagueNotStartedError
 
             gain = self.ticket_repository.get_gain(ticket_create_model.match_choices, ticket_create_model.mise)
-            if gain != ticket_create_model.gain:
-                raise GainNotEqualsError
+            # if gain != ticket_create_model.gain:
+            #     raise GainNotEqualsError
 
             uuid = shortuuid.uuid()
 
@@ -114,34 +110,3 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             raise
 
         return TicketCreateResponse()
-
-    def check_match_choices(self, token: str):
-        try:
-            if token != self.settings.secret_key_token:
-                raise TokenInvalidError("Invalid token provided.")
-
-            match_choices = self.match_choices_repository.get_all_match_choices_pending()
-            updated = False
-            for match_choice in match_choices:
-                is_correct_score = self.match_repository.is_correct_score(choice=match_choice.choice)
-                if is_correct_score is True:
-                    match_choice.status = MatchChoiceStatus.correct
-                else:
-                    match_choice.status = MatchChoiceStatus.wrong
-
-                self.match_choices_repository.update(match_choice)
-                updated = True
-                break
-
-            if updated:
-                self.match_choices_repository.commit()
-                return MatchChoiceUpdatedResponse()
-            else:
-                return NoMatchChoiceUpdatedResponse()
-
-        except TokenInvalidError as err:
-            logging.error(f"Token invalid: {err}")
-            raise
-        except Exception as exc:
-            logging.error(f"An error occurred while checking scores: {exc}")
-            return NoMatchChoiceUpdatedResponse()
