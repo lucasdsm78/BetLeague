@@ -95,8 +95,8 @@ services:
       context: ../BetLeagueMatchChoiceService
       dockerfile: consumer.Dockerfile
     container_name: score_consumer
-    environment:
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+    env_file:
+      - .env
     depends_on:
       rabbitmq:
         condition: service_healthy
