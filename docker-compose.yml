@@ -22,6 +22,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics status && nc -z localhost 5672"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   backend:
     build: .
@@ -84,6 +89,18 @@ services:
       - backend
       - db
       - rabbitmq
+
+  score_consumer:
+    build:
+      context: ../BetLeagueMatchChoiceService
+      dockerfile: consumer.Dockerfile
+    container_name: score_consumer
+    environment:
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: always
 
 volumes:
   db_data:

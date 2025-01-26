@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     url_api_football_data: str
     private_key: str
     public_key: str
+    rabbitmq_url: str
 
     class Config:
         env_file = ".env"
