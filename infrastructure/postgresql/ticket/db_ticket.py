@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey,
 from sqlalchemy.orm import relationship
 
 from domain.ticket.model.ticket import Ticket
+from domain.ticket.model.ticket_status import TicketStatus
 from domain.user.model.email import Email
 from domain.user.model.user_summary import UserSummary
 from infrastructure.postgresql.database import Base
@@ -25,6 +26,7 @@ class DBTicket(Base):
     user = relationship("DBUser", back_populates='tickets')
     league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'))
     league = relationship("DBLeague", back_populates='tickets')
+    status: Union[str, Column] = Column(String, nullable=False)
     created_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
     match_choices = relationship("DBMatchChoices", back_populates="ticket")
@@ -39,6 +41,7 @@ class DBTicket(Base):
             user=UserSummary(id=self.user_id, email=Email(self.user.email)),
             created_at=self.created_at,
             updated_at=self.updated_at,
+            status=TicketStatus.from_str(self.status),
         )
 
     @staticmethod
@@ -51,6 +54,7 @@ class DBTicket(Base):
         ticket_db_to_update.gain = ticket.gain
         ticket_db_to_update.league_id = ticket.league_id
         ticket_db_to_update.user_id = ticket.user.id
+        ticket_db_to_update.status = ticket.status.value
         ticket_db_to_update.created_at = now
         ticket_db_to_update.updated_at = now
         return ticket_db_to_update
