@@ -14,6 +14,7 @@ from domain.ticket.exception.ticket_exception import GainNotEqualsError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
+from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.token.token_exception import TokenInvalidError
@@ -85,6 +86,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 gain=gain,
                 league_id=existing_league.id,
                 mise=ticket_create_model.mise,
+                status=TicketStatus.pending.value,
                 user=UserSummary(id=existing_user.id, email=existing_user.email)
             )
 

@@ -1,6 +1,7 @@
 from typing import Optional, List
 
 from domain.ticket.model.match_choice import MatchChoice
+from domain.ticket.model.ticket_status import TicketStatus
 from domain.user.model.user_summary import UserSummary
 
 
@@ -12,13 +13,15 @@ class Ticket:
             uuid: str,
             gain: float,
             user: UserSummary,
+            status: TicketStatus,
             id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
     ):
         self.id: Optional[int] = id
         self.uuid: str = uuid
-        self.gain: int = gain
+        self.gain: float = gain
+        self.status: TicketStatus = status
         self.league_id: int = league_id
         self.mise: int = mise
         self.user: UserSummary = user
