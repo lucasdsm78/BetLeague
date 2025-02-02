@@ -102,5 +102,17 @@ services:
         condition: service_healthy
     restart: always
 
+  match_choice_consumer:
+    build:
+      context: ../BetLeagueTicketService
+      dockerfile: consumer.Dockerfile
+    container_name: match_choice_consumer
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+
 volumes:
   db_data:
