@@ -86,7 +86,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 gain=gain,
                 league_id=existing_league.id,
                 mise=ticket_create_model.mise,
-                status=TicketStatus.pending.value,
+                status=TicketStatus.pending,
                 user=UserSummary(id=existing_user.id, email=existing_user.email)
             )
 
