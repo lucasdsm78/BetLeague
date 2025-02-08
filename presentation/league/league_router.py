@@ -1,10 +1,11 @@
-from typing import Union, Annotated
+from typing import Union, Annotated, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
-from dependency_injections import current_user, league_command_usecase
+from application.league.league_query_usecase import LeagueQueryUseCase
+from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -78,3 +79,28 @@ async def join_league(
         )
 
     return league_players
+
+
+@router.get(
+    "/league/{league_id}/rank",
+    summary="Get the league ranking",
+    status_code=status.HTTP_200_OK,
+)
+async def get_league_ranking(
+        league_id: int,
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return league_query_usecase.get_rank_by_league_id(league_id)
+
+    except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )

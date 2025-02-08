@@ -1,4 +1,5 @@
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
+from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
@@ -116,6 +117,13 @@ def league_command_usecase(
     return LeagueCommandUseCaseImpl(
         league_repository=league_repository,
         user_repository=user_repository,
+        league_players_repository=league_players_repository
+    )
+
+def league_query_usecase(
+        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency)
+) -> LeagueQueryUseCase:
+    return LeagueQueryUseCaseImpl(
         league_players_repository=league_players_repository
     )
 
