@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger, Float
 from sqlalchemy.orm import relationship
 
 from domain.league.model.league_players import LeaguePlayers
@@ -19,7 +19,7 @@ class DBLeaguePlayers(Base):
     user = relationship("DBUser", back_populates='league_players')
     league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'))
     league = relationship("DBLeague", back_populates='league_players')
-    nb_btl: Union[Integer, Column] = Column(Integer, default=100)
+    nb_btl: Union[float, Column] = Column(Float, default=100)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
 
