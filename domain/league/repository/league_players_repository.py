@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from domain.league.model.league_players import LeaguePlayers
 
@@ -8,6 +8,10 @@ class LeaguePlayersRepository(ABC):
 
     @abstractmethod
     def join_league(self, league_players: LeaguePlayers) -> Optional[LeaguePlayers]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
         raise NotImplementedError
 
     @abstractmethod

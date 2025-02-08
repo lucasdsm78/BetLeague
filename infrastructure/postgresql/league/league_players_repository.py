@@ -1,3 +1,6 @@
+from typing import List, Dict
+from sqlalchemy import func
+
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
@@ -5,6 +8,7 @@ from domain.league.exception.league_exception import LeagueParticipantNotFoundEr
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
+from infrastructure.postgresql.user.db_user import DBUser
 
 
 class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
@@ -18,6 +22,35 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             self.session.add(league_players_db)
         except:
             raise
+
+    def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
+        try:
+            ranking_query = (
+                self.session.query(
+                    DBLeaguePlayers.nb_btl.label("nb_btl"),
+                    DBUser.pseudo.label("pseudo"),
+                    func.rank()
+                    .over(order_by=DBLeaguePlayers.nb_btl.desc())
+                    .label("position")
+                )
+                .join(DBUser, DBLeaguePlayers.user_id == DBUser.id)
+                .filter(DBLeaguePlayers.league_id == league_id)
+                .order_by(DBLeaguePlayers.nb_btl.desc())
+            )
+
+            ranking_result = ranking_query.all()
+
+            return [
+                {
+                    "nb_btl": row.nb_btl,
+                    "pseudo": row.pseudo,
+                    "position": row.position
+                }
+                for row in ranking_result
+            ]
+
+        except Exception as e:
+            raise e
 
     def unregister_league(self, league_players_id: int):
         try:
