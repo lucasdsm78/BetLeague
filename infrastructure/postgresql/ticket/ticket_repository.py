@@ -49,11 +49,11 @@ class TicketRepositoryImpl(TicketRepository):
 
                 db_match = match_dict[mc.match_id]
 
-                if mc.choice == 1:
+                if mc.choice == "1":
                     cote = db_match.cote_home
                 elif mc.choice == "N":
                     cote = db_match.cote_draw
-                elif mc.choice == 2:
+                elif mc.choice == "2":
                     cote = db_match.cote_away
                 else:
                     raise ValueError(f"Choix inconnu : {mc.choice}")

@@ -28,6 +28,8 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             ranking_query = (
                 self.session.query(
                     DBLeaguePlayers.nb_btl.label("nb_btl"),
+                    DBLeaguePlayers.nb_win.label("nb_win"),
+                    DBLeaguePlayers.nb_lose.label("nb_lose"),
                     DBUser.pseudo.label("pseudo"),
                     func.rank()
                     .over(order_by=DBLeaguePlayers.nb_btl.desc())
@@ -43,6 +45,8 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             return [
                 {
                     "nb_btl": row.nb_btl,
+                    "nb_win": row.nb_win,
+                    "nb_lose": row.nb_lose,
                     "pseudo": row.pseudo,
                     "position": row.position
                 }
