@@ -35,6 +35,9 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
 
         return list(map(lambda match_choice_db: match_choice_db.to_entity(), match_choices_db))
 
+    def delete_by_ticket_id(self, ticket_id: int):
+        self.session.query(DBMatchChoices).filter_by(ticket_id=ticket_id).delete()
+
     def update(self, match_choice: MatchChoice):
         try:
             _match_choice = self.session.query(DBMatchChoices).filter_by(id=match_choice.id).one()

@@ -28,6 +28,14 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete(self, ticket_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def begin(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def commit(self):
         raise NotImplementedError
 

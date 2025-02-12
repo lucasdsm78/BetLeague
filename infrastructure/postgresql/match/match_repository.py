@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-
-from sqlalchemy import cast, DateTime
+from sqlalchemy import exists
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
-from domain.ticket.model.match_choice import MatchChoice
 from infrastructure.postgresql.match.db_match import DBMatch
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 
@@ -71,6 +69,17 @@ class MatchRepositoryImpl(MatchRepository):
             raise
 
         return result
+
+    def exists_match_started_for_ticket(self, ticket_id: int) -> bool:
+        now = datetime.utcnow()
+        query = self.session.query(
+            exists().where(
+                (DBMatchChoices.ticket_id == ticket_id) &
+                (DBMatch.id == DBMatchChoices.match_id) &
+                (DBMatch.time <= now)
+            )
+        )
+        return self.session.scalar(query)
 
     def begin(self):
         self.session.begin()

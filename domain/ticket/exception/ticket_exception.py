@@ -5,6 +5,20 @@ class TicketNotFoundError(Exception):
         return TicketNotFoundError.message
 
 
+class NotTicketOwnerError(Exception):
+    message = "You are not the ticket owner."
+
+    def __str__(self):
+        return NotTicketOwnerError.message
+
+
+class MatchAlreadyStartedError(Exception):
+    message = "Impossible de retirer ce ticket : un ou plusieurs matchs ont déjà commencé."
+
+    def __str__(self):
+        return MatchAlreadyStartedError.message
+
+
 class InvalidMatchChoiceStatusException(Exception):
     message = "This match choice status is not a valid match choice status"
 
