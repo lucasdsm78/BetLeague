@@ -31,6 +31,10 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete_player(self, league_player_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
     def commit(self):
         raise NotImplementedError
 

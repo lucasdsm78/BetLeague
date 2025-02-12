@@ -2,12 +2,13 @@ from typing import Union, Annotated, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 
-from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse
+from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
+    LeaguePlayerDeletedResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError
+    LeagueParticipantFoundError, LeagueAlreadyStartedError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -104,3 +105,45 @@ async def get_league_ranking(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
+
+
+@router.delete(
+    "/league/{id}/player/delete",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Delete player to a league",
+    response_model=LeaguePlayerDeletedResponse
+)
+async def delete_league_player(
+        league_id: int,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        delete_league_player = league_command_usecase.delete_league_player(
+            league_id,
+            current_user.get('email', '')
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return delete_league_player

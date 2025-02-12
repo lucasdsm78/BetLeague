@@ -4,3 +4,4 @@ venv
 private_key.pem
 public_key.pem
 __pycache__/
+.DS_Store
