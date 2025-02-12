@@ -3,13 +3,15 @@ from datetime import datetime, timedelta
 import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
-from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse
+from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
+    LeaguePlayerDeletedResponse
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError
+    LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
+from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
 
@@ -24,6 +26,10 @@ class LeagueCommandUseCase(ABC):
     def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
+        raise NotImplementedError
+
 
 class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
@@ -35,7 +41,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
     ):
         self.league_repository: LeagueRepository = league_repository
         self.user_repository: UserRepository = user_repository
-        self.league_players_repository = league_players_repository
+        self.league_players_repository: LeaguePlayersRepository = league_players_repository
 
     def create_free_league(self, data: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
         try:
@@ -114,6 +120,32 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
         except:
             self.league_players_repository.rollback()
+            self.league_repository.rollback()
             raise
 
         return LeagueJoinResponse()
+
+    def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
+        try:
+            user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
+            league = self.league_repository.find_by_id(league_id)
+            if not league:
+                raise LeagueNotFoundError
+
+            if league.is_started is True:
+                raise LeagueAlreadyStartedError
+
+            league_player = self.league_players_repository.get_participation(league.id, user.id)
+            if not league_player:
+                raise LeagueParticipantNotFoundError
+
+            self.league_players_repository.delete_player(league_player.id)
+            self.league_players_repository.commit()
+        except:
+            self.league_players_repository.rollback()
+            raise
+
+        return LeaguePlayerDeletedResponse()

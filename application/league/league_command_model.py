@@ -15,3 +15,7 @@ class LeagueJoinResponse(BaseModel):
 
 class LeagueFreeCreateResponse(BaseModel):
     message: str = "The free league is well created"
+
+
+class LeaguePlayerDeletedResponse(BaseModel):
+    message: str = "The player is well deleted to the league"

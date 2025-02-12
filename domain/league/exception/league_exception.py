@@ -45,3 +45,10 @@ class LeagueNotStartedError(Exception):
 
     def __str__(self):
         return LeagueNotStartedError.message
+
+
+class LeagueAlreadyStartedError(Exception):
+    message = "The league is already started."
+
+    def __str__(self):
+        return LeagueAlreadyStartedError.message
