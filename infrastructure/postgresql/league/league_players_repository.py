@@ -100,6 +100,12 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
 
         return league_players_db.to_entity()
 
+    def delete_player(self, league_player_id: int):
+        try:
+            self.session.query(DBLeaguePlayers).filter_by(id=league_player_id).delete()
+        except:
+            raise
+
     def begin(self):
         self.session.begin()
 
