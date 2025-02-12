@@ -21,6 +21,10 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def exists_match_started_for_ticket(self, ticket_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def commit(self):
         raise NotImplementedError
 

@@ -83,6 +83,12 @@ class TicketRepositoryImpl(TicketRepository):
         except:
             raise
 
+    def delete(self, ticket_id: int):
+        try:
+            self.session.query(DBTicket).filter_by(id=ticket_id).delete()
+        except:
+            raise
+
     def begin(self):
         self.session.begin()
 

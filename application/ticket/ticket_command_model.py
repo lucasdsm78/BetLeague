@@ -16,3 +16,7 @@ class TicketCreateModel(BaseModel):
 
 class TicketCreateResponse(BaseModel):
     message: str = "The ticket is well created"
+
+
+class TicketRemoveResponse(BaseModel):
+    message: str = "The ticket is well removed"
