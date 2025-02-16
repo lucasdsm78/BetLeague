@@ -8,7 +8,7 @@ from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError, LeagueAlreadyStartedError
+    LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -93,9 +93,14 @@ async def get_league_ranking(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return league_query_usecase.get_rank_by_league_id(league_id)
+        return league_query_usecase.get_rank_by_league_id( current_user.get('email', ''), league_id)
 
     except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except LeagueParticipantNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message

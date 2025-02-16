@@ -35,6 +35,10 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update(self, league_player: LeaguePlayers) -> Optional[LeaguePlayers]:
+        raise NotImplementedError
+
+    @abstractmethod
     def commit(self):
         raise NotImplementedError
 

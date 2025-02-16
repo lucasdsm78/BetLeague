@@ -7,7 +7,8 @@ from dependency_injections import current_user, ticket_command_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, \
     LeagueParticipantNotFoundError, NbBTLHasReached0, LeagueNotStartedError
 from domain.match.exception.match_exception import MatchNotFoundError
-from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError
+from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError, \
+    MiseSuperiorToNbBtlError
 from domain.token.token_exception import TokenInvalidError
 from domain.user.exception.user_exception import UserNotFoundError
 
@@ -62,6 +63,12 @@ async def create_ticket(
         )
 
     except LeagueNotStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message,
+        )
+
+    except MiseSuperiorToNbBtlError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
