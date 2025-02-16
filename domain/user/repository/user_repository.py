@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from domain.user.model.user import User
 
@@ -32,6 +32,10 @@ class UserRepository(ABC):
 
     @abstractmethod
     def delete_user(self, user_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all_rank_users(self) -> List[Dict[str, any]]:
         raise NotImplementedError
 
     @abstractmethod
