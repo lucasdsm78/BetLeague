@@ -44,3 +44,10 @@ class GainNotEqualsError(Exception):
 
     def __str__(self):
         return self.message
+
+
+class MiseSuperiorToNbBtlError(Exception):
+    message = "The mise is superior to your btl points"
+
+    def __str__(self):
+        return self.message

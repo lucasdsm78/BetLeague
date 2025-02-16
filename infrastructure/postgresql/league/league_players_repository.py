@@ -106,6 +106,13 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         except:
             raise
 
+    def update(self, league_player: LeaguePlayers):
+        try:
+            _league_player = self.session.query(DBLeaguePlayers).filter_by(id=league_player.id).one()
+            league_player_db = DBLeaguePlayers.from_entity(league_player, _league_player)
+        except:
+            raise
+
     def begin(self):
         self.session.begin()
 

@@ -12,7 +12,7 @@ from domain.league.repository.league_repository import LeagueRepository
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.repository.match_repository import MatchRepository
 from domain.ticket.exception.ticket_exception import GainNotEqualsError, TicketNotFoundError, NotTicketOwnerError, \
-    MatchAlreadyStartedError
+    MatchAlreadyStartedError, MiseSuperiorToNbBtlError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
@@ -83,6 +83,9 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             if league_player.nb_btl == 0:
                 raise NbBTLHasReached0
 
+            if ticket_create_model.mise > league_player.nb_btl:
+                raise MiseSuperiorToNbBtlError
+
             # if existing_league.is_started is False:
             #     raise LeagueNotStartedError
 
@@ -101,8 +104,12 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 user=UserSummary(id=existing_user.id, email=existing_user.email)
             )
 
+            league_player.nb_btl-= ticket_create_model.mise
+
             self.ticket_repository.create(ticket)
+            self.league_players_repository.update(league_player)
             self.ticket_repository.commit()
+            self.league_players_repository.commit()
 
             ticket_creating = self.ticket_repository.find_by_uuid(uuid)
             if not ticket_creating:
@@ -130,6 +137,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         except:
             self.ticket_repository.rollback()
             self.match_choices_repository.rollback()
+            self.league_players_repository.rollback()
             raise
 
         return TicketCreateResponse()
