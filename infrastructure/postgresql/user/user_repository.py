@@ -1,4 +1,5 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
+from sqlalchemy import func
 
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
@@ -68,6 +69,37 @@ class UserRepositoryImpl(UserRepository):
             user_db = DBUser.from_entity(user, _user)
         except:
             raise
+
+    def get_all_rank_users(self) -> List[Dict[str, any]]:
+        try:
+            ranking_query = (
+                self.session.query(
+                    DBUser.nb_btl.label("nb_btl"),
+                    DBUser.nb_win.label("nb_win"),
+                    DBUser.nb_lose.label("nb_lose"),
+                    DBUser.pseudo.label("pseudo"),
+                    func.rank()
+                    .over(order_by=DBUser.nb_btl.desc())
+                    .label("position")
+                )
+                .order_by(DBUser.nb_btl.desc())
+            )
+
+            ranking_result = ranking_query.all()
+
+            return [
+                {
+                    "nb_btl": row.nb_btl,
+                    "nb_win": row.nb_win,
+                    "nb_lose": row.nb_lose,
+                    "pseudo": row.pseudo,
+                    "position": row.position
+                }
+                for row in ranking_result
+            ]
+
+        except Exception as e:
+            raise e
 
     def begin(self):
         self.session.begin()

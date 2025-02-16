@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List, Dict
 
 from pydantic import BaseModel
 
@@ -16,6 +16,10 @@ class UserQueryUseCase(ABC):
 
     @abstractmethod
     def fetch_user_by_id(self, user_id: int) -> Optional[UserReadModel]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all_rank_users(self) -> List[Dict[str, any]]:
         raise NotImplementedError
 
 
@@ -45,3 +49,11 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
             raise
 
         return UserReadModel.from_entity(user)
+
+    def get_all_rank_users(self) -> List[Dict[str, any]]:
+        try:
+            return self.user_repository.get_all_rank_users()
+
+        except Exception as e:
+            raise
+

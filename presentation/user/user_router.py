@@ -175,3 +175,21 @@ async def verify_2fa(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify 2FA."
         )
+
+@router.get(
+    "/users/rank",
+    summary="Get the general ranking",
+    status_code=status.HTTP_200_OK,
+)
+async def get_general_ranking(
+        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return user_query_usecase.get_all_rank_users()
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred."
+        )

@@ -14,6 +14,9 @@ class User:
             last_name: str,
             password: Password,
             id: Optional[int] = None,
+            nb_btl: Optional[float] = None,
+            nb_win: Optional[int] = None,
+            nb_lose: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None,
             two_factor_secret: Optional[str] = None,
@@ -26,6 +29,9 @@ class User:
         self.email: Email = email
         self.created_at: Optional[int] = created_at
         self.pseudo: str = pseudo
+        self.nb_btl: float = nb_btl
+        self.nb_win: int = nb_win
+        self.nb_lose: int = nb_lose
         self.first_name: str = first_name
         self.last_name: str = last_name
         self.updated_at: Optional[int] = updated_at
