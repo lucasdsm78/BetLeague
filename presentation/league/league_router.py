@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
+from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
@@ -152,3 +153,34 @@ async def delete_league_player(
         )
 
     return delete_league_player
+
+
+@router.get(
+    "/league/{id}",
+    response_model=LeagueReadModel,
+    status_code=status.HTTP_200_OK
+)
+async def get_league(
+        league_id: int,
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        league = league_query_usecase.get_league_by_id(league_id, current_user.get('email', ''))
+    except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+    except LeagueParticipantNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+    return league

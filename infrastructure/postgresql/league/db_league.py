@@ -43,10 +43,10 @@ class DBLeague(Base):
             max_players=self.max_players,
             name=self.name,
             start_date=self.start_date,
-            user=UserSummary(id=self.user_id, email=Email(self.user.email)),
-            end_date=self.end_date,
+            user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
             created_at=self.created_at,
             updated_at=self.updated_at,
+            end_date=self.end_date,
         )
 
     @staticmethod

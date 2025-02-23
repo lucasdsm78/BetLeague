@@ -101,7 +101,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 league_id=existing_league.id,
                 mise=ticket_create_model.mise,
                 status=TicketStatus.pending,
-                user=UserSummary(id=existing_user.id, email=existing_user.email)
+                user=UserSummary(id=existing_user.id, email=existing_user.email, pseudo=existing_user.pseudo)
             )
 
             league_player.nb_btl-= ticket_create_model.mise

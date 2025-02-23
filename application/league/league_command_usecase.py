@@ -58,7 +58,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 is_private=data.is_private,
                 start_date=int(datetime.now().timestamp() * 1000),
                 end_date=end_date,
-                user=UserSummary(id=existing_user.id, email=existing_user.email)
+                user=UserSummary(id=existing_user.id, email=existing_user.email, pseudo=existing_user.pseudo)
             )
 
             existing_league = self.league_repository.find_by_name(data.name)
