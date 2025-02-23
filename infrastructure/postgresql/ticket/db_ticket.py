@@ -38,7 +38,7 @@ class DBTicket(Base):
             uuid=self.uuid,
             mise=self.mise,
             gain=self.gain,
-            user=UserSummary(id=self.user_id, email=Email(self.user.email)),
+            user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
             created_at=self.created_at,
             updated_at=self.updated_at,
             status=TicketStatus.from_str(self.status),
