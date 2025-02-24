@@ -51,3 +51,9 @@ class MiseSuperiorToNbBtlError(Exception):
 
     def __str__(self):
         return self.message
+
+class TicketAccessDeniedError(Exception):
+    message = "You do not have permission to view this ticket."
+
+    def __str__(self):
+        return self.message

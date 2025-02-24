@@ -3,6 +3,7 @@ from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQu
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
+from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -127,6 +128,21 @@ def league_query_usecase(
 ) -> LeagueQueryUseCase:
     return LeagueQueryUseCaseImpl(
         league_players_repository=league_players_repository,
+        user_repository=user_repository_dependency,
+        league_repository=league_repository
+    )
+
+def ticket_query_usecase(
+        match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
+        user_repository_dependency: UserRepository = Depends(user_repository_dependency),
+        league_repository: LeagueRepository = Depends(league_repository_dependency),
+        match_repository: MatchRepository = Depends(match_repository_dependency),
+        ticket_repository: TicketRepository = Depends(ticket_repository_dependency)
+) -> TicketQueryUseCase:
+    return TicketQueryUseCaseImpl(
+        ticket_repository=ticket_repository,
+        match_repository=match_repository,
+        match_choice_repository=match_choices_repository,
         user_repository=user_repository_dependency,
         league_repository=league_repository
     )

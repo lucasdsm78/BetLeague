@@ -20,11 +20,11 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
         except:
             raise
 
-    def get_all_match_choices_pending(self) -> List[MatchChoice]:
+    def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
         try:
             match_choices_db = (
                 self.session.query(DBMatchChoices)
-                .filter_by(status=MatchChoiceStatus.pending.value)
+                .filter_by(ticket_id=ticket_id)
                 .all()
             )
         except:
