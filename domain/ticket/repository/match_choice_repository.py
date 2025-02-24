@@ -11,7 +11,7 @@ class MatchChoiceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all_match_choices_pending(self) -> List[MatchChoice]:
+    def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
         raise NotImplementedError
 
     def delete_by_ticket_id(self, ticket_id: int):
