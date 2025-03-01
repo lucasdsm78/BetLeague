@@ -17,19 +17,20 @@ def unixtimestamp() -> int:
 class DBLeague(Base):
 
     __tablename__ = "league"
-    id: Union[Integer, Column] = Column(Integer, primary_key=True, autoincrement=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
     name: Union[str, Column] = Column(String, nullable=False)
     is_free: Union[bool, Column] = Column(Boolean, nullable=False)
+    nb_players_remaining: Union[int, Column] = Column(Integer)
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
     is_started: Union[bool, Column] = Column(Boolean, nullable=False, default=False)
-    start_date: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
-    end_date: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
-    max_players: Union[Integer, Column] = Column(Integer, nullable=False)
+    start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    max_players: Union[int, Column] = Column(Integer, nullable=False)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     user = relationship("DBUser", back_populates='leagues')
-    created_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
-    updated_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
+    created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     league_players = relationship("DBLeaguePlayers", back_populates="league")
     tickets = relationship("DBTicket", back_populates="league")
 
@@ -44,6 +45,7 @@ class DBLeague(Base):
             name=self.name,
             start_date=self.start_date,
             user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
+            nb_players_remaining=self.nb_players_remaining,
             created_at=self.created_at,
             updated_at=self.updated_at,
             end_date=self.end_date,
@@ -59,6 +61,7 @@ class DBLeague(Base):
         league_db_to_update.is_started = league.is_started
         league_db_to_update.is_private = league.is_private
         league_db_to_update.name = league.name
+        league_db_to_update.nb_players_remaining = league.nb_players_remaining
         league_db_to_update.max_players = league.max_players
         league_db_to_update.start_date = league.start_date
         league_db_to_update.end_date = league.end_date
