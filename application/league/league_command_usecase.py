@@ -50,14 +50,18 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             uuid = shortuuid.uuid()
             end_date = int((datetime.now() + timedelta(weeks=1)).timestamp())
 
+            nb_players_remaining = data.max_players - 1
+
             league = League(
                 is_free=True,
                 uuid=uuid,
+                is_started= True if data.max_players - 1 <= 3 else False,
                 name=data.name,
                 max_players=data.max_players,
                 is_private=data.is_private,
                 start_date=int(datetime.now().timestamp() * 1000),
                 end_date=end_date,
+                nb_players_remaining=nb_players_remaining,
                 user=UserSummary(id=existing_user.id, email=existing_user.email, pseudo=existing_user.pseudo)
             )
 
@@ -90,7 +94,12 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
     def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
         try:
             user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
             league = self.league_repository.find_by_id(league_id)
+            if not league:
+                raise LeagueNotFoundError
 
             is_participate = self.league_players_repository.find_participation(
                 league_id=league_id,
@@ -100,21 +109,21 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             if is_participate is True:
                 raise LeagueParticipantFoundError
 
+            if league.nb_players_remaining == 0:
+                raise LeagueMaxPlayersError
+
             league_players = LeaguePlayers(
                 user_id=user.id,
                 league_id=league.id
             )
 
-            current_count_players = self.league_players_repository.count_players(league.id)
-            if current_count_players == league.max_players:
-                raise LeagueMaxPlayersError
-
-            count_players = self.league_players_repository.count_players(league_id=league.id)
-            if count_players != 0 and count_players == MIN_PLAYERS - 1:
+            if league.nb_players_remaining != 0 and league.nb_players_remaining - 1 <= MIN_PLAYERS:
                 league.is_started = True
-                self.league_repository.update(league)
-                self.league_repository.commit()
 
+            league.nb_players_remaining -= 1
+
+            self.league_repository.update(league)
+            self.league_repository.commit()
             self.league_players_repository.join_league(league_players)
             self.league_players_repository.commit()
 
@@ -142,10 +151,15 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             if not league_player:
                 raise LeagueParticipantNotFoundError
 
+            league.nb_players_remaining+=1
+
+            self.league_repository.update(league)
+            self.league_repository.commit()
             self.league_players_repository.delete_player(league_player.id)
             self.league_players_repository.commit()
         except:
             self.league_players_repository.rollback()
+            self.league_repository.rollback()
             raise
 
         return LeaguePlayerDeletedResponse()
