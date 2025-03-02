@@ -1,3 +1,4 @@
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 import shortuuid
@@ -55,7 +56,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             league = League(
                 is_free=True,
                 uuid=uuid,
-                is_started= True if data.max_players - 1 <= 3 else False,
+                is_started= False,
                 name=data.name,
                 max_players=data.max_players,
                 is_private=data.is_private,
@@ -117,7 +118,13 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 league_id=league.id
             )
 
-            if league.nb_players_remaining != 0 and league.nb_players_remaining - 1 <= MIN_PLAYERS:
+            unixtimestamp = int(datetime.now().timestamp() * 1000)
+
+            if (
+                    league.nb_players_remaining != 0
+                    and league.nb_players_remaining - 1 <= MIN_PLAYERS
+                    and unixtimestamp > league.start_date
+            ):
                 league.is_started = True
 
             league.nb_players_remaining -= 1
@@ -152,6 +159,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 raise LeagueParticipantNotFoundError
 
             league.nb_players_remaining+=1
+            if league.nb_players_remaining + 1 >= MIN_PLAYERS:
+                league.is_started = False
 
             self.league_repository.update(league)
             self.league_repository.commit()

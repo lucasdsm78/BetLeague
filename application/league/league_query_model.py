@@ -17,14 +17,15 @@ class UserSummaryLeagueDetail(BaseModel):
 class LeagueReadModel(BaseModel):
 
     id: int
-    is_free: bool
-    uuid: str
+    is_free: Optional[bool] = None
+    uuid: Optional[str] = None
     start_date: int
-    max_players: int
+    max_players: Optional[int] = None
     name: str
-    end_date: int
-    user_creator: UserSummaryLeagueDetail
+    end_date: Optional[int] = None
+    user_creator: Optional[UserSummaryLeagueDetail] = None
     is_started: Optional[bool] = None
+    nb_players_remaining: Optional[int] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -41,4 +42,14 @@ class LeagueReadModel(BaseModel):
             end_date=league.end_date,
             is_started=league.is_started,
             user_creator=UserSummaryLeagueDetail(id=league.user.id, pseudo=league.user.pseudo),
+        )
+
+    @staticmethod
+    def from_entity_get_all(league: League) -> "LeagueReadModel":
+        return LeagueReadModel(
+            id=league.id,
+            is_started=league.is_started,
+            start_date=league.start_date,
+            nb_players_remaining=league.nb_players_remaining,
+            name=league.name,
         )
