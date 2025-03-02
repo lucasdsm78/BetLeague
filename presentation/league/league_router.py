@@ -184,3 +184,27 @@ async def get_league(
         )
 
     return league
+
+
+@router.get(
+    "/leagues",
+    response_model=dict,
+    status_code=status.HTTP_200_OK
+)
+async def get_leagues(
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        leagues = league_query_usecase.get_leagues(current_user.get('email', ''))
+
+        if not leagues:
+            raise HTTPException(
+                status_code=status.HTTP_204_NO_CONTENT,
+                detail="No leagues found."
+            )
+
+    except Exception as e:
+        raise
+
+    return leagues

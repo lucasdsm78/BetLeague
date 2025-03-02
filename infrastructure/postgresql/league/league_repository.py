@@ -39,6 +39,23 @@ class LeagueRepositoryImpl(LeagueRepository):
         except Exception as e:
             raise
 
+    def find_leagues(self, user_id: int) -> List[League]:
+        try:
+            leagues_dbs = (
+                self.session.query(DBLeague)
+                .filter_by(is_private=False)
+                .filter(DBLeague.user_id != user_id)
+                .filter(DBLeague.nb_players_remaining != 0)
+                .all()
+            )
+        except:
+            raise
+
+        if len(leagues_dbs) == 0:
+            return []
+
+        return list(map(lambda league_db: league_db.to_entity(), leagues_dbs))
+
     def find_by_uuid(self, league_uuid: str) -> Optional[League]:
         try:
             league_db = self.session.query(DBLeague).filter_by(uuid=league_uuid).one()
