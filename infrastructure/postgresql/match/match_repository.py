@@ -7,7 +7,7 @@ from sqlalchemy.orm.session import Session
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
-from infrastructure.postgresql.match.db_match import DBMatch
+from infrastructure.postgresql.match.db_match import DBMatch, unixtimestamp
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 
 
@@ -34,8 +34,10 @@ class MatchRepositoryImpl(MatchRepository):
 
     def find_matches(self) -> List[Match]:
         try:
+            now = datetime.utcnow()
             match_dbs = (
                 self.session.query(DBMatch)
+                .filter(DBMatch.time > now)
                 .all()
             )
         except:
