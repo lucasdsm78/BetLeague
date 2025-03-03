@@ -177,10 +177,12 @@ def user_query_usecase(
 
 
 def match_query_usecase(
-        match_repository: MatchRepository = Depends(match_repository_dependency)
+        match_repository: MatchRepository = Depends(match_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency)
 ) -> MatchQueryUseCase:
     return MatchQueryUseCaseImpl(
-        match_repository=match_repository
+        match_repository=match_repository,
+        user_repository=user_repository
     )
 
 

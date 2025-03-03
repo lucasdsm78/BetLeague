@@ -7,6 +7,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError
 from domain.league.model.league import League
 from domain.league.repository.league_repository import LeagueRepository
 from infrastructure.postgresql.league.db_league import DBLeague
+from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
 
 
 class LeagueRepositoryImpl(LeagueRepository):
@@ -41,11 +42,17 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     def find_leagues(self, user_id: int) -> List[League]:
         try:
+            subquery = (
+                self.session.query(DBLeaguePlayers.league_id)
+                .filter(DBLeaguePlayers.user_id == user_id)
+                .subquery()
+            )
             leagues_dbs = (
                 self.session.query(DBLeague)
                 .filter_by(is_private=False)
                 .filter(DBLeague.user_id != user_id)
                 .filter(DBLeague.nb_players_remaining != 0)
+                .filter(DBLeague.id.notin_(subquery))
                 .all()
             )
         except:
