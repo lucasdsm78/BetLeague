@@ -15,7 +15,7 @@ def unixtimestamp() -> int:
 class DBMatch(Base):
 
     __tablename__ = "match"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
     home_team: Union[str, Column] = Column(String, nullable=False)
     away_team: Union[str, Column] = Column(String, nullable=False)

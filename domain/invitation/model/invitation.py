@@ -1,0 +1,22 @@
+from typing import Optional
+
+from domain.invitation.model.invitation_status import InvitationStatus
+from domain.user.model.user_summary import UserSummary
+
+
+class Invitation:
+    def __init__(
+            self,
+            user_id: int,
+            league_id: int,
+            status: InvitationStatus,
+            id: Optional[int] = None,
+            created_at: Optional[int] = None,
+            updated_at: Optional[int] = None
+    ):
+        self.user_id: int = user_id
+        self.league_id: int = league_id
+        self.status: InvitationStatus = status
+        self.id: Optional[int] = id
+        self.created_at: Optional[int] = created_at
+        self.updated_at: Optional[int] = updated_at

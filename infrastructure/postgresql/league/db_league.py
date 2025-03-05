@@ -18,8 +18,8 @@ class DBLeague(Base):
 
     __tablename__ = "league"
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
-    uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
-    name: Union[str, Column] = Column(String, nullable=False)
+    uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
+    name: Union[str, Column] = Column(String, nullable=False, index=True)
     is_free: Union[bool, Column] = Column(Boolean, nullable=False)
     nb_players_remaining: Union[int, Column] = Column(Integer)
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
@@ -33,6 +33,7 @@ class DBLeague(Base):
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     league_players = relationship("DBLeaguePlayers", back_populates="league")
     tickets = relationship("DBTicket", back_populates="league")
+    invitations = relationship("DBInvitation", back_populates="league")
 
     def to_entity(self) -> League:
         return League(

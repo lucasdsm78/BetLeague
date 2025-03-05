@@ -5,9 +5,14 @@ import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse
+from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.model.invitation import Invitation
+from domain.invitation.model.invitation_status import InvitationStatus
+from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError
+    LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
+    UserNotOwnerLeaguedError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -31,6 +36,10 @@ class LeagueCommandUseCase(ABC):
     def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    def invite_user(self, league_id: int, user_id: int, user_owner_email: str):
+        raise NotImplementedError
+
 
 class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
@@ -39,10 +48,12 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             league_repository: LeagueRepository,
             user_repository: UserRepository,
             league_players_repository: LeaguePlayersRepository,
+            invitation_repository: InvitationRepository,
     ):
         self.league_repository: LeagueRepository = league_repository
         self.user_repository: UserRepository = user_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
+        self.invitation_repository: InvitationRepository = invitation_repository
 
     def create_free_league(self, data: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
         try:
@@ -172,3 +183,51 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             raise
 
         return LeaguePlayerDeletedResponse()
+
+    def invite_user(self, league_id: int, user_id: int, user_owner_email: str):
+        try:
+            user_owner = self.user_repository.find_by_email(user_owner_email)
+            if not user_owner:
+                raise UserNotFoundError
+
+            user = self.user_repository.find_by_id(user_id)
+            if not user:
+                raise UserNotFoundError
+
+            league = self.league_repository.find_by_id(league_id)
+            if not league:
+                raise LeagueNotFoundError
+
+            if user_owner.id != league.user.id:
+                raise UserNotOwnerLeaguedError
+
+            if league.is_started is True:
+                raise LeagueAlreadyStartedError
+
+            is_participate = self.league_players_repository.find_participation(
+                    league_id=league_id,
+                    user_id=user.id
+                )
+
+            if is_participate is True:
+                raise LeagueParticipantFoundError
+
+            is_invitate = self.invitation_repository.find_by_user_id_league_id(user.id, league.id)
+            if is_invitate is True:
+                raise InvitationFoundError
+
+            new_invitation = Invitation(
+                league_id=league.id,
+                user_id=user.id,
+                status=InvitationStatus.pending
+            )
+
+            self.invitation_repository.add(new_invitation)
+            self.invitation_repository.commit()
+
+            return LeagueInviteResponse()
+
+        except:
+            self.invitation_repository.rollback()
+            raise
+

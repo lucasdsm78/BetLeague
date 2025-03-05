@@ -52,3 +52,10 @@ class LeagueAlreadyStartedError(Exception):
 
     def __str__(self):
         return LeagueAlreadyStartedError.message
+
+
+class UserNotOwnerLeaguedError(Exception):
+    message = "The user is not owner of the league."
+
+    def __str__(self):
+        return UserNotOwnerLeaguedError.message

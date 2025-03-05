@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger, Float, Index
 from sqlalchemy.orm import relationship
 
 from domain.league.model.league_players import LeaguePlayers
@@ -24,6 +24,10 @@ class DBLeaguePlayers(Base):
     nb_btl: Union[float, Column] = Column(Float, default=100)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+
+    __table_args__ = (
+        Index("idx_user_league", "user_id", "league_id"),
+    )
 
     def to_entity(self) -> LeaguePlayers:
         return LeaguePlayers(

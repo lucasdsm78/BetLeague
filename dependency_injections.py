@@ -6,6 +6,7 @@ from application.ticket.ticket_command_usecase import TicketCommandUseCase, Tick
 from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
+from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
@@ -25,6 +26,7 @@ from sqlalchemy.orm.session import Session
 
 from infrastructure.config import Settings
 from infrastructure.postgresql.database import SessionLocal
+from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
@@ -93,6 +95,8 @@ def league_players_repository_dependency(session: Session = Depends(get_session)
 def match_repository_dependency(session: Session = Depends(get_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
 
+def invitation_repository_dependency(session: Session = Depends(get_session)) -> InvitationRepository:
+    return InvitationRepositoryImpl(session)
 
 def user_command_usecase(
         user_repository: UserRepository = Depends(user_repository_dependency),
@@ -113,12 +117,14 @@ def user_command_usecase(
 def league_command_usecase(
         league_repository: LeagueRepository = Depends(league_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
-        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency)
+        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
+        invitation_repository: InvitationRepository = Depends(invitation_repository_dependency),
 ) -> LeagueCommandUseCase:
     return LeagueCommandUseCaseImpl(
         league_repository=league_repository,
         user_repository=user_repository,
-        league_players_repository=league_players_repository
+        league_players_repository=league_players_repository,
+        invitation_repository=invitation_repository
     )
 
 def league_query_usecase(

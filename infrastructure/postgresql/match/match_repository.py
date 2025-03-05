@@ -16,21 +16,31 @@ class MatchRepositoryImpl(MatchRepository):
     def __init__(self, session: Session):
         self.session: Session = session
 
-    def find_match(self, home_team: str, away_team: str, cote_home: float, cote_draw: float, cote_away: float) -> bool:
+
+    def find_match(
+            self,
+            home_team: str,
+            away_team: str,
+            cote_home: float,
+            cote_draw: float,
+            cote_away: float
+    ) -> bool:
+
         try:
-            match_db = self.session.query(DBMatch).filter_by(
-                home_team=home_team,
-                away_team=away_team,
-                cote_home=cote_home,
-                cote_draw=cote_draw,
-                cote_away=cote_away
-            ).one_or_none()
-            if not match_db:
-                return False
-            return True
+            match_exists = self.session.query(
+                exists().where(
+                    DBMatch.home_team == home_team,
+                    DBMatch.away_team == away_team,
+                    DBMatch.cote_home == cote_home,
+                    DBMatch.cote_draw == cote_draw,
+                    DBMatch.cote_away == cote_away
+                )
+            ).scalar()
+
+            return match_exists
 
         except Exception as e:
-            raise
+            raise e
 
     def find_matches(self) -> List[Match]:
         try:
@@ -50,7 +60,7 @@ class MatchRepositoryImpl(MatchRepository):
 
     def find_by_id(self, match_id: int) -> Optional[Match]:
         try:
-            match_db = self.session.query(DBMatch).filter_by(id=match_id).one()
+            match_db = self.session.get(DBMatch, match_id)
         except NoResultFound:
             raise MatchNotFoundError
         except Exception as e:
