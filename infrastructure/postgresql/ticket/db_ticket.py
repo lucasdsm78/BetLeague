@@ -18,8 +18,8 @@ def unixtimestamp() -> int:
 class DBTicket(Base):
 
     __tablename__ = "ticket"
-    id: Union[Integer, Column] = Column(Integer, primary_key=True, autoincrement=True)
-    uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
+    id: Union[Integer, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     mise: Union[Integer, Column] = Column(BigInteger, nullable=False)
     gain: Union[Integer, Column] = Column(Float, nullable=False)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))

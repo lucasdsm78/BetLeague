@@ -10,10 +10,10 @@ from infrastructure.postgresql.database import Base
 
 class DBMatchChoices(Base):
     __tablename__ = "match_choices"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     match_id: Union[int, Column] = Column(Integer, ForeignKey('match.id'))
     match = relationship("DBMatch", back_populates='match_choices')
-    ticket_id: Union[int, Column] = Column(Integer, ForeignKey('ticket.id'))
+    ticket_id: Union[int, Column] = Column(Integer, ForeignKey('ticket.id'), index=True)
     ticket = relationship("DBTicket", back_populates='match_choices')
     choice: Union[str, Column] = Column(String, nullable=False)
     status: Union[str, Column] = Column(String, nullable=False)

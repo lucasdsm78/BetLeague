@@ -17,8 +17,8 @@ def unixtimestamp() -> int:
 
 class DBUser(Base):
     __tablename__ = "user"
-    id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True)
-    email: Union[str, Column] = Column(String(17), unique=True, nullable=False)
+    id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True, index=True)
+    email: Union[str, Column] = Column(String(17), unique=True, nullable=False, index=True)
     uuid: Union[str, Column] = Column(String, unique=True, nullable=False)
     password: Union[str, Column] = Column(String, nullable=True)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
@@ -34,6 +34,7 @@ class DBUser(Base):
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
     leagues = relationship("DBLeague", back_populates="user")
     league_players = relationship("DBLeaguePlayers", back_populates="user")
+    invitations = relationship("DBInvitation", back_populates="user")
     tickets = relationship("DBTicket", back_populates="user")
 
     def to_entity(self) -> User:

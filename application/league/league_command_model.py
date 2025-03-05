@@ -13,6 +13,10 @@ class LeagueJoinResponse(BaseModel):
     message: str = "Your participation is well saved for this league"
 
 
+class LeagueInviteResponse(BaseModel):
+    message: str = "The user is invited to join this league"
+
+
 class LeagueFreeCreateResponse(BaseModel):
     message: str = "The free league is well created"
 

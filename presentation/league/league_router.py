@@ -3,13 +3,14 @@ from typing import Union, Annotated, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
+from domain.invitation.exception.invitation_exception import InvitationFoundError
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError
+    LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -208,3 +209,63 @@ async def get_leagues(
         raise
 
     return leagues
+
+
+
+@router.post(
+    "/league/{id}/{user_id}/invite",
+    response_model=LeagueInviteResponse,
+    summary="Invite user to a league",
+    status_code=status.HTTP_200_OK
+)
+async def invite_user_to_league(
+        league_id: int,
+        user_id: int,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        invitation = league_command_usecase.invite_user(league_id, user_id, current_user.get('email', ''))
+
+    except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e.message,
+        )
+
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+    except LeagueAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+    except LeagueParticipantFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except InvitationFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return invitation

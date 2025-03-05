@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm.session import Session
 
 from domain.league.exception.league_exception import LeagueNotFoundError
@@ -24,7 +24,7 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     def find_by_id(self, league_id: int) -> Optional[League]:
         try:
-            league_db = self.session.query(DBLeague).filter_by(id=league_id).one()
+            league_db = self.session.get(DBLeague, league_id)
         except NoResultFound:
             raise LeagueNotFoundError
         except Exception as e:
@@ -40,28 +40,36 @@ class LeagueRepositoryImpl(LeagueRepository):
         except Exception as e:
             raise
 
-    def find_leagues(self, user_id: int) -> List[League]:
+    def find_leagues(self,  user_id: int, page: int = 1, limit: int = 10) -> List[League]:
+        offset = (page - 1) * limit
+
         try:
             subquery = (
                 self.session.query(DBLeaguePlayers.league_id)
                 .filter(DBLeaguePlayers.user_id == user_id)
                 .subquery()
             )
+
             leagues_dbs = (
                 self.session.query(DBLeague)
-                .filter_by(is_private=False)
+                .filter(DBLeague.is_private == False)
                 .filter(DBLeague.user_id != user_id)
-                .filter(DBLeague.nb_players_remaining != 0)
+                .filter(DBLeague.nb_players_remaining > 0)
                 .filter(DBLeague.id.notin_(subquery))
+                .order_by(DBLeague.created_at.desc())
+                .offset(offset)
+                .limit(limit)
                 .all()
             )
-        except:
-            raise
 
-        if len(leagues_dbs) == 0:
-            return []
+            if not leagues_dbs:
+                return []
 
-        return list(map(lambda league_db: league_db.to_entity(), leagues_dbs))
+            return list(map(lambda league_db: league_db.to_entity(), leagues_dbs))
+
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise e
 
     def find_by_uuid(self, league_uuid: str) -> Optional[League]:
         try:
