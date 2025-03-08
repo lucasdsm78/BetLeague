@@ -17,7 +17,7 @@ def unixtimestamp() -> int:
 class DBLeague(Base):
 
     __tablename__ = "league"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     name: Union[str, Column] = Column(String, nullable=False, index=True)
     is_free: Union[bool, Column] = Column(Boolean, nullable=False)

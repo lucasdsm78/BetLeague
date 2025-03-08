@@ -269,3 +269,27 @@ async def invite_user_to_league(
         )
 
     return invitation
+
+
+@router.get(
+    "/invitations",
+    status_code=status.HTTP_200_OK
+)
+async def get_invitations(
+        is_received: bool,
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        invitations = league_query_usecase.get_invitations(current_user.get('email', ''), is_received)
+
+        if not invitations:
+            raise HTTPException(
+                status_code=status.HTTP_204_NO_CONTENT,
+                detail="No invitations found."
+            )
+
+    except Exception as e:
+        raise
+
+    return invitations

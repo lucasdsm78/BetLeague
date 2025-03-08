@@ -26,7 +26,7 @@ class DBInvitation(Base):
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
 
     __table_args__ = (
-        Index("idx_user_league", "user_id", "league_id"),
+        Index("idx_user_league_invitations", "user_id", "league_id"),
     )
 
     def to_entity(self) -> Invitation:

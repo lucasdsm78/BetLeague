@@ -10,8 +10,6 @@ class User:
             email: Email,
             pseudo: str,
             uuid: str,
-            first_name: str,
-            last_name: str,
             password: Password,
             id: Optional[int] = None,
             nb_btl: Optional[float] = None,
@@ -32,8 +30,6 @@ class User:
         self.nb_btl: float = nb_btl
         self.nb_win: int = nb_win
         self.nb_lose: int = nb_lose
-        self.first_name: str = first_name
-        self.last_name: str = last_name
         self.updated_at: Optional[int] = updated_at
         self.two_factor_secret = two_factor_secret
         self.is_two_factor_enabled = is_two_factor_enabled
@@ -44,7 +40,5 @@ class User:
             email=self.email.value,
             uuid=self.uuid,
             pseudo=self.pseudo,
-            first_name=self.first_name,
-            last_name=self.last_name,
             id=self.id
         )

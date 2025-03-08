@@ -14,6 +14,20 @@ class UserSummaryLeagueDetail(BaseModel):
         arbitrary_types_allowed = True
 
 
+class LeagueInvitationReceivedSummary(BaseModel):
+
+    id: int
+    name: str
+    max_players: int
+    start_date: int
+    user_creator: UserSummaryLeagueDetail
+    nb_players_remaining: int
+    is_started: Optional[bool] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
 class LeagueReadModel(BaseModel):
 
     id: int
@@ -53,3 +67,13 @@ class LeagueReadModel(BaseModel):
             nb_players_remaining=league.nb_players_remaining,
             name=league.name,
         )
+
+
+class InvitationReceivedReadModel(BaseModel):
+
+    id: int
+    league: LeagueInvitationReceivedSummary
+    status: str
+
+    class Config:
+        arbitrary_types_allowed = True
