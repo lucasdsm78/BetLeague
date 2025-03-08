@@ -86,12 +86,12 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             if ticket_create_model.mise > league_player.nb_btl:
                 raise MiseSuperiorToNbBtlError
 
-            # if existing_league.is_started is False:
-            #     raise LeagueNotStartedError
+            if existing_league.is_started is False:
+                raise LeagueNotStartedError
 
             gain = self.ticket_repository.get_gain(ticket_create_model.match_choices, ticket_create_model.mise)
-            # if gain != ticket_create_model.gain:
-            #     raise GainNotEqualsError
+            if gain != ticket_create_model.gain:
+                raise GainNotEqualsError
 
             uuid = shortuuid.uuid()
 
