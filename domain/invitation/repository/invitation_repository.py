@@ -23,6 +23,7 @@ class InvitationRepository(ABC):
     def find_invitations(
             self,
             user_id: int,
+            is_received: bool,
             status: Optional[InvitationStatus] = None,
             page: int = 1,
             limit: int = 10

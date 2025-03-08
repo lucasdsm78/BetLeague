@@ -8,6 +8,7 @@ from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from infrastructure.postgresql.invitation.db_invitation import DBInvitation
+from infrastructure.postgresql.league.db_league import DBLeague
 
 
 class InvitationRepositoryImpl(InvitationRepository):
@@ -50,6 +51,7 @@ class InvitationRepositoryImpl(InvitationRepository):
     def find_invitations(
             self,
             user_id: int,
+            is_received: bool,
             status: Optional[InvitationStatus] = None,
             page: int = 1,
             limit: int = 10
@@ -58,6 +60,13 @@ class InvitationRepositoryImpl(InvitationRepository):
         offset = (page - 1) * limit
 
         query = self.session.query(DBInvitation).filter(DBInvitation.user_id == user_id)
+
+        if not is_received:
+            query = (
+                self.session.query(DBInvitation)
+                .join(DBLeague, DBInvitation.league_id == DBLeague.id)
+                .filter(DBLeague.user_id == user_id)
+            )
 
         if status:
             query = query.filter(DBInvitation.status == status.value)

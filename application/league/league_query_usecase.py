@@ -3,7 +3,10 @@ from typing import List, Dict, Optional
 
 from pydantic import BaseModel
 
-from application.league.league_query_model import LeagueReadModel
+from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, \
+    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail
+from domain.invitation.model.invitation_status import InvitationStatus
+from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
@@ -25,11 +28,16 @@ class LeagueQueryUseCase(ABC):
     def get_leagues(self, email: str) -> dict:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_invitations(self, email: str, is_received: bool):
+        raise NotImplementedError
+
 
 class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     league_players_repository: LeaguePlayersRepository
     user_repository: UserRepository
     league_repository: LeagueRepository
+    invitation_repository: InvitationRepository
 
     class Config:
         arbitrary_types_allowed = True
@@ -85,3 +93,44 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
         except Exception as e:
             raise
+
+    def get_invitations(self, email: str, is_received: bool) -> List[InvitationReceivedReadModel]:
+        try:
+            user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
+            grouped_invitations = self.invitation_repository.find_invitations(
+                user_id=user.id,
+                status=InvitationStatus.pending,
+                is_received=is_received
+            )
+
+            invitation_models = []
+
+            for invitation in grouped_invitations.get("pending", []):
+                league = self.league_repository.find_by_id(invitation.league_id)
+
+                league_summary = LeagueInvitationReceivedSummary(
+                    id=league.id,
+                    name=league.name,
+                    max_players=league.max_players,
+                    start_date=league.start_date,
+                    user_creator=UserSummaryLeagueDetail(
+                        id=league.user.id,
+                        pseudo=league.user.pseudo,
+                    ),
+                    nb_players_remaining=league.nb_players_remaining,
+                    is_started=league.is_started
+                )
+
+                invitation_models.append(InvitationReceivedReadModel(
+                    id=invitation.id,
+                    league=league_summary,
+                    status=invitation.status.value
+                ))
+
+            return invitation_models
+
+        except Exception as e:
+            raise e

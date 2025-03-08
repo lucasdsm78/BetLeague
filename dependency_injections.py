@@ -130,12 +130,14 @@ def league_command_usecase(
 def league_query_usecase(
         league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
         user_repository_dependency: UserRepository = Depends(user_repository_dependency),
-        league_repository: LeagueRepository = Depends(league_repository_dependency)
+        league_repository: LeagueRepository = Depends(league_repository_dependency),
+        invitation_repository_dependency: InvitationRepository = Depends(invitation_repository_dependency),
 ) -> LeagueQueryUseCase:
     return LeagueQueryUseCaseImpl(
         league_players_repository=league_players_repository,
         user_repository=user_repository_dependency,
-        league_repository=league_repository
+        league_repository=league_repository,
+        invitation_repository=invitation_repository_dependency,
     )
 
 def ticket_query_usecase(

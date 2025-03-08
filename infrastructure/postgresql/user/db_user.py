@@ -23,9 +23,7 @@ class DBUser(Base):
     password: Union[str, Column] = Column(String, nullable=True)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
-    first_name: Union[str, Column] = Column(String, nullable=False)
     pseudo: Union[str, Column] = Column(String, nullable=False)
-    last_name: Union[str, Column] = Column(String, nullable=False)
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)
     nb_btl: Union[float, Column] = Column(Float, default=0)
@@ -45,9 +43,7 @@ class DBUser(Base):
             password=Password(self.password),
             created_at=self.created_at,
             updated_at=self.updated_at,
-            first_name=self.first_name,
             pseudo=self.pseudo,
-            last_name=self.last_name,
             nb_win=self.nb_win,
             nb_lose=self.nb_lose,
             nb_btl=self.nb_btl,
@@ -66,8 +62,6 @@ class DBUser(Base):
         user_db_to_update.password = user.password.password
         user_db_to_update.created_at = now
         user_db_to_update.updated_at = now
-        user_db_to_update.first_name = user.first_name
-        user_db_to_update.last_name = user.last_name
         user_db_to_update.pseudo = user.pseudo
         user_db_to_update.nb_lose = user.nb_lose
         user_db_to_update.nb_btl = user.nb_btl

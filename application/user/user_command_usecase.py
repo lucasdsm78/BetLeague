@@ -66,8 +66,6 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 email=email,
                 pseudo=data.pseudo,
                 uuid=uuid,
-                first_name=data.first_name,
-                last_name=data.last_name,
                 password=Password(self.hasher.bcrypt(data.password))
             )
 
