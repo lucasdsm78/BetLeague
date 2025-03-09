@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Set
 from sqlalchemy import exists
+import pytz
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
+from application.ticket.ticket_command_model import MatchChoiceData
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
@@ -82,15 +84,25 @@ class MatchRepositoryImpl(MatchRepository):
 
         return result
 
-    def exists_match_started_for_ticket(self, ticket_id: int) -> bool:
-        now = datetime.utcnow()
-        query = self.session.query(
-            exists().where(
-                (DBMatchChoices.ticket_id == ticket_id) &
-                (DBMatch.id == DBMatchChoices.match_id) &
-                (DBMatch.time <= now)
+    def exists_match_started_for_ticket(self, match_choices: List[MatchChoiceData]) -> bool:
+        if not match_choices:
+            return False
+
+        paris_tz = pytz.timezone("Europe/Paris")
+        now = datetime.now(paris_tz)
+
+        match_ids = [mc.match_id for mc in match_choices]
+
+        exists_clause = (
+            self.session.query(DBMatch)
+            .filter(
+                DBMatch.id.in_(match_ids),
+                DBMatch.time >= now
             )
+            .exists()
         )
+
+        query = self.session.query(exists_clause)
         return self.session.scalar(query)
 
     def begin(self):

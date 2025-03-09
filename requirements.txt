@@ -19,3 +19,4 @@ requests~=2.32.3
 fuzzywuzzy
 python-Levenshtein
 PyJWT
+pytz
