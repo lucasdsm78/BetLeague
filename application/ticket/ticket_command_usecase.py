@@ -1,10 +1,12 @@
 import logging
 from abc import abstractmethod, ABC
+from typing import List
 
 import shortuuid
 
 from application.match.match_command_model import NoMatchChoiceUpdatedResponse, MatchChoiceUpdatedResponse
-from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse
+from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse, \
+    TicketUpdateResponse, MatchChoiceData, TicketUpdateModel
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, NbBTLHasReached0, \
     LeagueNotStartedError, LeagueNotFoundError
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -36,6 +38,10 @@ class TicketCommandUseCase(ABC):
     def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
+        raise NotImplementedError
+
 
 class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
@@ -56,6 +62,33 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         self.match_repository: MatchRepository = match_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
         self.settings: Settings = settings
+
+    def _process_match_choices(self, updated: bool, ticket_id: int, match_choices_data: List[MatchChoiceData]) -> None:
+        if updated:
+            self.match_choices_repository.delete_by_ticket_id(ticket_id)
+
+        match_already_started = self.match_repository.exists_match_started_for_ticket(match_choices_data)
+        if not match_already_started:
+            raise MatchAlreadyStartedError
+
+        match_choices_to_save = []
+        for match_choice in match_choices_data:
+            match = self.match_repository.find_by_id(match_choice.match_id)
+            if not match:
+                raise MatchNotFoundError
+
+            new_match_choice = MatchChoice(
+                match_id=match.id,
+                ticket_id=ticket_id,
+                choice=match_choice.choice,
+                status=MatchChoiceStatus.pending,
+            )
+            match_choices_to_save.append(new_match_choice)
+
+        for mc in match_choices_to_save:
+            self.match_choices_repository.create(mc)
+
+        self.match_choices_repository.commit()
 
     def create_ticket(self, league_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
         try:
@@ -115,24 +148,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             if not ticket_creating:
                 raise TicketNotFoundError
 
-            match_choices_to_save = []
-            for match_choice in ticket_create_model.match_choices:
-                match = self.match_repository.find_by_id(match_choice.match_id)
-                if not match:
-                    raise MatchNotFoundError
-
-                new_match_choice = MatchChoice(
-                    match_id=match.id,
-                    ticket_id=ticket_creating.id,
-                    choice=match_choice.choice,
-                    status=MatchChoiceStatus.pending,
-                )
-                match_choices_to_save.append(new_match_choice)
-
-            for mc in match_choices_to_save:
-                self.match_choices_repository.create(mc)
-
-            self.match_choices_repository.commit()
+            self._process_match_choices(False, ticket_creating.id, ticket_create_model.match_choices)
 
         except:
             self.ticket_repository.rollback()
@@ -165,3 +181,39 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             raise
 
         return TicketRemoveResponse()
+
+    def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
+        try:
+            user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
+            ticket = self.ticket_repository.find_by_id(ticket_id)
+            if not ticket:
+                raise TicketNotFoundError
+
+            if ticket.user.id != user.id:
+                raise NotTicketOwnerError
+
+            gain = self.ticket_repository.get_gain(ticket_update_model.match_choices, ticket_update_model.mise)
+            if gain != ticket_update_model.gain:
+                raise GainNotEqualsError
+
+            if not ticket_update_model.gain:
+                ticket.gain = gain
+
+            if not ticket_update_model.mise:
+                ticket.mise = ticket_update_model.mise
+
+            self.ticket_repository.update(ticket)
+            self.ticket_repository.commit()
+
+            if ticket_update_model.match_choices:
+                self._process_match_choices(True, ticket.id, ticket_update_model.match_choices)
+
+        except:
+            self.ticket_repository.rollback()
+            self.match_choices_repository.rollback()
+            raise
+
+        return TicketUpdateResponse()

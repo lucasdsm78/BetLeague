@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from application.match.match_command_model import MatchChoiceUpdatedResponse
-from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse
+from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
+    TicketUpdateResponse, TicketUpdateModel
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
 from application.ticket.ticket_query_model import TicketReadModel
 from application.ticket.ticket_query_usecase import TicketQueryUseCase
@@ -10,8 +10,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError, \
     LeagueParticipantNotFoundError, NbBTLHasReached0, LeagueNotStartedError
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError, \
-    MiseSuperiorToNbBtlError, TicketAccessDeniedError
-from domain.token.token_exception import TokenInvalidError
+    MiseSuperiorToNbBtlError, TicketAccessDeniedError, GainNotEqualsError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -161,3 +160,56 @@ async def get_details_ticket(
         )
 
     return ticket
+
+
+@router.put(
+    "/ticket/{ticket_id}",
+    response_model=TicketUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update ticket"
+)
+async def update_ticket(
+        ticket_id: int,
+        ticket_create_model: TicketUpdateModel,
+        ticket_command_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        remove_ticket_result = ticket_command_usecase.update_ticket(current_user.get('email'), ticket_id, ticket_create_model)
+    except TicketNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except NotTicketOwnerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message
+        )
+    except MatchAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
+    except GainNotEqualsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message
+        )
+    except MatchNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification du ticket."
+        )
+
+    return remove_ticket_result
