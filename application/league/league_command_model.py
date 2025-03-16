@@ -9,6 +9,11 @@ class LeagueFreeCreateModel(BaseModel):
     is_private: bool
 
 
+class LeagueUpdateModel(BaseModel):
+    name: str
+    max_players: int
+    start_date: int
+
 class LeagueJoinResponse(BaseModel):
     message: str = "Your participation is well saved for this league"
 
@@ -19,6 +24,10 @@ class LeagueInviteResponse(BaseModel):
 
 class InvitationUpdateResponse(BaseModel):
     message: str = "The invitation is well updated."
+
+
+class LeagueUpdateResponse(BaseModel):
+    message: str = "The league is well updated."
 
 
 class LeagueFreeCreateResponse(BaseModel):

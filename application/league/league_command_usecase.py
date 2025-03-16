@@ -5,7 +5,7 @@ import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, LeagueUpdateResponse
 from domain.invitation.exception.invitation_exception import InvitationFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -42,6 +42,10 @@ class LeagueCommandUseCase(ABC):
 
     @abstractmethod
     def update_invitation(self, invitation_id: int, action: bool, email: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_league(self, data: LeagueUpdateModel, league_id: int, email: str):
         raise NotImplementedError
 
 
@@ -260,4 +264,46 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
         except:
             self.invitation_repository.rollback()
+            raise
+
+    def update_league(self, data: LeagueUpdateModel, league_id: int, email: str):
+        try:
+            user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
+            league = self.league_repository.find_by_id(league_id)
+            if not league:
+                raise LeagueNotFoundError
+
+            if league.user.id != user.id:
+                raise UserNotOwnerLeaguedError
+
+            existing_league = self.league_repository.find_by_name(data.name)
+            if existing_league is True and data.name != league.name:
+                raise LeagueNameAlreadyExistsError
+
+            if data.max_players > MAX_PLAYERS:
+                raise LeagueMaxPlayersError
+
+            if (
+                    league.is_started and data.max_players != league.max_players or
+                    league.is_started and data.start_date != league.start_date
+            ):
+                raise LeagueAlreadyStartedError
+
+            nb_players_remaining = data.max_players - self.league_players_repository.count_players(league_id=league.id)
+
+            league.nb_players_remaining = nb_players_remaining
+            league.name = data.name
+            league.start_date = data.start_date
+            league.max_players = data.max_players
+
+            self.league_repository.update(league)
+            self.league_repository.commit()
+
+            return LeagueUpdateResponse()
+
+        except:
+            self.league_repository.rollback()
             raise

@@ -62,7 +62,7 @@ class MatchRepositoryImpl(MatchRepository):
 
     def find_by_id(self, match_id: int) -> Optional[Match]:
         try:
-            match_db = self.session.get(DBMatch, match_id)
+            match_db = self.session.query(DBMatch).filter_by(id=match_id).one()
         except NoResultFound:
             raise MatchNotFoundError
         except Exception as e:

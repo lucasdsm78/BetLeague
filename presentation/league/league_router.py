@@ -3,7 +3,7 @@ from typing import Union, Annotated, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, LeagueUpdateModel
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
@@ -11,7 +11,8 @@ from dependency_injections import current_user, league_command_usecase, league_q
 from domain.invitation.exception.invitation_exception import InvitationFoundError
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
-    LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError
+    LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
+    LeagueNameAlreadyExistsError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -327,3 +328,55 @@ async def update_invitation(
         )
 
     return update_invitation_result
+
+@router.put(
+    "/league/{id}",
+    response_model=LeagueUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update league",
+)
+async def update_league(
+        league_id: int,
+        update_league_model: LeagueUpdateModel,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        update_league_result = league_command_usecase.update_league(update_league_model, league_id, current_user.get('email'))
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except LeagueNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except LeagueNameAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except LeagueMaxPlayersError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except LeagueAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification de la league"
+        )
+
+    return update_league_result

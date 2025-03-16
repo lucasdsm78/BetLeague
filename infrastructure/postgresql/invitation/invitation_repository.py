@@ -25,7 +25,7 @@ class InvitationRepositoryImpl(InvitationRepository):
 
     def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
         try:
-            invitation_db = self.session.get(DBInvitation, invitation_id)
+            invitation_db = self.session.query(DBInvitation).filter_by(id=invitation_id).one()
         except NoResultFound:
             raise InvitationNotFoundError
         except Exception as e:
