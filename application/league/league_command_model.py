@@ -17,6 +17,10 @@ class LeagueInviteResponse(BaseModel):
     message: str = "The user is invited to join this league"
 
 
+class InvitationUpdateResponse(BaseModel):
+    message: str = "The invitation is well updated."
+
+
 class LeagueFreeCreateResponse(BaseModel):
     message: str = "The free league is well created"
 

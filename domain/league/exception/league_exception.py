@@ -59,3 +59,9 @@ class UserNotOwnerLeaguedError(Exception):
 
     def __str__(self):
         return UserNotOwnerLeaguedError.message
+
+class UserNotInvitationLeaguedError(Exception):
+    message = "The user is not owner of the invitation for the league."
+
+    def __str__(self):
+        return UserNotInvitationLeaguedError.message

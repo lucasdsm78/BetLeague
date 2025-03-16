@@ -3,12 +3,13 @@ from typing import Union, Annotated, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse, LeagueInviteResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -144,7 +145,7 @@ async def delete_league_player(
 
     except LeagueAlreadyStartedError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 
@@ -241,13 +242,13 @@ async def invite_user_to_league(
 
     except UserNotOwnerLeaguedError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 
     except LeagueAlreadyStartedError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 
@@ -293,3 +294,36 @@ async def get_invitations(
         raise
 
     return invitations
+
+
+@router.put(
+    "/league/invitation/{action}",
+    response_model=InvitationUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update invitation status",
+)
+async def update_invitation(
+        invitation_id: int,
+        action: bool,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        update_invitation_result = league_command_usecase.update_invitation(invitation_id, action, current_user.get('email'))
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification du status de l'invitation."
+        )
+
+    return update_invitation_result

@@ -31,7 +31,7 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, invitation: Invitation) -> Optional[Invitation]:
+    def delete(self, invitation_id: int):
         raise NotImplementedError
 
     @abstractmethod
