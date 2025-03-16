@@ -24,7 +24,7 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     def find_by_id(self, league_id: int) -> Optional[League]:
         try:
-            league_db = self.session.get(DBLeague, league_id)
+            league_db = self.session.query(DBLeague).filter_by(id=league_id).one()
         except NoResultFound:
             raise LeagueNotFoundError
         except Exception as e:
