@@ -8,6 +8,7 @@ class Invitation:
     def __init__(
             self,
             user_id: int,
+            user_sender_id: int,
             league_id: int,
             status: InvitationStatus,
             id: Optional[int] = None,
@@ -15,6 +16,7 @@ class Invitation:
             updated_at: Optional[int] = None
     ):
         self.user_id: int = user_id
+        self.user_sender: int = user_sender_id
         self.league_id: int = league_id
         self.status: InvitationStatus = status
         self.id: Optional[int] = id

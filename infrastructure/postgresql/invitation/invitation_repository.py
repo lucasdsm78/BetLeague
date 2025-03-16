@@ -101,10 +101,9 @@ class InvitationRepositoryImpl(InvitationRepository):
 
         return grouped_invitations
 
-    def update(self, invitation: Invitation):
+    def delete(self, invitation_id: int):
         try:
-            _invitation = self.session.get(DBInvitation, invitation.id)
-            invitation_db = DBInvitation.from_entity(invitation, _invitation)
+            self.session.query(DBInvitation).filter_by(id=invitation_id).delete()
         except:
             raise
 

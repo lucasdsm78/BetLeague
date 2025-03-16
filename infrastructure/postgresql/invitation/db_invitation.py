@@ -18,7 +18,9 @@ class DBInvitation(Base):
     __tablename__ = "invitation"
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'), index=True)
-    user = relationship("DBUser", back_populates='invitations')
+    user_sender_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
+    user_sender = relationship("DBUser", foreign_keys=[user_sender_id])
+    user = relationship("DBUser", foreign_keys=[user_id])
     league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'), index=True)
     league = relationship("DBLeague", back_populates='invitations')
     status: Union[str, Column] = Column(String, nullable=False, index=True)
@@ -33,6 +35,7 @@ class DBInvitation(Base):
         return Invitation(
             id=self.id,
             user_id=self.user_id,
+            user_sender_id=self.user_sender_id,
             league_id=self.league_id,
             status=InvitationStatus.from_str(self.status),
             created_at=self.created_at,
@@ -47,6 +50,7 @@ class DBInvitation(Base):
                                                            is not None else DBInvitation()
         invitation_db_to_update.id = invitation.id
         invitation_db_to_update.user_id = invitation.user_id
+        invitation_db_to_update.user_sender_id = invitation.user_sender
         invitation_db_to_update.league_id = invitation.league_id
         invitation_db_to_update.status = invitation.status.value
         invitation_db_to_update.created_at = now
