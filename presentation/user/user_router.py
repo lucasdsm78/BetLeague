@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
-    UserLoginModel, UserDeleteResponse
+    UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_usecase import UserQueryUseCase
-from domain.user.exception.user_exception import UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError
+from domain.user.exception.user_exception import UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError, \
+    FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError
 from presentation.user.user_error_message import ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, \
     ErrorMessageUserNotFound
 from dependency_injections import current_user, user_command_usecase, user_query_usecase
@@ -193,3 +194,49 @@ async def get_general_ranking(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
+
+@router.put(
+    "/user",
+    response_model=UserUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update user",
+)
+async def update_user(
+        update_user_model: UserUpdateModel,
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        update_user_result = user_command_usecase.update_user_profile(current_user.get('email'), update_user_model)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except FARequiredError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
+    except Invalid2FACodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message
+        )
+    except UserPseudoAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except UserEmailAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification du user"
+        )
+
+    return update_user_result

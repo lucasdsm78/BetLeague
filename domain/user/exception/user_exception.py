@@ -5,6 +5,27 @@ class UserEmailAlreadyExistsError(Exception):
         return UserEmailAlreadyExistsError.message
 
 
+class FARequiredError(Exception):
+    message = "2FA code is required."
+
+    def __str__(self):
+        return FARequiredError.message
+
+
+class Invalid2FACodeError(Exception):
+    message = "Invalid 2FA code."
+
+    def __str__(self):
+        return Invalid2FACodeError.message
+
+
+class UserPseudoAlreadyExistsError(Exception):
+    message = "The user with the pseudo you specified already exists."
+
+    def __str__(self):
+        return UserPseudoAlreadyExistsError.message
+
+
 class UsersNotFoundError(Exception):
     message = "No users found from the API."
 

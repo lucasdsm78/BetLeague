@@ -5,11 +5,12 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
-    InvalidPasswordError, UserDeleteResponse
+    InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
-from domain.user.exception.user_exception import UserNotFoundError, UserLoginNotFoundError, UserEmailAlreadyExistsError
+from domain.user.exception.user_exception import UserNotFoundError, UserLoginNotFoundError, UserEmailAlreadyExistsError, \
+    UserPseudoAlreadyExistsError, FARequiredError, Invalid2FACodeError
 from domain.user.model.email import Email
 from domain.user.model.password import Password
 from domain.user.model.user import User
@@ -29,6 +30,10 @@ class UserCommandUseCase(ABC):
 
     @abstractmethod
     def delete_user(self, user_id: int) -> UserDeleteResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_user_profile(self, email: str, data: UserUpdateModel):
         raise NotImplementedError
 
     @abstractmethod
@@ -158,3 +163,50 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             return True
         else:
             raise HTTPException(status_code=400, detail="Invalid 2FA code.")
+
+    def update_user_profile(self, email: str, data: UserUpdateModel):
+        try:
+            user = self.user_repository.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
+
+            if user.is_two_factor_enabled:
+                if not data.two_fa_code:
+                    raise FARequiredError
+                decrypted_secret = self.totp_service.decrypt_secret(
+                    user.two_factor_secret,
+                    self.cipher_suite
+                )
+                if not self.totp_service.verify_code(decrypted_secret, data.two_fa_code):
+                    raise Invalid2FACodeError
+
+            if data.pseudo and data.pseudo != user.pseudo:
+                existing_pseudo = self.user_repository.find_by_pseudo(data.pseudo)
+                if existing_pseudo:
+                    raise UserPseudoAlreadyExistsError
+                user.pseudo = data.pseudo
+
+            if data.email and data.email != user.email.value:
+                existing_email = self.user_repository.find_by_email(data.email)
+                if existing_email:
+                    raise UserEmailAlreadyExistsError
+                user.email = Email(data.email)
+
+            if data.password:
+                hashed_pass = self.hasher.bcrypt(data.password)
+                user.password = Password(hashed_pass)
+
+            self.user_repository.update(user)
+            self.user_repository.commit()
+
+            new_access_token = self.manager_token.generate_token_login(user)
+            new_refresh_token = self.manager_token.generate_expiration_token_login(user)
+
+            return UserUpdateResponse(
+                token_auth=new_access_token,
+                token_expiration=new_refresh_token
+            )
+
+        except:
+            self.user_repository.rollback()
+            raise
