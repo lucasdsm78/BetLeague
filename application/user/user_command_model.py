@@ -9,8 +9,20 @@ class UserCreateModel(BaseModel):
     password: str
 
 
+class UserUpdateModel(BaseModel):
+    pseudo: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    two_fa_code: Optional[str] = None
+
+
 class UserCreateResponse(BaseModel):
     message: str = "The user is well created"
+
+
+class UserUpdateResponse(BaseModel):
+    token_auth: str
+    token_expiration: str
 
 
 class UserDeleteResponse(BaseModel):

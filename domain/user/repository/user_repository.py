@@ -19,6 +19,10 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def find_by_pseudo(self, pseudo: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self, user: User) -> Optional[User]:
         raise NotImplementedError
 

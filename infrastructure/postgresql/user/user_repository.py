@@ -25,6 +25,16 @@ class UserRepositoryImpl(UserRepository):
 
         return user_db.to_entity()
 
+    def find_by_pseudo(self, pseudo: str) -> Optional[User]:
+        try:
+            user_db = self.session.query(DBUser).filter_by(pseudo=pseudo).one()
+        except NoResultFound:
+            return None
+        except:
+            raise
+
+        return user_db.to_entity()
+
     def find_by_id(self, user_id: int) -> Optional[User]:
         try:
             user_db = self.session.query(DBUser).filter_by(id=user_id).one()
