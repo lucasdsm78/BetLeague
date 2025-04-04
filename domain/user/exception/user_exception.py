@@ -39,6 +39,11 @@ class UserNotFoundError(Exception):
     def __str__(self):
         return UserNotFoundError.message
 
+class UserNotOwnerError(Exception):
+    message = "The user connected is not the same user."
+
+    def __str__(self):
+        return UserNotOwnerError.message
 
 class UserLoginNotFoundError(Exception):
 

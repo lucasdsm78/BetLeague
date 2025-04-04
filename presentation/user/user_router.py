@@ -7,9 +7,10 @@ from fastapi.responses import StreamingResponse
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
     UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel
 from application.user.user_command_usecase import UserCommandUseCase
+from application.user.user_query_model import UserReadModel
 from application.user.user_query_usecase import UserQueryUseCase
 from domain.user.exception.user_exception import UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError, \
-    FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError
+    FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError
 from presentation.user.user_error_message import ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, \
     ErrorMessageUserNotFound
 from dependency_injections import current_user, user_command_usecase, user_query_usecase
@@ -240,3 +241,35 @@ async def update_user(
         )
 
     return update_user_result
+
+
+@router.get(
+    "/user/{user_id}",
+    response_model=UserReadModel,
+    status_code=status.HTTP_200_OK,
+    summary="Get détails user connected"
+)
+async def get_user_by_id(
+        user_id: int,
+        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        user = user_query_usecase.fetch_user_by_id(user_id, current_user.get('email'))
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except UserNotOwnerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération du user."
+        )
+
+    return user
