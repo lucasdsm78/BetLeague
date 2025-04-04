@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel
 
 from application.user.user_query_model import UserReadModel
-from domain.user.exception.user_exception import UserNotFoundError
+from domain.user.exception.user_exception import UserNotFoundError, UserNotOwnerError
 from domain.user.repository.user_repository import UserRepository
 
 
@@ -15,7 +15,7 @@ class UserQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_user_by_id(self, user_id: int) -> Optional[UserReadModel]:
+    def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
         raise NotImplementedError
 
     @abstractmethod
@@ -40,11 +40,12 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
         except Exception as e:
             raise
 
-    def fetch_user_by_id(self, user_id: int) -> Optional[UserReadModel]:
+    def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
         try:
+            user_connected = self.user_repository.find_by_email(email)
             user = self.user_repository.find_by_id(user_id)
-            if user is None:
-                raise UserNotFoundError
+            if user_connected.id != user.id:
+                raise UserNotOwnerError
         except:
             raise
 

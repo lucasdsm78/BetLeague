@@ -7,12 +7,10 @@ class UserReadModel(BaseModel):
 
     id: int
     email: str
-    first_name: str
-    last_name: str
-    uuid: str
     pseudo: str
-    createdAt: int
-    updatedAt: int
+    nb_win: int
+    nb_lose: int
+    nb_btl: float
 
     class Config:
         arbitrary_types_allowed = True
@@ -21,11 +19,9 @@ class UserReadModel(BaseModel):
     def from_entity(user: User) -> "UserReadModel":
         return UserReadModel(
             id=user.id,
-            uuid=user.uuid,
             email=user.email.value,
-            createdAt=user.created_at,
-            updatedAt=user.updated_at,
-            first_name=user.first_name,
-            last_name=user.last_name,
             pseudo=user.pseudo,
+            nb_win=user.nb_win,
+            nb_lose=user.nb_lose,
+            nb_btl=user.nb_btl
         )
