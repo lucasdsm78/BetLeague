@@ -21,7 +21,7 @@ from infrastructure.config import Settings
 class UserCommandUseCase(ABC):
 
     @abstractmethod
-    def create(self, user_create_model: UserCreateModel) -> UserLoginResponse:
+    async def create(self, user_create_model: UserCreateModel) -> UserLoginResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,7 +62,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         self.settings = settings
         self.cipher_suite = Fernet(self.settings.encryption_key.encode())
 
-    def create(self, data: UserCreateModel) -> UserLoginResponse:
+    async def create(self, data: UserCreateModel) -> UserLoginResponse:
         try:
             uuid = shortuuid.uuid()
 
@@ -74,15 +74,15 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 password=Password(self.hasher.bcrypt(data.password))
             )
 
-            existing_user = self.user_repository.find_by_email(data.email)
+            existing_user = await self.user_repository.find_by_email(data.email)
             if existing_user is not None:
                 raise UserEmailAlreadyExistsError
 
-            self.user_repository.create(user)
-            self.user_repository.commit()
+            await self.user_repository.create(user)
+            await self.user_repository.commit()
 
         except:
-            self.user_repository.rollback()
+            await self.user_repository.rollback()
             raise
 
         return UserLoginResponse(

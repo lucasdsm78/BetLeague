@@ -36,7 +36,7 @@ async def create_user(
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
 ):
     try:
-        user = user_command_usecase.create(data)
+        user = await user_command_usecase.create(data)
 
     except UserEmailAlreadyExistsError as e:
         raise HTTPException(
