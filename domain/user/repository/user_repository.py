@@ -7,7 +7,7 @@ from domain.user.model.user import User
 class UserRepository(ABC):
 
     @abstractmethod
-    def create(self, user: User) -> Optional[User]:
+    async def create(self, user: User) -> Optional[User]:
         raise NotImplementedError
 
     @abstractmethod
@@ -15,7 +15,7 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_email(self, email: str) -> Optional[User]:
+    async def find_by_email(self, email: str) -> Optional[User]:
         raise NotImplementedError
 
     @abstractmethod

@@ -19,13 +19,13 @@ from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.user.repository.user_repository import UserRepository
 
 from functools import lru_cache
-from typing import Iterator
+from typing import Iterator, AsyncGenerator
 
 from fastapi import Depends
 from sqlalchemy.orm.session import Session
 
 from infrastructure.config import Settings
-from infrastructure.postgresql.database import SessionLocal
+from infrastructure.postgresql.database import AsyncSessionLocal
 from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
@@ -39,16 +39,24 @@ from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
+from sqlalchemy.ext.asyncio import AsyncSession
 
 jwt_auth = JwtBearer()
 
 
 def get_session() -> Iterator[Session]:
-    session: Session = SessionLocal()
+    session = AsyncSessionLocal()
     try:
         yield session
     finally:
         session.close()
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            pass
 
 
 @lru_cache()

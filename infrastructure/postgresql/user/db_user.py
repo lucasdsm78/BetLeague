@@ -18,9 +18,9 @@ def unixtimestamp() -> int:
 class DBUser(Base):
     __tablename__ = "user"
     id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True, index=True)
-    email: Union[str, Column] = Column(String(17), unique=True, nullable=False, index=True)
-    uuid: Union[str, Column] = Column(String, unique=True, nullable=False)
-    password: Union[str, Column] = Column(String, nullable=True)
+    email = Column(String(255), unique=True, nullable=False)
+    uuid = Column(String(30), unique=True, nullable=False)  # Augmentation de la taille
+    password = Column(String(255), nullable=False)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     pseudo: Union[str, Column] = Column(String, nullable=False)

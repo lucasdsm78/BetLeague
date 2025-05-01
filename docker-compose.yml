@@ -37,7 +37,7 @@ services:
     ports:
       - "8001:8001"
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
     depends_on:
       - db
@@ -52,7 +52,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
     depends_on:
       - backend
       - db
@@ -66,7 +66,23 @@ services:
     ports:
       - "8002:8002"
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql://postgres:postgres@db:5432/betleague
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+    depends_on:
+      - backend
+      - db
+      - rabbitmq
+
+  purchase_service:
+    build: ../BetLeaguePurchaseService
+    container_name: purchase_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8004 --reload
+    volumes:
+      - ../BetLeaguePurchaseService:/app
+    ports:
+      - "8004:8004"
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
     depends_on:
       - backend

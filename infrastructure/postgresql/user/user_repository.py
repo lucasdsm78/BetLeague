@@ -1,8 +1,8 @@
 from typing import Optional, List, Dict
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user import User
@@ -12,12 +12,18 @@ from infrastructure.postgresql.user.db_user import DBUser
 
 class UserRepositoryImpl(UserRepository):
 
-    def __init__(self, session: Session):
-        self.session: Session = session
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-    def find_by_email(self, email: str) -> Optional[User]:
+    async def find_by_email(self, email: str) -> Optional[User]:
         try:
-            user_db = self.session.query(DBUser).filter_by(email=email).one()
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.email == email)
+            )
+            user_db = result.scalar_one_or_none()
+            if user_db is None:
+                return None
+
         except NoResultFound:
             return None
         except:
@@ -45,7 +51,7 @@ class UserRepositoryImpl(UserRepository):
 
         return user_db.to_entity()
 
-    def create(self, user: User):
+    async def create(self, user: User):
         user_db = DBUser.from_entity(user)
         try:
             self.session.add(user_db)
@@ -111,11 +117,11 @@ class UserRepositoryImpl(UserRepository):
         except Exception as e:
             raise e
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()
