@@ -1,6 +1,4 @@
-from typing import Union, Annotated, Dict, List
-
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, LeagueUpdateModel
@@ -9,7 +7,6 @@ from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.invitation.exception.invitation_exception import InvitationFoundError
-from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
     LeagueNameAlreadyExistsError
@@ -79,7 +76,6 @@ async def join_league(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
@@ -228,7 +224,7 @@ async def invite_user_to_league(
         current_user: dict = Depends(current_user),
 ):
     try:
-        invitation = league_command_usecase.invite_user(league_id, user_id, current_user.get('email', ''))
+        invitation = await league_command_usecase.invite_user(league_id, user_id, current_user.get('email', ''))
 
     except LeagueNotFoundError as e:
         raise HTTPException(

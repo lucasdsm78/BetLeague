@@ -1,6 +1,5 @@
 from typing import Optional, List, Dict
 from sqlalchemy import func, select
-
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,33 +22,33 @@ class UserRepositoryImpl(UserRepository):
             user_db = result.scalar_one_or_none()
             if user_db is None:
                 return None
-
-        except NoResultFound:
-            return None
+            return user_db.to_entity()
         except:
             raise
 
-        return user_db.to_entity()
-
-    def find_by_pseudo(self, pseudo: str) -> Optional[User]:
+    async def find_by_pseudo(self, pseudo: str) -> Optional[User]:
         try:
-            user_db = self.session.query(DBUser).filter_by(pseudo=pseudo).one()
-        except NoResultFound:
-            return None
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.pseudo == pseudo)
+            )
+            user_db = result.scalar_one_or_none()
+            if user_db is None:
+                return None
+            return user_db.to_entity()
         except:
             raise
 
-        return user_db.to_entity()
-
-    def find_by_id(self, user_id: int) -> Optional[User]:
+    async def find_by_id(self, user_id: int) -> Optional[User]:
         try:
-            user_db = self.session.query(DBUser).filter_by(id=user_id).one()
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.id == user_id)
+            )
+            user_db = result.scalar_one()
+            return user_db.to_entity()
         except NoResultFound:
             raise UserNotFoundError
-        except Exception:
+        except:
             raise
-
-        return user_db.to_entity()
 
     async def create(self, user: User):
         user_db = DBUser.from_entity(user)
@@ -58,50 +57,50 @@ class UserRepositoryImpl(UserRepository):
         except:
             raise
 
-    def find_users(self) -> List[User]:
+    async def find_users(self) -> List[User]:
         try:
-            user_dbs = (
-                self.session.query(DBUser)
-                .order_by(DBUser.last_name)
-                .all()
+            result = await self.session.execute(
+                select(DBUser).order_by(DBUser.last_name)
+            )
+            user_dbs = result.scalars().all()
+            if not user_dbs:
+                return []
+            return [user_db.to_entity() for user_db in user_dbs]
+        except:
+            raise
+
+    async def delete_user(self, user_id: int):
+        try:
+            await self.session.execute(
+                select(DBUser).where(DBUser.id == user_id).delete()
             )
         except:
             raise
 
-        if len(user_dbs) == 0:
-            return []
-
-        return list(map(lambda user_db: user_db.to_entity(), user_dbs))
-
-    def delete_user(self, user_id: int):
+    async def update(self, user: User):
         try:
-            self.session.query(DBUser).filter_by(id=user_id).delete()
-        except:
-            raise
-
-    def update(self, user: User):
-        try:
-            _user = self.session.query(DBUser).filter_by(id=user.id).one()
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.id == user.id)
+            )
+            _user = result.scalar_one()
             user_db = DBUser.from_entity(user, _user)
         except:
             raise
 
-    def get_all_rank_users(self) -> List[Dict[str, any]]:
+    async def get_all_rank_users(self) -> List[Dict[str, any]]:
         try:
-            ranking_query = (
-                self.session.query(
+            result = await self.session.execute(
+                select(
                     DBUser.nb_btl.label("nb_btl"),
                     DBUser.nb_win.label("nb_win"),
                     DBUser.nb_lose.label("nb_lose"),
                     DBUser.pseudo.label("pseudo"),
-                    func.rank()
-                    .over(order_by=DBUser.nb_btl.desc())
-                    .label("position")
-                )
-                .order_by(DBUser.nb_btl.desc())
+                    func.rank().over(
+                        order_by=DBUser.nb_btl.desc()
+                    ).label("position")
+                ).order_by(DBUser.nb_btl.desc())
             )
-
-            ranking_result = ranking_query.all()
+            ranking_result = result.all()
 
             return [
                 {
@@ -113,7 +112,6 @@ class UserRepositoryImpl(UserRepository):
                 }
                 for row in ranking_result
             ]
-
         except Exception as e:
             raise e
 
