@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict
-
+from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.invitation.exception.invitation_exception import InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
@@ -10,45 +10,43 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from infrastructure.postgresql.invitation.db_invitation import DBInvitation
 from infrastructure.postgresql.league.db_league import DBLeague
 
-
 class InvitationRepositoryImpl(InvitationRepository):
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-    def __init__(self, session: Session):
-        self.session: Session = session
-
-    def add(self, invitation: Invitation):
+    async def add(self, invitation: Invitation):
         invitation_db = DBInvitation.from_entity(invitation)
         try:
             self.session.add(invitation_db)
         except:
             raise
 
-    def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
+    async def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
         try:
-            invitation_db = self.session.query(DBInvitation).filter_by(id=invitation_id).one()
+            result = await self.session.execute(
+                select(DBInvitation).where(DBInvitation.id == invitation_id)
+            )
+            invitation_db = result.scalar_one()
+            return invitation_db.to_entity()
         except NoResultFound:
             raise InvitationNotFoundError
-        except Exception as e:
+        except:
             raise
 
-        return invitation_db.to_entity()
-
-    def find_by_user_id_league_id(self, user_id: int, league_id: int) -> bool:
+    async def find_by_user_id_league_id(self, user_id: int, league_id: int) -> bool:
         try:
-            result = False
-            invitation_db = self.session.query(DBInvitation).filter_by(
-                league_id=league_id,
-                user_id=user_id
-            ).count()
-
-            if invitation_db != 0:
-                result = True
-        except Exception:
+            result = await self.session.execute(
+                select(DBInvitation).where(
+                    DBInvitation.league_id == league_id,
+                    DBInvitation.user_id == user_id
+                )
+            )
+            count = len(result.scalars().all())
+            return count != 0
+        except:
             raise
 
-        return result
-
-    def find_invitations(
+    async def find_invitations(
             self,
             user_id: int,
             is_received: bool,
@@ -56,32 +54,28 @@ class InvitationRepositoryImpl(InvitationRepository):
             page: int = 1,
             limit: int = 10
     ) -> Dict[str, List[Invitation]]:
-
         offset = (page - 1) * limit
-
-        query = self.session.query(DBInvitation).filter(DBInvitation.user_id == user_id)
 
         if not is_received:
             query = (
-                self.session.query(DBInvitation)
+                select(DBInvitation)
                 .join(DBLeague, DBInvitation.league_id == DBLeague.id)
-                .filter(DBLeague.user_id == user_id)
+                .where(DBLeague.user_id == user_id)
             )
+        else:
+            query = select(DBInvitation).where(DBInvitation.user_id == user_id)
 
         if status:
-            query = query.filter(DBInvitation.status == status.value)
+            query = query.where(DBInvitation.status == status.value)
 
         query = query.order_by(DBInvitation.created_at.desc())
+        query = query.offset(offset).limit(limit)
 
         try:
-            invitation_dbs = (
-                query
-                .offset(offset)
-                .limit(limit)
-                .all()
-            )
-        except Exception as e:
-            raise e
+            result = await self.session.execute(query)
+            invitation_dbs = result.scalars().all()
+        except:
+            raise
 
         grouped_invitations = {
             "pending": [],
@@ -96,22 +90,24 @@ class InvitationRepositoryImpl(InvitationRepository):
                 grouped_invitations["accepted"].append(db_inv.to_entity())
             elif db_inv.status == InvitationStatus.refused.value:
                 grouped_invitations["refused"].append(db_inv.to_entity())
-            else:
-                pass
 
         return grouped_invitations
 
-    def delete(self, invitation_id: int):
+    async def delete(self, invitation_id: int):
         try:
-            self.session.query(DBInvitation).filter_by(id=invitation_id).delete()
+            result = await self.session.execute(
+                select(DBInvitation).where(DBInvitation.id == invitation_id)
+            )
+            invitation = result.scalar_one()
+            await self.session.delete(invitation)
         except:
             raise
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()

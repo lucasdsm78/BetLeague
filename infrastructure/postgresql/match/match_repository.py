@@ -1,25 +1,23 @@
 from datetime import datetime
-from typing import List, Optional, Set
-from sqlalchemy import exists
+from typing import List, Optional
+from sqlalchemy import select, exists
 import pytz
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.ticket.ticket_command_model import MatchChoiceData
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
-from infrastructure.postgresql.match.db_match import DBMatch, unixtimestamp
-from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
+from infrastructure.postgresql.match.db_match import DBMatch
 
 
 class MatchRepositoryImpl(MatchRepository):
 
-    def __init__(self, session: Session):
-        self.session: Session = session
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-
-    def find_match(
+    async def find_match(
             self,
             home_team: str,
             away_team: str,
@@ -27,64 +25,47 @@ class MatchRepositoryImpl(MatchRepository):
             cote_draw: float,
             cote_away: float
     ) -> bool:
-
         try:
-            match_exists = self.session.query(
-                exists().where(
-                    DBMatch.home_team == home_team,
-                    DBMatch.away_team == away_team,
-                    DBMatch.cote_home == cote_home,
-                    DBMatch.cote_draw == cote_draw,
-                    DBMatch.cote_away == cote_away
-                )
-            ).scalar()
-
-            return match_exists
-
-        except Exception as e:
-            raise e
-
-    def find_matches(self) -> List[Match]:
-        try:
-            now = datetime.utcnow()
-            match_dbs = (
-                self.session.query(DBMatch)
-                .filter(DBMatch.time > now)
-                .all()
+            query = select(DBMatch).where(
+                DBMatch.home_team == home_team,
+                DBMatch.away_team == away_team,
+                DBMatch.cote_home == cote_home,
+                DBMatch.cote_draw == cote_draw,
+                DBMatch.cote_away == cote_away
             )
+            result = await self.session.execute(query)
+            match_exists = result.scalar_one_or_none() is not None
+            return match_exists
         except:
             raise
 
-        if len(match_dbs) == 0:
-            return []
-
-        return list(map(lambda match_db: match_db.to_entity(), match_dbs))
-
-    def find_by_id(self, match_id: int) -> Optional[Match]:
+    async def find_matches(self) -> List[Match]:
         try:
-            match_db = self.session.query(DBMatch).filter_by(id=match_id).one()
+            now = datetime.utcnow()
+            query = select(DBMatch).where(DBMatch.time > now)
+            result = await self.session.execute(query)
+            match_dbs = result.scalars().all()
+
+            if not match_dbs:
+                return []
+
+            return [match_db.to_entity() for match_db in match_dbs]
+        except:
+            raise
+
+    async def find_by_id(self, match_id: int) -> Optional[Match]:
+        try:
+            result = await self.session.execute(
+                select(DBMatch).where(DBMatch.id == match_id)
+            )
+            match_db = result.scalar_one()
+            return match_db.to_entity()
         except NoResultFound:
             raise MatchNotFoundError
-        except Exception as e:
-            raise
-        return match_db.to_entity()
-
-    def is_correct_score(self, choice: str) -> bool:
-        try:
-            result = False
-            match_db = (
-                self.session.query(DBMatch)
-                .filter_by(winner=choice)
-                ).count()
-
-            if match_db != 0:
-                result = True
-        except Exception:
+        except:
             raise
 
-        return result
-
-    def exists_match_started_for_ticket(self, match_choices: List[MatchChoiceData]) -> bool:
+    async def exists_match_started_for_ticket(self, match_choices: List[MatchChoiceData]) -> bool:
         if not match_choices:
             return False
 
@@ -93,23 +74,19 @@ class MatchRepositoryImpl(MatchRepository):
 
         match_ids = [mc.match_id for mc in match_choices]
 
-        exists_clause = (
-            self.session.query(DBMatch)
-            .filter(
-                DBMatch.id.in_(match_ids),
-                DBMatch.time >= now
-            )
-            .exists()
+        query = select(DBMatch).where(
+            DBMatch.id.in_(match_ids),
+            DBMatch.time >= now
         )
 
-        query = self.session.query(exists_clause)
-        return self.session.scalar(query)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none() is not None
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()

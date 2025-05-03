@@ -8,37 +8,37 @@ from domain.ticket.model.ticket import Ticket
 class TicketRepository(ABC):
 
     @abstractmethod
-    def create(self, ticket: Ticket) -> Optional[Ticket]:
+    async def create(self, ticket: Ticket) -> Optional[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_id(self, ticket_id: int) -> Optional[Ticket]:
+    async def find_by_id(self, ticket_id: int) -> Optional[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
+    async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
+    async def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, ticket: Ticket) -> Optional[Ticket]:
+    async def update(self, ticket: Ticket) -> Optional[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, ticket_id: int):
+    async def delete(self, ticket_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def begin(self):
+    async def begin(self):
         raise NotImplementedError
 
     @abstractmethod
-    def commit(self):
+    async def commit(self):
         raise NotImplementedError
 
     @abstractmethod
-    def rollback(self):
+    async def rollback(self):
         raise NotImplementedError

@@ -8,19 +8,19 @@ from domain.invitation.model.invitation_status import InvitationStatus
 class InvitationRepository(ABC):
 
     @abstractmethod
-    def add(self, invitation: Invitation) -> Optional[Invitation]:
+    async def add(self, invitation: Invitation) -> Optional[Invitation]:
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
+    async def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_user_id_league_id(self, user_id: int, league_id: int) -> bool:
+    async def find_by_user_id_league_id(self, user_id: int, league_id: int) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def find_invitations(
+    async def find_invitations(
             self,
             user_id: int,
             is_received: bool,
@@ -31,13 +31,17 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, invitation_id: int):
+    async def delete(self, invitation_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def commit(self):
+    async def begin(self):
         raise NotImplementedError
 
     @abstractmethod
-    def rollback(self):
+    async def commit(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def rollback(self):
         raise NotImplementedError

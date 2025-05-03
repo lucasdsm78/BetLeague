@@ -1,6 +1,9 @@
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from typing import Callable
+from sqlalchemy.ext.asyncio import AsyncSession
+
 import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
@@ -20,16 +23,19 @@ from domain.league.repository.league_repository import LeagueRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
+from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
+from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
+from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
 class LeagueCommandUseCase(ABC):
 
     @abstractmethod
-    def create_free_league(self, free_league_model: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
+    async def create_free_league(self, free_league_model: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
         raise NotImplementedError
 
     @abstractmethod
-    def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
+    async def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -55,108 +61,106 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             self,
             league_repository: LeagueRepository,
             user_repository: UserRepository,
+            session_factory: Callable[[], AsyncSession],
             league_players_repository: LeaguePlayersRepository,
             invitation_repository: InvitationRepository,
     ):
         self.league_repository: LeagueRepository = league_repository
+        self._session_factory = session_factory
         self.user_repository: UserRepository = user_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
         self.invitation_repository: InvitationRepository = invitation_repository
 
-    def create_free_league(self, data: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
-        try:
-            existing_user = self.user_repository.find_by_email(email)
+    async def create_free_league(
+            self,
+            data: LeagueFreeCreateModel,
+            email: str
+    ) -> LeagueFreeCreateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo    = UserRepositoryImpl(session)
+                league_repo  = LeagueRepositoryImpl(session)
+                players_repo = LeaguePlayersRepositoryImpl(session)
 
-            uuid = shortuuid.uuid()
-            end_date = int((datetime.now() + timedelta(weeks=1)).timestamp())
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            nb_players_remaining = data.max_players - 1
+                if await league_repo.find_by_name(data.name):
+                    raise LeagueNameAlreadyExistsError
 
-            league = League(
-                is_free=True,
-                uuid=uuid,
-                is_started= False,
-                name=data.name,
-                max_players=data.max_players,
-                is_private=data.is_private,
-                start_date=int(datetime.now().timestamp() * 1000),
-                end_date=end_date,
-                nb_players_remaining=nb_players_remaining,
-                user=UserSummary(id=existing_user.id, email=existing_user.email, pseudo=existing_user.pseudo)
-            )
+                if data.max_players > MAX_PLAYERS:
+                    raise LeagueMaxPlayersError
 
-            existing_league = self.league_repository.find_by_name(data.name)
-            if existing_league is True:
-                raise LeagueNameAlreadyExistsError
+                now_ms = int(datetime.now().timestamp() * 1000)
+                league = League(
+                    is_free=True,
+                    uuid=shortuuid.uuid(),
+                    is_started=False,
+                    name=data.name,
+                    max_players=data.max_players,
+                    is_private=data.is_private,
+                    start_date=now_ms,
+                    end_date=int((datetime.now() + timedelta(weeks=1)).timestamp() * 1000),
+                    nb_players_remaining=data.max_players - 1,
+                    user=UserSummary(
+                        id=user.id,
+                        email=user.email,
+                        pseudo=user.pseudo
+                    )
+                )
 
-            if data.max_players > MAX_PLAYERS:
-                raise LeagueMaxPlayersError
+                await league_repo.create(league)
+                await session.flush()
 
-            self.league_repository.create(league)
-            self.league_repository.commit()
-
-            league_created = self.league_repository.find_by_uuid(league.uuid)
-
-            league_player = LeaguePlayers(
-                user_id=existing_user.id,
-                league_id=league_created.id
-            )
-
-            self.league_players_repository.join_league(league_player)
-            self.league_players_repository.commit()
-
-        except:
-            self.league_repository.rollback()
-            raise
+                await players_repo.join_league(
+                    LeaguePlayers(user_id=user.id, league_id=league.id)
+                )
 
         return LeagueFreeCreateResponse()
 
-    def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repository = UserRepositoryImpl(session)
+                league_repository = LeagueRepositoryImpl(session)
+                league_players_repository = LeaguePlayersRepositoryImpl(session)
 
-            league = self.league_repository.find_by_id(league_id)
-            if not league:
-                raise LeagueNotFoundError
+                user = await user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            is_participate = self.league_players_repository.find_participation(
-                league_id=league_id,
-                user_id=user.id
-            )
+                league = await league_repository.find_by_id(league_id)
+                if not league:
+                    raise LeagueNotFoundError
 
-            if is_participate is True:
-                raise LeagueParticipantFoundError
+                is_participate = await league_players_repository.find_participation(
+                    league_id=league_id,
+                    user_id=user.id
+                )
+                if is_participate is True:
+                    raise LeagueParticipantFoundError
 
-            if league.nb_players_remaining == 0:
-                raise LeagueMaxPlayersError
+                if league.nb_players_remaining == 0:
+                    raise LeagueMaxPlayersError
 
-            league_players = LeaguePlayers(
-                user_id=user.id,
-                league_id=league.id
-            )
+                unixtimestamp = int(datetime.now().timestamp() * 1000)
+                if (
+                        league.nb_players_remaining != 0 and
+                        league.nb_players_remaining - 1 <= MIN_PLAYERS
+                        and unixtimestamp > league.start_date
+                ):
+                    league.is_started = True
 
-            unixtimestamp = int(datetime.now().timestamp() * 1000)
+                league.nb_players_remaining -= 1
 
-            if (
-                    league.nb_players_remaining != 0
-                    and league.nb_players_remaining - 1 <= MIN_PLAYERS
-                    and unixtimestamp > league.start_date
-            ):
-                league.is_started = True
+                league_players = LeaguePlayers(
+                    user_id=user.id,
+                    league_id=league.id
+                )
 
-            league.nb_players_remaining -= 1
-
-            self.league_repository.update(league)
-            self.league_repository.commit()
-            self.league_players_repository.join_league(league_players)
-            self.league_players_repository.commit()
-
-        except:
-            self.league_players_repository.rollback()
-            self.league_repository.rollback()
-            raise
+                await league_repository.update(league)
+                await league_players_repository.join_league(league_players)
 
         return LeagueJoinResponse()
 
