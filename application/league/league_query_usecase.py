@@ -21,7 +21,7 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_league_by_id(self, league_id: int, email: str) -> Optional[LeagueReadModel]:
+    async def get_league_by_id(self, league_id: int, email: str) -> Optional[LeagueReadModel]:
         raise NotImplementedError
 
     @abstractmethod
@@ -61,22 +61,26 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         ranking = await self.league_players_repository.get_league_rank(league_id=league_id)
         return ranking
 
-    def get_league_by_id(self, league_id: int, email: str) -> Optional[LeagueReadModel]:
-        try:
-            user = self.user_repository.find_by_email(email)
-            league = self.league_repository.find_by_id(league_id)
-            if not league:
-                raise LeagueNotFoundError
+    async def get_league_by_id(
+            self,
+            league_id: int,
+            email: str
+    ) -> Optional[LeagueReadModel]:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
 
-            if league.is_private:
-                if not self.league_players_repository.find_participation(
-                        league_id=league_id,
-                        user_id=user.id
-                ):
-                    raise LeagueParticipantNotFoundError
+        league = await self.league_repository.find_by_id(league_id)
+        if not league:
+            raise LeagueNotFoundError
 
-        except Exception as e:
-            raise
+        if league.is_private:
+            participated = await self.league_players_repository.find_participation(
+                league_id=league_id,
+                user_id=user.id
+            )
+            if not participated:
+                raise LeagueParticipantNotFoundError
 
         return LeagueReadModel.from_entity_get_by_id(league)
 
