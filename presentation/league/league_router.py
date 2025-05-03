@@ -94,7 +94,7 @@ async def get_league_ranking(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return league_query_usecase.get_rank_by_league_id( current_user.get('email', ''), league_id)
+        return await league_query_usecase.get_rank_by_league_id( current_user.get('email', ''), league_id)
 
     except LeagueNotFoundError as e:
         raise HTTPException(

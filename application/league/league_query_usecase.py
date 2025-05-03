@@ -17,7 +17,7 @@ from domain.user.repository.user_repository import UserRepository
 class LeagueQueryUseCase(ABC):
 
     @abstractmethod
-    def get_rank_by_league_id(self, email: str, league_id: int) -> List[Dict[str, any]]:
+    async def get_rank_by_league_id(self, email: str, league_id: int) -> List[Dict[str, any]]:
         raise NotImplementedError
 
     @abstractmethod
@@ -42,21 +42,24 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def get_rank_by_league_id(self, email: str, league_id: int) -> List[Dict[str, any]]:
-        try:
-            user = self.user_repository.find_by_email(email)
-            is_participate = self.league_players_repository.find_participation(
-                    league_id=league_id,
-                    user_id=user.id
-                )
+    async def get_rank_by_league_id(
+            self,
+            email: str,
+            league_id: int
+    ) -> List[Dict[str, any]]:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
 
-            if is_participate is False:
-                raise LeagueParticipantNotFoundError
+        participated = await self.league_players_repository.find_participation(
+            league_id=league_id,
+            user_id=user.id
+        )
+        if not participated:
+            raise LeagueParticipantNotFoundError
 
-            return self.league_players_repository.get_league_rank(league_id=league_id)
-
-        except Exception as e:
-            raise
+        ranking = await self.league_players_repository.get_league_rank(league_id=league_id)
+        return ranking
 
     def get_league_by_id(self, league_id: int, email: str) -> Optional[LeagueReadModel]:
         try:
