@@ -25,7 +25,7 @@ async def get_matches(
         current_user: dict = Depends(current_user),
 ):
     try:
-        matches = match_query_usecase.get_matches(current_user.get('email', ''))
+        matches = await match_query_usecase.get_matches(current_user.get('email', ''))
 
     except Exception as e:
         raise
