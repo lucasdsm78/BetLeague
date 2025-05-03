@@ -43,7 +43,7 @@ class TicketCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
+    async def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
         raise NotImplementedError
 
 
@@ -199,38 +199,59 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
         return TicketRemoveResponse()
 
-    def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def update_ticket(
+            self,
+            email: str,
+            ticket_id: int,
+            ticket_update_model: TicketUpdateModel
+    ) -> TicketUpdateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo           = UserRepositoryImpl(session)
+                ticket_repo         = TicketRepositoryImpl(session)
+                match_choices_repo  = MatchChoicesRepositoryImpl(session)
 
-            ticket = self.ticket_repository.find_by_id(ticket_id)
-            if not ticket:
-                raise TicketNotFoundError
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            if ticket.user.id != user.id:
-                raise NotTicketOwnerError
+                ticket = await ticket_repo.find_by_id(ticket_id)
+                if not ticket:
+                    raise TicketNotFoundError
 
-            gain = self.ticket_repository.get_gain(ticket_update_model.match_choices, ticket_update_model.mise)
-            if gain != ticket_update_model.gain:
-                raise GainNotEqualsError
+                if ticket.user.id != user.id:
+                    raise NotTicketOwnerError
 
-            if not ticket_update_model.gain:
-                ticket.gain = gain
+                mise_to_use = (
+                    ticket_update_model.mise
+                    if ticket_update_model.mise is not None
+                    else ticket.mise
+                )
 
-            if not ticket_update_model.mise:
-                ticket.mise = ticket_update_model.mise
+                if ticket_update_model.match_choices:
+                    choice_data = ticket_update_model.match_choices
+                else:
+                    existing_choices = await match_choices_repo.find_all_by_ticket_id(ticket.id)
+                    choice_data = [
+                        MatchChoiceData(match_id=mc.match_id, choice=mc.choice)
+                        for mc in existing_choices
+                    ]
 
-            self.ticket_repository.update(ticket)
-            self.ticket_repository.commit()
+                new_gain = await ticket_repo.get_gain(choice_data, mise_to_use)
+                if new_gain != ticket_update_model.gain:
+                    raise GainNotEqualsError
 
-            if ticket_update_model.match_choices:
-                self._process_match_choices(True, ticket.id, ticket_update_model.match_choices)
+                if ticket_update_model.mise is not None:
+                    ticket.mise = ticket_update_model.mise
+                ticket.gain = new_gain
+                await ticket_repo.update(ticket)
 
-        except:
-            self.ticket_repository.rollback()
-            self.match_choices_repository.rollback()
-            raise
+                if ticket_update_model.match_choices:
+                    await self._process_match_choices(
+                        session=session,
+                        updated=True,
+                        ticket_id=ticket.id,
+                        match_choices_data=ticket_update_model.match_choices
+                    )
 
         return TicketUpdateResponse()
