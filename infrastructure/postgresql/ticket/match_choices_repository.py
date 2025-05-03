@@ -1,55 +1,62 @@
 from typing import List
 
-from sqlalchemy.orm.session import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.ticket.model.match_choice import MatchChoice
-from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 
 
 class MatchChoicesRepositoryImpl(MatchChoiceRepository):
 
-    def __init__(self, session: Session):
-        self.session: Session = session
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-    def create(self, match_choice: MatchChoice) :
+    async def create(self, match_choice: MatchChoice):
         match_choice_db = DBMatchChoices.from_entity(match_choice)
         try:
             self.session.add(match_choice_db)
         except:
             raise
 
-    def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
+    async def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
         try:
-            match_choices_db = (
-                self.session.query(DBMatchChoices)
-                .filter_by(ticket_id=ticket_id)
-                .all()
-            )
+            query = select(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
+            result = await self.session.execute(query)
+            match_choices_db = result.scalars().all()
+
+            if not match_choices_db:
+                return []
+
+            return [match_choice_db.to_entity() for match_choice_db in match_choices_db]
         except:
             raise
 
-        if len(match_choices_db) == 0:
-            return []
-
-        return list(map(lambda match_choice_db: match_choice_db.to_entity(), match_choices_db))
-
-    def delete_by_ticket_id(self, ticket_id: int):
-        self.session.query(DBMatchChoices).filter_by(ticket_id=ticket_id).delete()
-
-    def update(self, match_choice: MatchChoice):
+    async def delete_by_ticket_id(self, ticket_id: int):
         try:
-            _match_choice = self.session.query(DBMatchChoices).filter_by(id=match_choice.id).one()
+            query = select(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
+            result = await self.session.execute(query)
+            match_choices = result.scalars().all()
+            for match_choice in match_choices:
+                await self.session.delete(match_choice)
+        except:
+            raise
+
+    async def update(self, match_choice: MatchChoice):
+        try:
+            query = select(DBMatchChoices).where(DBMatchChoices.id == match_choice.id)
+            result = await self.session.execute(query)
+            _match_choice = result.scalar_one()
             match_choice_db = DBMatchChoices.from_entity(match_choice, _match_choice)
         except:
             raise
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()

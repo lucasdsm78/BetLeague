@@ -19,7 +19,7 @@ from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.user.repository.user_repository import UserRepository
 
 from functools import lru_cache
-from typing import Iterator, AsyncGenerator
+from typing import Iterator, AsyncGenerator, Callable
 
 from fastapi import Depends
 from sqlalchemy.orm.session import Session
@@ -58,6 +58,8 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         finally:
             pass
 
+def get_session_factory() -> Callable[[], AsyncSession]:
+    return AsyncSessionLocal
 
 @lru_cache()
 def get_settings() -> Settings:
@@ -80,30 +82,30 @@ def match_score_api(settings: Settings = Depends(get_settings)) -> MatchScoreApi
     return MatchScoreApiImpl(settings=settings)
 
 
-def user_repository_dependency(session: Session = Depends(get_session)) -> UserRepository:
+def user_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> UserRepository:
     return UserRepositoryImpl(session)
 
 
-def ticket_repository_dependency(session: Session = Depends(get_session)) -> TicketRepository:
+def ticket_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TicketRepository:
     return TicketRepositoryImpl(session)
 
 
-def match_choices_repository_dependency(session: Session = Depends(get_session)) -> MatchChoiceRepository:
+def match_choices_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchChoiceRepository:
     return MatchChoicesRepositoryImpl(session)
 
 
-def league_repository_dependency(session: Session = Depends(get_session)) -> LeagueRepository:
+def league_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> LeagueRepository:
     return LeagueRepositoryImpl(session)
 
 
-def league_players_repository_dependency(session: Session = Depends(get_session)) -> LeaguePlayersRepository:
+def league_players_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> LeaguePlayersRepository:
     return LeaguePlayersRepositoryImpl(session)
 
 
-def match_repository_dependency(session: Session = Depends(get_session)) -> MatchRepository:
+def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
 
-def invitation_repository_dependency(session: Session = Depends(get_session)) -> InvitationRepository:
+def invitation_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> InvitationRepository:
     return InvitationRepositoryImpl(session)
 
 def user_command_usecase(
@@ -123,12 +125,14 @@ def user_command_usecase(
 
 
 def league_command_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         league_repository: LeagueRepository = Depends(league_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
         league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
         invitation_repository: InvitationRepository = Depends(invitation_repository_dependency),
 ) -> LeagueCommandUseCase:
     return LeagueCommandUseCaseImpl(
+        session_factory=session_factory,
         league_repository=league_repository,
         user_repository=user_repository,
         league_players_repository=league_players_repository,

@@ -1,7 +1,8 @@
 from typing import List, Optional
-
+from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from domain.league.exception.league_exception import LeagueNotFoundError
 from domain.league.model.league import League
@@ -12,86 +13,102 @@ from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
 
 class LeagueRepositoryImpl(LeagueRepository):
 
-    def __init__(self, session: Session):
-        self.session: Session = session
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-    def create(self, league: League):
+    async def create(self, league: League):
         league_db = DBLeague.from_entity(league)
         try:
             self.session.add(league_db)
         except:
             raise
 
-    def find_by_id(self, league_id: int) -> Optional[League]:
-        try:
-            league_db = self.session.query(DBLeague).filter_by(id=league_id).one()
-        except NoResultFound:
+    async def find_by_id(self, league_id: int) -> League:
+        q = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))   # ← charge aussi .user
+            .where(DBLeague.id == league_id)
+        )
+        result = await self.session.execute(q)
+        league_db = result.scalar_one_or_none()
+        if not league_db:
             raise LeagueNotFoundError
-        except Exception as e:
-            raise
         return league_db.to_entity()
 
-    def find_by_name(self, name: str) -> bool:
+    async def find_by_name(self, name: str) -> bool:
         try:
-            league_db = self.session.query(DBLeague).filter_by(name=name).one_or_none()
-            if league_db is None:
-                return False
-            return True
-        except Exception as e:
+            result = await self.session.execute(
+                select(DBLeague).where(DBLeague.name == name)
+            )
+            league_db = result.scalar_one_or_none()
+            return league_db is not None
+        except:
             raise
 
-    def find_leagues(self,  user_id: int, page: int = 1, limit: int = 10) -> List[League]:
+    async def find_leagues(self, user_id: int, page: int = 1, limit: int = 10) -> List[League]:
         offset = (page - 1) * limit
 
         try:
             subquery = (
-                self.session.query(DBLeaguePlayers.league_id)
-                .filter(DBLeaguePlayers.user_id == user_id)
-                .subquery()
+                select(DBLeaguePlayers.league_id)
+                .where(DBLeaguePlayers.user_id == user_id)
+                .scalar_subquery()
             )
 
-            leagues_dbs = (
-                self.session.query(DBLeague)
-                .filter(DBLeague.is_private == False)
-                .filter(DBLeague.user_id != user_id)
-                .filter(DBLeague.nb_players_remaining > 0)
-                .filter(DBLeague.id.notin_(subquery))
+            query = (
+                select(DBLeague)
+                .where(
+                    DBLeague.is_private == False,
+                    DBLeague.user_id != user_id,
+                    DBLeague.nb_players_remaining > 0,
+                    DBLeague.id.notin_(subquery)
+                )
                 .order_by(DBLeague.created_at.desc())
                 .offset(offset)
                 .limit(limit)
-                .all()
             )
+
+            result = await self.session.execute(query)
+            leagues_dbs = result.scalars().all()
 
             if not leagues_dbs:
                 return []
 
-            return list(map(lambda league_db: league_db.to_entity(), leagues_dbs))
+            return [league_db.to_entity() for league_db in leagues_dbs]
 
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
+        except SQLAlchemyError:
+            await self.session.rollback()
+            raise
 
-    def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+    async def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+        q = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.uuid == league_uuid)
+        )
+
         try:
-            league_db = self.session.query(DBLeague).filter_by(uuid=league_uuid).one()
+            result = await self.session.execute(q)
+            league_db = result.scalar_one()
+            return league_db.to_entity()
         except NoResultFound:
             raise LeagueNotFoundError
-        except Exception as e:
-            raise
-        return league_db.to_entity()
 
-    def update(self, league: League):
+    async def update(self, league: League):
         try:
-            _league = self.session.query(DBLeague).filter_by(id=league.id).one()
+            result = await self.session.execute(
+                select(DBLeague).where(DBLeague.id == league.id)
+            )
+            _league = result.scalar_one()
             league_db = DBLeague.from_entity(league, _league)
         except:
             raise
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()

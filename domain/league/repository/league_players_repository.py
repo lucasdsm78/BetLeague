@@ -7,41 +7,45 @@ from domain.league.model.league_players import LeaguePlayers
 class LeaguePlayersRepository(ABC):
 
     @abstractmethod
-    def join_league(self, league_players: LeaguePlayers) -> Optional[LeaguePlayers]:
+    async def join_league(self, league_players: LeaguePlayers) -> Optional[LeaguePlayers]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
+    async def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
         raise NotImplementedError
 
     @abstractmethod
-    def unregister_league(self, league_players_id: int):
+    async def unregister_league(self, league_players_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def find_participation(self, league_id: int, user_id: int) -> bool:
+    async def find_participation(self, league_id: int, user_id: int) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def get_participation(self, league_id: int, user_id: int) -> Optional[LeaguePlayers]:
+    async def get_participation(self, league_id: int, user_id: int) -> Optional[LeaguePlayers]:
         raise NotImplementedError
 
     @abstractmethod
-    def count_players(self, league_id: int) -> int:
+    async def count_players(self, league_id: int) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_player(self, league_player_id: int):
+    async def delete_player(self, league_player_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, league_player: LeaguePlayers) -> Optional[LeaguePlayers]:
+    async def update(self, league_player: LeaguePlayers) -> Optional[LeaguePlayers]:
         raise NotImplementedError
 
     @abstractmethod
-    def commit(self):
+    async def begin(self):
         raise NotImplementedError
 
     @abstractmethod
-    def rollback(self):
+    async def commit(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def rollback(self):
         raise NotImplementedError

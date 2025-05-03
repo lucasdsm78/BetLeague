@@ -1,8 +1,7 @@
 from typing import List, Dict
-from sqlalchemy import func
-
+from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError
 from domain.league.model.league_players import LeaguePlayers
@@ -13,34 +12,35 @@ from infrastructure.postgresql.user.db_user import DBUser
 
 class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
 
-    def __init__(self, session: Session):
-        self.session: Session = session
+    def __init__(self, session: AsyncSession):
+        self.session: AsyncSession = session
 
-    def join_league(self, league_players: LeaguePlayers):
+    async def join_league(self, league_players: LeaguePlayers):
         league_players_db = DBLeaguePlayers.from_entity(league_players)
         try:
             self.session.add(league_players_db)
         except:
             raise
 
-    def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
+    async def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
         try:
-            ranking_query = (
-                self.session.query(
+            query = (
+                select(
                     DBLeaguePlayers.nb_btl.label("nb_btl"),
                     DBLeaguePlayers.nb_win.label("nb_win"),
                     DBLeaguePlayers.nb_lose.label("nb_lose"),
                     DBUser.pseudo.label("pseudo"),
-                    func.rank()
-                    .over(order_by=DBLeaguePlayers.nb_btl.desc())
-                    .label("position")
+                    func.rank().over(
+                        order_by=DBLeaguePlayers.nb_btl.desc()
+                    ).label("position")
                 )
                 .join(DBUser, DBLeaguePlayers.user_id == DBUser.id)
-                .filter(DBLeaguePlayers.league_id == league_id)
+                .where(DBLeaguePlayers.league_id == league_id)
                 .order_by(DBLeaguePlayers.nb_btl.desc())
             )
 
-            ranking_result = ranking_query.all()
+            result = await self.session.execute(query)
+            ranking_result = result.all()
 
             return [
                 {
@@ -52,72 +52,76 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
                 }
                 for row in ranking_result
             ]
-
-        except Exception as e:
-            raise e
-
-    def unregister_league(self, league_players_id: int):
-        try:
-            self.session.query(DBLeaguePlayers).filter_by(id=league_players_id).delete()
         except:
             raise
 
-    def count_players(self, league_id: int) -> int:
+    async def unregister_league(self, league_players_id: int):
         try:
-            count = self.session.query(DBLeaguePlayers).filter_by(
-                league_id=league_id
-            ).count()
-        except Exception:
+            query = select(DBLeaguePlayers).where(DBLeaguePlayers.id == league_players_id)
+            result = await self.session.execute(query)
+            league_player = result.scalar_one()
+            await self.session.delete(league_player)
+        except:
             raise
 
-        return count
-
-    def find_participation(self, league_id: int, user_id: int) -> bool:
+    async def count_players(self, league_id: int) -> int:
         try:
-            result = False
-            league_players_db = self.session.query(DBLeaguePlayers).filter_by(
-                league_id=league_id,
-                user_id=user_id
-            ).count()
-
-            if league_players_db != 0:
-                result = True
-        except Exception:
+            query = select(func.count()).select_from(DBLeaguePlayers).where(
+                DBLeaguePlayers.league_id == league_id
+            )
+            result = await self.session.execute(query)
+            return result.scalar_one()
+        except:
             raise
 
-        return result
-
-    def get_participation(self, league_id: int, user_id: int) -> LeaguePlayers:
+    async def find_participation(self, league_id: int, user_id: int) -> bool:
         try:
-            league_players_db = self.session.query(DBLeaguePlayers).filter_by(
-                league_id=league_id,
-                user_id=user_id
-            ).one()
+            query = select(DBLeaguePlayers).where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id == user_id
+            )
+            result = await self.session.execute(query)
+            return result.scalar_one_or_none() is not None
+        except:
+            raise
+
+    async def get_participation(self, league_id: int, user_id: int) -> LeaguePlayers:
+        try:
+            query = select(DBLeaguePlayers).where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id == user_id
+            )
+            result = await self.session.execute(query)
+            league_players_db = result.scalar_one()
+            return league_players_db.to_entity()
         except NoResultFound:
             raise LeagueParticipantNotFoundError
-        except Exception:
-            raise
-
-        return league_players_db.to_entity()
-
-    def delete_player(self, league_player_id: int):
-        try:
-            self.session.query(DBLeaguePlayers).filter_by(id=league_player_id).delete()
         except:
             raise
 
-    def update(self, league_player: LeaguePlayers):
+    async def delete_player(self, league_player_id: int):
         try:
-            _league_player = self.session.query(DBLeaguePlayers).filter_by(id=league_player.id).one()
+            query = select(DBLeaguePlayers).where(DBLeaguePlayers.id == league_player_id)
+            result = await self.session.execute(query)
+            league_player = result.scalar_one()
+            await self.session.delete(league_player)
+        except:
+            raise
+
+    async def update(self, league_player: LeaguePlayers):
+        try:
+            query = select(DBLeaguePlayers).where(DBLeaguePlayers.id == league_player.id)
+            result = await self.session.execute(query)
+            _league_player = result.scalar_one()
             league_player_db = DBLeaguePlayers.from_entity(league_player, _league_player)
         except:
             raise
 
-    def begin(self):
-        self.session.begin()
+    async def begin(self):
+        await self.session.begin()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        await self.session.commit()
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        await self.session.rollback()

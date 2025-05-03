@@ -32,7 +32,7 @@ async def create_free_league(
         current_user: dict = Depends(current_user)
 ):
     try:
-        league = league_command_usecase.create_free_league(free_league_model, current_user.get('email', ''))
+        league = await league_command_usecase.create_free_league(free_league_model, current_user.get('email', ''))
 
     except Exception as e:
         raise
@@ -52,7 +52,7 @@ async def join_league(
         current_user: dict = Depends(current_user),
 ):
     try:
-        league_players = league_command_usecase.join_league(league_id, current_user.get('email', ''))
+        league_players = await league_command_usecase.join_league(league_id, current_user.get('email', ''))
 
     except LeagueNotFoundError as e:
         raise HTTPException(
@@ -79,6 +79,7 @@ async def join_league(
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
