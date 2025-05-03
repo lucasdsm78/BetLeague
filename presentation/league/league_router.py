@@ -166,7 +166,7 @@ async def get_league(
         current_user: dict = Depends(current_user),
 ):
     try:
-        league = league_query_usecase.get_league_by_id(league_id, current_user.get('email', ''))
+        league = await league_query_usecase.get_league_by_id(league_id, current_user.get('email', ''))
     except LeagueNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
