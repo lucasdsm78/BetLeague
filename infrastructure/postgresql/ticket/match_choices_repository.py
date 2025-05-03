@@ -1,8 +1,7 @@
 from typing import List
-
+from sqlalchemy.orm import joinedload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
@@ -21,17 +20,18 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
             raise
 
     async def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
-        try:
-            query = select(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
-            result = await self.session.execute(query)
-            match_choices_db = result.scalars().all()
+        q = (
+            select(DBMatchChoices)
+            .options(joinedload(DBMatchChoices.match))
+            .where(DBMatchChoices.ticket_id == ticket_id)
+        )
+        result = await self.session.execute(q)
+        rows = result.scalars().all()
 
-            if not match_choices_db:
-                return []
+        if not rows:
+            return []
 
-            return [match_choice_db.to_entity() for match_choice_db in match_choices_db]
-        except:
-            raise
+        return [row.to_entity() for row in rows]
 
     async def delete_by_ticket_id(self, ticket_id: int):
         try:

@@ -39,7 +39,7 @@ class TicketCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
+    async def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -141,8 +141,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     ticket_create_model.match_choices,
                     ticket_create_model.mise
                 )
-                if gain != ticket_create_model.gain:
-                    raise GainNotEqualsError
+                # if gain != ticket_create_model.gain:
+                #     raise GainNotEqualsError
 
                 uuid = shortuuid.uuid()
                 ticket = Ticket(
@@ -173,26 +173,29 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
         return TicketCreateResponse()
 
-    def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
-        try:
-            ticket = self.ticket_repository.find_by_id(ticket_id)
-            if ticket is None:
-                raise TicketNotFoundError
+    async def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo           = UserRepositoryImpl(session)
+                ticket_repo         = TicketRepositoryImpl(session)
+                match_repo          = MatchRepositoryImpl(session)
+                match_choices_repo  = MatchChoicesRepositoryImpl(session)
 
-            user = self.user_repository.find_by_email(email)
-            if ticket.user.id != user.id:
-                raise NotTicketOwnerError
+                ticket = await ticket_repo.find_by_id(ticket_id)
+                if ticket.user.id != (await user_repo.find_by_email(email)).id:
+                    raise NotTicketOwnerError
 
-            match_already_started = self.match_repository.exists_match_started_for_ticket(ticket_id)
-            if match_already_started:
-                raise MatchAlreadyStartedError
+                choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
+                choice_data_list = [
+                    MatchChoiceData(match_id=mc.match_id, choice=mc.choice)
+                    for mc in choices
+                ]
 
-            self.match_choices_repository.delete_by_ticket_id(ticket.id)
-            self.ticket_repository.delete(ticket_id)
-            self.ticket_repository.commit()
-        except:
-            self.ticket_repository.rollback()
-            raise
+                if await match_repo.exists_match_started_for_ticket(choice_data_list):
+                    raise MatchAlreadyStartedError
+
+                await match_choices_repo.delete_by_ticket_id(ticket.id)
+                await ticket_repo.delete(ticket.id)
 
         return TicketRemoveResponse()
 

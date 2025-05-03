@@ -1,6 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
@@ -10,7 +10,6 @@ from domain.ticket.exception.ticket_exception import TicketNotFoundError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.repository.ticket_repository import TicketRepository
-from infrastructure.postgresql.league.db_league import DBLeague
 from infrastructure.postgresql.match.db_match import DBMatch
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
 
@@ -27,17 +26,21 @@ class TicketRepositoryImpl(TicketRepository):
         except:
             raise
 
-    async def find_by_id(self, ticket_id: int) -> Optional[Ticket]:
-        try:
-            result = await self.session.execute(
-                select(DBTicket).where(DBTicket.id == ticket_id)
+    async def find_by_id(self, ticket_id: int) -> Ticket:
+        q = (
+            select(DBTicket)
+            .options(
+                joinedload(DBTicket.user),
+                joinedload(DBTicket.league),
+                selectinload(DBTicket.match_choices)
             )
-            ticket_db = result.scalar_one()
-            return ticket_db.to_entity()
-        except NoResultFound:
+            .where(DBTicket.id == ticket_id)
+        )
+        result = await self.session.execute(q)
+        ticket_db = result.scalar_one_or_none()
+        if not ticket_db:
             raise TicketNotFoundError
-        except:
-            raise
+        return ticket_db.to_entity()
 
     async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
         try:
