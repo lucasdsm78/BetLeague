@@ -96,7 +96,7 @@ async def remove_ticket(
         current_user: dict = Depends(current_user)
 ):
     try:
-        remove_ticket_result = ticket_command_usecase.remove_ticket(current_user.get('email'), ticket_id)
+        remove_ticket_result = await ticket_command_usecase.remove_ticket(current_user.get('email'), ticket_id)
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -113,6 +113,7 @@ async def remove_ticket(
             detail=e.message
         )
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la suppression du ticket."
