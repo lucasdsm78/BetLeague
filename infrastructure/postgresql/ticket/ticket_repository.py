@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
+from sqlalchemy.orm import joinedload
 
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
@@ -9,6 +10,7 @@ from domain.ticket.exception.ticket_exception import TicketNotFoundError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.repository.ticket_repository import TicketRepository
+from infrastructure.postgresql.league.db_league import DBLeague
 from infrastructure.postgresql.match.db_match import DBMatch
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
 
@@ -74,16 +76,22 @@ class TicketRepositoryImpl(TicketRepository):
             raise
 
     async def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
-        try:
-            result = await self.session.execute(
-                select(DBTicket).where(DBTicket.uuid == ticket_uuid)
+        q = (
+            select(DBTicket)
+            .options(
+                joinedload(DBTicket.user),
+                joinedload(DBTicket.league),
+                joinedload(DBTicket.match_choices),
             )
-            ticket_db = result.scalar_one()
+            .where(DBTicket.uuid == ticket_uuid)
+        )
+
+        try:
+            result = await self.session.execute(q)
+            ticket_db = result.unique().scalar_one_or_none()
             return ticket_db.to_entity()
         except NoResultFound:
             raise TicketNotFoundError
-        except:
-            raise
 
     async def update(self, ticket: Ticket):
         try:

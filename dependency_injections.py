@@ -169,6 +169,7 @@ def ticket_query_usecase(
 
 
 def ticket_command_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         league_repository: LeagueRepository = Depends(league_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
         ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
@@ -179,6 +180,7 @@ def ticket_command_usecase(
 ) -> TicketCommandUseCase:
     return TicketCommandUseCaseImpl(
         league_repository=league_repository,
+        session_factory=session_factory,
         user_repository=user_repository,
         ticket_repository=ticket_repository,
         match_choices_repository=match_choices_repository,
