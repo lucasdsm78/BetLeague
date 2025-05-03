@@ -19,6 +19,14 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_pseudo_or_email(
+            self,
+            pseudo: Optional[str] = None,
+            email: Optional[str] = None
+    ) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_pseudo(self, pseudo: str) -> Optional[User]:
         raise NotImplementedError
 

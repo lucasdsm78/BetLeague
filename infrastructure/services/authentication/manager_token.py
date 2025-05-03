@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -17,49 +18,46 @@ ALGORITHM = "RS256"
 class JwtManagerTokenImpl(ManagerToken, BaseModel):
     settings: Settings
 
-    def generate_token_login(self, user: User) -> str:
+    async def generate_token_login(self, user: User) -> str:
         expire = datetime.utcnow() + timedelta(minutes=self.settings.access_token_expire_minutes)
-        return self._generate_token(
+        return await self._generate_token(
             data=user.token_details(),
             rsa_key=self.settings.private_key,
             expires_delta=expire
         )
 
-    def generate_expiration_token_login(self, user: User) -> str:
+    async def generate_expiration_token_login(self, user: User) -> str:
         expire = datetime.utcnow() + timedelta(minutes=self.settings.refresh_token_expire_minutes)
-        return self._generate_token(
+        return await self._generate_token(
             data=user.token_details(),
             rsa_key=self.settings.private_key,
             expires_delta=expire
         )
 
-    def decode_token_login(self, token: str) -> Optional[Dict[str, Any]]:
-        return self._decode_token(token, self.settings.public_key)
+    async def decode_token_login(self, token: str) -> Optional[Dict[str, Any]]:
+        return await self._decode_token(token, self.settings.public_key)
 
-    def decode_expiration_token_login(self, token: str, password: Password) -> Optional[Dict[str, Any]]:
-        return self._decode_token(
-            token=token,
-            rsa_pub_key=self.settings.public_key
-        )
+    async def decode_expiration_token_login(self, token: str, password: Password) -> Optional[Dict[str, Any]]:
+        return await self._decode_token(token, self.settings.public_key)
 
     @staticmethod
-    def _generate_token(data: dict, rsa_key: str, expires_delta: datetime) -> str:
+    async def _generate_token(data: dict, rsa_key: str, expires_delta: datetime) -> str:
         payload = data.copy()
-        payload["exp"] = expires_delta
-        payload["iat"] = datetime.utcnow()
-
-        encoded_jwt = jwt.encode(payload, rsa_key, algorithm=ALGORITHM)  # Utilisation de ALGORITHM
-        return encoded_jwt
+        payload.update({
+            "exp": expires_delta,
+            "iat": datetime.utcnow()
+        })
+        return await asyncio.to_thread(jwt.encode, payload, rsa_key, ALGORITHM)
 
     @staticmethod
-    def _decode_token(token: str, rsa_pub_key: str) -> Optional[Dict[str, Any]]:
+    async def _decode_token(token: str, rsa_pub_key: str) -> Optional[Dict[str, Any]]:
         try:
-            decoded = jwt.decode(token, rsa_pub_key, algorithms=[ALGORITHM])  # Utilisation de ALGORITHM
+            decoded = await asyncio.to_thread(jwt.decode, token, rsa_pub_key, [ALGORITHM])
             return decoded
-        except ExpiredSignatureError:
-            logging.warning("Token expiré.")
-        except InvalidAudienceError:
-            logging.warning("Audience invalide.")
-        except InvalidTokenError:
-            logging.warning("Token invalide.")
+        except jwt.ExpiredSignatureError:
+            logging.warning("Expired token.")
+        except jwt.InvalidAudienceError:
+            logging.warning("Invalid audience.")
+        except jwt.InvalidTokenError:
+            logging.warning("Invalid token.")
         return None

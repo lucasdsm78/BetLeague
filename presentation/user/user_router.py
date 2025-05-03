@@ -45,7 +45,6 @@ async def create_user(
         )
 
     except Exception as e:
-        print(e)
         raise
 
     return user
@@ -65,10 +64,9 @@ async def get_users(
         user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
 ):
     try:
-        users = user_query_usecase.fetch_users()
+        users = await user_query_usecase.fetch_users()
 
     except Exception as e:
-        print(e)
         raise
 
     if not len(users.get("users")):
@@ -90,7 +88,7 @@ async def login(
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
 ):
     try:
-        user = user_command_usecase.login(user_login_model)
+        user = await user_command_usecase.login(user_login_model)
         return user.for_login()
     except HTTPException as e:
         raise e
@@ -118,7 +116,7 @@ async def delete_user(
         current_user: dict = Depends(current_user)
 ):
     try:
-        delete_user = user_command_usecase.delete_user(id)
+        delete_user = await user_command_usecase.delete_user(id)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,7 +140,7 @@ async def enable_2fa(
         current_user: dict = Depends(current_user)
 ):
     try:
-        qr_code_bytes = user_command_usecase.enable_2fa(current_user.get('email', ''))
+        qr_code_bytes = await user_command_usecase.enable_2fa(current_user.get('email', ''))
         return StreamingResponse(io.BytesIO(qr_code_bytes), media_type="image/png")
     except HTTPException as e:
         print(e)
@@ -166,13 +164,12 @@ async def verify_2fa(
         current_user: dict = Depends(current_user)
 ):
     try:
-        is_valid = user_command_usecase.verify_2fa(current_user.get('email', ''), code)
+        is_valid = await user_command_usecase.verify_2fa(current_user.get('email', ''), code)
         if is_valid:
             return {"message": "2FA verified successfully."}
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify 2FA."
@@ -208,7 +205,7 @@ async def update_user(
         current_user: dict = Depends(current_user)
 ):
     try:
-        update_user_result = user_command_usecase.update_user_profile(current_user.get('email'), update_user_model)
+        update_user_result = await user_command_usecase.update_user_profile(current_user.get('email'), update_user_model)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -235,6 +232,7 @@ async def update_user(
             detail=e.message
         )
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification du user"
@@ -255,7 +253,7 @@ async def get_user_by_id(
         current_user: dict = Depends(current_user)
 ):
     try:
-        user = user_query_usecase.fetch_user_by_id(user_id, current_user.get('email'))
+        user = await user_query_usecase.fetch_user_by_id(user_id, current_user.get('email'))
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

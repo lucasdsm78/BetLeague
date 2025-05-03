@@ -109,6 +109,7 @@ def invitation_repository_dependency(session: AsyncSession = Depends(get_async_s
     return InvitationRepositoryImpl(session)
 
 def user_command_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         user_repository: UserRepository = Depends(user_repository_dependency),
         hasher: Hash = Depends(hash_dependency),
         manager_token: ManagerToken = Depends(manager_token_dependency),
@@ -118,6 +119,7 @@ def user_command_usecase(
     return UserCommandUseCaseImpl(
         user_repository=user_repository,
         hasher=hasher,
+        session_factory=session_factory,
         manager_token=manager_token,
         totp_service=totp_service,
         settings=settings
@@ -222,7 +224,7 @@ def match_command_usecase(
     )
 
 
-def authentication(
+async def authentication(
         manager_token: ManagerToken = Depends(manager_token_dependency),
         token: str = Depends(jwt_auth)
 ) -> str:
@@ -230,10 +232,11 @@ def authentication(
         manager_token=manager_token,
         token=token
     )
-    return token_authenticator.authentication()
+    return await token_authenticator.authentication()
 
 
-def current_user(token: str = Depends(authentication),
-                 manager_token: ManagerToken = Depends(manager_token_dependency)
-                 ) -> dict:
-    return manager_token.decode_token_login(token)
+async def current_user(
+        token: str = Depends(authentication),
+        manager_token: ManagerToken = Depends(manager_token_dependency)
+) -> dict:
+    return await manager_token.decode_token_login(token)
