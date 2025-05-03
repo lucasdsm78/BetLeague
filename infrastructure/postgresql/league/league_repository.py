@@ -45,40 +45,36 @@ class LeagueRepositoryImpl(LeagueRepository):
         except:
             raise
 
-    async def find_leagues(self, user_id: int, page: int = 1, limit: int = 10) -> List[League]:
+    async def find_leagues(
+            self, user_id: int, page: int = 1, limit: int = 10
+    ) -> List[League]:
         offset = (page - 1) * limit
 
-        try:
-            subquery = (
-                select(DBLeaguePlayers.league_id)
-                .where(DBLeaguePlayers.user_id == user_id)
-                .scalar_subquery()
-            )
-
-            query = (
-                select(DBLeague)
-                .where(
-                    DBLeague.is_private == False,
-                    DBLeague.user_id != user_id,
-                    DBLeague.nb_players_remaining > 0,
-                    DBLeague.id.notin_(subquery)
+        query = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))   # ← charger aussi .user
+            .where(
+                DBLeague.is_private == False,
+                DBLeague.user_id != user_id,
+                DBLeague.nb_players_remaining > 0,
+                DBLeague.id.notin_(
+                    select(DBLeaguePlayers.league_id)
+                    .where(DBLeaguePlayers.user_id == user_id)
+                    .scalar_subquery()
+                ),
                 )
-                .order_by(DBLeague.created_at.desc())
-                .offset(offset)
-                .limit(limit)
-            )
+            .order_by(DBLeague.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
 
-            result = await self.session.execute(query)
-            leagues_dbs = result.scalars().all()
+        result = await self.session.execute(query)
+        leagues_dbs = result.scalars().all()
 
-            if not leagues_dbs:
-                return []
+        if not leagues_dbs:
+            return []
 
-            return [league_db.to_entity() for league_db in leagues_dbs]
-
-        except SQLAlchemyError:
-            await self.session.rollback()
-            raise
+        return [league_db.to_entity() for league_db in leagues_dbs]
 
     async def find_by_uuid(self, league_uuid: str) -> Optional[League]:
         q = (
