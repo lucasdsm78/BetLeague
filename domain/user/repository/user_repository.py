@@ -11,7 +11,7 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def commit(self):
+    async def commit(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -19,29 +19,29 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_pseudo(self, pseudo: str) -> Optional[User]:
+    async def find_by_pseudo(self, pseudo: str) -> Optional[User]:
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, user: User) -> Optional[User]:
+    async def update(self, user: User) -> Optional[User]:
         raise NotImplementedError
 
     @abstractmethod
-    def find_by_id(self, user_id: int) -> Optional[User]:
+    async def find_by_id(self, user_id: int) -> Optional[User]:
         raise NotImplementedError
 
     @abstractmethod
-    def find_users(self) -> List[User]:
+    async def find_users(self) -> List[User]:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_user(self, user_id: int):
+    async def delete_user(self, user_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def get_all_rank_users(self) -> List[Dict[str, any]]:
+    async def get_all_rank_users(self) -> List[Dict[str, any]]:
         raise NotImplementedError
 
     @abstractmethod
-    def rollback(self):
+    async def rollback(self):
         raise NotImplementedError
