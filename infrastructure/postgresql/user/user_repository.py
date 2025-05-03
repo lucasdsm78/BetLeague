@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,23 @@ class UserRepositoryImpl(UserRepository):
             return user_db.to_entity()
         except:
             raise
+
+    async def find_by_pseudo_or_email(
+            self,
+            pseudo: Optional[str] = None,
+            email: Optional[str] = None
+    ) -> Optional[User]:
+        filters = []
+        if pseudo:
+            filters.append(DBUser.pseudo == pseudo)
+        if email:
+            filters.append(DBUser.email == email)
+        if not filters:
+            return None
+        stmt = select(DBUser).where(or_(*filters))
+        result = await self.session.execute(stmt)
+        user_db = result.scalar_one_or_none()
+        return user_db.to_entity() if user_db else None
 
     async def find_by_pseudo(self, pseudo: str) -> Optional[User]:
         try:
@@ -60,7 +77,7 @@ class UserRepositoryImpl(UserRepository):
     async def find_users(self) -> List[User]:
         try:
             result = await self.session.execute(
-                select(DBUser).order_by(DBUser.last_name)
+                select(DBUser).order_by(DBUser.pseudo)
             )
             user_dbs = result.scalars().all()
             if not user_dbs:
@@ -71,9 +88,12 @@ class UserRepositoryImpl(UserRepository):
 
     async def delete_user(self, user_id: int):
         try:
-            await self.session.execute(
-                select(DBUser).where(DBUser.id == user_id).delete()
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.id == user_id)
             )
+            db_user = result.scalar_one()
+
+            await self.session.delete(db_user)
         except:
             raise
 

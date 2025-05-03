@@ -1,8 +1,11 @@
+import asyncio
 from abc import ABC, abstractmethod
+from typing import Callable
 
 import shortuuid
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse
@@ -16,6 +19,7 @@ from domain.user.model.password import Password
 from domain.user.model.user import User
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
+from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
 class UserCommandUseCase(ABC):
@@ -25,23 +29,23 @@ class UserCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def login(self, user_login_model: UserLoginModel) -> UserLoginResponse:
+    async def login(self, user_login_model: UserLoginModel) -> UserLoginResponse:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_user(self, user_id: int) -> UserDeleteResponse:
+    async def delete_user(self, user_id: int) -> UserDeleteResponse:
         raise NotImplementedError
 
     @abstractmethod
-    def update_user_profile(self, email: str, data: UserUpdateModel):
+    async def update_user_profile(self, email: str, data: UserUpdateModel):
         raise NotImplementedError
 
     @abstractmethod
-    def enable_2fa(self, email: str) -> bytes:
+    async def enable_2fa(self, email: str) -> bytes:
         raise NotImplementedError
 
     @abstractmethod
-    def verify_2fa(self, email: str, code: str) -> bool:
+    async def verify_2fa(self, email: str, code: str) -> bool:
         raise NotImplementedError
 
 
@@ -51,162 +55,147 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             self,
             user_repository: UserRepository,
             hasher: Hash,
+            session_factory: Callable[[], AsyncSession],
             manager_token: ManagerToken,
             totp_service: TOTPService,
             settings: Settings
     ):
         self.user_repository: UserRepository = user_repository
         self.hasher = hasher
+        self._session_factory = session_factory
         self.manager_token = manager_token
         self.totp_service = totp_service
         self.settings = settings
         self.cipher_suite = Fernet(self.settings.encryption_key.encode())
 
     async def create(self, data: UserCreateModel) -> UserLoginResponse:
-        try:
-            uuid = shortuuid.uuid()
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                if await repo.find_by_email(data.email):
+                    raise UserEmailAlreadyExistsError
+                hashed = await self.hasher.bcrypt(data.password)
+                user = User(
+                    email=Email(data.email),
+                    pseudo=data.pseudo,
+                    uuid=shortuuid.uuid(),
+                    password=Password(hashed)
+                )
+                await repo.create(user)
+        token_coro = self.manager_token.generate_token_login(user)
+        refresh_coro = self.manager_token.generate_expiration_token_login(user)
+        token, refresh = await asyncio.gather(token_coro, refresh_coro)
+        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh)
 
-            email = Email(data.email)
-            user = User(
-                email=email,
-                pseudo=data.pseudo,
-                uuid=uuid,
-                password=Password(self.hasher.bcrypt(data.password))
-            )
+    async def login(self, model: UserLoginModel) -> UserLoginResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                user = await repo.find_by_email(model.email)
+                if not user:
+                    raise UserLoginNotFoundError(model.email)
+                if not await self.hasher.verify(model.password, user.password.password):
+                    raise InvalidPasswordError(model.email)
+                if user.is_two_factor_enabled:
+                    if not model.code:
+                        raise HTTPException(status_code=400, detail="2FA code required.")
+                    secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+                    if not await self.totp_service.verify_code(secret, model.code):
+                        raise HTTPException(status_code=400, detail="Invalid 2FA code.")
+        token_coro = self.manager_token.generate_token_login(user)
+        refresh_coro = self.manager_token.generate_expiration_token_login(user)
+        token, refresh = await asyncio.gather(token_coro, refresh_coro)
+        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh)
 
-            existing_user = await self.user_repository.find_by_email(data.email)
-            if existing_user is not None:
-                raise UserEmailAlreadyExistsError
-
-            await self.user_repository.create(user)
-            await self.user_repository.commit()
-
-        except:
-            await self.user_repository.rollback()
-            raise
-
-        return UserLoginResponse(
-            uuid=user.uuid,
-            token_auth=self.manager_token.generate_token_login(user),
-            token_expiration=self.manager_token.generate_expiration_token_login(user),
-        )
-
-    def login(self, user_login_model: UserLoginModel) -> UserLoginResponse:
-        user = self.user_repository.find_by_email(user_login_model.email)
-        if not user:
-            raise UserLoginNotFoundError(user_login_model.email)
-        if not self.hasher.verify(user.password.password, user_login_model.password):
-            raise InvalidPasswordError(user_login_model.email)
-
-        if user.is_two_factor_enabled:
-            if not user_login_model.code:
-                raise HTTPException(status_code=400, detail="2FA code required.")
-
-            decrypted_secret = self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
-            if not self.totp_service.verify_code(decrypted_secret, user_login_model.code):
-                raise HTTPException(status_code=400, detail="Invalid 2FA code.")
-
-        return UserLoginResponse(
-            uuid=user.uuid,
-            token_auth=self.manager_token.generate_token_login(user),
-            token_expiration=self.manager_token.generate_expiration_token_login(user),
-        )
-
-    def delete_user(self, user_id: int) -> UserDeleteResponse:
-        try:
-            existing_user = self.user_repository.find_by_id(user_id)
-            if existing_user is None:
-                raise UserNotFoundError
-
-            self.user_repository.delete_user(user_id)
-            self.user_repository.commit()
-        except:
-            self.user_repository.rollback()
-            raise
-
+    async def delete_user(self, user_id: int) -> UserDeleteResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                user = await repo.find_by_id(user_id)
+                if not user:
+                    raise UserNotFoundError
+                await repo.delete_user(user_id)
         return UserDeleteResponse()
 
-    def enable_2fa(self, email: str) -> bytes:
-        user = self.user_repository.find_by_email(email)
-        if not user:
-            raise UserNotFoundError
+    async def enable_2fa(self, email: str) -> bytes:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                user = await repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+                if user.is_two_factor_enabled:
+                    raise HTTPException(status_code=400, detail="2FA already enabled.")
+                secret = await self.totp_service.generate_secret()
+                encrypted = await self.totp_service.encrypt_secret(secret, self.cipher_suite)
+                user.two_factor_secret = encrypted
+                user.is_two_factor_enabled = True
+                await repo.update(user)
+        uri = await self.totp_service.get_totp_uri(secret, user.email.value, "BetLeague")
+        return await self.totp_service.generate_qr_code(uri)
 
-        if user.is_two_factor_enabled:
-            raise HTTPException(status_code=400, detail="2FA is already enabled.")
+    async def verify_2fa(self, email: str, code: str) -> bool:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                user = await repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+                if not user.is_two_factor_enabled:
+                    raise HTTPException(status_code=400, detail="2FA not enabled.")
+                secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+                valid = await self.totp_service.verify_code(secret, code)
+                if not valid:
+                    raise HTTPException(status_code=400, detail="Invalid 2FA code.")
+                user.is_two_factor_verified = True
+                await repo.update(user)
+        return True
 
-        secret = self.totp_service.generate_secret()
-        encrypted_secret = self.totp_service.encrypt_secret(secret, self.cipher_suite)
-        user.two_factor_secret = encrypted_secret
-        user.is_two_factor_enabled = True
-        self.user_repository.update(user)
-        self.user_repository.commit()
+    async def update_user_profile(
+            self, email: str, data: UserUpdateModel
+    ) -> UserUpdateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
 
-        totp_uri = self.totp_service.get_totp_uri(secret, user.email.value, "BetLeague")
-        qr_code = self.totp_service.generate_qr_code(totp_uri)
-        return qr_code
+                user = await repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-    def verify_2fa(self, email: str, code: str) -> bool:
-        user = self.user_repository.find_by_email(email)
-        if not user:
-            raise UserNotFoundError
+                if user.is_two_factor_enabled:
+                    if not data.two_fa_code:
+                        raise FARequiredError
+                    secret = await self.totp_service.decrypt_secret(
+                        user.two_factor_secret, self.cipher_suite
+                    )
+                    if not await self.totp_service.verify_code(secret, data.two_fa_code):
+                        raise Invalid2FACodeError
 
-        if not user.is_two_factor_enabled:
-            raise HTTPException(status_code=400, detail="2FA is not enabled.")
+                to_check = {}
+                if data.pseudo and data.pseudo != user.pseudo:
+                    to_check['pseudo'] = data.pseudo
+                if data.email and data.email != user.email.value:
+                    to_check['email'] = data.email
 
-        decrypted_secret = self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
-        is_valid = self.totp_service.verify_code(decrypted_secret, code)
+                if to_check:
+                    existing = await repo.find_by_pseudo_or_email(**to_check)
+                    if existing:
+                        if existing.pseudo == to_check.get('pseudo'):
+                            raise UserPseudoAlreadyExistsError
+                        if existing.email == to_check.get('email'):
+                            raise UserEmailAlreadyExistsError
+                    if 'pseudo' in to_check:
+                        user.pseudo = to_check['pseudo']
+                    if 'email' in to_check:
+                        user.email  = Email(to_check['email'])
 
-        if is_valid:
-            user.is_two_factor_verified = True
-            self.user_repository.update(user)
-            self.user_repository.commit()
-            return True
-        else:
-            raise HTTPException(status_code=400, detail="Invalid 2FA code.")
+                if data.password:
+                    user.password = Password(await self.hasher.bcrypt(data.password))
 
-    def update_user_profile(self, email: str, data: UserUpdateModel):
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+                await repo.update(user)
 
-            if user.is_two_factor_enabled:
-                if not data.two_fa_code:
-                    raise FARequiredError
-                decrypted_secret = self.totp_service.decrypt_secret(
-                    user.two_factor_secret,
-                    self.cipher_suite
-                )
-                if not self.totp_service.verify_code(decrypted_secret, data.two_fa_code):
-                    raise Invalid2FACodeError
+        token_coro   = self.manager_token.generate_token_login(user)
+        refresh_coro = self.manager_token.generate_expiration_token_login(user)
+        token, refresh = await asyncio.gather(token_coro, refresh_coro)
 
-            if data.pseudo and data.pseudo != user.pseudo:
-                existing_pseudo = self.user_repository.find_by_pseudo(data.pseudo)
-                if existing_pseudo:
-                    raise UserPseudoAlreadyExistsError
-                user.pseudo = data.pseudo
-
-            if data.email and data.email != user.email.value:
-                existing_email = self.user_repository.find_by_email(data.email)
-                if existing_email:
-                    raise UserEmailAlreadyExistsError
-                user.email = Email(data.email)
-
-            if data.password:
-                hashed_pass = self.hasher.bcrypt(data.password)
-                user.password = Password(hashed_pass)
-
-            self.user_repository.update(user)
-            self.user_repository.commit()
-
-            new_access_token = self.manager_token.generate_token_login(user)
-            new_refresh_token = self.manager_token.generate_expiration_token_login(user)
-
-            return UserUpdateResponse(
-                token_auth=new_access_token,
-                token_expiration=new_refresh_token
-            )
-
-        except:
-            self.user_repository.rollback()
-            raise
+        return UserUpdateResponse(token_auth=token, token_expiration=refresh)
