@@ -134,7 +134,7 @@ async def get_details_ticket(
         current_user: dict = Depends(current_user)
 ):
     try:
-        ticket = ticket_query_usecase.get_ticket_details(ticket_id, current_user.get('email'))
+        ticket = await ticket_query_usecase.get_ticket_details(ticket_id, current_user.get('email'))
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -156,6 +156,7 @@ async def get_details_ticket(
             detail=e.message
         )
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération du ticket."
