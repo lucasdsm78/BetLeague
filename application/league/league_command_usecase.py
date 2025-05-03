@@ -9,7 +9,7 @@ import shortuuid
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, LeagueUpdateResponse
-from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
@@ -48,7 +48,7 @@ class LeagueCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_invitation(self, invitation_id: int, action: bool, email: str):
+    async def update_invitation(self, invitation_id: int, action: bool, email: str):
         raise NotImplementedError
 
     @abstractmethod
@@ -252,31 +252,39 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
         return LeagueInviteResponse()
 
-    def update_invitation(self, invitation_id: int, action: bool, email: str):
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def update_invitation(
+            self,
+            invitation_id: int,
+            action: bool,
+            email: str
+    ) -> InvitationUpdateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo        = UserRepositoryImpl(session)
+                league_repo      = LeagueRepositoryImpl(session)
+                players_repo     = LeaguePlayersRepositoryImpl(session)
+                invitation_repo  = InvitationRepositoryImpl(session)
 
-            invitation = self.invitation_repository.find_by_id(invitation_id)
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            if user.id != invitation.user_id:
-                raise UserNotInvitationLeaguedError
+                invitation = await invitation_repo.find_by_id(invitation_id)
+                if not invitation:
+                    raise InvitationNotFoundError
 
-            if action:
-                invitation.status = InvitationStatus.accepted
-                self.join_league(league_id=invitation.league_id, email=email)
-            else:
-                invitation.status = InvitationStatus.refused
+                if user.id != invitation.user_id:
+                    raise UserNotInvitationLeaguedError
 
-            self.invitation_repository.delete(invitation.id)
-            self.invitation_repository.commit()
+                if action:
+                    invitation.status = InvitationStatus.accepted
+                    await self.join_league(league_id=invitation.league_id, email=email)
+                else:
+                    invitation.status = InvitationStatus.refused
 
-            return InvitationUpdateResponse()
+                await invitation_repo.delete(invitation.id)
 
-        except:
-            self.invitation_repository.rollback()
-            raise
+        return InvitationUpdateResponse()
 
     def update_league(self, data: LeagueUpdateModel, league_id: int, email: str):
         try:

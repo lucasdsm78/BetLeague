@@ -307,7 +307,7 @@ async def update_invitation(
         current_user: dict = Depends(current_user)
 ):
     try:
-        update_invitation_result = league_command_usecase.update_invitation(invitation_id, action, current_user.get('email'))
+        update_invitation_result = await league_command_usecase.update_invitation(invitation_id, action, current_user.get('email'))
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
