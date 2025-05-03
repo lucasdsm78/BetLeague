@@ -196,7 +196,7 @@ async def get_leagues(
         current_user: dict = Depends(current_user),
 ):
     try:
-        leagues = league_query_usecase.get_leagues(current_user.get('email', ''))
+        leagues = await league_query_usecase.get_leagues(current_user.get('email', ''))
 
         if not leagues:
             raise HTTPException(
