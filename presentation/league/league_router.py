@@ -129,7 +129,7 @@ async def delete_league_player(
         current_user: dict = Depends(current_user),
 ):
     try:
-        delete_league_player = league_command_usecase.delete_league_player(
+        delete_league_player = await league_command_usecase.delete_league_player(
             league_id,
             current_user.get('email', '')
         )

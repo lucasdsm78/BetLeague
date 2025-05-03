@@ -93,9 +93,10 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueMaxPlayersError
 
                 now_ms = int(datetime.now().timestamp() * 1000)
+                uuid = shortuuid.uuid()
                 league = League(
                     is_free=True,
-                    uuid=shortuuid.uuid(),
+                    uuid=uuid,
                     is_started=False,
                     name=data.name,
                     max_players=data.max_players,
@@ -111,7 +112,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 )
 
                 await league_repo.create(league)
-                await session.flush()
+                league = await league_repo.find_by_uuid(uuid)
 
                 await players_repo.join_league(
                     LeaguePlayers(user_id=user.id, league_id=league.id)
@@ -164,35 +165,42 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
         return LeagueJoinResponse()
 
-    def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def delete_league_player(
+            self,
+            league_id: int,
+            email: str
+    ) -> LeaguePlayerDeletedResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo    = UserRepositoryImpl(session)
+                league_repo  = LeagueRepositoryImpl(session)
+                players_repo = LeaguePlayersRepositoryImpl(session)
 
-            league = self.league_repository.find_by_id(league_id)
-            if not league:
-                raise LeagueNotFoundError
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            if league.is_started is True:
-                raise LeagueAlreadyStartedError
+                league = await league_repo.find_by_id(league_id)
+                if not league:
+                    raise LeagueNotFoundError
 
-            league_player = self.league_players_repository.get_participation(league.id, user.id)
-            if not league_player:
-                raise LeagueParticipantNotFoundError
+                if league.is_started:
+                    raise LeagueAlreadyStartedError
 
-            league.nb_players_remaining+=1
-            if league.nb_players_remaining + 1 >= MIN_PLAYERS:
-                league.is_started = False
+                league_player = await players_repo.get_participation(
+                    league_id=league.id,
+                    user_id=user.id
+                )
 
-            self.league_repository.update(league)
-            self.league_repository.commit()
-            self.league_players_repository.delete_player(league_player.id)
-            self.league_players_repository.commit()
-        except:
-            self.league_players_repository.rollback()
-            self.league_repository.rollback()
-            raise
+                if not league_player:
+                    raise LeagueParticipantNotFoundError
+
+                league.nb_players_remaining += 1
+                if league.nb_players_remaining + 1 >= MIN_PLAYERS:
+                    league.is_started = False
+
+                await league_repo.update(league)
+                await players_repo.delete_player(league_player.id)
 
         return LeaguePlayerDeletedResponse()
 
