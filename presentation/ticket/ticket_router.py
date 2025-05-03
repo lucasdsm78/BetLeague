@@ -31,7 +31,7 @@ async def create_ticket(
         current_user: dict = Depends(current_user)
 ):
     try:
-        ticket = ticket_command_usecase.create_ticket(league_id, ticket_create_model, current_user.get('email', ''))
+        ticket = await ticket_command_usecase.create_ticket(league_id, ticket_create_model, current_user.get('email', ''))
 
     except LeagueNotFoundError as e:
         raise HTTPException(
@@ -76,6 +76,7 @@ async def create_ticket(
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

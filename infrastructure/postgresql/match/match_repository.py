@@ -65,18 +65,23 @@ class MatchRepositoryImpl(MatchRepository):
         except:
             raise
 
-    async def exists_match_started_for_ticket(self, match_choices: List[MatchChoiceData]) -> bool:
+    async def exists_match_started_for_ticket(
+            self,
+            match_choices: List[MatchChoiceData]
+    ) -> bool:
         if not match_choices:
             return False
 
-        paris_tz = pytz.timezone("Europe/Paris")
-        now = datetime.now(paris_tz)
-
+        now = datetime.utcnow()
         match_ids = [mc.match_id for mc in match_choices]
 
-        query = select(DBMatch).where(
-            DBMatch.id.in_(match_ids),
-            DBMatch.time >= now
+        query = (
+            select(DBMatch)
+            .where(
+                DBMatch.id.in_(match_ids),
+                DBMatch.time <= now
+            )
+            .limit(1)
         )
 
         result = await self.session.execute(query)
