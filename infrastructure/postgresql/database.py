@@ -10,6 +10,7 @@ settings = Settings()
 engine = create_async_engine(
     settings.sqlalchemy_database_url,
     echo=True,
+    pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(
