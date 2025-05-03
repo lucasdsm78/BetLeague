@@ -177,7 +177,7 @@ async def update_ticket(
         current_user: dict = Depends(current_user)
 ):
     try:
-        remove_ticket_result = ticket_command_usecase.update_ticket(current_user.get('email'), ticket_id, ticket_create_model)
+        remove_ticket_result = await ticket_command_usecase.update_ticket(current_user.get('email'), ticket_id, ticket_create_model)
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
