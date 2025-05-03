@@ -10,7 +10,7 @@ from domain.user.repository.user_repository import UserRepository
 class MatchQueryUseCase(ABC):
 
     @abstractmethod
-    def get_matches(self, email: str) -> dict:
+    async def get_matches(self, email: str) -> dict:
         raise NotImplementedError
 
 
@@ -21,17 +21,16 @@ class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def get_matches(self, email: str) -> dict:
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def get_matches(self, email: str) -> dict:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
 
-            matches = self.match_repository.find_matches()
-            return dict(
-                matches=list(map(lambda match: MatchReadModel.from_entity(
-                    match=match), matches))
-            )
+        matches = await self.match_repository.find_matches()
 
-        except Exception as e:
-            raise
+        return {
+            "matches": [
+                MatchReadModel.from_entity(match=match)
+                for match in matches
+            ]
+    }
