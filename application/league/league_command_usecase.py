@@ -286,44 +286,48 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
         return InvitationUpdateResponse()
 
-    def update_league(self, data: LeagueUpdateModel, league_id: int, email: str):
-        try:
-            user = self.user_repository.find_by_email(email)
-            if not user:
-                raise UserNotFoundError
+    async def update_league(
+            self,
+            data: LeagueUpdateModel,
+            league_id: int,
+            email: str
+    ) -> LeagueUpdateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo           = UserRepositoryImpl(session)
+                league_repo         = LeagueRepositoryImpl(session)
+                players_repo        = LeaguePlayersRepositoryImpl(session)
 
-            league = self.league_repository.find_by_id(league_id)
-            if not league:
-                raise LeagueNotFoundError
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-            if league.user.id != user.id:
-                raise UserNotOwnerLeaguedError
+                league = await league_repo.find_by_id(league_id)
+                if not league:
+                    raise LeagueNotFoundError
 
-            existing_league = self.league_repository.find_by_name(data.name)
-            if existing_league is True and data.name != league.name:
-                raise LeagueNameAlreadyExistsError
+                if league.user.id != user.id:
+                    raise UserNotOwnerLeaguedError
 
-            if data.max_players > MAX_PLAYERS:
-                raise LeagueMaxPlayersError
+                if data.name != league.name and await league_repo.find_by_name(data.name):
+                    raise LeagueNameAlreadyExistsError
 
-            if (
-                    league.is_started and data.max_players != league.max_players or
-                    league.is_started and data.start_date != league.start_date
-            ):
-                raise LeagueAlreadyStartedError
+                if data.max_players > MAX_PLAYERS:
+                    raise LeagueMaxPlayersError
 
-            nb_players_remaining = data.max_players - self.league_players_repository.count_players(league_id=league.id)
+                if league.is_started and (
+                        data.max_players != league.max_players or
+                        data.start_date   != league.start_date
+                ):
+                    raise LeagueAlreadyStartedError
 
-            league.nb_players_remaining = nb_players_remaining
-            league.name = data.name
-            league.start_date = data.start_date
-            league.max_players = data.max_players
+                current_players = await players_repo.count_players(league_id=league.id)
+                league.nb_players_remaining = data.max_players - current_players
 
-            self.league_repository.update(league)
-            self.league_repository.commit()
+                league.name       = data.name
+                league.start_date = data.start_date
+                league.max_players = data.max_players
 
-            return LeagueUpdateResponse()
+                await league_repo.update(league)
 
-        except:
-            self.league_repository.rollback()
-            raise
+        return LeagueUpdateResponse()
