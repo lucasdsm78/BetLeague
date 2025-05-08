@@ -26,7 +26,7 @@ class DBUser(Base):
     pseudo: Union[str, Column] = Column(String, nullable=False)
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)
-    nb_btl: Union[float, Column] = Column(Float, default=0)
+    nb_btl: Union[float, Column] = Column(Float, default=200)
     two_factor_secret: Union[Optional[str], Column] = Column(String, nullable=True)
     is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)

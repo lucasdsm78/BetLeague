@@ -3,10 +3,12 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class LeagueFreeCreateModel(BaseModel):
+class LeagueCreateModel(BaseModel):
     name: str
     max_players: int
     is_private: bool
+    is_free: Optional[bool]
+    nb_btl: Optional[int]
 
 
 class LeagueUpdateModel(BaseModel):

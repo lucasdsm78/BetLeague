@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
-from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
+from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, LeagueUpdateResponse
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
@@ -15,7 +15,7 @@ from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
-    UserNotOwnerLeaguedError, UserNotInvitationLeaguedError
+    UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -32,7 +32,7 @@ from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 class LeagueCommandUseCase(ABC):
 
     @abstractmethod
-    async def create_free_league(self, free_league_model: LeagueFreeCreateModel, email: str) -> LeagueFreeCreateResponse:
+    async def create_league(self, free_league_model: LeagueCreateModel, email: str) -> LeagueFreeCreateResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -72,9 +72,9 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
         self.invitation_repository: InvitationRepository = invitation_repository
 
-    async def create_free_league(
+    async def create_league(
             self,
-            data: LeagueFreeCreateModel,
+            data: LeagueCreateModel,
             email: str
     ) -> LeagueFreeCreateResponse:
         async with self._session_factory() as session:
@@ -93,11 +93,15 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if data.max_players > MAX_PLAYERS:
                     raise LeagueMaxPlayersError
 
+                if data.is_free is False and (data.nb_btl is None or data.nb_btl <= 0):
+                    raise LeagueMustHaveNbBtlError
+
                 now_ms = int(datetime.now().timestamp() * 1000)
                 uuid = shortuuid.uuid()
                 league = League(
-                    is_free=True,
+                    is_free=data.is_free,
                     uuid=uuid,
+                    nb_btl=data.nb_btl,
                     is_started=False,
                     name=data.name,
                     max_players=data.max_players,

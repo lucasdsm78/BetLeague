@@ -16,6 +16,7 @@ class League:
             user: UserSummary,
             nb_players_remaining: Optional[int] = None,
             is_started: Optional[bool] = None,
+            nb_btl: Optional[int] = None,
             id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
@@ -31,5 +32,6 @@ class League:
         self.end_date: int = end_date
         self.nb_players_remaining: Optional[int] = nb_players_remaining
         self.user: UserSummary = user
+        self.nb_btl: Optional[int] = nb_btl
         self.created_at: Optional[int] = created_at
         self.updated_at: Optional[int] = updated_at
