@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from application.league.league_command_model import LeagueFreeCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
+from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, LeagueUpdateModel
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel
@@ -23,13 +23,13 @@ router = APIRouter(
     summary="Create a league",
     status_code=status.HTTP_200_OK,
 )
-async def create_free_league(
-        free_league_model: LeagueFreeCreateModel,
+async def create_league(
+        league_create_model: LeagueCreateModel,
         league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        league = await league_command_usecase.create_free_league(free_league_model, current_user.get('email', ''))
+        league = await league_command_usecase.create_league(league_create_model, current_user.get('email', ''))
 
     except Exception as e:
         raise

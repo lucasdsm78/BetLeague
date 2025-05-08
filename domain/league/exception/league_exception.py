@@ -12,6 +12,13 @@ class LeagueMaxPlayersError(Exception):
         return LeagueMaxPlayersError.message
 
 
+class LeagueMustHaveNbBtlError(Exception):
+    message = "The league is not free, you must have a number of BTL."
+
+    def __str__(self):
+        return LeagueMustHaveNbBtlError.message
+
+
 class LeagueNotFoundError(Exception):
     message = "The league does not exist."
 
