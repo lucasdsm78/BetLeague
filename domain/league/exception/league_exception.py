@@ -19,6 +19,13 @@ class LeagueMustHaveNbBtlError(Exception):
         return LeagueMustHaveNbBtlError.message
 
 
+class LeagueNbBtlIsNotEnoughError(Exception):
+    message = "Your number of BTL is not enough to join this league."
+
+    def __str__(self):
+        return LeagueNbBtlIsNotEnoughError.message
+
+
 class LeagueNotFoundError(Exception):
     message = "The league does not exist."
 
