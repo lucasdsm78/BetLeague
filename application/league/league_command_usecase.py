@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Callable
+from typing import Callable, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import shortuuid
@@ -15,7 +15,7 @@ from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
-    UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError
+    UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError, LeagueNbBtlIsNotEnoughError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -150,6 +150,10 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if league.nb_players_remaining == 0:
                     raise LeagueMaxPlayersError
 
+                if not league.is_free:
+                    if user.nb_btl < league.nb_btl:
+                        raise LeagueNbBtlIsNotEnoughError
+
                 unixtimestamp = int(datetime.now().timestamp() * 1000)
                 if (
                         league.nb_players_remaining != 0 and
@@ -159,6 +163,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     league.is_started = True
 
                 league.nb_players_remaining -= 1
+                user.nb_btl-= league.nb_btl
 
                 league_players = LeaguePlayers(
                     user_id=user.id,
@@ -166,6 +171,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 )
 
                 await league_repository.update(league)
+                await user_repository.update(user)
                 await league_players_repository.join_league(league_players)
 
         return LeagueJoinResponse()

@@ -9,7 +9,7 @@ from dependency_injections import current_user, league_command_usecase, league_q
 from domain.invitation.exception.invitation_exception import InvitationFoundError
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
-    LeagueNameAlreadyExistsError
+    LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -72,6 +72,12 @@ async def join_league(
     except LeagueParticipantFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except LeagueNbBtlIsNotEnoughError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message,
         )
 
