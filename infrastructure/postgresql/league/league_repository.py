@@ -1,5 +1,6 @@
+from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -99,6 +100,41 @@ class LeagueRepositoryImpl(LeagueRepository):
             league_db = DBLeague.from_entity(league, _league)
         except:
             raise
+
+    async def find_ended_before_not_paid(self, as_of: datetime) -> List[League]:
+        q = (
+            select(DBLeague)
+            .where(DBLeague.end_date <= as_of, DBLeague.winner_id is None)
+        )
+        result = await self.session.execute(q)
+        leagues_db = result.scalars().all()
+        return [l.to_entity() for l in leagues_db]
+
+    async def count_players(self, league_id: int) -> int:
+        q = (
+            select(func.count())
+            .select_from(DBLeaguePlayers)
+            .where(DBLeaguePlayers.league_id == league_id)
+        )
+        result = await self.session.execute(q)
+        return result.scalar_one()
+
+    async def get_top_scorer(self, league_id: int) -> tuple[Optional[int], int]:
+        q = (
+            select(
+                DBLeaguePlayers.user_id,
+                func.sum(DBLeaguePlayers.nb_btl).label("total")
+            )
+            .where(DBLeaguePlayers.league_id == league_id)
+            .group_by(DBLeaguePlayers.user_id)
+            .order_by(func.sum(DBLeaguePlayers.nb_btl).desc())
+            .limit(1)
+        )
+        result = await self.session.execute(q)
+        row = result.one_or_none()
+        if not row:
+            return None, 0
+        return row.user_id, row.total
 
     async def begin(self):
         await self.session.begin()

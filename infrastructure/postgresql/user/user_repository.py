@@ -135,6 +135,19 @@ class UserRepositoryImpl(UserRepository):
         except Exception as e:
             raise e
 
+    async def credit_btl(self, user_id: int, amount: float):
+        try:
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.id == user_id)
+            )
+            user = result.scalar_one()
+            user.nb_btl += amount
+            return user.to_entity()
+        except NoResultFound:
+            raise UserNotFoundError
+        except:
+            raise
+
     async def begin(self):
         await self.session.begin()
 

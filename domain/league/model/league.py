@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from domain.user.model.user_summary import UserSummary
@@ -18,10 +19,12 @@ class League:
             is_started: Optional[bool] = None,
             nb_btl: Optional[int] = None,
             id: Optional[int] = None,
+            winner_id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
     ):
         self.id: Optional[int] = id
+        self.winner_id: Optional[int] = winner_id
         self.uuid: str = uuid
         self.name: str = name
         self.is_free: bool = is_free
@@ -35,3 +38,7 @@ class League:
         self.nb_btl: Optional[int] = nb_btl
         self.created_at: Optional[int] = created_at
         self.updated_at: Optional[int] = updated_at
+
+    def can_determine_winner(self, as_of: datetime) -> bool:
+        timestamp = int(as_of.timestamp() * 1000)
+        return self.is_started and timestamp >= self.end_date

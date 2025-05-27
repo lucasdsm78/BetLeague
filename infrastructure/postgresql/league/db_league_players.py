@@ -27,6 +27,14 @@ class DBLeaguePlayers(Base):
 
     __table_args__ = (
         Index("idx_user_league_league_players", "user_id", "league_id"),
+        Index(
+            "idx_league_players_league_id",
+            "league_id",
+        ),
+        Index(
+            "idx_league_players_user_id",
+            "user_id",
+        ),
     )
 
     def to_entity(self) -> LeaguePlayers:

@@ -28,8 +28,10 @@ class DBLeague(Base):
     start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     max_players: Union[int, Column] = Column(Integer, nullable=False)
+    winner_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
+    winner = relationship("DBUser", foreign_keys=[winner_id])
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
-    user = relationship("DBUser", back_populates='leagues')
+    user = relationship("DBUser", foreign_keys=[user_id])
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     league_players = relationship("DBLeaguePlayers", back_populates="league")
@@ -42,6 +44,7 @@ class DBLeague(Base):
             uuid=self.uuid,
             is_free=self.is_free,
             nb_btl=self.nb_btl,
+            winner_id=self.winner_id,
             is_started=self.is_started,
             is_private=self.is_private,
             max_players=self.max_players,
@@ -63,6 +66,7 @@ class DBLeague(Base):
         league_db_to_update.is_free = league.is_free
         league_db_to_update.is_started = league.is_started
         league_db_to_update.nb_btl = league.nb_btl
+        league_db_to_update.winner_id = league.winner_id
         league_db_to_update.is_private = league.is_private
         league_db_to_update.name = league.name
         league_db_to_update.nb_players_remaining = league.nb_players_remaining
