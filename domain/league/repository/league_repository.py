@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Optional, List
 
 from domain.league.model.league import League
@@ -28,6 +29,18 @@ class LeagueRepository(ABC):
 
     @abstractmethod
     async def update(self, league: League) -> Optional[League]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_ended_before_not_paid(self, as_of: datetime) -> List[League]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_players(self, league_id: int) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_top_scorer(self, league_id: int) -> tuple[int, int]:
         raise NotImplementedError
 
     @abstractmethod

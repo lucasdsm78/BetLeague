@@ -19,6 +19,10 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def credit_btl(self, user_id: int, amount: float):
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_pseudo_or_email(
             self,
             pseudo: Optional[str] = None,

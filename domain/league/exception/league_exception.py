@@ -79,3 +79,9 @@ class UserNotInvitationLeaguedError(Exception):
 
     def __str__(self):
         return UserNotInvitationLeaguedError.message
+
+class LeagueNotFinishedError(Exception):
+    message = "The league is not finished"
+
+    def __str__(self):
+        return LeagueNotFinishedError.message
