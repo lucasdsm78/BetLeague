@@ -31,7 +31,7 @@ class DBLeague(Base):
     winner_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     winner = relationship("DBUser", foreign_keys=[winner_id])
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
-    user = relationship("DBUser", foreign_keys=[user_id])
+    user = relationship("DBUser", foreign_keys=[user_id], back_populates="leagues")
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     league_players = relationship("DBLeaguePlayers", back_populates="league")

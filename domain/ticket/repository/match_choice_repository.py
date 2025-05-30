@@ -19,6 +19,10 @@ class MatchChoiceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_by_ticket_ids(self, ticket_ids: List[int]) -> List[MatchChoice]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, match_choice: MatchChoice) -> Optional[MatchChoice]:
         raise NotImplementedError
 

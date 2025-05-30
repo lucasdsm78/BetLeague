@@ -16,6 +16,10 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
         raise NotImplementedError
 

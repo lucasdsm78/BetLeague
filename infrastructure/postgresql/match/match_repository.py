@@ -65,6 +65,13 @@ class MatchRepositoryImpl(MatchRepository):
         except:
             raise
 
+    async def find_all_by_ids(self, match_ids: List[int]) -> List[Match]:
+        if not match_ids:
+            return []
+        query = select(DBMatch).where(DBMatch.id.in_(match_ids))
+        result = await self.session.execute(query)
+        return [DBMatch.to_entity(db) for db in result.scalars().all()]
+
     async def exists_match_started_for_ticket(
             self,
             match_choices: List[MatchChoiceData]

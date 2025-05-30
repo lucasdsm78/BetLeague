@@ -36,6 +36,10 @@ class LeagueRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_by_ids(self, league_ids: List[int]) -> List[League]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def count_players(self, league_id: int) -> int:
         raise NotImplementedError
 
