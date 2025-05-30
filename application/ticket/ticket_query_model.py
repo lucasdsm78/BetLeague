@@ -18,3 +18,7 @@ class TicketReadModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class TicketsInProgressResponse(BaseModel):
+    tickets: List[TicketReadModel] = []

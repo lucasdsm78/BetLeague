@@ -110,6 +110,20 @@ class LeagueRepositoryImpl(LeagueRepository):
         leagues_db = result.scalars().all()
         return [l.to_entity() for l in leagues_db]
 
+    async def find_all_by_ids(self, league_ids: List[int]) -> List[League]:
+        if not league_ids:
+            return []
+
+        query = select(DBLeague).where(DBLeague.id.in_(league_ids))
+        result = await self.session.execute(query)
+        db_leagues = result.scalars().all()
+
+        leagues = await self.session.run_sync(
+            lambda sync_sess, objs: [DBLeague.to_entity(o) for o in objs],
+            db_leagues
+        )
+        return leagues
+
     async def count_players(self, league_id: int) -> int:
         q = (
             select(func.count())

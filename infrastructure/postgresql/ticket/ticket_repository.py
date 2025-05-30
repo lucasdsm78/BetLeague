@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.exception.ticket_exception import TicketNotFoundError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
+from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
 from infrastructure.postgresql.match.db_match import DBMatch
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
@@ -95,6 +96,23 @@ class TicketRepositoryImpl(TicketRepository):
             return ticket_db.to_entity()
         except NoResultFound:
             raise TicketNotFoundError
+
+    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[Ticket]:
+        query = (
+            select(DBTicket)
+            .where(
+                DBTicket.user_id == user_id,
+                DBTicket.status == TicketStatus.pending.value
+            )
+        )
+        result = await self.session.execute(query)
+        db_tickets = result.scalars().all()
+
+        tickets = await self.session.run_sync(
+            lambda sync_session: [DBTicket.to_entity(db) for db in db_tickets]
+        )
+        return tickets
+
 
     async def update(self, ticket: Ticket):
         try:

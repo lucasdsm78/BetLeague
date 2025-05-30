@@ -33,6 +33,13 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
 
         return [row.to_entity() for row in rows]
 
+    async def find_all_by_ticket_ids(self, ticket_ids: List[int]) -> List[MatchChoice]:
+        if not ticket_ids:
+            return []
+        query = select(DBMatchChoices).where(DBMatchChoices.ticket_id.in_(ticket_ids))
+        result = await self.session.execute(query)
+        return [DBMatchChoices.to_entity(db) for db in result.scalars().all()]
+
     async def delete_by_ticket_id(self, ticket_id: int):
         try:
             query = select(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
