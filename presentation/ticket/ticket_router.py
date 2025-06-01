@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
     TicketUpdateResponse, TicketUpdateModel
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
-from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse
+from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse
 from application.ticket.ticket_query_usecase import TicketQueryUseCase
 from dependency_injections import current_user, ticket_command_usecase, ticket_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, \
@@ -281,6 +281,32 @@ async def get_tickets_in_progress(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des tickets en cours."
+        )
+
+    return tickets
+
+@router.get(
+    "/tickets/finished",
+    response_model=TicketsFinishedResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Récupérer tous les tickets terminés"
+)
+async def get_tickets_finished(
+        ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        tickets = await ticket_query_usecase.get_tickets_finished(current_user.get('email', ''))
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except Exception as e:
+        print(f"Erreur lors de la récupération des tickets terminés: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération des tickets terminés."
         )
 
     return tickets

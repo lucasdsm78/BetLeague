@@ -22,3 +22,7 @@ class TicketReadModel(BaseModel):
 
 class TicketsInProgressResponse(BaseModel):
     tickets: List[TicketReadModel] = []
+
+
+class TicketsFinishedResponse(BaseModel):
+    tickets: List[TicketReadModel] = []

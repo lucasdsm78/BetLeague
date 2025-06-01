@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.league.league_summary import LeagueSummary
 from application.match.match_summary import MatchSummary
 from application.ticket.match_choice_summary import MatchChoiceSummary
-from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse
+from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse
 from domain.league.exception.league_exception import LeagueNotFoundError
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
@@ -32,6 +32,11 @@ class TicketQueryUseCase(ABC):
     @abstractmethod
     async def get_tickets_in_progress(self, email: str) -> TicketsInProgressResponse:
         raise NotImplementedError
+
+    @abstractmethod
+    async def get_tickets_finished(self, email: str) -> TicketsFinishedResponse:
+        raise NotImplementedError
+
 
 class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
@@ -126,57 +131,32 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
     async def get_tickets_in_progress(self, email: str) -> TicketsInProgressResponse:
         async with self._session_factory() as session:
             async with session.begin():
-                user_repo = UserRepositoryImpl(session)
-                ticket_repo = TicketRepositoryImpl(session)
-                league_repo = LeagueRepositoryImpl(session)
-                match_choices_repo = MatchChoicesRepositoryImpl(session)
-                match_repo = MatchRepositoryImpl(session)
+                user_repo          = UserRepositoryImpl(session)
+                ticket_repo        = TicketRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                tickets = await ticket_repo.find_all_in_progress_by_user_id(user.id)
+                db_tickets = await ticket_repo.find_all_in_progress_by_user_id(user.id)
 
                 result = TicketsInProgressResponse()
-                if not tickets:
+                if not db_tickets:
                     return result
 
-                league_ids = {ticket.league_id for ticket in tickets}
-                leagues = await league_repo.find_all_by_ids(list(league_ids))
-                league_map = {league.id: league for league in leagues}
-
-                ticket_ids = [ticket.id for ticket in tickets]
-                all_choices = await match_choices_repo.find_all_by_ticket_ids(ticket_ids)
-
-                if not all_choices:
-                    return result
-
-                choices_by_ticket = {}
-                match_ids = set()
-                for choice in all_choices:
-                    if choice.ticket_id not in choices_by_ticket:
-                        choices_by_ticket[choice.ticket_id] = []
-                    choices_by_ticket[choice.ticket_id].append(choice)
-                    match_ids.add(choice.match_id)
-
-                if match_ids:
-                    matches = await match_repo.find_all_by_ids(list(match_ids))
-                    match_map = {match.id: match for match in matches}
-                else:
-                    match_map = {}
-
-
-                for ticket in tickets:
-                    league = league_map.get(ticket.league_id)
+                for db_ticket in db_tickets:
+                    league = db_ticket.league
                     if not league:
                         continue
 
-                    league_summary = LeagueSummary(id=league.id, name=league.name)
+                    league_summary = LeagueSummary(
+                        id=league.id,
+                        name=league.name
+                    )
 
-                    match_choice_summaries = []
-                    for mc in choices_by_ticket.get(ticket.id, []):
-                        match = match_map.get(mc.match_id)
+                    match_choice_summaries: List[MatchChoiceSummary] = []
+                    for db_choice in db_ticket.match_choices:
+                        match = db_choice.match
                         if not match:
                             continue
 
@@ -190,23 +170,85 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                         match_choice_summaries.append(
                             MatchChoiceSummary(
-                                id=mc.id,
+                                id=db_choice.id,
                                 match_summary=match_summary,
-                                choice=mc.choice,
-                                status=mc.status.value
+                                choice=db_choice.choice,
+                                status=db_choice.status
                             )
                         )
 
                     ticket_read_model = TicketReadModel(
-                        id=ticket.id,
-                        uuid=ticket.uuid,
-                        mise=ticket.mise,
-                        gain=ticket.gain,
-                        status=ticket.status.value,
+                        id=db_ticket.id,
+                        uuid=db_ticket.uuid,
+                        mise=db_ticket.mise,
+                        gain=db_ticket.gain,
+                        status=db_ticket.status,
+                        league_summary=league_summary,
+                        match_choice_summaries=match_choice_summaries
+                    )
+                    result.tickets.append(ticket_read_model)
+
+                return result
+
+    async def get_tickets_finished(self, email: str) -> TicketsFinishedResponse:
+        result = TicketsFinishedResponse()
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo   = UserRepositoryImpl(session)
+                ticket_repo = TicketRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                db_tickets = await ticket_repo.find_all_finished_by_user_id(user.id)
+                if not db_tickets:
+                    return result
+
+                for db_ticket in db_tickets:
+                    league = db_ticket.league  # déjà pré-chargée via selectinload
+                    if not league:
+                        continue
+
+                    league_summary = LeagueSummary(
+                        id=league.id,
+                        name=league.name
+                    )
+
+                    match_choice_summaries: List[MatchChoiceSummary] = []
+                    for db_choice in db_ticket.match_choices:
+                        match = db_choice.match  # déjà pré-chargé
+                        if not match:
+                            continue
+
+                        match_summary = MatchSummary(
+                            id=match.id,
+                            home_team=match.home_team,
+                            away_team=match.away_team,
+                            time=match.time,
+                            winner=match.winner,
+                        )
+
+                        match_choice_summaries.append(
+                            MatchChoiceSummary(
+                                id=db_choice.id,
+                                match_summary=match_summary,
+                                choice=db_choice.choice,
+                                status=db_choice.status
+                            )
+                        )
+
+                    ticket_read_model = TicketReadModel(
+                        id=db_ticket.id,
+                        uuid=db_ticket.uuid,
+                        mise=db_ticket.mise,
+                        gain=db_ticket.gain,
+                        status=db_ticket.status,
                         league_summary=league_summary,
                         match_choice_summaries=match_choice_summaries
                     )
 
                     result.tickets.append(ticket_read_model)
 
-                return result
+        return result

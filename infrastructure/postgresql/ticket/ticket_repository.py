@@ -12,6 +12,7 @@ from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
 from infrastructure.postgresql.match.db_match import DBMatch
+from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
 
 
@@ -97,21 +98,49 @@ class TicketRepositoryImpl(TicketRepository):
         except NoResultFound:
             raise TicketNotFoundError
 
-    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[Ticket]:
+    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[DBTicket]:
         query = (
             select(DBTicket)
             .where(
                 DBTicket.user_id == user_id,
                 DBTicket.status == TicketStatus.pending.value
             )
+            .options(
+                # Charger la ligue associée à chaque ticket
+                selectinload(DBTicket.league),
+                # Charger en cascade : pour chaque ticket, toutes ses choices
+                selectinload(DBTicket.match_choices)
+                .selectinload(DBMatchChoices.match)
+            )
+            .order_by(DBTicket.id)  # ou tout autre ordre voulu
         )
-        result = await self.session.execute(query)
-        db_tickets = result.scalars().all()
 
-        tickets = await self.session.run_sync(
-            lambda sync_session: [DBTicket.to_entity(db) for db in db_tickets]
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def find_all_finished_by_user_id(self, user_id: int) -> List[DBTicket]:
+        # 1. Construire la requête avec eager-loading
+        query = (
+            select(DBTicket)
+            .where(
+                DBTicket.user_id == user_id,
+                DBTicket.status == TicketStatus.correct.value
+            )
+            .options(
+                # Charger la ligue associée à chaque ticket
+                selectinload(DBTicket.league),
+                # Charger en cascade : pour chaque ticket, toutes ses choices
+                selectinload(DBTicket.match_choices)
+                .selectinload(DBMatchChoices.match)
+                # ^ ici, DBMatchChoices.match est la relation vers DBMatch
+            )
+            .order_by(DBTicket.id.desc())
         )
-        return tickets
+
+        # 2. Exécuter en mode async
+        result = await self.session.execute(query)
+        # 3. Scalar() renvoie des instances DBTicket (eager-loaded)
+        return result.scalars().all()
 
 
     async def update(self, ticket: Ticket):
