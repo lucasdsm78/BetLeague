@@ -6,6 +6,8 @@ from application.ticket.ticket_command_usecase import TicketCommandUseCase, Tick
 from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
+from application.tournament.tournament_command_usecase import TournamentCommandUseCase, TournamentCommandUseCaseImpl
+from application.tournament.tournament_query_usecase import TournamentQueryUseCase, TournamentQueryUseCaseImpl
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
@@ -17,6 +19,8 @@ from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.user.repository.user_repository import UserRepository
+from domain.tournament.repository.tournament_repository import TournamentRepository
+from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
@@ -33,6 +37,8 @@ from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
 from infrastructure.services.authentication.jwt_bearer import JwtBearer
@@ -100,6 +106,14 @@ def league_repository_dependency(session: AsyncSession = Depends(get_async_sessi
 
 def league_players_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> LeaguePlayersRepository:
     return LeaguePlayersRepositoryImpl(session)
+
+
+def tournament_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentRepository:
+    return TournamentRepositoryImpl(session)
+
+
+def tournament_players_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentPlayersRepository:
+    return TournamentPlayersRepositoryImpl(session)
 
 
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
@@ -221,6 +235,30 @@ def match_command_usecase(
         match_repository=match_repository,
         settings=settings,
         match_score_api=match_score_api_dependency
+    )
+
+
+def tournament_command_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency)
+) -> TournamentCommandUseCase:
+    return TournamentCommandUseCaseImpl(
+        tournament_repository=tournament_repository,
+        tournament_players_repository=tournament_players_repository,
+        user_repository=user_repository,
+        session_factory=session_factory,
+    )
+
+
+def tournament_query_usecase(
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency)
+) -> TournamentQueryUseCase:
+    return TournamentQueryUseCaseImpl(
+        tournament_repository=tournament_repository,
+        user_repository=user_repository,
     )
 
 
