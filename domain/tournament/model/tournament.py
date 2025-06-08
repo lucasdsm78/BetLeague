@@ -1,14 +1,8 @@
-from enum import Enum
-from typing import Optional
+from typing import Optional, List
+
+from domain.tournament.model.tournament_status import TournamentStatus
 
 from domain.user.model.user_summary import UserSummary
-
-class TournamentStage(str, Enum):
-    eighth_final = "EIGHTH_FINAL"
-    quarter_final = "QUARTER_FINAL"
-    semi_final = "SEMI_FINAL"
-    final = "FINAL"
-    finished = "FINISHED"
 
 class Tournament:
     def __init__(
@@ -16,25 +10,31 @@ class Tournament:
         uuid: str,
         name: str,
         is_private: bool,
-        max_players: int,
-        start_date: int,
-        end_date: int,
         user: UserSummary,
-        stage: TournamentStage = TournamentStage.eighth_final,
+        status: TournamentStatus = TournamentStatus.PENDING,
+        max_players: int = 16,
+        min_players: int = 3,
+        current_players: int = 0,
+        entry_fee: float = 0.0,
+        prize_pool: float = 0.0,
         id: Optional[int] = None,
         winner_id: Optional[int] = None,
         created_at: Optional[int] = None,
-        updated_at: Optional[int] = None,
+        start_date: Optional[int] = None,
+        end_date: Optional[int] = None,
     ):
         self.id = id
         self.uuid = uuid
         self.name = name
-        self.is_private = is_private
+        self.status = status
         self.max_players = max_players
+        self.min_players = min_players
+        self.current_players = current_players
+        self.entry_fee = entry_fee
+        self.prize_pool = prize_pool
+        self.is_private = is_private
         self.start_date = start_date
         self.end_date = end_date
-        self.stage = stage
         self.user = user
         self.winner_id = winner_id
         self.created_at = created_at
-        self.updated_at = updated_at

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
 from domain.tournament.model.tournament import Tournament
 
@@ -11,6 +11,14 @@ class TournamentRepository(ABC):
     @abstractmethod
     async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_all_by_user(self, user_id: int) -> List[Tournament]:
+        raise NotImplementedError
+
+    # @abstractmethod
+    # async def find_all_by_player(self, user_id: int) -> List[Tournament]:
+    #     raise NotImplementedError
 
     @abstractmethod
     async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:

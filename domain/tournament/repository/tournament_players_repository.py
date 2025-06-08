@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from domain.tournament.model.tournament import TournamentStage
 from domain.tournament.model.tournament_player import TournamentPlayer
+from domain.tournament.model.tournament_stage import TournamentStage
+
 
 class TournamentPlayersRepository(ABC):
+
     @abstractmethod
     async def add_player(self, player: TournamentPlayer) -> Optional[TournamentPlayer]:
         raise NotImplementedError

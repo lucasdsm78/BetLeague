@@ -1,18 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
 from application.tournament.tournament_query_model import TournamentReadModel
+from domain.tournament import Tournament
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
-from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
-from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 class TournamentQueryUseCase(ABC):
+
     @abstractmethod
     async def get_tournament(self, tournament_id: int, email: str) -> Optional[TournamentReadModel]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_user_tournaments(self, user_email: str) -> List[Tournament]:
         raise NotImplementedError
 
 
@@ -31,3 +35,4 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase, BaseModel):
         if not tournament:
             return None
         return TournamentReadModel.from_entity(tournament)
+

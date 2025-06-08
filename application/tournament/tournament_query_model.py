@@ -7,7 +7,6 @@ class TournamentReadModel(BaseModel):
     name: str
     is_private: bool
     max_players: int
-    stage: str
 
     class Config:
         arbitrary_types_allowed = True
@@ -20,5 +19,4 @@ class TournamentReadModel(BaseModel):
             name=tournament.name,
             is_private=tournament.is_private,
             max_players=tournament.max_players,
-            stage=tournament.stage.value,
         )
