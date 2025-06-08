@@ -30,9 +30,13 @@ class DBUser(Base):
     two_factor_secret: Union[Optional[str], Column] = Column(String, nullable=True)
     is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
+    is_tournament_subscriber: Union[bool, Column] = Column(Boolean, default=False)
     leagues = relationship("DBLeague", foreign_keys="[DBLeague.user_id]", back_populates="user")
     league_players = relationship("DBLeaguePlayers", back_populates="user")
     tickets = relationship("DBTicket", back_populates="user")
+    tournaments = relationship("DBTournament", foreign_keys="[DBTournament.user_id]", back_populates="user")
+    tournaments_players = relationship("DBTournamentPlayer", foreign_keys="[DBTournamentPlayer.user_id]", back_populates="user")
+    tournament_stages = relationship("DBTournamentStage", foreign_keys="[DBTournamentStage.user_id]", back_populates="user")
 
     def to_entity(self) -> User:
         return User(
@@ -45,6 +49,7 @@ class DBUser(Base):
             pseudo=self.pseudo,
             nb_win=self.nb_win,
             nb_lose=self.nb_lose,
+            is_tournament_subscriber=self.is_tournament_subscriber,
             nb_btl=self.nb_btl,
             two_factor_secret=self.two_factor_secret,
             is_two_factor_enabled=self.is_two_factor_enabled,
@@ -60,6 +65,7 @@ class DBUser(Base):
         user_db_to_update.email = user.email.value
         user_db_to_update.password = user.password.password
         user_db_to_update.created_at = now
+        user_db_to_update.is_tournament_subscriber = user.is_tournament_subscriber
         user_db_to_update.updated_at = now
         user_db_to_update.pseudo = user.pseudo
         user_db_to_update.nb_lose = user.nb_lose

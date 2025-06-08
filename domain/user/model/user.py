@@ -19,6 +19,7 @@ class User:
             updated_at: Optional[int] = None,
             two_factor_secret: Optional[str] = None,
             is_two_factor_enabled: bool = False,
+            is_tournament_subscriber: bool = False,
             is_two_factor_verified: bool = False
     ):
         self.id: Optional[int] = id
@@ -34,6 +35,7 @@ class User:
         self.two_factor_secret = two_factor_secret
         self.is_two_factor_enabled = is_two_factor_enabled
         self.is_two_factor_verified = is_two_factor_verified
+        self.is_tournament_subscriber = is_tournament_subscriber
 
     def token_details(self) -> dict:
         return dict(

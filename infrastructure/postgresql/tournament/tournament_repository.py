@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from infrastructure.postgresql.tournament.db_tournament import DBTournament
@@ -14,29 +16,58 @@ class TournamentRepositoryImpl(TournamentRepository):
 
     async def create(self, tournament: Tournament):
         db_tournament = DBTournament.from_entity(tournament)
-        self.session.add(db_tournament)
+        try:
+            self.session.add(db_tournament)
+        except:
+            raise
 
     async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
         result = await self.session.execute(
-            select(DBTournament).where(DBTournament.id == tournament_id)
+            select(DBTournament)
+            .options(
+                selectinload(DBTournament.stages),
+                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user)
+            )
+            .where(DBTournament.id == tournament_id)
         )
-        db_obj = result.scalar_one_or_none()
-        return db_obj.to_entity() if db_obj else None
+        tournament_db = result.scalar_one_or_none()
+        if not tournament_db:
+            raise TournamentNotFoundError
+        return tournament_db.to_entity()
 
     async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:
         result = await self.session.execute(
-            select(DBTournament).where(DBTournament.uuid == uuid)
+            select(DBTournament)
+            .options(
+                selectinload(DBTournament.stages),
+                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user)
+            )
+            .where(DBTournament.uuid == uuid)
         )
-        db_obj = result.scalar_one_or_none()
-        return db_obj.to_entity() if db_obj else None
+        tournament_db = result.scalar_one_or_none()
+        if not tournament_db:
+            raise TournamentNotFoundError
+        return tournament_db.to_entity()
 
-    async def update(self, tournament: Tournament) -> Optional[Tournament]:
+    async def find_all_by_user(self, user_id: int) -> List[Tournament]:
+        result = await self.session.execute(
+            select(DBTournament)
+            .join(DBTournamentPlayer, DBTournament.id == DBTournamentPlayer.tournament_id)
+            .options(
+                selectinload(DBTournament.stages),
+                selectinload(DBTournament.players)
+            )
+            .where(DBTournament.user_id == user_id)
+        )
+        tournaments_db = result.scalars().all()
+        return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
+    async def update(self, tournament: Tournament):
         result = await self.session.execute(
             select(DBTournament).where(DBTournament.id == tournament.id)
         )
-        db_obj = result.scalar_one()
-        DBTournament.from_entity(tournament, db_obj)
-        return db_obj.to_entity()
+        _tournament = result.scalar_one()
+        tournament_db = DBTournament.from_entity(tournament, _tournament)
 
     async def count_players(self, tournament_id: int) -> int:
         result = await self.session.execute(

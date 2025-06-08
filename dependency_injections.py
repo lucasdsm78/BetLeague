@@ -240,14 +240,8 @@ def match_command_usecase(
 
 def tournament_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
-        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
-        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency)
 ) -> TournamentCommandUseCase:
     return TournamentCommandUseCaseImpl(
-        tournament_repository=tournament_repository,
-        tournament_players_repository=tournament_players_repository,
-        user_repository=user_repository,
         session_factory=session_factory,
     )
 
