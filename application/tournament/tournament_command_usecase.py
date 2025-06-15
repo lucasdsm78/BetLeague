@@ -77,7 +77,10 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 created_tournament = await tournament_repo.find_by_uuid(uuid)
 
-                await self.join_tournament(created_tournament.id, email)
+        # The tournament must be committed before adding the creator as player
+        # so call join_tournament outside of the transaction context
+
+        await self.join_tournament(created_tournament.id, email)
 
         return TournamentCreateResponse()
 
@@ -118,7 +121,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 tournament.prize_pool += tournament.entry_fee
                 await tournament_repo.update(tournament)
 
-            return TournamentJoinResponse()
+        return TournamentJoinResponse()
 
     async def start_tournament(self, tournament_id: int, email: str) -> Tournament:
         async with self._session_factory() as session:
