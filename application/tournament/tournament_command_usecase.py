@@ -109,7 +109,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 player = TournamentPlayer(
                     user_id=user.id,
                     tournament_id=tournament.id,
-                    nb_btl=0,
+                    nb_btl=100,
                     is_eliminated=False
                 )
                 await players_repo.add_player(player)

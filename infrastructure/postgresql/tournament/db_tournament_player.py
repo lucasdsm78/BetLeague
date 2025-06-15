@@ -21,7 +21,7 @@ class DBTournamentPlayer(Base):
     user = relationship('DBUser', back_populates='tournaments_players', foreign_keys=[user_id])
     tournament_id: Union[int, Column] = Column(Integer, ForeignKey('tournament.id'))
     tournament = relationship('DBTournament', back_populates='players')
-    stage: Union[str, Column] = Column(String, nullable=False)
+    stage: Union[str, Column] = Column(String, nullable=False, default=StageType.EIGHTH_FINAL.value)
     nb_btl: Union[float, Column] = Column(Float, default=0)
     is_eliminated = Column(Boolean, nullable=False, default=False)
     created_at: Union[int, Column] = Column(BigInteger, nullable=False)
