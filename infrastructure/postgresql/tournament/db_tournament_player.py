@@ -51,9 +51,9 @@ class DBTournamentPlayer(Base):
         player_db.id = player.id
         player_db.user_id = player.user_id
         player_db.tournament_id = player.tournament_id
-        player_db.stage = StageType.from_str(player.current_stage.value)
+        player_db.stage = player.current_stage
         player_db.nb_btl = player.nb_btl
-        player_db.is_eliminated = player.is_eliminated,
+        player_db.is_eliminated = player.is_eliminated
         player_db.created_at = now
         player_db.updated_at = now
         return player_db

@@ -26,7 +26,7 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
                     DBTournamentPlayer.user_id == user_id,
                     )
             )
-            tournament_players_db = result.scalar_one()
+            tournament_players_db = result.scalar_one_or_none()
             if tournament_players_db:
                 return tournament_players_db.to_entity()
             return None
