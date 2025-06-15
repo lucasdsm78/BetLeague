@@ -92,9 +92,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 if not user:
                     raise UserNotFoundError
 
-                if not user.is_tournament_subscriber:
-                    raise UserNotSubscribedError
-
                 tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
                     raise TournamentNotFoundError
@@ -105,8 +102,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 if tournament.status != TournamentStatus.PENDING:
                     raise ValueError("Impossible de rejoindre un tournoi déjà commencé")
 
-                # Check if the user is already a player in the tournament
-                existing_player = await players_repo.find_by_user_and_tournament(user.id, tournament.id)
+                existing_player = await players_repo.get_player(tournament.id, user.id)
                 if existing_player:
                     raise ValueError("User already joined the tournament")
 
@@ -128,12 +124,13 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         async with self._session_factory() as session:
             async with session.begin():
                 tournament_repo = TournamentRepositoryImpl(session)
+                user_repo = UserRepositoryImpl(session)
 
-                tournament = await self.tournament_repository.find_by_id(tournament_id)
+                tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
                     raise ValueError("Tournoi introuvable")
 
-                user = await self.user_repository.find_by_email(email)
+                user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 

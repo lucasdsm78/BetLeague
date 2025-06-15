@@ -64,4 +64,4 @@ class UserNotSubscribedError(Exception):
     message = "Vous devez être abonné à l'option tournoi pour participer"
 
     def __str__(self):
-        return UserNotInTournamentError.message
+        return UserNotSubscribedError.message
