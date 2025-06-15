@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.model.tournament import Tournament
@@ -22,14 +22,12 @@ class TournamentRepositoryImpl(TournamentRepository):
             raise
 
     async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
-        tournament_db = await self.session.get(
-            DBTournament,
-            tournament_id,
-            options=[
-                selectinload(DBTournament.stages),
-                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user),
-            ],
+        result = await self.session.execute(
+            select(DBTournament)
+            .options(joinedload(DBTournament.user))
+            .where(DBTournament.id == tournament_id)
         )
+        tournament_db = result.scalar_one_or_none()
         if not tournament_db:
             raise TournamentNotFoundError
         return tournament_db.to_entity()

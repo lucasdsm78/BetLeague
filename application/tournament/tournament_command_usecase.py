@@ -77,9 +77,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 created_tournament = await tournament_repo.find_by_uuid(uuid)
 
-        # The tournament must be committed before adding the creator as player
-        # so call join_tournament outside of the transaction context
-
         await self.join_tournament(created_tournament.id, email)
 
         return TournamentCreateResponse()
