@@ -27,10 +27,11 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
                     )
             )
             tournament_players_db = result.scalar_one()
-            return tournament_players_db.to_entity()
+            if tournament_players_db:
+                return tournament_players_db.to_entity()
+            return None
         except:
             raise
-
 
     async def update(self, player: TournamentPlayer) -> Optional[TournamentPlayer]:
         result = await self.session.execute(
