@@ -22,15 +22,14 @@ class TournamentRepositoryImpl(TournamentRepository):
             raise
 
     async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
-        result = await self.session.execute(
-            select(DBTournament)
-            .options(
+        tournament_db = await self.session.get(
+            DBTournament,
+            tournament_id,
+            options=[
                 selectinload(DBTournament.stages),
-                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user)
-            )
-            .where(DBTournament.id == tournament_id)
+                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user),
+            ],
         )
-        tournament_db = result.scalar_one_or_none()
         if not tournament_db:
             raise TournamentNotFoundError
         return tournament_db.to_entity()
