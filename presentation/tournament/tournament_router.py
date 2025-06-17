@@ -58,7 +58,7 @@ async def join_tournament(
         )
 
 @router.post(
-    "/tournament}/{id}/start",
+    "/tournament/{id}/start",
     response_model=TournamentStartResponse,
     status_code=status.HTTP_200_OK,
     summary="Démarrer un tournoi"

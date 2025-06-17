@@ -37,6 +37,10 @@ class DBTournament(Base):
     created_at: Union[int, Column] = Column(BigInteger, nullable=False)
     players = relationship('DBTournamentPlayer', back_populates='tournament')
     stages = relationship("DBTournamentStage", back_populates="tournament", cascade="all, delete-orphan")
+    matches = relationship(
+        "DBTournamentMatch",
+        back_populates="tournament"
+    )
 
     def to_entity(self) -> Tournament:
         return Tournament(

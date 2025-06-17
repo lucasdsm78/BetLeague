@@ -1,14 +1,9 @@
-from typing import List
-from sqlalchemy import select
+from typing import List, Optional
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.functions import func
 
 from domain.tournament.model import TournamentStage
-from domain.tournament.model.stage_type import StageType
-from domain.tournament.model.tournament_player import TournamentPlayer
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
-from infrastructure.postgresql.tournament import DBTournament
-from infrastructure.postgresql.tournament.db_tournament_player import DBTournamentPlayer
 from infrastructure.postgresql.tournament.db_tournament_stage import DBTournamentStage
 
 
@@ -30,6 +25,24 @@ class TournamentStageRepositoryImpl(TournamentStageRepository):
             )
             _tournament_stage = result.scalar_one()
             DBTournamentStage.from_entity(stage, _tournament_stage)
+        except:
+            raise
+
+    async def get_active_stage(self, tournament_id: int) -> Optional[TournamentStage]:
+        try:
+            result = await self.session.execute(
+                select(DBTournamentStage)
+                .where(
+                    and_(
+                        DBTournamentStage.tournament_id == tournament_id,
+                        DBTournamentStage.is_active == True
+                    )
+                )
+                .order_by(DBTournamentStage.start_date)  # Trier par date de début
+                .limit(1)  # Ne prendre que la première étape active
+            )
+            stage_db = result.scalar_one_or_none()
+            return stage_db.to_entity() if stage_db else None
         except:
             raise
 

@@ -32,6 +32,30 @@ class DBTournamentPlayer(Base):
         Index('idx_tournament_player_user', 'user_id'),
     )
 
+    matches_as_player1 = relationship(
+        "DBTournamentMatch",
+        foreign_keys="DBTournamentMatch.player1_id",
+        back_populates="player1"
+    )
+
+    matches_as_player2 = relationship(
+        "DBTournamentMatch",
+        foreign_keys="DBTournamentMatch.player2_id",
+        back_populates="player2"
+    )
+
+    matches_won = relationship(
+        "DBTournamentMatch",
+        foreign_keys="DBTournamentMatch.winner_id",
+        back_populates="winner"
+    )
+
+    matches_lost = relationship(
+        "DBTournamentMatch",
+        foreign_keys="DBTournamentMatch.loser_id",
+        back_populates="loser"
+    )
+
     def to_entity(self) -> TournamentPlayer:
         return TournamentPlayer(
             id=self.id,
