@@ -18,7 +18,6 @@ from domain.tournament.model.tournament_stage import TournamentStage
 from domain.tournament.model.tournament_player import TournamentPlayer
 from domain.tournament.model.tournament_match import TournamentMatch
 from domain.tournament.model.tournament_status import TournamentStatus
-from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
@@ -26,8 +25,10 @@ from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
@@ -120,11 +121,12 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
         return TournamentJoinResponse()
 
-    async def start_tournament(self, tournament_id: int, email: str) -> Tournament:
+    async def start_tournament(self, tournament_id: int, email: str) -> TournamentStartResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 tournament_repo = TournamentRepositoryImpl(session)
                 user_repo = UserRepositoryImpl(session)
+                tournament_stage_repository = TournamentStageRepositoryImpl(session)
 
                 tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
@@ -145,8 +147,9 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 # Définir les dates du tournoi
                 now = datetime.now()
-                tournament.start_date = now
-                tournament.end_date = now + timedelta(days=7)
+                now_timestamp = int(now.timestamp() * 1000)
+                tournament.start_date = now_timestamp
+                tournament.end_date = int((now + timedelta(days=7)).timestamp() * 1000)
                 tournament.status = TournamentStatus.IN_PROGRESS
 
                 # Créer les étapes du tournoi
@@ -154,120 +157,131 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 # 8èmes de finales
                 round_of_8_stage = TournamentStage(
+                    user_id=user.id,
                     tournament_id=tournament.id,
                     type=StageType.EIGHTH_FINAL,
-                    start_date=now,
-                    end_date=now + timedelta(days=2),
+                    start_date=now_timestamp,
+                    end_date=int((now + timedelta(days=2)).timestamp() * 1000),
                     is_active=True
                 )
                 stages.append(round_of_8_stage)
                 start_date_next = now + timedelta(days=2)
+                start_date_next_timestamp = int(start_date_next.timestamp() * 1000)
 
                 # Quarts de finale
                 quarter_final_stage = TournamentStage(
+                    user_id=user.id,
                     tournament_id=tournament.id,
                     type=StageType.QUARTER_FINAL,
-                    start_date=start_date_next,
-                    end_date=start_date_next + timedelta(days=2),
-                    is_active=tournament.current_players <= 16
+                    start_date=start_date_next_timestamp,
+                    end_date=int((start_date_next + timedelta(days=2)).timestamp() * 1000),
+                    is_active=False
                 )
                 stages.append(quarter_final_stage)
 
                 # Demi-finales
                 semi_final_stage = TournamentStage(
+                    user_id=user.id,
                     tournament_id=tournament.id,
                     type=StageType.SEMI_FINAL,
-                    start_date=start_date_next + timedelta(days=2),
-                    end_date=start_date_next + timedelta(days=4),
+                    start_date=int((start_date_next + timedelta(days=2)).timestamp() * 1000),
+                    end_date=int((start_date_next + timedelta(days=4)).timestamp() * 1000),
                     is_active=False
                 )
                 stages.append(semi_final_stage)
 
                 # Finale
                 final_stage = TournamentStage(
+                    user_id=user.id,
                     tournament_id=tournament.id,
                     type=StageType.FINAL,
-                    start_date=start_date_next + timedelta(days=4),
-                    end_date=start_date_next + timedelta(days=5),  # 1 jour pour la finale
+                    start_date=int((start_date_next + timedelta(days=4)).timestamp() * 1000),
+                    end_date=int((start_date_next + timedelta(days=5)).timestamp() * 1000),
                     is_active=False
                 )
                 stages.append(final_stage)
 
                 # Sauvegarder les étapes
                 for stage in stages:
-                    await self.tournament_stage_repository.add_stage(stage)
+                    await tournament_stage_repository.add_stage(stage)
+
+                updated_tournament = await tournament_repo.update(tournament)
 
                 # Générer les matchs pour la première étape active
-                await self._generate_matches_for_active_stage(tournament)
+                await self._generate_matches_for_active_stage(tournament.id, session)
+                # Retourner un objet TournamentStartResponse au lieu du tournament
+                return TournamentStartResponse()
 
-                # Mettre à jour le tournoi
-                return await tournament_repo.update(tournament)
+    async def _generate_matches_for_active_stage(self, tournament_id: int, session: AsyncSession):
 
-    async def _generate_matches_for_active_stage(self, tournament: Tournament):
-        # Trouver l'étape active
-        active_stage = None
-        for stage in tournament.stages:
-            if stage.is_active:
-                active_stage = stage
-                break
+        # Instancier les repositories avec la session
+        stage_repository = TournamentStageRepositoryImpl(session)
+        player_repository = TournamentPlayersRepositoryImpl(session)
+        match_repository = TournamentMatchRepositoryImpl(session)
 
+        # Récupérer l'étape active
+        active_stage = await stage_repository.get_active_stage(tournament_id)
         if not active_stage:
             return
 
-        # Définir les players pour cette étape
-        players = []
         if active_stage.type == StageType.EIGHTH_FINAL:
-            # Tous les players participent
-            players = [p for p in tournament.players if not p.is_eliminated]
+            # Tous les joueurs non éliminés participent
+            players = await player_repository.get_non_eliminated_players(tournament_id)
         else:
-            # Seuls les gagnants de l'étape précédente participent
-            players = [p for p in tournament.players if p.current_stage == active_stage.type and not p.is_eliminated]
+            # Seuls les joueurs de l'étape courante non éliminés participent
+            players = await player_repository.get_players_by_stage(
+                tournament_id,
+                active_stage.type
+            )
 
-        # Mélanger les players pour des matchs aléatoires
+        if len(players) < 2:
+            return
+
+        # Mélanger les joueurs pour des matchs aléatoires
         import random
         random.shuffle(players)
+        matches = []
 
         # Créer les matchs
-        matches = []
         for i in range(0, len(players), 2):
             if i + 1 < len(players):
                 match = TournamentMatch(
-                    tournament_id=tournament.id,
+                    tournament_id=tournament_id,
                     stage_id=active_stage.id,
-                    player1_id=players[i].id,
-                    player2_id=players[i+1].id
+                    player1_id=players[i].user_id,
+                    player2_id=players[i + 1].user_id,
+                    type=active_stage.type,
                 )
                 matches.append(match)
 
-        # Sauvegarder les matchs
         for match in matches:
-            await self.tournament_match_repository.add_match(match)
+            await match_repository.add_match(match)
 
 
     async def update_tournament_btl_scores(self, ticket_id: int):
-        async with self._session_factory() as session:
-            async with session.begin():
-                ticket_repo = TicketRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
+            async with self._session_factory() as session:
+                async with session.begin():
+                    ticket_repo = TicketRepositoryImpl(session)
+                    tournament_repo = TournamentRepositoryImpl(session)
 
-                ticket = await ticket_repo.find_by_id(ticket_id)
-                if not ticket or ticket.status != TicketStatus.correct:
-                    return
+                    ticket = await ticket_repo.find_by_id(ticket_id)
+                    if not ticket or ticket.status != TicketStatus.correct:
+                        return
 
-                active_tournaments = await tournament_repo.find_all_active_by_participant(ticket.user_id)
+                    active_tournaments = await tournament_repo.find_all_active_by_participant(ticket.user_id)
 
-                for tournament in active_tournaments:
-                    # Trouver le player
-                    player = next((p for p in tournament.players if p.user_id == ticket.user_id and not p.is_eliminated), None)
-                    if player:
-                        # Trouver l'étape active
-                        active_stage = next((s for s in tournament.stages if s.is_active), None)
-                        if active_stage and player.current_stage == active_stage.type:
-                            # Calculer les BTL gagnés (1 BTL par euro gagné)
-                            btl_gained = int(ticket.gain)
+                    for tournament in active_tournaments:
+                        # Trouver le player
+                        player = next((p for p in tournament.players if p.user_id == ticket.user_id and not p.is_eliminated), None)
+                        if player:
+                            # Trouver l'étape active
+                            active_stage = next((s for s in tournament.stages if s.is_active), None)
+                            if active_stage and player.current_stage == active_stage.type:
+                                # Calculer les BTL gagnés (1 BTL par euro gagné)
+                                btl_gained = int(ticket.gain)
 
-                            # Mise à jour du score BTL
-                            player.btl_score += btl_gained
+                                # Mise à jour du score BTL
+                                player.btl_score += btl_gained
 
-                            # Sauvegarder
-                            await tournament_repo.update_participant(player)
+                                # Sauvegarder
+                                await tournament_repo.update_participant(player)

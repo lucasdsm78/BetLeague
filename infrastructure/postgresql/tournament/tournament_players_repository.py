@@ -33,6 +33,19 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
         except:
             raise
 
+    async def get_non_eliminated_players(self, tournament_id: int) -> List[TournamentPlayer]:
+        try:
+            result = await self.session.execute(
+                select(DBTournamentPlayer).where(
+                    DBTournamentPlayer.tournament_id == tournament_id,
+                    DBTournamentPlayer.is_eliminated == False
+                )
+            )
+            players_db = result.scalars().all()
+            return [player.to_entity() for player in players_db]
+        except:
+            raise
+
     async def update(self, player: TournamentPlayer) -> Optional[TournamentPlayer]:
         result = await self.session.execute(
             select(DBTournamentPlayer).where(DBTournamentPlayer.id == player.id)

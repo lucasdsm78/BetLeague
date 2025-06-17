@@ -25,12 +25,16 @@ class DBTournamentStage(Base):
     end_date: Union[int, Column] = Column(BigInteger, nullable=False, index=True)
     is_active = Column(Boolean, nullable=False, default=False)
     is_completed = Column(Boolean, nullable=False, default=False)
-
+    matches = relationship(
+        "DBTournamentMatch",
+        back_populates="stage"
+    )
     tournament = relationship("DBTournament", back_populates="stages")
 
     def to_entity(self) -> TournamentStage:
         return TournamentStage(
             id=self.id,
+            user_id=self.user_id,
             tournament_id=self.tournament_id,
             type=StageType(self.type),
             start_date=self.start_date,
