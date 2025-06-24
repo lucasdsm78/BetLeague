@@ -46,6 +46,18 @@ class TournamentStageRepositoryImpl(TournamentStageRepository):
         except:
             raise
 
+    async def find_all_by_tournament(self, tournament_id: int) -> List[TournamentStage]:
+        try:
+            result = await self.session.execute(
+                select(DBTournamentStage)
+                .where(DBTournamentStage.tournament_id == tournament_id)
+                .order_by(DBTournamentStage.start_date)
+            )
+            stages_db = result.scalars().all()
+            return [stage.to_entity() for stage in stages_db]
+        except:
+            raise
+
     async def begin(self):
         await self.session.begin()
 

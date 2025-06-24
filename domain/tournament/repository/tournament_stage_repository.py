@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from domain.tournament.model import TournamentStage
+from typing import List
 
 
 class TournamentStageRepository(ABC):
@@ -10,6 +11,10 @@ class TournamentStageRepository(ABC):
 
     @abstractmethod
     async def update_stage(self, stage: TournamentStage):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_all_by_tournament(self, tournament_id: int) -> List[TournamentStage]:
         raise NotImplementedError
 
     @abstractmethod
