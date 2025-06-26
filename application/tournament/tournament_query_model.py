@@ -44,3 +44,19 @@ class TournamentStageReadModel(BaseModel):
 
 class TournamentStagesResponse(BaseModel):
     stages: List[TournamentStageReadModel] = []
+
+
+class TournamentMatchReadModel(BaseModel):
+    id: int
+    tournament_id: int
+    stage: str
+    player1_summary: UserSummaryReadModel
+    player2_summary: UserSummaryReadModel
+    start_date: Optional[int] = None
+    end_date: Optional[int] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+class TournamentMatchesResponse(BaseModel):
+    matches: List[TournamentMatchReadModel] = []

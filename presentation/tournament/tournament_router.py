@@ -118,3 +118,27 @@ async def get_tournament_stages(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des étapes du tournoi: {str(e)}"
         )
+
+@router.get(
+    "/tournament/{id}/stage/{stage}/matches",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère les matchs d'une étape de tournoi",
+    response_model=dict,
+)
+async def get_tournament_stages(
+        stage: str,
+        id: int,
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await tournament_usecase.get_stage_matches(id, stage, current_user.get("email", ""))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des étapes du tournoi: {str(e)}"
+        )

@@ -18,6 +18,22 @@ class TournamentStageRepositoryImpl(TournamentStageRepository):
         except:
             raise
 
+    async def find_by_id(self, tournament_id: int, stage: str) -> Optional[TournamentStage]:
+        try:
+            result = await self.session.execute(
+                select(DBTournamentStage)
+                .where(
+                    and_(
+                        DBTournamentStage.tournament_id == tournament_id,
+                        DBTournamentStage.type == stage
+                    )
+                )
+            )
+            tournament_stage_db = result.scalar_one_or_none()
+            return tournament_stage_db.to_entity() if tournament_stage_db else None
+        except:
+            raise
+
     async def update_stage(self, stage: TournamentStage):
         try:
             result = await self.session.execute(

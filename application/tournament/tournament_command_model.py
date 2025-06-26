@@ -5,7 +5,6 @@ class TournamentCreateModel(BaseModel):
     name: str
     is_private: bool
     max_players: int
-    email: str
 
 class TournamentCreateResponse(BaseModel):
     message: str = "Tournament created successfully"
