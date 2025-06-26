@@ -109,9 +109,16 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 matches = await tournament_match_repo.get_matches_by_tournament_stages(tournament.id, stage)
 
+                player_ids = set()
                 for match in matches:
-                    player1 = await user_repo.find_by_id(match.player1_id)
-                    player2 = await user_repo.find_by_id(match.player2_id)
+                    player_ids.add(match.player1_id)
+                    player_ids.add(match.player2_id)
+
+                players = await user_repo.find_users_by_ids(list(player_ids))
+
+                for match in matches:
+                    player1 = players[match.player1_id]
+                    player2 = players[match.player2_id]
 
                     match_model = TournamentMatchReadModel(
                         id=match.id,

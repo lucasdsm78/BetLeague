@@ -26,6 +26,16 @@ class UserRepositoryImpl(UserRepository):
         except:
             raise
 
+    async def find_users_by_ids(self, user_ids: list[int]) -> dict[int, User]:
+        try:
+            result = await self.session.execute(
+                select(DBUser).where(DBUser.id.in_(user_ids))
+            )
+            users_db = result.scalars().all()
+            return {user.id: user.to_entity() for user in users_db}
+        except:
+            raise
+
     async def find_by_pseudo_or_email(
             self,
             pseudo: Optional[str] = None,
