@@ -1,12 +1,16 @@
 from abc import ABC, abstractmethod
 
 from domain.tournament.model import TournamentStage
-from typing import List
+from typing import List, Optional
 
 
 class TournamentStageRepository(ABC):
     @abstractmethod
     async def add_stage(self, stage: TournamentStage) -> TournamentStage:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_id(self, tournament_id: int, stage: str) -> Optional[TournamentStage]:
         raise NotImplementedError
 
     @abstractmethod
