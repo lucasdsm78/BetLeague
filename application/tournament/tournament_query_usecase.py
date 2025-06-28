@@ -124,6 +124,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                         id=match.id,
                         tournament_id=match.tournament_id,
                         stage=tournament_stage.type.value,
+                        winner_id=match.winner_id,
+                        loser_id=match.loser_id,
                         player1_summary=UserSummaryReadModel(
                             id=player1.id,
                             email=player1.email.value,

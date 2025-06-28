@@ -53,6 +53,8 @@ class TournamentMatchReadModel(BaseModel):
     player1_summary: UserSummaryReadModel
     player2_summary: UserSummaryReadModel
     start_date: Optional[int] = None
+    winner_id: Optional[int] = None
+    loser_id: Optional[int] = None
     end_date: Optional[int] = None
 
     class Config:
