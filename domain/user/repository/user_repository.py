@@ -55,5 +55,9 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_users_by_ids(self, user_ids: list[int]) -> dict[int, User]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def rollback(self):
         raise NotImplementedError

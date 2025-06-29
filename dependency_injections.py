@@ -18,6 +18,7 @@ from domain.services.authentication.totp_service import TOTPService
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
+from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
@@ -37,6 +38,7 @@ from infrastructure.postgresql.league.league_repository import LeagueRepositoryI
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
@@ -122,8 +124,13 @@ def tournament_players_repository_dependency(session: AsyncSession = Depends(get
     return TournamentPlayersRepositoryImpl(session)
 
 
+def tournament_match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentMatchRepository:
+    return TournamentMatchRepositoryImpl(session)
+
+
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
+
 
 def invitation_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> InvitationRepository:
     return InvitationRepositoryImpl(session)
@@ -255,13 +262,16 @@ def tournament_query_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
-        stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency)
+        stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
+        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency)
 ) -> TournamentQueryUseCase:
     return TournamentQueryUseCaseImpl(
         session_factory=session_factory,
         tournament_repository=tournament_repository,
         user_repository=user_repository,
         tournament_stage_repository=stage_repository,
+        tournament_match_repository=tournament_match_repository,
+        stage_repository=stage_repository
     )
 
 

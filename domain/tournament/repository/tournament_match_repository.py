@@ -8,4 +8,8 @@ class TournamentMatchRepository(ABC):
 
     @abstractmethod
     async def add_match(self, match: TournamentMatch) -> TournamentMatch:
-        pass
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_matches_by_tournament_stages(self, tournament_id: int, stage: str):
+        raise NotImplementedError

@@ -4,17 +4,16 @@ from typing import Callable
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
-    TournamentStagesResponse, TournamentMatchReadModel, TournamentsRegisteredResponse
+    TournamentMatchReadModel, TournamentsRegisteredResponse
 from application.user.user_query_model import UserSummaryReadModel
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.exception.tournament_stage_exception import TournamentStageNotFoundError
+from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.postgresql.tournament import TournamentRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
@@ -32,6 +31,10 @@ class TournamentQueryUseCase(ABC):
     async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
+        raise NotImplementedError
+
 
 class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
@@ -40,12 +43,16 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             session_factory: Callable[[], AsyncSession],
             tournament_repository: TournamentRepository,
             tournament_stage_repository: TournamentStageRepository,
-            user_repository: UserRepository
+            user_repository: UserRepository,
+            stage_repository: TournamentStageRepository,
+            tournament_match_repository: TournamentMatchRepository
     ):
         self.tournament_repository: TournamentRepository = tournament_repository
         self._session_factory = session_factory
         self.user_repository: UserRepository = user_repository
         self.tournament_stage_repository: TournamentStageRepository = tournament_stage_repository
+        self.stage_repository: TournamentStageRepository = stage_repository
+        self.tournament_match_repository: TournamentMatchRepository = tournament_match_repository
 
     class Config:
         arbitrary_types_allowed = True
@@ -55,19 +62,15 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         async with self._session_factory() as session:
             async with session.begin():
 
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                stage_repo = TournamentStageRepositoryImpl(session)
-
-                user = await user_repo.find_by_email(email)
+                user = await self.user_repository.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
+                tournament = await self.tournament_repository.find_by_id(tournament_id)
                 if not tournament:
                     raise TournamentNotFoundError
 
-                stages = await stage_repo.find_all_by_tournament(tournament_id)
+                stages = await self.stage_repository.find_all_by_tournament(tournament_id)
 
                 for stage in stages:
                     stage_model = TournamentStageReadModel(
@@ -94,31 +97,26 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         async with self._session_factory() as session:
             async with session.begin():
 
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                stage_repo = TournamentStageRepositoryImpl(session)
-                tournament_match_repo = TournamentMatchRepositoryImpl(session)
-
-                user = await user_repo.find_by_email(email)
+                user = await self.user_repository.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
+                tournament = await self.tournament_repository.find_by_id(tournament_id)
                 if not tournament:
                     raise TournamentNotFoundError
 
-                tournament_stage = await stage_repo.find_by_id(tournament.id, stage)
+                tournament_stage = await self.stage_repository.find_by_id(tournament.id, stage)
                 if not tournament_stage:
                     raise TournamentStageNotFoundError
 
-                matches = await tournament_match_repo.get_matches_by_tournament_stages(tournament.id, stage)
+                matches = await self.tournament_match_repository.get_matches_by_tournament_stages(tournament.id, stage)
 
                 player_ids = set()
                 for match in matches:
                     player_ids.add(match.player1_id)
                     player_ids.add(match.player2_id)
 
-                players = await user_repo.find_users_by_ids(list(player_ids))
+                players = await self.user_repository.find_users_by_ids(list(player_ids))
 
                 for match in matches:
                     player1 = players[match.player1_id]
@@ -154,20 +152,14 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         async with self._session_factory() as session:
             async with session.begin():
 
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-
-                user = await user_repo.find_by_email(email)
+                user = await self.user_repository.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                total_count = await tournament_repo.count_tournaments_by_user_id(user.id)
                 offset = (page - 1) * page_size
 
-                tournaments = await tournament_repo.find_all_by_user_participant(
-                    user_id=user.id,
-                    limit=page_size,
-                    offset=offset
+                tournaments, total_count = await self.tournament_repository.find_all_by_user_participant(
+                    user.id, page_size, offset
                 )
 
                 response = TournamentsRegisteredResponse(
