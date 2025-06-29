@@ -60,5 +60,13 @@ class TournamentMatchReadModel(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+
 class TournamentMatchesResponse(BaseModel):
     matches: List[TournamentMatchReadModel] = []
+
+
+class TournamentsRegisteredResponse(BaseModel):
+    tournaments: List[TournamentReadModel]
+    total_count: int
+    page: int
+    page_size: int
