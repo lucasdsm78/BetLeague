@@ -13,12 +13,18 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all_by_user(self, user_id: int) -> List[Tournament]:
+    async def find_all_by_user_creator(self, user_id: int) -> List[Tournament]:
         raise NotImplementedError
-
+    #
     # @abstractmethod
     # async def find_all_by_player(self, user_id: int) -> List[Tournament]:
     #     raise NotImplementedError
+
+    async def find_all_by_user_participant(self, user_id: int, limit: int, offset: int) -> List[Tournament]:
+        raise NotImplementedError
+
+    async def count_tournaments_by_user_id(self, user_id: int) -> int:
+        raise NotImplementedError
 
     @abstractmethod
     async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:

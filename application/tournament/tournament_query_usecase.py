@@ -4,7 +4,7 @@ from typing import Callable
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
-    TournamentStagesResponse, TournamentMatchReadModel
+    TournamentStagesResponse, TournamentMatchReadModel, TournamentsRegisteredResponse
 from application.user.user_query_model import UserSummaryReadModel
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.exception.tournament_stage_exception import TournamentStageNotFoundError
@@ -26,6 +26,10 @@ class TournamentQueryUseCase(ABC):
 
     @abstractmethod
     async def get_stage_matches(self, tournament_id: int, stage: str, email: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
         raise NotImplementedError
 
 
@@ -142,3 +146,35 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     result["matches"].append(match_model.dict())
 
         return result
+
+    async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
+        page = max(1, page)
+        page_size = min(max(1, page_size), 100)
+
+        async with self._session_factory() as session:
+            async with session.begin():
+
+                user_repo = UserRepositoryImpl(session)
+                tournament_repo = TournamentRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                total_count = await tournament_repo.count_tournaments_by_user_id(user.id)
+                offset = (page - 1) * page_size
+
+                tournaments = await tournament_repo.find_all_by_user_participant(
+                    user_id=user.id,
+                    limit=page_size,
+                    offset=offset
+                )
+
+                response = TournamentsRegisteredResponse(
+                    page_size=page_size,
+                    total_count=total_count,
+                    page=page,
+                    tournaments=[TournamentReadModel.from_entity(t) for t in tournaments]
+                )
+
+                return response

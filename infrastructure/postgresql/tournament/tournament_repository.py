@@ -1,5 +1,5 @@
 from typing import Optional, List
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
@@ -46,7 +46,7 @@ class TournamentRepositoryImpl(TournamentRepository):
             raise TournamentNotFoundError
         return tournament_db.to_entity()
 
-    async def find_all_by_user(self, user_id: int) -> List[Tournament]:
+    async def find_all_by_user_creator(self, user_id: int) -> List[Tournament]:
         result = await self.session.execute(
             select(DBTournament)
             .join(DBTournamentPlayer, DBTournament.id == DBTournamentPlayer.tournament_id)
@@ -58,6 +58,49 @@ class TournamentRepositoryImpl(TournamentRepository):
         )
         tournaments_db = result.scalars().all()
         return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
+    async def find_all_by_user_participant(
+            self,
+            user_id: int,
+            limit: int,
+            offset: int
+    ) -> List[Tournament]:
+        query = (
+            select(DBTournament)
+            .join(
+                DBTournamentPlayer,
+                DBTournament.id == DBTournamentPlayer.tournament_id
+            )
+            .where(DBTournamentPlayer.user_id == user_id)
+            .where(DBTournamentPlayer.is_eliminated == False)
+            .order_by(DBTournament.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(query)
+        db_models = result.scalars().all()
+
+        tournaments: List[Tournament] = await self.session.run_sync(
+            lambda sync_sess, objs: [DBTournament.to_entity(m) for m in objs],
+            db_models
+        )
+        return tournaments
+
+    async def count_tournaments_by_user_id(self, user_id: int) -> int:
+        query = (
+            select(func.count())
+            .select_from(DBTournament)
+            .join(
+                DBTournamentPlayer,
+                DBTournament.id == DBTournamentPlayer.tournament_id
+            )
+            .where(DBTournamentPlayer.user_id == user_id)
+        )
+
+        result = await self.session.execute(query)
+        count = result.scalar_one()
+
+        return count
 
     async def update(self, tournament: Tournament):
         result = await self.session.execute(

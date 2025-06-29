@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
@@ -141,4 +141,27 @@ async def get_tournament_stages(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des étapes du tournoi: {str(e)}"
+        )
+
+@router.get(
+    "/tournament/{id}/my",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère les tournois auxquels l'utilisateur est inscrit",
+)
+async def get_tournaments_registered(
+        page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
+        page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await tournament_usecase.get_user_tournaments_in_progress(current_user.get("email", ""), page, page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des tournois inscrits de l'utilisateur: {str(e)}"
         )
