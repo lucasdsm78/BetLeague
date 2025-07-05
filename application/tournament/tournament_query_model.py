@@ -70,3 +70,33 @@ class TournamentsRegisteredResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
+
+
+class TournamentAvailablePublicReadModel(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    is_private: bool
+    max_players: int
+    current_players: int
+    start_date: int
+    end_date: int
+
+    @staticmethod
+    def from_entity(tournament: Tournament) -> "TournamentAvailablePublicReadModel":
+        return TournamentAvailablePublicReadModel(
+            id=tournament.id,
+            uuid=tournament.uuid,
+            name=tournament.name,
+            is_private=tournament.is_private,
+            max_players=tournament.max_players,
+            current_players=tournament.current_players,
+            start_date=tournament.start_date,
+            end_date=tournament.end_date
+        )
+
+class TournamentsAvailablePublicResponse(BaseModel):
+    tournaments: List[TournamentAvailablePublicReadModel]
+    total_count: int
+    page: int
+    page_size: int
