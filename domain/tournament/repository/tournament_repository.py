@@ -14,6 +14,10 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_name(self, tournament_name: str) -> Optional[Tournament]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_all_by_user_creator(self, user_id: int) -> List[Tournament]:
         raise NotImplementedError
 

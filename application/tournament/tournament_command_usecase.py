@@ -8,27 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
-    TournamentJoinResponse, TournamentStartResponse,
+    TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
 )
 from domain.ticket.model.ticket_status import TicketStatus
-from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError
+from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
+    TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
 from domain.tournament.model.tournament_player import TournamentPlayer
 from domain.tournament.model.tournament_match import TournamentMatch
 from domain.tournament.model.tournament_status import TournamentStatus
-from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
-from domain.tournament.repository.tournament_repository import TournamentRepository
-from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
-from domain.user.repository.user_repository import UserRepository
-from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
+from infrastructure.postgresql.tournament import TournamentRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
@@ -43,6 +36,10 @@ class TournamentCommandUseCase(ABC):
 
     @abstractmethod
     async def start_tournament(self, tournament_id: int, email: str) -> TournamentStartResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update(self, data: TournamentUpdateModel, tournament_id: int, email: str):
         raise NotImplementedError
 
 
@@ -284,4 +281,43 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                                 player.btl_score += btl_gained
 
                                 # Sauvegarder
-                                await tournament_repo.update_participant(player)
+                                await self.tournament_repository.update_participant(player)
+
+
+    async def update(
+                self,
+                data: TournamentUpdateModel,
+                tournament_id: int,
+                email: str
+        ) -> TournamentUpdateResponse:
+            async with self._session_factory() as session:
+                async with session.begin():
+
+                    user_repo = UserRepositoryImpl(session)
+                    tournament_repo = TournamentRepositoryImpl(session)
+
+                    user = await user_repo.find_by_email(email)
+                    if not user:
+                        raise UserNotFoundError
+
+                    tournament = await tournament_repo.find_by_id(tournament_id)
+                    if not tournament:
+                        raise TournamentNotFoundError
+
+                    if tournament.user.id != user.id:
+                        raise TournamentNotOwnerLeaguedError
+
+                    if data.name != tournament.name and await tournament_repo.find_by_name(data.name):
+                        raise TournamentNameAlreadyExistsError
+
+                    if tournament.status.value != TournamentStatus.PENDING.value:
+                        raise TournamentAlreadyStartedError
+
+                    tournament.name       = data.name
+                    tournament.start_date = data.start_date
+                    tournament.is_private = data.is_private
+                    tournament.end_date = data.end_date
+
+                    await tournament_repo.update(tournament)
+
+            return TournamentUpdateResponse()

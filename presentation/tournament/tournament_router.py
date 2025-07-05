@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
+from application.league.league_command_model import LeagueUpdateModel
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
-    TournamentJoinResponse, TournamentStartResponse,
+    TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase
-from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError
+from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
+    TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(tags=["tournament"])
@@ -207,3 +209,50 @@ async def get_available_public_tournaments(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des tournois disponibles publics: {str(e)}"
         )
+
+@router.put(
+    "/tournament/{id}",
+    response_model=TournamentUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update tournament",
+)
+async def update_tournament(
+        id: int,
+        update_tournament_model: TournamentUpdateModel,
+        tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('email'))
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except TournamentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except TournamentNameAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except TournamentNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification du tournoi"
+        )
+
+    return update_tournament_result
