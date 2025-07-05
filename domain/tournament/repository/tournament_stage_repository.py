@@ -14,6 +14,10 @@ class TournamentStageRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_active_stage(self, tournament_id: int) -> Optional[TournamentStage]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update_stage(self, stage: TournamentStage):
         raise NotImplementedError
 

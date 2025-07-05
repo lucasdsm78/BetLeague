@@ -33,6 +33,17 @@ class TournamentRepositoryImpl(TournamentRepository):
             raise TournamentNotFoundError
         return tournament_db.to_entity()
 
+    async def find_by_name(self, tournament_name: str) -> Optional[Tournament]:
+        result = await self.session.execute(
+            select(DBTournament)
+            .options(joinedload(DBTournament.user))
+            .where(DBTournament.name == tournament_name)
+        )
+        tournament_db = result.scalar_one_or_none()
+        if not tournament_db:
+            return None
+        return tournament_db.to_entity()
+
     async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:
         result = await self.session.execute(
             select(DBTournament)

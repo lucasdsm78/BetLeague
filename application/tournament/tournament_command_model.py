@@ -14,3 +14,12 @@ class TournamentJoinResponse(BaseModel):
 
 class TournamentStartResponse(BaseModel):
     message: str = "Tournament start successfully"
+
+class TournamentUpdateModel(BaseModel):
+    name: Optional[str]
+    is_private: Optional[bool] = None
+    start_date: Optional[int] = None
+    end_date: Optional[int] = None
+
+class TournamentUpdateResponse(BaseModel):
+    message: str = "Tournament updated successfully"

@@ -20,6 +20,10 @@ class TournamentPlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_non_eliminated_players(self, tournament_id: int) -> List[TournamentPlayer]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def count_players(self, tournament_id: int) -> int:
         raise NotImplementedError
 

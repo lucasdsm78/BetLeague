@@ -65,3 +65,17 @@ class UserNotSubscribedError(Exception):
 
     def __str__(self):
         return UserNotSubscribedError.message
+
+
+class TournamentNotOwnerLeaguedError(Exception):
+    message = "The user is not owner of the tournament."
+
+    def __str__(self):
+        return TournamentNotOwnerLeaguedError.message
+
+
+class TournamentNameAlreadyExistsError(Exception):
+    message = "The tournament with the name you specified already exists."
+
+    def __str__(self):
+        return TournamentNameAlreadyExistsError.message
