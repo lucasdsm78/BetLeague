@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
-    TournamentsAvailablePublicResponse
+    TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel
 from application.user.user_query_model import UserSummaryReadModel
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.exception.tournament_stage_exception import TournamentStageNotFoundError
@@ -14,8 +14,6 @@ from domain.tournament.repository.tournament_repository import TournamentReposit
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
-from infrastructure.postgresql.tournament import TournamentRepositoryImpl
-from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
 class TournamentQueryUseCase(ABC):
@@ -33,7 +31,11 @@ class TournamentQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
+    async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsAvailablePublicResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_tournaments_finished(self, email: str, page: int = 1, page_size: int = 10) -> TournamentFinishedResponse:
         raise NotImplementedError
 
 
@@ -172,7 +174,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 return response
 
-    async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
+    async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsAvailablePublicResponse:
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
 
@@ -194,6 +196,32 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     total_count=total_count,
                     page=page,
                     tournaments=[TournamentAvailablePublicReadModel.from_entity(t) for t in tournaments]
+                )
+
+                return response
+
+    async def get_tournaments_finished(self, email: str, page: int = 1, page_size: int = 10) -> TournamentFinishedResponse:
+        page = max(1, page)
+        page_size = min(max(1, page_size), 100)
+
+        async with self._session_factory() as session:
+            async with session.begin():
+
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                offset = (page - 1) * page_size
+
+                tournaments, total_count = await self.tournament_repository.find_finished_tournaments(
+                    user.id, page_size, offset
+                )
+
+                response = TournamentFinishedResponse(
+                    page_size=page_size,
+                    total_count=total_count,
+                    page=page,
+                    tournaments=[TournamentFinishedReadModel.from_entity(t) for t in tournaments]
                 )
 
                 return response
