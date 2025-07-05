@@ -100,3 +100,29 @@ class TournamentsAvailablePublicResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
+
+
+class TournamentFinishedReadModel(BaseModel):
+    id: int
+    uuid: str
+    name: str
+    is_private: bool
+    start_date: int
+    end_date: int
+
+    @staticmethod
+    def from_entity(tournament: Tournament) -> "TournamentFinishedReadModel":
+        return TournamentFinishedReadModel(
+            id=tournament.id,
+            uuid=tournament.uuid,
+            name=tournament.name,
+            is_private=tournament.is_private,
+            start_date=tournament.start_date,
+            end_date=tournament.end_date
+        )
+
+class TournamentFinishedResponse(BaseModel):
+    tournaments: List[TournamentFinishedReadModel]
+    total_count: int
+    page: int
+    page_size: int

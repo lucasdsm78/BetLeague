@@ -30,6 +30,15 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_finished_tournaments(
+            self,
+            user_id: int,
+            limit: int,
+            offset: int
+    ) -> Tuple[List[Tournament], int]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:
         raise NotImplementedError
 
