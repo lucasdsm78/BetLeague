@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload, joinedload
 
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError
 from domain.tournament.model.tournament import Tournament
+from domain.tournament.model.tournament_status import TournamentStatus
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from infrastructure.postgresql.tournament.db_tournament import DBTournament
 from infrastructure.postgresql.tournament.db_tournament_player import DBTournamentPlayer
@@ -77,6 +78,43 @@ class TournamentRepositoryImpl(TournamentRepository):
             .where(
                 DBTournamentPlayer.user_id == user_id,
                 DBTournamentPlayer.is_eliminated.is_(False)
+            )
+            .order_by(DBTournament.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.session.execute(stmt)
+
+        rows = result.all()
+        if not rows:
+            return [], 0
+
+        total_count = rows[0][1]
+
+        db_tournaments = [row[0] for row in rows]
+
+        tournaments: List[Tournament] = await self.session.run_sync(
+            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
+            db_tournaments
+        )
+
+        return tournaments, total_count
+
+    async def find_available_tournaments_public(
+            self,
+            limit: int,
+            offset: int
+    ) -> Tuple[List[Tournament], int]:
+        stmt = (
+            select(
+                DBTournament,
+                func.count().over().label("total_count")
+            )
+            .where(
+                DBTournament.is_private == False,
+                DBTournament.current_players < DBTournament.max_players,
+                DBTournament.status == TournamentStatus.PENDING.value,
             )
             .order_by(DBTournament.created_at.desc())
             .limit(limit)

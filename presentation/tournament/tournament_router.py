@@ -165,3 +165,25 @@ async def get_tournaments_registered(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des tournois inscrits de l'utilisateur: {str(e)}"
         )
+
+
+@router.get(
+    "/tournaments",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère les tournois disponibles pour l'utilisateur",
+)
+async def get_available_public_tournaments(
+        page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
+        page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await tournament_usecase.get_available_tournaments_public(current_user.get("email", ""), page, page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des tournois disponibles publics: {str(e)}"
+        )
