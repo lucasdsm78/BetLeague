@@ -21,7 +21,7 @@ from domain.tournament.model.tournament_match import TournamentMatch
 from domain.tournament.model.tournament_status import TournamentStatus
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
-from infrastructure.postgresql.tournament import TournamentRepositoryImpl
+from infrastructure.postgresql.tournament import TournamentRepositoryImpl, TournamentPlayersRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
