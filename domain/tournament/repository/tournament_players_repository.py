@@ -28,7 +28,11 @@ class TournamentPlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_players_by_stage(self, tournament_id: int, stage: TournamentStage) -> List[TournamentPlayer]:
+    async def find_players_by_stage(self, tournament_id: int, stage: TournamentStage) -> List[TournamentPlayer]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_players_by_tournament_id(self, tournament_id: int) -> List[TournamentPlayer]:
         raise NotImplementedError
 
     @abstractmethod

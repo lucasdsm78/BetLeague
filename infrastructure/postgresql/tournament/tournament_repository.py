@@ -71,6 +71,14 @@ class TournamentRepositoryImpl(TournamentRepository):
         tournaments_db = result.scalars().all()
         return [tournament_db.to_entity() for tournament_db in tournaments_db]
 
+    async def find_all_by_status(self, status: str) -> List[Tournament]:
+        result = await self.session.execute(
+            select(DBTournament)
+            .where(DBTournament.status == status)
+        )
+        tournaments_db = result.scalars().all()
+        return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
     async def find_all_by_user_participant(
             self,
             user_id: int,

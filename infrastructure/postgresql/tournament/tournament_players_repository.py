@@ -64,11 +64,20 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
         except:
             raise
 
-    async def get_players_by_stage(self, tournament_id: int, stage: StageType) -> List[TournamentPlayer]:
+    async def find_players_by_stage(self, tournament_id: int, stage: StageType) -> List[TournamentPlayer]:
         result = await self.session.execute(
             select(DBTournamentPlayer)
             .join(DBTournament, DBTournamentPlayer.tournament_id == DBTournament.id)
             .where(DBTournamentPlayer.stage == stage.value)
+        )
+
+        tournaments_db = result.scalars().all()
+        return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
+    async def find_players_by_tournament_id(self, tournament_id: int) -> List[TournamentPlayer]:
+        result = await self.session.execute(
+            select(DBTournamentPlayer)
+            .where(DBTournamentPlayer.tournament_id == tournament_id)
         )
 
         tournaments_db = result.scalars().all()

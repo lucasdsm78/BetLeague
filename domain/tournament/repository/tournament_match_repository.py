@@ -11,5 +11,13 @@ class TournamentMatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_matches_by_tournament_stages(self, tournament_id: int, stage: str):
+    async def find_matches_by_tournament_stages(self, tournament_id: int, stage: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_matches_by_tournament_id(self, tournament_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update(self, match: TournamentMatch) -> Optional[TournamentMatch]:
         raise NotImplementedError

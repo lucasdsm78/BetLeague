@@ -112,7 +112,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                 if not tournament_stage:
                     raise TournamentStageNotFoundError
 
-                matches = await self.tournament_match_repository.get_matches_by_tournament_stages(tournament.id, stage)
+                matches = await self.tournament_match_repository.find_matches_by_tournament_stages(tournament.id, stage)
 
                 player_ids = set()
                 for match in matches:
