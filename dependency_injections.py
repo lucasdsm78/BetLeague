@@ -289,17 +289,9 @@ def tournament_query_usecase(
 
 def tournament_scheduler(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
-        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
-        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency),
-        tournament_stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
-        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency)
 ) -> TournamentScheduler:
     return TournamentSchedulerImpl(
         session_factory=session_factory,
-        tournament_repo=tournament_repository,
-        tournament_stage_repo=tournament_stage_repository,
-        tournament_match_repo=tournament_match_repository,
-        tournament_player_repo=tournament_players_repository
     )
 
 

@@ -1,47 +1,62 @@
 from datetime import datetime
 
 from domain.scheduler.tournament_scheduler import TournamentScheduler
-from domain.tournament import TournamentPlayersRepository
 from domain.tournament.model.tournament import Tournament, TournamentStatus
 from domain.tournament.model.tournament_stage import StageType
 from domain.tournament.model.tournament_match import TournamentMatch
-from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
-from domain.tournament.repository.tournament_repository import TournamentRepository
-from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
+
+from infrastructure.postgresql.tournament.tournament_repository import (
+    TournamentRepositoryImpl,
+)
+from infrastructure.postgresql.tournament.tournament_stage_repository import (
+    TournamentStageRepositoryImpl,
+)
+from infrastructure.postgresql.tournament.tournament_match_repository import (
+    TournamentMatchRepositoryImpl,
+)
+from infrastructure.postgresql.tournament.tournament_players_repository import (
+    TournamentPlayersRepositoryImpl,
+)
 
 class TournamentSchedulerImpl(TournamentScheduler):
 
-    def __init__(
-            self,
-            session_factory,
-            tournament_repo: TournamentRepository,
-            tournament_stage_repo: TournamentStageRepository,
-            tournament_match_repo: TournamentMatchRepository,
-            tournament_player_repo: TournamentPlayersRepository
-    ):
+    def __init__(self, session_factory):
         self.session_factory = session_factory
-        self.tournament_repo = tournament_repo
-        self.tournament_stage_repo = tournament_stage_repo
-        self.tournament_match_repo = tournament_match_repo
-        self.tournament_player_repo = tournament_player_repo
 
     async def process_tournaments(self):
         """Fonction principale appelée par un scheduler (ex: cron) chaque jour"""
         async with self.session_factory() as session:
             async with session.begin():
+                tournament_repo = TournamentRepositoryImpl(session)
+                stage_repo = TournamentStageRepositoryImpl(session)
+                match_repo = TournamentMatchRepositoryImpl(session)
+                player_repo = TournamentPlayersRepositoryImpl(session)
 
                 # Récupérer tous les tournois actifs
-                active_tournaments = await self.tournament_repo.find_all_by_status(TournamentStatus.IN_PROGRESS.value)
+                active_tournaments = await tournament_repo.find_all_by_status(TournamentStatus.IN_PROGRESS.value)
 
                 # Traiter chaque tournoi
                 for tournament in active_tournaments:
-                    await self._process_tournament(tournament)
+                    await self._process_tournament(
+                        tournament,
+                        tournament_repo,
+                        stage_repo,
+                        match_repo,
+                        player_repo,
+                    )
 
-    async def _process_tournament(self, tournament: Tournament):
+    async def _process_tournament(
+        self,
+        tournament: Tournament,
+        tournament_repo: TournamentRepositoryImpl,
+        stage_repo: TournamentStageRepositoryImpl,
+        match_repo: TournamentMatchRepositoryImpl,
+        player_repo: TournamentPlayersRepositoryImpl,
+    ):
         now = datetime.now()
 
         # Récupérer les étapes du tournoi
-        stages = await self.tournament_stage_repo.find_all_by_tournament(tournament.id)
+        stages = await stage_repo.find_all_by_tournament(tournament.id)
 
         # Trouver l'étape active
         active_stage = next((stage for stage in stages if stage.is_active), None)
@@ -53,20 +68,40 @@ class TournamentSchedulerImpl(TournamentScheduler):
         if active_stage.end_date and now >= datetime.fromtimestamp(active_stage.end_date):
 
             # Finaliser les résultats de cette étape
-            await self._finalize_stage(tournament, active_stage)
+            await self._finalize_stage(
+                tournament,
+                active_stage,
+                stage_repo,
+                match_repo,
+                player_repo,
+            )
 
             # Passer à l'étape suivante
-            await self._advance_to_next_stage(tournament, active_stage)
+            await self._advance_to_next_stage(
+                tournament,
+                active_stage,
+                tournament_repo,
+                stage_repo,
+                match_repo,
+                player_repo,
+            )
 
-    async def _finalize_stage(self, tournament: Tournament, stage):
+    async def _finalize_stage(
+        self,
+        tournament: Tournament,
+        stage,
+        stage_repo: TournamentStageRepositoryImpl,
+        match_repo: TournamentMatchRepositoryImpl,
+        player_repo: TournamentPlayersRepositoryImpl,
+    ):
         # Marquer l'étape comme terminée
         stage.is_completed = True
         stage.is_active = False
-        await self.tournament_stage_repo.update_stage(stage)
+        await stage_repo.update_stage(stage)
 
         # Récupérer les matches et participants du tournoi
-        matches = await self.tournament_match_repo.find_matches_by_tournament_id(tournament.id)
-        participants = await self.tournament_player_repo.find_players_by_tournament_id(tournament.id)
+        matches = await match_repo.find_matches_by_tournament_id(tournament.id)
+        participants = await player_repo.find_players_by_tournament_id(tournament.id)
 
         # Mettre à jour les matches et déterminer les gagnants
         for match in matches:
@@ -85,17 +120,25 @@ class TournamentSchedulerImpl(TournamentScheduler):
                         match.loser_id = participant1.id
                         participant1.is_eliminated = True
 
-                    await self.tournament_match_repo.update(match)
+                    await match_repo.update(match)
 
                     # Mettre à jour les participants
                     if participant1.is_eliminated:
-                        await self.tournament_player_repo.update(participant1)
+                        await player_repo.update(participant1)
                     if participant2.is_eliminated:
-                        await self.tournament_player_repo.update(participant2)
+                        await player_repo.update(participant2)
 
-    async def _advance_to_next_stage(self, tournament: Tournament, completed_stage):
+    async def _advance_to_next_stage(
+        self,
+        tournament: Tournament,
+        completed_stage,
+        tournament_repo: TournamentRepositoryImpl,
+        stage_repo: TournamentStageRepositoryImpl,
+        match_repo: TournamentMatchRepositoryImpl,
+        player_repo: TournamentPlayersRepositoryImpl,
+    ):
         # Récupérer toutes les étapes du tournoi
-        stages = await self.tournament_stage_repo.find_all_by_tournament(tournament.id)
+        stages = await stage_repo.find_all_by_tournament(tournament.id)
 
         # Trouver la prochaine étape
         next_stage = None
@@ -109,17 +152,17 @@ class TournamentSchedulerImpl(TournamentScheduler):
         elif completed_stage.type == StageType.FINAL:
             # Le tournoi est terminé
             tournament.status = TournamentStatus.COMPLETED
-            await self.tournament_repo.update(tournament)
+            await tournament_repo.update(tournament)
             return
 
         if next_stage:
             # Activer la prochaine étape
             next_stage.is_active = True
-            await self.tournament_stage_repo.update_stage(next_stage)
+            await stage_repo.update_stage(next_stage)
 
             # Récupérer les matches et participants
-            matches = await self.tournament_match_repo.find_matches_by_tournament_id(tournament.id)
-            participants = await self.tournament_player_repo.find_players_by_tournament_id(tournament.id)
+            matches = await match_repo.find_matches_by_tournament_id(tournament.id)
+            participants = await player_repo.find_players_by_tournament_id(tournament.id)
 
             # Mettre à jour la phase actuelle des gagnants
             for match in matches:
@@ -128,14 +171,25 @@ class TournamentSchedulerImpl(TournamentScheduler):
                     if winner:
                         winner.current_stage = next_stage.type
                         winner.btl_score = 0  # Réinitialiser le score pour la nouvelle étape
-                        await self.tournament_player_repo.update(winner)
+                        await player_repo.update(winner)
 
             # Générer les matchs pour la nouvelle étape
-            await self._generate_matches_for_stage(tournament, next_stage)
+            await self._generate_matches_for_stage(
+                tournament,
+                next_stage,
+                player_repo,
+                match_repo,
+            )
 
-    async def _generate_matches_for_stage(self, tournament: Tournament, stage):
+    async def _generate_matches_for_stage(
+        self,
+        tournament: Tournament,
+        stage,
+        player_repo: TournamentPlayersRepositoryImpl,
+        match_repo: TournamentMatchRepositoryImpl,
+    ):
         # Récupérer les participants du tournoi
-        participants = await self.tournament_player_repo.find_players_by_tournament_id(tournament.id)
+        participants = await player_repo.find_players_by_tournament_id(tournament.id)
 
         # Filtrer les participants qualifiés pour cette étape
         qualified_participants = [p for p in participants if p.current_stage == stage.type and not p.is_eliminated]
@@ -154,4 +208,4 @@ class TournamentSchedulerImpl(TournamentScheduler):
                     player1_id=qualified_participants[i].id,
                     player2_id=qualified_participants[i+1].id
                 )
-                await self.tournament_match_repo.add_match(match)
+                await match_repo.add_match(match)
