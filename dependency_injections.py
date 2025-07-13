@@ -43,6 +43,7 @@ from infrastructure.postgresql.tournament.tournament_stage_repository import Tou
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
+from infrastructure.scheduler.tournament_scheduler import TournamentScheduler, TournamentSchedulerImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
 from infrastructure.services.authentication.jwt_bearer import JwtBearer
@@ -284,6 +285,21 @@ def tournament_query_usecase(
         tournament_stage_repository=stage_repository,
         tournament_match_repository=tournament_match_repository,
         stage_repository=stage_repository
+    )
+
+def tournament_scheduler(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency),
+        tournament_stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
+        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency)
+) -> TournamentScheduler:
+    return TournamentSchedulerImpl(
+        session_factory=session_factory,
+        tournament_repo=tournament_repository,
+        tournament_stage_repo=tournament_stage_repository,
+        tournament_match_repo=tournament_match_repository,
+        tournament_player_repo=tournament_players_repository
     )
 
 

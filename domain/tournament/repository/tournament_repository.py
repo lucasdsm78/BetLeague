@@ -26,6 +26,10 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_by_status(self, status: str)-> List[Tournament]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_available_tournaments_public(
             self,
             limit: int,

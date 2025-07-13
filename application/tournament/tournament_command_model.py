@@ -23,3 +23,6 @@ class TournamentUpdateModel(BaseModel):
 
 class TournamentUpdateResponse(BaseModel):
     message: str = "Tournament updated successfully"
+
+class SchedulerSuccessfulyRunResponse(BaseModel):
+    message: str = "Scheduler run successfully"

@@ -226,7 +226,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             players = await player_repository.get_non_eliminated_players(tournament_id)
         else:
             # Seuls les joueurs de l'étape courante non éliminés participent
-            players = await player_repository.get_players_by_stage(
+            players = await player_repository.find_players_by_stage(
                 tournament_id,
                 active_stage.type
             )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 
 from application.league.league_command_model import LeagueUpdateModel
 from application.tournament import TournamentQueryUseCase
@@ -6,9 +6,11 @@ from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
+    SchedulerSuccessfulyRunResponse,
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
-from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase
+from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, tournament_scheduler
+from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -256,3 +258,31 @@ async def update_tournament(
         )
 
     return update_tournament_result
+
+
+async def process_tournaments_background(scheduler: TournamentScheduler):
+    try:
+        await scheduler.process_tournaments()
+    except Exception as e:
+        raise
+
+@router.post(
+    "/scheduler/run",
+    response_model=SchedulerSuccessfulyRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Déclenche manuellement le scheduler des tournois"
+)
+async def run_tournament_scheduler(
+        background_tasks: BackgroundTasks,
+        scheduler: TournamentScheduler = Depends(tournament_scheduler),
+):
+    try:
+        background_tasks.add_task(process_tournaments_background, scheduler)
+        return SchedulerSuccessfulyRunResponse
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors du lancement du scheduler: {str(e)}"
+        )
