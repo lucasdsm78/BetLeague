@@ -129,57 +129,48 @@ class TournamentSchedulerImpl(TournamentScheduler):
                         await player_repo.update(participant2)
 
     async def _advance_to_next_stage(
-        self,
-        tournament: Tournament,
-        completed_stage,
-        tournament_repo: TournamentRepositoryImpl,
-        stage_repo: TournamentStageRepositoryImpl,
-        match_repo: TournamentMatchRepositoryImpl,
-        player_repo: TournamentPlayersRepositoryImpl,
+            self,
+            tournament: Tournament,
+            completed_stage,
+            tournament_repo: TournamentRepositoryImpl,
+            stage_repo: TournamentStageRepositoryImpl,
+            match_repo: TournamentMatchRepositoryImpl,
+            player_repo: TournamentPlayersRepositoryImpl,
     ):
-        # Récupérer toutes les étapes du tournoi
+        # 1) Récupère et trie toutes les étapes
         stages = await stage_repo.find_all_by_tournament(tournament.id)
+        stages.sort(key=lambda s: s.start_date)
 
-        # Trouver la prochaine étape
-        next_stage = None
+        # 2) Trouve l'index de l'étape qu'on vient de terminer
+        idx = next(
+            (i for i, s in enumerate(stages) if s.id == completed_stage.id),
+            None
+        )
 
-        if completed_stage.type == StageType.EIGHTH_FINAL:
-            next_stage = next((s for s in stages if s.type == StageType.QUARTER_FINAL), None)
-        elif completed_stage.type == StageType.QUARTER_FINAL:
-            next_stage = next((s for s in stages if s.type == StageType.SEMI_FINAL), None)
-        elif completed_stage.type == StageType.SEMI_FINAL:
-            next_stage = next((s for s in stages if s.type == StageType.FINAL), None)
-        elif completed_stage.type == StageType.FINAL:
-            # Le tournoi est terminé
+        # Si on ne trouve pas ou qu'on était déjà sur la dernière, on termine
+        if idx is None or idx == len(stages) - 1:
             tournament.status = TournamentStatus.COMPLETED
             await tournament_repo.update(tournament)
             return
 
-        if next_stage:
-            # Activer la prochaine étape
-            next_stage.is_active = True
-            await stage_repo.update_stage(next_stage)
+        # 3) Active la prochaine étape dans l'ordre chronologique
+        next_stage = stages[idx + 1]
+        next_stage.is_active = True
+        await stage_repo.update_stage(next_stage)
 
-            # Récupérer les matches et participants
-            matches = await match_repo.find_matches_by_tournament_id(tournament.id)
-            participants = await player_repo.find_players_by_tournament_id(tournament.id)
+        # 4) Promeut les gagnants de l'étape précédente
+        matches = await match_repo.find_matches_by_tournament_id(tournament.id)
+        participants = await player_repo.find_players_by_tournament_id(tournament.id)
+        for m in matches:
+            if m.stage_id == completed_stage.id and m.winner_id:
+                winner = next((p for p in participants if p.id == m.winner_id), None)
+                if winner:
+                    winner.current_stage = next_stage.type
+                    winner.btl_score = 0
+                    await player_repo.update(winner)
 
-            # Mettre à jour la phase actuelle des gagnants
-            for match in matches:
-                if match.stage_id == completed_stage.id and match.winner_id:
-                    winner = next((p for p in participants if p.id == match.winner_id), None)
-                    if winner:
-                        winner.current_stage = next_stage.type
-                        winner.btl_score = 0  # Réinitialiser le score pour la nouvelle étape
-                        await player_repo.update(winner)
-
-            # Générer les matchs pour la nouvelle étape
-            await self._generate_matches_for_stage(
-                tournament,
-                next_stage,
-                player_repo,
-                match_repo,
-            )
+        # 5) Génère les matchs pour la nouvelle étape
+        await self._generate_matches_for_stage(tournament, next_stage, player_repo, match_repo)
 
     async def _generate_matches_for_stage(
         self,
