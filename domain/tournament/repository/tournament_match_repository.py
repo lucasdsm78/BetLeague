@@ -21,3 +21,7 @@ class TournamentMatchRepository(ABC):
     @abstractmethod
     async def update(self, match: TournamentMatch) -> Optional[TournamentMatch]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_id(self, match_id: int) -> Optional[TournamentMatch]:
+        raise NotImplementedError

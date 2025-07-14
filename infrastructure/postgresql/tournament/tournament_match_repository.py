@@ -53,3 +53,10 @@ class TournamentMatchRepositoryImpl(TournamentMatchRepository):
         db_match = result.scalar_one()
         DBTournamentMatch.from_entity(match, db_match)
         return db_match.to_entity()
+
+    async def find_by_id(self, match_id: int) -> Optional[TournamentMatch]:
+        result = await self.session.execute(
+            select(DBTournamentMatch).where(DBTournamentMatch.id == match_id)
+        )
+        db_match = result.scalar_one_or_none()
+        return db_match.to_entity() if db_match else None
