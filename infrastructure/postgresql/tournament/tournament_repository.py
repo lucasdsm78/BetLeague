@@ -74,6 +74,11 @@ class TournamentRepositoryImpl(TournamentRepository):
     async def find_all_by_status(self, status: str) -> List[Tournament]:
         result = await self.session.execute(
             select(DBTournament)
+            .options(
+                joinedload(DBTournament.user),
+                selectinload(DBTournament.stages),
+                selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user)
+            )
             .where(DBTournament.status == status)
         )
         tournaments_db = result.scalars().all()
