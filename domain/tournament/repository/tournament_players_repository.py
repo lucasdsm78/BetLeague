@@ -36,6 +36,10 @@ class TournamentPlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_players_with_paid_option(self, tournament_id: int) -> List[TournamentPlayer]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def begin(self):
         raise NotImplementedError
 

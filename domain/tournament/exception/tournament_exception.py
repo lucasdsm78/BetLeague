@@ -79,3 +79,10 @@ class TournamentNameAlreadyExistsError(Exception):
 
     def __str__(self):
         return TournamentNameAlreadyExistsError.message
+
+
+class NotEnoughPaidPlayersError(Exception):
+    message = "Not enough players have paid to start the tournament."
+
+    def __str__(self):
+        return NotEnoughPaidPlayersError.message

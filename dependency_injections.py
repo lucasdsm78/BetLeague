@@ -253,22 +253,10 @@ def match_command_usecase(
 
 
 def tournament_command_usecase(
-        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
-        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
-        tournament_stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
-        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency),
-        ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
-        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency)
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory)
 ) -> TournamentCommandUseCase:
     return TournamentCommandUseCaseImpl(
-        session_factory=session_factory,
-        tournament_repository=tournament_repository,
-        tournament_stage_repository=tournament_stage_repository,
-        tournament_players_repository=tournament_players_repository,
-        ticket_repository=ticket_repository,
-        user_repository=user_repository,
-        tournament_match_repository=tournament_match_repository
+        session_factory=session_factory
     )
 
 def tournament_query_usecase(

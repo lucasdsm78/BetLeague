@@ -12,7 +12,8 @@ from application.tournament.tournament_command_model import (
 )
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
-    TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError
+    TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
+    NotEnoughPaidPlayersError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -76,9 +77,9 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 await tournament_repo.create(tournament)
 
-                created_tournament = await tournament_repo.find_by_uuid(uuid)
+                # created_tournament = await tournament_repo.find_by_uuid(uuid)
 
-        await self.join_tournament(created_tournament.id, email)
+        # await self.join_tournament(created_tournament.id, email)
 
         return TournamentCreateResponse()
 
@@ -127,6 +128,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 tournament_repo = TournamentRepositoryImpl(session)
                 user_repo = UserRepositoryImpl(session)
                 tournament_stage_repository = TournamentStageRepositoryImpl(session)
+                tournament_player_repo = TournamentPlayersRepositoryImpl(session)
 
                 tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
@@ -144,6 +146,10 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 if tournament.status != TournamentStatus.PENDING:
                     raise ValueError("Le tournoi a déjà commencé ou est terminé")
+
+                players_with_paid_option = await tournament_player_repo.find_players_with_paid_option(tournament_id)
+                if len(players_with_paid_option) < 3:
+                    raise NotEnoughPaidPlayersError
 
                 # Définir les dates du tournoi
                 now = datetime.now()
