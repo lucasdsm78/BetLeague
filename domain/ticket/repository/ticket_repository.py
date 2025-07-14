@@ -32,6 +32,10 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_player_match(self, user_id: int, match_id: int) -> Optional[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, ticket: Ticket) -> Optional[Ticket]:
         raise NotImplementedError
 

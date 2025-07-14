@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 
-from application.league.league_command_model import LeagueUpdateModel
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
     TournamentCreateModel,
@@ -9,14 +8,11 @@ from application.tournament.tournament_command_model import (
     SchedulerSuccessfulyRunResponse,
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
-from application.tournament.tournament_bet_command_usecase import TournamentBetCommandUseCase
-from application.tournament.tournament_bet_command_model import TournamentBetCreateModel, TournamentBetCreateResponse
-from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, tournament_scheduler, tournament_bet_command_usecase
+from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, tournament_scheduler
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
-from domain.tournament_bet.exception.tournament_bet_exception import NotEnoughBTLError, BetAlreadyExistsError
 
 router = APIRouter(tags=["tournament"])
 
@@ -149,33 +145,6 @@ async def get_tournament_stages(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des étapes du tournoi: {str(e)}"
         )
-
-
-@router.post(
-    "/tournament/{tournament_id}/match/{match_id}/bet",
-    response_model=TournamentBetCreateResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Parier sur un match de tournoi",
-)
-async def place_tournament_bet(
-        tournament_id: int,
-        match_id: int,
-        bet: TournamentBetCreateModel,
-        usecase: TournamentBetCommandUseCase = Depends(tournament_bet_command_usecase),
-        current_user: dict = Depends(current_user)
-):
-    try:
-        return await usecase.place_bet(tournament_id, match_id, bet, current_user.get('email', ''))
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except NotEnoughBTLError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except BetAlreadyExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.get(
     "/tournaments/my",
