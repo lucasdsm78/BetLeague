@@ -111,8 +111,12 @@ class TournamentSchedulerImpl(TournamentScheduler):
 
         # 2) Repérer l'index de l'étape terminée
         idx = next((i for i, s in enumerate(stages) if s.id == completed_stage.id), None)
+
         if idx is None or idx == len(stages) - 1:
-            # Dernière étape ou introuvable → terminer le tournoi
+            participants = await pr.find_players_by_tournament_id(tournament.id)
+            qualified = [p for p in participants if not p.is_eliminated]
+            if len(qualified) == 1:
+                tournament.winner_id = qualified[0].id
             tournament.status = TournamentStatus.COMPLETED
             await tr.update(tournament)
             return
