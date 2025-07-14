@@ -131,7 +131,7 @@ class TournamentSchedulerImpl(TournamentScheduler):
             winner = next((p for p in participants if p.id == m.winner_id), None)
             if winner:
                 winner.current_stage = next_stage.type
-                winner.btl_score     = 0
+                winner.nb_btl     = 100
                 await pr.update(winner)
 
         # 5) Ne pas recréer si déjà présent
