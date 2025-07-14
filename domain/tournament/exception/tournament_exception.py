@@ -86,3 +86,17 @@ class NotEnoughPaidPlayersError(Exception):
 
     def __str__(self):
         return NotEnoughPaidPlayersError.message
+
+
+class TournamentNotStartedError(Exception):
+    message = "The tournament is not started."
+
+    def __str__(self):
+        return TournamentNotStartedError.message
+
+
+class TournamentStageNotFoundError(Exception):
+    message = "Le tournoi demandé n'existe pas pour ce stage"
+
+    def __str__(self):
+        return TournamentStageNotFoundError.message

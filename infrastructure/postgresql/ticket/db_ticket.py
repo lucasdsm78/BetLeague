@@ -18,22 +18,25 @@ def unixtimestamp() -> int:
 class DBTicket(Base):
 
     __tablename__ = "ticket"
-    id: Union[Integer, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
-    mise: Union[Integer, Column] = Column(BigInteger, nullable=False)
-    gain: Union[Integer, Column] = Column(Float, nullable=False)
+    mise: Union[int, Column] = Column(BigInteger, nullable=False)
+    gain: Union[float, Column] = Column(Float, nullable=False)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     user = relationship("DBUser", back_populates='tickets')
-    league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'))
+    league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'), nullable=True)
     league = relationship("DBLeague", back_populates='tickets')
+    tournament_match_id: Union[int, Column] = Column(Integer, ForeignKey('tournament_match.id'), nullable=True)
+    tournament_match = relationship("DBTournamentMatch")
     status: Union[str, Column] = Column(String, nullable=False)
-    created_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
-    updated_at: Union[BigInteger, Column] = Column(BigInteger, index=True, nullable=False)
+    created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     match_choices = relationship("DBMatchChoices", back_populates="ticket")
 
     def to_entity(self) -> Ticket:
         return Ticket(
             id=self.id,
+            tournament_match_id=self.tournament_match_id,
             league_id=self.league_id,
             uuid=self.uuid,
             mise=self.mise,
@@ -52,6 +55,7 @@ class DBTicket(Base):
         ticket_db_to_update.uuid = ticket.uuid
         ticket_db_to_update.mise = ticket.mise
         ticket_db_to_update.gain = ticket.gain
+        ticket_db_to_update.tournament_match_id = ticket.tournament_match_id
         ticket_db_to_update.league_id = ticket.league_id
         ticket_db_to_update.user_id = ticket.user.id
         ticket_db_to_update.status = ticket.status.value

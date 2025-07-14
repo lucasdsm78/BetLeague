@@ -34,6 +34,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 joinedload(DBTicket.user),
                 joinedload(DBTicket.league),
+                joinedload(DBTicket.tournament_match),
                 selectinload(DBTicket.match_choices)
             )
             .where(DBTicket.id == ticket_id)
@@ -86,6 +87,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 joinedload(DBTicket.user),
                 joinedload(DBTicket.league),
+                joinedload(DBTicket.tournament_match),
                 joinedload(DBTicket.match_choices),
             )
             .where(DBTicket.uuid == ticket_uuid)
@@ -98,6 +100,16 @@ class TicketRepositoryImpl(TicketRepository):
         except NoResultFound:
             raise TicketNotFoundError
 
+    async def find_by_player_match(self, user_id: int, tournament_match_id: int) -> Optional[Ticket]:
+        result = await self.session.execute(
+            select(DBTicket).where(
+    DBTicket.user_id == user_id,
+                DBTicket.tournament_match_id == tournament_match_id
+            )
+        )
+        bet_db = result.scalar_one_or_none()
+        return bet_db.to_entity() if bet_db else None
+
     async def find_all_in_progress_by_user_id(self, user_id: int) -> List[DBTicket]:
         query = (
             select(DBTicket)
@@ -108,6 +120,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 # Charger la ligue associée à chaque ticket
                 selectinload(DBTicket.league),
+                selectinload(DBTicket.tournament_match),
                 # Charger en cascade : pour chaque ticket, toutes ses choices
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)
@@ -129,6 +142,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 # Charger la ligue associée à chaque ticket
                 selectinload(DBTicket.league),
+                selectinload(DBTicket.tournament_match),
                 # Charger en cascade : pour chaque ticket, toutes ses choices
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)

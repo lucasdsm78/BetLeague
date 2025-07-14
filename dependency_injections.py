@@ -8,7 +8,6 @@ from application.user.user_command_usecase import UserCommandUseCase, UserComman
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase, TournamentCommandUseCaseImpl
 from application.tournament.tournament_query_usecase import TournamentQueryUseCase, TournamentQueryUseCaseImpl
-from application.tournament.tournament_bet_command_usecase import TournamentBetCommandUseCase, TournamentBetCommandUseCaseImpl
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
@@ -24,7 +23,6 @@ from domain.tournament.repository.tournament_stage_repository import TournamentS
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
-from domain.tournament_bet.repository.tournament_bet_repository import TournamentBetRepository
 
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
@@ -45,7 +43,6 @@ from infrastructure.postgresql.tournament.tournament_stage_repository import Tou
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
-from infrastructure.postgresql.tournament_bet.tournament_bet_repository import TournamentBetRepositoryImpl
 from infrastructure.scheduler.tournament_scheduler import TournamentScheduler, TournamentSchedulerImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
@@ -132,10 +129,6 @@ def tournament_match_repository_dependency(session: AsyncSession = Depends(get_a
     return TournamentMatchRepositoryImpl(session)
 
 
-def tournament_bet_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentBetRepository:
-    return TournamentBetRepositoryImpl(session)
-
-
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
 
@@ -214,6 +207,8 @@ def ticket_command_usecase(
         ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
         match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
         match_repository: MatchRepository = Depends(match_repository_dependency),
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
         league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
         settings: Settings = Depends(get_settings)
 ) -> TicketCommandUseCase:
@@ -222,6 +217,8 @@ def ticket_command_usecase(
         session_factory=session_factory,
         user_repository=user_repository,
         ticket_repository=ticket_repository,
+        tournament_repository=tournament_repository,
+        tournament_players_repository=tournament_players_repository,
         match_choices_repository=match_choices_repository,
         match_repository=match_repository,
         league_players_repository=league_players_repository,
@@ -280,13 +277,6 @@ def tournament_query_usecase(
         tournament_stage_repository=stage_repository,
         tournament_match_repository=tournament_match_repository,
         stage_repository=stage_repository
-    )
-
-def tournament_bet_command_usecase(
-        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory)
-) -> TournamentBetCommandUseCase:
-    return TournamentBetCommandUseCaseImpl(
-        session_factory=session_factory
     )
 
 def tournament_scheduler(

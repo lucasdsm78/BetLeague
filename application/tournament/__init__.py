@@ -2,4 +2,3 @@ from .tournament_command_usecase import TournamentCommandUseCase, TournamentComm
 from .tournament_query_usecase import TournamentQueryUseCase, TournamentQueryUseCaseImpl
 from .tournament_command_model import TournamentCreateModel, TournamentCreateResponse, TournamentJoinResponse
 from .tournament_query_model import TournamentReadModel
-from .tournament_bet_command_usecase import TournamentBetCommandUseCase, TournamentBetCommandUseCaseImpl

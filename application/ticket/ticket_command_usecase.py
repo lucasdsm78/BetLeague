@@ -20,6 +20,8 @@ from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
+from domain.tournament import TournamentPlayersRepository, TournamentRepository
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNotStartedError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
@@ -29,6 +31,8 @@ from infrastructure.postgresql.league.league_repository import LeagueRepositoryI
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
+from infrastructure.postgresql.tournament import TournamentPlayersRepositoryImpl, TournamentRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
@@ -46,6 +50,10 @@ class TicketCommandUseCase(ABC):
     async def update_ticket(self, email: str, ticket_id: int, ticket_update_model: TicketUpdateModel):
         raise NotImplementedError
 
+    @abstractmethod
+    async def create_tournament_ticket(self, tournament_id: int, match_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
+        raise NotImplementedError
+
 
 class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
@@ -58,6 +66,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             match_choices_repository: MatchChoiceRepository,
             match_repository: MatchRepository,
             league_players_repository: LeaguePlayersRepository,
+            tournament_repository: TournamentRepository,
+            tournament_players_repository: TournamentPlayersRepository,
             settings: Settings
     ):
         self.ticket_repository: TicketRepository = ticket_repository
@@ -68,6 +78,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         self.match_repository: MatchRepository = match_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
         self.settings: Settings = settings
+        self.tournament_repository: TournamentRepository = tournament_repository
+        self.tournament_players_repository: TournamentPlayersRepository = tournament_players_repository
 
     async def _process_match_choices(
             self,
@@ -255,3 +267,79 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     )
 
         return TicketUpdateResponse()
+
+
+    async def create_tournament_ticket(self, tournament_id: int, match_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo = UserRepositoryImpl(session)
+                tournament_player_repo = TournamentPlayersRepositoryImpl(session)
+                tournament_match_repo = TournamentMatchRepositoryImpl(session)
+                ticket_repo = TicketRepositoryImpl(session)
+                tournament_repo = TournamentRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                tournament = await tournament_repo.find_by_id(tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                tournament_player = await tournament_player_repo.get_player(tournament_id, user.id)
+                if not tournament_player or tournament_player.is_eliminated:
+                    raise UserNotFoundError
+
+                if ticket_create_model.mise > tournament_player.nb_btl:
+                    raise MiseSuperiorToNbBtlError
+
+                if tournament_player.nb_btl == 0:
+                    raise NbBTLHasReached0
+
+                if not tournament.status.IN_PROGRESS:
+                    raise TournamentNotStartedError
+
+                if ticket_create_model.mise > tournament_player.nb_btl:
+                    raise MiseSuperiorToNbBtlError
+
+                gain = await ticket_repo.get_gain(
+                    ticket_create_model.match_choices,
+                    ticket_create_model.mise
+                )
+
+                # if gain != tournament_ticket_create_model.gain:
+                #     raise GainNotEqualsError
+
+                match = await tournament_match_repo.find_by_id(match_id)
+                if not match or match.tournament_id != tournament_id:
+                    raise ValueError("Match not found")
+
+                uuid = shortuuid.uuid()
+                ticket = Ticket(
+                    uuid=uuid,
+                    gain=gain,
+                    tournament_match_id=match.id,
+                    mise=ticket_create_model.mise,
+                    status=TicketStatus.pending,
+                    user=UserSummary(
+                        id=user.id, email=user.email, pseudo=user.pseudo
+                    )
+                )
+
+                await ticket_repo.create(ticket)
+
+                created = await tournament_repo.find_by_uuid(uuid)
+                if not created:
+                    raise TicketNotFoundError
+
+                tournament_player.nb_btl -= ticket_create_model.mise
+                await tournament_player_repo.update(tournament_player)
+
+                await self._process_match_choices(
+                    session=session,
+                    updated=False,
+                    ticket_id=created.id,
+                    match_choices_data=ticket_create_model.match_choices
+                )
+
+        return TicketCreateResponse()
