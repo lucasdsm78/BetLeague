@@ -65,8 +65,7 @@ class TournamentSchedulerImpl(TournamentScheduler):
             return
 
         # Vérifier si l'étape est terminée
-        if active_stage.end_date and now >= datetime.fromtimestamp(active_stage.end_date):
-
+        if active_stage.end_date and now >= datetime.fromtimestamp(active_stage.end_date / 1000 if active_stage.end_date > 9999999999 else active_stage.end_date):
             # Finaliser les résultats de cette étape
             await self._finalize_stage(
                 tournament,
@@ -107,8 +106,8 @@ class TournamentSchedulerImpl(TournamentScheduler):
         for match in matches:
             if match.stage_id == stage.id and not match.winner_id:
                 # Trouver le participant avec le meilleur score BTL
-                participant1 = next((p for p in participants if p.id == match.participant1_id), None)
-                participant2 = next((p for p in participants if p.id == match.participant2_id), None)
+                participant1 = next((p for p in participants if p.id == match.player1_id), None)
+                participant2 = next((p for p in participants if p.id == match.player2_id), None)
 
                 if participant1 and participant2:
                     if participant1.nb_btl > participant2.nb_btl:
@@ -125,6 +124,7 @@ class TournamentSchedulerImpl(TournamentScheduler):
                     # Mettre à jour les participants
                     if participant1.is_eliminated:
                         await player_repo.update(participant1)
+
                     if participant2.is_eliminated:
                         await player_repo.update(participant2)
 
