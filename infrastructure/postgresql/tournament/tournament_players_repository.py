@@ -8,6 +8,7 @@ from domain.tournament.model.tournament_player import TournamentPlayer
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from infrastructure.postgresql.tournament import DBTournament
 from infrastructure.postgresql.tournament.db_tournament_player import DBTournamentPlayer
+from infrastructure.postgresql.user.db_user import DBUser
 
 
 class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
@@ -78,6 +79,19 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
         result = await self.session.execute(
             select(DBTournamentPlayer)
             .where(DBTournamentPlayer.tournament_id == tournament_id)
+        )
+
+        tournaments_db = result.scalars().all()
+        return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
+    async def find_players_with_paid_option(self, tournament_id: int) -> List[TournamentPlayer]:
+        result = await self.session.execute(
+            select(DBTournamentPlayer)
+            .join(DBUser, DBTournamentPlayer.user_id == DBUser.id)
+            .where(
+                DBTournamentPlayer.tournament_id == tournament_id,
+                DBUser.is_tournament_subscriber == True
+            )
         )
 
         tournaments_db = result.scalars().all()
