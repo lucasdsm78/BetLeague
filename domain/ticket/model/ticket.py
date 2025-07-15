@@ -9,12 +9,13 @@ class Ticket:
     def __init__(
             self,
             mise: int,
-            league_id: int,
             uuid: str,
             gain: float,
             user: UserSummary,
             status: TicketStatus,
             id: Optional[int] = None,
+            league_id: Optional[int] = None,
+            tournament_match_id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
     ):
@@ -22,7 +23,8 @@ class Ticket:
         self.uuid: str = uuid
         self.gain: float = gain
         self.status: TicketStatus = status
-        self.league_id: int = league_id
+        self.league_id: Optional[int] = league_id
+        self.tournament_match_id: Optional[int] = tournament_match_id
         self.mise: int = mise
         self.user: UserSummary = user
         self.created_at: Optional[int] = created_at

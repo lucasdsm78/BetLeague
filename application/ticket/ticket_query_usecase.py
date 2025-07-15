@@ -1,25 +1,26 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Callable
 
-from pydantic import BaseModel
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from application.league.league_summary import LeagueSummary
 from application.match.match_summary import MatchSummary
 from application.ticket.match_choice_summary import MatchChoiceSummary
 from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse
+from application.tournament.tournament_match_summary import TournamentMatchSummary
 from domain.league.exception.league_exception import LeagueNotFoundError
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
 from domain.ticket.exception.ticket_exception import TicketNotFoundError, TicketAccessDeniedError
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
+from domain.tournament.exception.tournament_exception import TournamentMatchNotFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
@@ -71,6 +72,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 league_repo = LeagueRepositoryImpl(session)
                 match_choices_repo = MatchChoicesRepositoryImpl(session)
                 match_repo = MatchRepositoryImpl(session)
+                tournament_match_repo = TournamentMatchRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -83,11 +85,25 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 if ticket.user.id != user.id:
                     raise TicketAccessDeniedError
 
-                league = await league_repo.find_by_id(ticket.league_id)
-                if not league:
-                    raise LeagueNotFoundError
+                league_summary = None
+                tournament_match_summary = None
 
-                league_summary = LeagueSummary(id=league.id, name=league.name)
+                if ticket.league_id:
+                    league = await league_repo.find_by_id(ticket.league_id)
+                    if not league:
+                        raise LeagueNotFoundError
+                    league_summary = LeagueSummary(id=league.id, name=league.name)
+
+                if ticket.tournament_match_id:
+                    tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                    if not tournament_match:
+                        raise TournamentMatchNotFoundError
+                    tournament_match_summary = TournamentMatchSummary(
+                        tournament_match_id=tournament_match.id,
+                        tournament_id=tournament_match.tournament_id,
+                        type=tournament_match.type.value,
+                        stage_id=tournament_match.stage_id
+                    )
 
                 choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
 
@@ -125,6 +141,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     gain=ticket.gain,
                     status=ticket.status.value,
                     league_summary=league_summary,
+                    tournament_match_summary=tournament_match_summary,
                     match_choice_summaries=match_choice_summaries
                 )
 
@@ -133,6 +150,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
             async with session.begin():
                 user_repo          = UserRepositoryImpl(session)
                 ticket_repo        = TicketRepositoryImpl(session)
+                tournament_match_repo = TournamentMatchRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -145,14 +163,22 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     return result
 
                 for db_ticket in db_tickets:
-                    league = db_ticket.league
-                    if not league:
-                        continue
+                    league_summary = None
+                    tournament_match_summary = None
 
-                    league_summary = LeagueSummary(
-                        id=league.id,
-                        name=league.name
-                    )
+                    if db_ticket.league:
+                        league_summary = LeagueSummary(id=db_ticket.league.id, name=db_ticket.league.name)
+
+                    if db_ticket.tournament_match_id:
+                        tournament_match = await tournament_match_repo.find_by_id(db_ticket.tournament_match_id)
+                        if not tournament_match:
+                            raise TournamentMatchNotFoundError
+                        tournament_match_summary = TournamentMatchSummary(
+                            tournament_match_id=tournament_match.id,
+                            tournament_id=tournament_match.tournament_id,
+                            type=tournament_match.type.value,
+                            stage_id=tournament_match.stage_id
+                        )
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
                     for db_choice in db_ticket.match_choices:
@@ -184,6 +210,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         gain=db_ticket.gain,
                         status=db_ticket.status,
                         league_summary=league_summary,
+                        tournament_match_summary=tournament_match_summary,
                         match_choice_summaries=match_choice_summaries
                     )
                     result.tickets.append(ticket_read_model)
@@ -197,6 +224,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
             async with session.begin():
                 user_repo   = UserRepositoryImpl(session)
                 ticket_repo = TicketRepositoryImpl(session)
+                tournament_match_repo = TournamentMatchRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -207,14 +235,22 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     return result
 
                 for db_ticket in db_tickets:
-                    league = db_ticket.league  # déjà pré-chargée via selectinload
-                    if not league:
-                        continue
+                    league_summary = None
+                    tournament_match_summary = None
 
-                    league_summary = LeagueSummary(
-                        id=league.id,
-                        name=league.name
-                    )
+                    if db_ticket.league:
+                        league_summary = LeagueSummary(id=db_ticket.league.id, name=db_ticket.league.name)
+
+                    if db_ticket.tournament_match_id:
+                        tournament_match = await tournament_match_repo.find_by_id(db_ticket.tournament_match_id)
+                        if not tournament_match:
+                            raise TournamentMatchNotFoundError
+                        tournament_match_summary = TournamentMatchSummary(
+                            tournament_match_id=tournament_match.id,
+                            tournament_id=tournament_match.tournament_id,
+                            type=tournament_match.type.value,
+                            stage_id=tournament_match.stage_id
+                        )
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
                     for db_choice in db_ticket.match_choices:
@@ -246,6 +282,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         gain=db_ticket.gain,
                         status=db_ticket.status,
                         league_summary=league_summary,
+                        tournament_match_summary=tournament_match_summary,
                         match_choice_summaries=match_choice_summaries
                     )
 

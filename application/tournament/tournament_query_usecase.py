@@ -7,8 +7,7 @@ from application.tournament.tournament_query_model import TournamentReadModel, T
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
     TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel
 from application.user.user_query_model import UserSummaryReadModel
-from domain.tournament.exception.tournament_exception import TournamentNotFoundError
-from domain.tournament.exception.tournament_stage_exception import TournamentStageNotFoundError
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentStageNotFoundError
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
