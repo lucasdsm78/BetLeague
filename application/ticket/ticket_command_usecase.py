@@ -328,7 +328,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 await ticket_repo.create(ticket)
 
-                created = await tournament_repo.find_by_uuid(uuid)
+                created = await ticket_repo.find_by_uuid(uuid)
                 if not created:
                     raise TicketNotFoundError
 

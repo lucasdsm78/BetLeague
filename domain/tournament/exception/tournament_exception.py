@@ -5,6 +5,13 @@ class TournamentNotFoundError(Exception):
         return TournamentNotFoundError.message
 
 
+class TournamentMatchNotFoundError(Exception):
+    message = "Le match du tournoi demandé n'existe pas"
+
+    def __str__(self):
+        return TournamentMatchNotFoundError.message
+
+
 class TournamentFullError(Exception):
     message = "Le tournoi est complet"
 
