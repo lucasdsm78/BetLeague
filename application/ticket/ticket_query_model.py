@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from application.league.league_summary import LeagueSummary
 from application.ticket.match_choice_summary import MatchChoiceSummary
+from application.tournament.tournament_match_summary import TournamentMatchSummary
 
 
 class TicketReadModel(BaseModel):
@@ -13,7 +14,8 @@ class TicketReadModel(BaseModel):
     uuid: str
     gain: float
     status: str
-    league_summary: LeagueSummary
+    league_summary: Optional[LeagueSummary] = None
+    tournament_match_summary: Optional[TournamentMatchSummary] = None
     match_choice_summaries: List[MatchChoiceSummary] = []
 
     class Config:

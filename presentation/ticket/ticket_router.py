@@ -11,6 +11,8 @@ from domain.league.exception.league_exception import LeagueNotFoundError, \
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError, \
     MiseSuperiorToNbBtlError, TicketAccessDeniedError, GainNotEqualsError
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError, UserNotInTournamentError, \
+    TournamentAlreadyStartedError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -310,3 +312,36 @@ async def get_tickets_finished(
         )
 
     return tickets
+
+
+@router.post(
+    "/tournament/{tournament_id}/match/{match_id}/bet",
+    response_model=TicketCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Parier sur un match de tournoi",
+)
+async def create_tournament_ticket(
+        tournament_id: int,
+        match_id: int,
+        ticket_model: TicketCreateModel,
+        ticket_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await ticket_usecase.create_tournament_ticket(tournament_id, match_id, ticket_model, current_user.get('email', ''))
+    except UserNotFoundError as e:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except MiseSuperiorToNbBtlError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
+    except MatchNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotInTournamentError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
