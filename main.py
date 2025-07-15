@@ -1,9 +1,7 @@
 from fastapi import FastAPI
-from sqlalchemy.orm import relationship
 
 from dependency_injections import get_settings
 from infrastructure.postgresql.database import create_tables
-from infrastructure.postgresql.tournament import DBTournament
 from presentation.user.user_router import router as user_router
 from presentation.league.league_router import router as league_router
 from presentation.match.match_router import router as match_router
