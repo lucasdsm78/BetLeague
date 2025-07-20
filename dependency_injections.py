@@ -265,12 +265,16 @@ def match_query_usecase(
 def match_command_usecase(
         match_repository: MatchRepository = Depends(match_repository_dependency),
         settings: Settings = Depends(get_settings),
-        match_score_api_dependency: MatchScoreApi = Depends(match_score_api)
+        match_score_api_dependency: MatchScoreApi = Depends(match_score_api),
+        publisher: RabbitMQPublisher = Depends(rabbitmq_dependency),
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchCommandUseCase:
     return MatchCommandUseCaseImpl(
         match_repository=match_repository,
         settings=settings,
-        match_score_api=match_score_api_dependency
+        match_score_api=match_score_api_dependency,
+        publisher=publisher,
+        session_factory=session_factory,
     )
 
 

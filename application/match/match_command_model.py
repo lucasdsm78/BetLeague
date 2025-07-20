@@ -6,3 +6,11 @@ class MatchChoiceUpdatedResponse(BaseModel):
 
 class NoMatchChoiceUpdatedResponse(BaseModel):
     message: str = "No match choice was updated"
+
+
+class MatchScoreUpdatedResponse(BaseModel):
+    message: str = "The match score is well updated"
+
+
+class NoMatchScoreUpdatedResponse(BaseModel):
+    message: str = "No score was updated"

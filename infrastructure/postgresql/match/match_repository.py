@@ -100,6 +100,29 @@ class MatchRepositoryImpl(MatchRepository):
                              DBMatch.winner == choice))
         return await self.session.scalar(stmt)
 
+    async def bulk_update_winner(self, updates: list[dict]):
+
+        def _do_bulk(sess):
+            sess.bulk_update_mappings(DBMatch, updates)
+
+        await self.session.run_sync(_do_bulk)
+
+    async def get_matches_from_dates(
+            self,
+            from_date: datetime,
+            to_date: datetime
+    ) -> List[Match]:
+        stmt = (
+            select(DBMatch)
+            .where(
+                DBMatch.time >= from_date,
+                DBMatch.time <= to_date
+            )
+        )
+        result = await self.session.execute(stmt)
+        db_matches = result.scalars().all()
+        return [db.to_entity() for db in db_matches]
+
     async def begin(self):
         await self.session.begin()
 
