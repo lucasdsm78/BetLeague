@@ -1,6 +1,6 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
@@ -82,6 +82,40 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
             .execution_options(synchronize_session=False)
         )
         await self.session.execute(stmt)
+
+
+    async def count_wrong_and_pending_by_ticket(
+            self,
+            ticket_id: int
+    ) -> tuple[int, int]:
+        stmt = (
+            select(
+                # somme des “wrong”
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (DBMatchChoices.status == MatchChoiceStatus.wrong.value, 1),
+                            else_=0
+                        )
+                    ),
+                    0
+                ).label("wrong_count"),
+                # somme des “pending”
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (DBMatchChoices.status == MatchChoiceStatus.pending.value, 1),
+                            else_=0
+                        )
+                    ),
+                    0
+                ).label("pending_count"),
+            )
+            .where(DBMatchChoices.ticket_id == ticket_id)
+        )
+        result = await self.session.execute(stmt)
+        wrong_count, pending_count = result.one()
+        return wrong_count, pending_count
 
     async def begin(self):
         await self.session.begin()

@@ -58,6 +58,7 @@ from infrastructure.services.authentication.manager_token import JwtManagerToken
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
 from sqlalchemy.ext.asyncio import AsyncSession
+from contextlib import asynccontextmanager
 
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
@@ -72,6 +73,7 @@ def get_session() -> Iterator[Session]:
     finally:
         session.close()
 
+@asynccontextmanager
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:

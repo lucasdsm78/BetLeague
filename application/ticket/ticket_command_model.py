@@ -30,3 +30,11 @@ class TicketUpdateResponse(BaseModel):
 
 class TicketRemoveResponse(BaseModel):
     message: str = "The ticket is well removed"
+
+
+class TicketUpdatedResponse(BaseModel):
+    message: str = "The ticket is well updated"
+
+
+class NoTicketUpdatedResponse(BaseModel):
+    message: str = "No ticket was updated"

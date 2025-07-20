@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from sqlalchemy.orm import joinedload, selectinload
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,9 +11,11 @@ from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
+from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
 from infrastructure.postgresql.match.db_match import DBMatch
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
+from infrastructure.postgresql.user.db_user import DBUser
 
 
 class TicketRepositoryImpl(TicketRepository):
@@ -176,6 +178,66 @@ class TicketRepositoryImpl(TicketRepository):
             await self.session.delete(ticket)
         except:
             raise
+
+
+
+    async def apply_ticket_updates(
+            self,
+            ticket_id: int,
+            user_id: int,
+            league_id: int,
+            wrong_count: int,
+            pending_count: int,
+            gain: float
+    ):
+        # 1) Mettre à jour le ticket
+        if wrong_count > 0:
+            new_status = TicketStatus.wrong.value
+        elif pending_count == 0:
+            new_status = TicketStatus.correct.value
+        else:
+            return  # rien à faire
+
+        await self.session.execute(
+            update(DBTicket)
+            .where(DBTicket.id == ticket_id)
+            .values(status=new_status)
+        )
+
+        # 2) Mettre à jour les compteurs de l’utilisateur
+        user_values = {}
+        if wrong_count > 0:
+            user_values["nb_lose"] = DBUser.nb_lose + 1
+        else:
+            user_values.update({
+                "nb_win":  DBUser.nb_win + 1,
+                "nb_btl":  DBUser.nb_btl + gain,
+            })
+
+        await self.session.execute(
+            update(DBUser)
+            .where(DBUser.id == user_id)
+            .values(**user_values)
+        )
+
+        # 3) Même chose pour league_players
+        lp_values = {}
+        if wrong_count > 0:
+            lp_values["nb_lose"] = DBLeaguePlayers.nb_lose + 1
+        else:
+            lp_values.update({
+                "nb_win": DBLeaguePlayers.nb_win + 1,
+                "nb_btl": DBLeaguePlayers.nb_btl + gain,
+            })
+
+        await self.session.execute(
+            update(DBLeaguePlayers)
+            .where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id   == user_id
+            )
+            .values(**lp_values)
+        )
 
     async def begin(self):
         await self.session.begin()

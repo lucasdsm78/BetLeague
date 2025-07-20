@@ -36,6 +36,18 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def apply_ticket_updates(
+            self,
+            ticket_id: int,
+            user_id: int,
+            league_id: int,
+            wrong_count: int,
+            pending_count: int,
+            gain: float
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, ticket: Ticket) -> Optional[Ticket]:
         raise NotImplementedError
 

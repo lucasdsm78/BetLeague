@@ -35,6 +35,12 @@ class MatchChoiceRepository(ABC):
     async def update(self, match_choice: MatchChoice) -> Optional[MatchChoice]:
         raise NotImplementedError
 
+    async def count_wrong_and_pending_by_ticket(
+            self,
+            ticket_id: int
+    ) -> tuple[int, int]:
+        raise NotImplementedError
+
     @abstractmethod
     async def begin(self):
         raise NotImplementedError
