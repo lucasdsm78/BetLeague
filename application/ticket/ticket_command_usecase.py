@@ -4,6 +4,7 @@ from typing import List, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 import shortuuid
 
+from application.match.match_command_model import MatchChoiceUpdatedResponse, NoMatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse, \
     TicketUpdateResponse, MatchChoiceData, TicketUpdateModel
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueParticipantNotFoundError, \
@@ -12,6 +13,8 @@ from domain.league.repository.league_players_repository import LeaguePlayersRepo
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.repository.match_repository import MatchRepository
+from domain.services.rabbitmq.publisher import RabbitMQPublisher
+from domain.ticket.event.match_choice_status_updated_event import MatchChoiceStatusUpdatedEvent
 from domain.ticket.exception.ticket_exception import GainNotEqualsError, TicketNotFoundError, NotTicketOwnerError, \
     MatchAlreadyStartedError, MiseSuperiorToNbBtlError
 from domain.ticket.model.match_choice import MatchChoice
@@ -20,6 +23,7 @@ from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
+from domain.token.token_exception import TokenInvalidError
 from domain.tournament import TournamentPlayersRepository, TournamentRepository
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNotStartedError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -54,6 +58,10 @@ class TicketCommandUseCase(ABC):
     async def create_tournament_ticket(self, tournament_id: int, match_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def check_match_choices_by_match_id(self, token: str, match_id: int):
+        raise NotImplementedError
+
 
 class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
@@ -68,7 +76,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             league_players_repository: LeaguePlayersRepository,
             tournament_repository: TournamentRepository,
             tournament_players_repository: TournamentPlayersRepository,
-            settings: Settings
+            settings: Settings,
+            publisher: RabbitMQPublisher
     ):
         self.ticket_repository: TicketRepository = ticket_repository
         self._session_factory = session_factory
@@ -80,6 +89,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         self.settings: Settings = settings
         self.tournament_repository: TournamentRepository = tournament_repository
         self.tournament_players_repository: TournamentPlayersRepository = tournament_players_repository
+        self.publisher: RabbitMQPublisher = publisher
 
     async def _process_match_choices(
             self,
@@ -343,3 +353,43 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 )
 
         return TicketCreateResponse()
+
+    async def check_match_choices_by_match_id(self, token: str, match_id: int):
+        if token != self.settings.secret_key_token:
+            raise TokenInvalidError
+
+        await self.publisher.connect()
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                match_repo = MatchRepositoryImpl(session)
+                mc_repo    = MatchChoicesRepositoryImpl(session)
+
+                match = await match_repo.find_by_id(match_id)
+                if not match:
+                    raise MatchNotFoundError
+
+                pending_choices = await mc_repo.get_match_choices_pending_by_match_id(match_id)
+
+                for choice in pending_choices:
+                    is_correct = await match_repo.is_correct_score(
+                        choice=choice.choice,
+                        match_id=match.id
+                    )
+
+                    if not isinstance(is_correct, bool):
+                        continue
+
+                    new_status = MatchChoiceStatus.correct if is_correct else MatchChoiceStatus.wrong
+                    await mc_repo.mark_choice_status(choice.id, new_status)
+                    await session.flush()
+
+                    event = MatchChoiceStatusUpdatedEvent(
+                        ticket_id=choice.ticket_id,
+                        event_type="MatchChoiceStatusUpdatedEvent"
+                    )
+                    await self.publisher.publish_match_choice_status_updated(event)
+
+                    return MatchChoiceUpdatedResponse()
+
+                return NoMatchChoiceUpdatedResponse()

@@ -94,6 +94,12 @@ class MatchRepositoryImpl(MatchRepository):
         result = await self.session.execute(query)
         return result.scalar_one_or_none() is not None
 
+    async def is_correct_score(self, choice: str, match_id: int) -> bool:
+        stmt = select(exists()
+                      .where(DBMatch.id == match_id,
+                             DBMatch.winner == choice))
+        return await self.session.scalar(stmt)
+
     async def begin(self):
         await self.session.begin()
 

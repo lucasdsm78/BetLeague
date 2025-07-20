@@ -16,6 +16,7 @@ from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
 from domain.services.match_score_api.match_score_api import MatchScoreApi
+from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
@@ -51,6 +52,8 @@ from infrastructure.services.authentication.manager_token import JwtManagerToken
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 
 jwt_auth = JwtBearer()
 
@@ -200,6 +203,10 @@ def ticket_query_usecase(
     )
 
 
+def rabbitmq_dependency(settings: Settings = Depends(get_settings)) -> RabbitMQPublisher:
+    return RabbitMQPublisherImpl(settings=settings)
+
+
 def ticket_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         league_repository: LeagueRepository = Depends(league_repository_dependency),
@@ -210,6 +217,7 @@ def ticket_command_usecase(
         tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
         tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
         league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
+        publisher: RabbitMQPublisher = Depends(rabbitmq_dependency),
         settings: Settings = Depends(get_settings)
 ) -> TicketCommandUseCase:
     return TicketCommandUseCaseImpl(
@@ -222,7 +230,8 @@ def ticket_command_usecase(
         match_choices_repository=match_choices_repository,
         match_repository=match_repository,
         league_players_repository=league_players_repository,
-        settings=settings
+        settings=settings,
+        publisher=publisher
     )
 
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from application.match.match_command_model import MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
     TicketUpdateResponse, TicketUpdateModel
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
@@ -11,6 +12,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError, \
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError, \
     MiseSuperiorToNbBtlError, TicketAccessDeniedError, GainNotEqualsError
+from domain.token.token_exception import TokenInvalidError
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, UserNotInTournamentError, \
     TournamentAlreadyStartedError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -345,3 +347,28 @@ async def create_tournament_ticket(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post(
+    "/ticket/check_match_choices",
+    response_model=MatchChoiceUpdatedResponse,
+    summary="Check match choices",
+    status_code=status.HTTP_200_OK,
+)
+async def check_match_choices_by_match_id(
+        token: str,
+        match_id: int,
+        ticket_command_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
+):
+    try:
+        return await ticket_command_usecase.check_match_choices_by_match_id(token=token, match_id=match_id)
+
+    except TokenInvalidError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

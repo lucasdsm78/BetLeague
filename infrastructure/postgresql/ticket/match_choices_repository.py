@@ -1,8 +1,9 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.model.match_choice import MatchChoice
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 
@@ -58,6 +59,29 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
             match_choice_db = DBMatchChoices.from_entity(match_choice, _match_choice)
         except:
             raise
+
+    async def get_match_choices_pending_by_match_id(self, match_id: int) -> List[MatchChoice]:
+        stmt = (
+            select(DBMatchChoices)
+            .where(
+                DBMatchChoices.match_id == match_id,
+                DBMatchChoices.status == MatchChoiceStatus.pending.value
+            )
+        )
+
+        result = await self.session.execute(stmt)
+        rows = result.scalars().all()
+
+        return [db_obj.to_entity() for db_obj in rows]
+
+    async def mark_choice_status(self, choice_id: int, status: MatchChoiceStatus):
+        stmt = (
+            update(DBMatchChoices)
+            .where(DBMatchChoices.id == choice_id)
+            .values(status=status.value)
+            .execution_options(synchronize_session=False)
+        )
+        await self.session.execute(stmt)
 
     async def begin(self):
         await self.session.begin()
