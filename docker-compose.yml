@@ -102,8 +102,8 @@ services:
 
   score_consumer:
     build:
-      context: ../BetLeagueMatchChoiceService
-      dockerfile: consumer.Dockerfile
+      context: .
+      dockerfile: consumer_match_choice.Dockerfile
     container_name: score_consumer
     env_file:
       - .env

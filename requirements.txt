@@ -6,7 +6,7 @@ uvicorn[standard]
 pydantic~=2.10.3
 passlib~=1.7.4
 shortuuid~=1.0.13
-
+aio_pika
 starlette~=0.41.3
 pydantic_settings
 pyotp~=2.9.0

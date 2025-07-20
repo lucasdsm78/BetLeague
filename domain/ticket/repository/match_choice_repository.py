@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 
 from domain.ticket.model.match_choice import MatchChoice
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
 
 
 class MatchChoiceRepository(ABC):
@@ -16,6 +17,14 @@ class MatchChoiceRepository(ABC):
 
     @abstractmethod
     async def delete_by_ticket_id(self, ticket_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_match_choices_pending_by_match_id(self, match_id: int) -> List[MatchChoice]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def mark_choice_status(self, choice_id: int, status: MatchChoiceStatus):
         raise NotImplementedError
 
     @abstractmethod
