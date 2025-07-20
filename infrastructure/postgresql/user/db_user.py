@@ -37,6 +37,7 @@ class DBUser(Base):
     tournaments = relationship("DBTournament", foreign_keys="[DBTournament.user_id]", back_populates="user")
     tournaments_players = relationship("DBTournamentPlayer", foreign_keys="[DBTournamentPlayer.user_id]", back_populates="user")
     tournament_stages = relationship("DBTournamentStage", foreign_keys="[DBTournamentStage.user_id]", back_populates="user")
+    purchases = relationship("DBPurchase", back_populates="user")
 
     def to_entity(self) -> User:
         return User(

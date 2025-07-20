@@ -2,6 +2,7 @@ from application.league.league_command_usecase import LeagueCommandUseCase, Leag
 from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
+from application.purchase.purchase_command_usecase import PurchaseCommandUseCase, PurchaseCommandUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
 from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
@@ -12,11 +13,14 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
+from domain.purchase.repository.pack_repository import PackRepository
+from domain.purchase.repository.purchase_repository import PurchaseRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
+from domain.services.stripe.stripe_service import StripeService
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
@@ -37,6 +41,8 @@ from infrastructure.postgresql.invitation.invitation_repository import Invitatio
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
+from infrastructure.postgresql.purchase.pack_repository import PackRepositoryImpl
+from infrastructure.postgresql.purchase.purchase_repository import PurchaseRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
@@ -54,6 +60,7 @@ from infrastructure.services.match_score_api.match_score_api import MatchScoreAp
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
+from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 
 jwt_auth = JwtBearer()
 
@@ -312,3 +319,31 @@ async def current_user(
         manager_token: ManagerToken = Depends(manager_token_dependency)
 ) -> dict:
     return await manager_token.decode_token_login(token)
+
+
+def stripe_service(settings: Settings = Depends(get_settings)) -> StripeService:
+    return StripeServiceImpl(settings=settings)
+
+
+def purchase_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> PurchaseRepository:
+    return PurchaseRepositoryImpl(session=session)
+
+
+def pack_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> PackRepository:
+    return PackRepositoryImpl(session)
+
+
+def purchase_command_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        purchase_repository: PurchaseRepository = Depends(purchase_repository_dependency),
+        pack_repository: PackRepository = Depends(pack_repository_dependency),
+        stripe_service_dependency: StripeService = Depends(stripe_service),
+) -> PurchaseCommandUseCase:
+    return PurchaseCommandUseCaseImpl(
+        purchase_repository=purchase_repository,
+        pack_repository=pack_repository,
+        session_factory=session_factory,
+        user_repository=user_repository,
+        stripe_service=stripe_service_dependency,
+    )
