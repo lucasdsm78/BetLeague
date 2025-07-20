@@ -6,7 +6,7 @@ import shortuuid
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse, NoMatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse, \
-    TicketUpdateResponse, MatchChoiceData, TicketUpdateModel
+    TicketUpdateResponse, MatchChoiceData, TicketUpdateModel, NoTicketUpdatedResponse, TicketUpdatedResponse
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueParticipantNotFoundError, \
     NbBTLHasReached0, LeagueNotStartedError
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -60,6 +60,10 @@ class TicketCommandUseCase(ABC):
 
     @abstractmethod
     async def check_match_choices_by_match_id(self, token: str, match_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def check_ticket_status(self, token: str, ticket_id: int):
         raise NotImplementedError
 
 
@@ -393,3 +397,27 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     return MatchChoiceUpdatedResponse()
 
                 return NoMatchChoiceUpdatedResponse()
+
+    async def check_ticket_status(self, token: str, ticket_id: int):
+        if token != self.settings.secret_key_token:
+            raise TokenInvalidError
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                ticket_repo    = TicketRepositoryImpl(session)
+                match_choices_repository  = MatchChoicesRepositoryImpl(session)
+                ticket = await ticket_repo.find_by_id(ticket_id)
+                wrong, pend = await match_choices_repository.count_wrong_and_pending_by_ticket(ticket_id)
+                await ticket_repo.apply_ticket_updates(
+                    ticket_id=ticket.id,
+                    user_id=ticket.user.id,
+                    league_id=ticket.league_id,
+                    wrong_count=wrong,
+                    pending_count=pend,
+                    gain=ticket.gain
+                )
+                # commit automatique à la sortie de session.begin()
+                if wrong > 0 or pend == 0:
+                    return TicketUpdatedResponse()
+                else:
+                    return NoTicketUpdatedResponse()
