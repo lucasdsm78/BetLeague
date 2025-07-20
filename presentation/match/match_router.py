@@ -54,8 +54,8 @@ async def check_scores(
 ):
     try:
         now = datetime.now()
-        from_date_str = "2025-01-06"
-        to_date_str = "2025-01-07"
+        from_date_str = "2025-07-20"
+        to_date_str = "2025-07-21"
 
         # from_date = now
         # to_date = now

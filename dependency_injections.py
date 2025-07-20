@@ -20,6 +20,7 @@ from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
+from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
 from domain.services.stripe.stripe_service import StripeService
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
@@ -61,6 +62,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
+from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 
 jwt_auth = JwtBearer()
@@ -216,6 +218,10 @@ def rabbitmq_dependency(settings: Settings = Depends(get_settings)) -> RabbitMQP
     return RabbitMQPublisherImpl(settings=settings)
 
 
+def rabbitmq_dependency_score_service(settings: Settings = Depends(get_settings)) -> RabbitMQPublisherScoreService:
+    return RabbitMQPublisherScoreServiceImpl(settings=settings)
+
+
 def ticket_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         league_repository: LeagueRepository = Depends(league_repository_dependency),
@@ -266,7 +272,7 @@ def match_command_usecase(
         match_repository: MatchRepository = Depends(match_repository_dependency),
         settings: Settings = Depends(get_settings),
         match_score_api_dependency: MatchScoreApi = Depends(match_score_api),
-        publisher: RabbitMQPublisher = Depends(rabbitmq_dependency),
+        publisher: RabbitMQPublisherScoreService = Depends(rabbitmq_dependency_score_service),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchCommandUseCase:
     return MatchCommandUseCaseImpl(

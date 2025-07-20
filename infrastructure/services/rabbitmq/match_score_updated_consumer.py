@@ -7,13 +7,13 @@ import aio_pika
 from dotenv import load_dotenv
 
 from application.ticket.ticket_command_usecase_factory import build_ticket_command_usecase
-from domain.match.event.match_winner_updated_event import MatchWinnerUpdatedEvent
+from domain.match.event.match_winner_updated_event import MatchUpdatedEvent
 from infrastructure.config import Settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 load_dotenv()
-from dependency_injections import get_session
+from dependency_injections import get_session, get_async_session
 
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", "4"))
 
@@ -46,16 +46,16 @@ class MatchWinnerConsumer:
         async with message.process(requeue=False):
             try:
                 raw = json.loads(message.body)
-                event = MatchWinnerUpdatedEvent(**raw)
+                event = MatchUpdatedEvent(**raw)
                 await self.handle_match_winner_updated(event)
                 logger.info("[Consumer] Message traité avec succès.")
             except Exception:
                 logger.exception("[Consumer] Erreur lors du traitement du message.")
 
-    async def handle_match_winner_updated(self, event: MatchWinnerUpdatedEvent):
-        logger.info(f"[Consumer] Traitement de MatchWinnerUpdatedEvent: match_id={event.match_id}")
+    async def handle_match_winner_updated(self, event: MatchUpdatedEvent):
+        logger.info(f"[Consumer] Traitement de MatchUpdatedEvent: match_id={event.match_id}")
 
-        async for session in get_session():
+        async with get_async_session() as session:
             try:
                 usecase = build_ticket_command_usecase(session, self.settings)
                 resp = await usecase.check_match_choices_by_match_id(
