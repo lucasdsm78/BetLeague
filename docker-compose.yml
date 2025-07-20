@@ -84,22 +84,6 @@ services:
       - db
       - rabbitmq
 
-  purchase_service:
-    build: ../BetLeaguePurchaseService
-    container_name: purchase_service
-    command: uvicorn main:app --host 0.0.0.0 --port 8004 --reload
-    volumes:
-      - ../BetLeaguePurchaseService:/app
-    ports:
-      - "8004:8004"
-    environment:
-      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
-    depends_on:
-      - backend
-      - db
-      - rabbitmq
-
   score_consumer:
     build:
       context: .
