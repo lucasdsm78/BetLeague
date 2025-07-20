@@ -105,7 +105,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
 
                     if m.winner != new_w:
                         to_update.append({"id": m.id, "winner": new_w})
-                        events.append(MatchUpdatedEvent(match_id=m.id, event_type="MatchWinnerUpdatedEvent"))
+                        events.append(MatchUpdatedEvent(match_id=m.id, event_type="MatchUpdatedEvent"))
 
                 if to_update:
                     await repo.bulk_update_winner(to_update)
