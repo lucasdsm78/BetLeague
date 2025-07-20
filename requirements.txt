@@ -25,3 +25,4 @@ celery
 stripe
 orjson
 uvloop
+httpx
