@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request, Header
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
@@ -8,8 +9,18 @@ from application.tournament.tournament_command_model import (
     SchedulerSuccessfulyRunResponse,
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
-from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, tournament_scheduler
+from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
+    CancelTournamentSubscriptionUseCase
+from application.tournament_subscription.create.create_tournament_subscription_usecase import CreateTournamentSubscriptionUseCase
+from application.tournament_subscription.tournament_subscription_command_model import CheckoutSessionResponse, \
+    CreateSubscriptionRequest
+from application.tournament_subscription.webhook.process_stripe_webhook import \
+    ProcessStripeWebhookTournamentSubscriptionUseCase
+from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
+    tournament_scheduler, create_tournament_subscription_use_case, \
+    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session
 from domain.scheduler.tournament_scheduler import TournamentScheduler
+from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
@@ -285,3 +296,67 @@ async def run_tournament_scheduler(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors du lancement du scheduler: {str(e)}"
         )
+
+
+@router.post(
+    "/subscription/create-intent",
+    response_model=CheckoutSessionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def create_tournament_subscription_checkout(
+        subscription_request: CreateSubscriptionRequest,
+        current_user: dict = Depends(current_user),
+        use_case: CreateTournamentSubscriptionUseCase = Depends(create_tournament_subscription_use_case),
+):
+    try:
+        result = await use_case.execute(current_user.get('email', ''), subscription_request)
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la création de l'abonnement"
+        )
+
+
+@router.post(
+    "/subscription/cancel",
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_user_subscription(
+        current_user: dict = Depends(current_user),
+        tournament_subscription_cancel_use_case: CancelTournamentSubscriptionUseCase = Depends(create_tournament_subscription_use_case),
+):
+    try:
+        result = await tournament_subscription_cancel_use_case.execute(current_user.get('email', ''))
+
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.post(
+    "/subscription/webhook",
+    status_code=status.HTTP_200_OK,
+)
+async def stripe_webhook(
+        request: Request,
+        use_case: ProcessStripeWebhookTournamentSubscriptionUseCase = Depends(process_webhook_tournament_subscription_use_case),
+        stripe_service: StripeService = Depends(stripe_service),
+        stripe_signature: str = Header(None, alias="stripe-signature")
+):
+    try:
+        payload = await request.body()
+
+        event = stripe_service.verify_webhook(payload, stripe_signature)
+
+        await use_case.execute(event["type"], event["data"]["object"])
+
+        return {"status": "success"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur webhook")
