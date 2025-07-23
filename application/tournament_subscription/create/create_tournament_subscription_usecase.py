@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Callable
+import shortuuid
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
@@ -45,12 +46,12 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
 
                 subscription_type = TournamentSubscriptionPlan(request.subscription_plan)
 
-                if not await self._domain_service.can_user_subscribe(user.id):
-                    raise ValueError("L'utilisateur a déjà un abonnement actif")
-                subscription = await self._domain_service.create_tournament_subscription(user.id, subscription_type)
 
+                subscription = await self._domain_service.create_tournament_subscription(user.id, subscription_type)
+                uuid = shortuuid.uuid()
                 price_id = TournamentSubscriptionPricingService.get_stripe_price_id(subscription_type)
                 checkout_url = await self._stripe_service.create_subscription_session(
+                    uuid=uuid,
                     customer_email=user.email.value,
                     price_id=price_id,
                     success_url=request.success_url,
@@ -65,5 +66,4 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
 
                 return CheckoutSessionResponse(
                     checkout_url=checkout_url,
-                    subscription_id=subscription.stripe_subscription_id
                 )
