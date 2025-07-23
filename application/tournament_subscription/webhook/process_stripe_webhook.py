@@ -90,7 +90,6 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
                 stripe_subscription_id = subscription_data["id"]
                 subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(stripe_subscription_id)
-                print("hehehehehhe")
 
                 if subscription:
                     subscription.cancel()
