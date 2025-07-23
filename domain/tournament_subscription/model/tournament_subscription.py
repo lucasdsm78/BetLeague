@@ -3,7 +3,8 @@ from typing import Optional
 
 from domain.tournament_subscription.model.tournament_subscription_plan import TournamentSubscriptionPlan
 from domain.tournament_subscription.model.tournament_subscription_price import TournamentSubscriptionPrice
-from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus
+from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus, \
+    map_stripe_status_to_enum
 from domain.user.model.user_summary import UserSummary
 
 
@@ -110,21 +111,30 @@ class TournamentSubscription:
             period_start: int,
             period_end: int
     ) -> None:
-        stripe_to_domain_status = {
-            'incomplete': TournamentSubscriptionStatus.INCOMPLETE,
-            'active': TournamentSubscriptionStatus.ACTIVE,
-            'past_due': TournamentSubscriptionStatus.PAST_DUE,
-            'canceled': TournamentSubscriptionStatus.CANCELLED,
-            'unpaid': TournamentSubscriptionStatus.UNPAID
-        }
 
-        new_status = stripe_to_domain_status.get(status, TournamentSubscriptionStatus.INCOMPLETE)
+        print(f"🔄 Mise à jour status depuis Stripe: '{status}'")
 
-        if new_status != self._status:
-            self._status = new_status
+        old_status = self._status
+        self._status = map_stripe_status_to_enum(status)
+
+        print(f"📊 Changement status: {old_status} -> {self._status}")
+
+        if period_start is not None:
             self._current_period_start = period_start
+
+        if period_end is not None:
             self._current_period_end = period_end
-            self._updated_at = int(datetime.now().timestamp())
+
+        if hasattr(self, 'updated_at'):
+            self._updated_at = datetime.utcnow()
+
+        print(f"✅ Status mis à jour vers: {self._status}")
+
+    def update_stripe_subscription_id_from_stripe(
+                self,
+                stripe_subscription_id: str
+        ) -> None:
+            self._stripe_subscription_id = stripe_subscription_id
 
     def is_active(self) -> bool:
         return (self._status == TournamentSubscriptionStatus.ACTIVE and

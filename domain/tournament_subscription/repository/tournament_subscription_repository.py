@@ -18,6 +18,10 @@ class TournamentSubscriptionRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_uuid(self, tournament_subscription_uuid: str) -> Optional[TournamentSubscription]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_active_by_user_id(self, user_id: int) -> Optional[TournamentSubscription]:
         raise NotImplementedError
 

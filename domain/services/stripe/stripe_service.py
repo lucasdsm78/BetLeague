@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+import stripe
 from domain.purchase.model.purchase import Purchase
 from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
 
@@ -22,7 +22,7 @@ class StripeService(ABC):
             success_url: str,
             uuid: str,
             cancel_url: str,
-            metadata: dict) -> str:
+            metadata: dict) -> stripe.checkout.Session:
         raise NotImplementedError
 
     @abstractmethod
