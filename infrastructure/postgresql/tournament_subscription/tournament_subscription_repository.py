@@ -22,6 +22,7 @@ class TournamentSubscriptionRepositoryImpl(TournamentSubscriptionRepository):
         sub_db = DBTournamentSubscription.from_entity(subscription)
         try:
             self.session.add(sub_db)
+            await self.session.flush()
         except:
             raise
 
@@ -67,6 +68,17 @@ class TournamentSubscriptionRepositoryImpl(TournamentSubscriptionRepository):
             select(DBTournamentSubscription)
             .options(joinedload(DBTournamentSubscription.user))
             .where(DBTournamentSubscription.id == tournament_subscription_id)
+        )
+        tournament_subscription_db = result.scalar_one_or_none()
+        if not tournament_subscription_db:
+            raise TournamentSubscriptionNotFoundError
+        return tournament_subscription_db.to_entity()
+
+    async def find_by_uuid(self, tournament_subscription_uuid: str) -> Optional[TournamentSubscription]:
+        result = await self.session.execute(
+            select(DBTournamentSubscription)
+            .options(joinedload(DBTournamentSubscription.user))
+            .where(DBTournamentSubscription.uuid == tournament_subscription_uuid)
         )
         tournament_subscription_db = result.scalar_one_or_none()
         if not tournament_subscription_db:

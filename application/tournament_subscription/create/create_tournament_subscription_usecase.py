@@ -46,24 +46,26 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
 
                 subscription_type = TournamentSubscriptionPlan(request.subscription_plan)
 
-
                 subscription = await self._domain_service.create_tournament_subscription(user.id, subscription_type)
-                uuid = shortuuid.uuid()
                 price_id = TournamentSubscriptionPricingService.get_stripe_price_id(subscription_type)
-                checkout_url = await self._stripe_service.create_subscription_session(
-                    uuid=uuid,
+                session_stripe = await self._stripe_service.create_subscription_session(
+                    uuid=subscription.uuid,
                     customer_email=user.email.value,
                     price_id=price_id,
                     success_url=request.success_url,
                     cancel_url=request.cancel_url,
                     metadata={
-                        "subscription_id": subscription.stripe_subscription_id,
+                        "uuid": subscription.uuid,
                         "user_id": user.id
                     }
                 )
 
+                stripe_sub_id = session_stripe.subscription
+
+                subscription.update_stripe_subscription_id_from_stripe(stripe_sub_id)
+
                 await tournament_subscription_repository.create(subscription)
 
                 return CheckoutSessionResponse(
-                    checkout_url=checkout_url,
+                    checkout_url=session_stripe.url,
                 )

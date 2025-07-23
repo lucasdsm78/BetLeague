@@ -62,7 +62,7 @@ class StripeServiceImpl(StripeService):
             uuid: str,
             cancel_url: str,
             metadata: dict
-    ) -> str:
+    ) -> stripe.checkout.Session:
         try:
 
             session = stripe.checkout.Session.create(
@@ -83,7 +83,7 @@ class StripeServiceImpl(StripeService):
                     idempotency_key=f"subscription_{uuid}",
                 )
 
-            return session.url
+            return session
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la création de la session Stripe: {e}")
 
