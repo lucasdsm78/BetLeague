@@ -52,11 +52,8 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 if not uuid:
                     return
 
-                print("dkkdkdkdkdkdk")
-
                 subscription = await tournament_subscription_repository.find_by_uuid(uuid)
 
-                print("fkfkfkfkfk")
                 if not subscription:
                     return
 
@@ -93,6 +90,7 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
                 stripe_subscription_id = subscription_data["id"]
                 subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(stripe_subscription_id)
+                print("hehehehehhe")
 
                 if subscription:
                     subscription.cancel()
@@ -103,16 +101,13 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             async with session.begin():
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
 
-            # Extraction du subscription ID
             subscription_id = None
 
-            # Méthode 1: Depuis parent.subscription_details.subscription
             parent = invoice_data.get("parent", {})
             if parent.get("type") == "subscription_details":
                 subscription_details = parent.get("subscription_details", {})
                 subscription_id = subscription_details.get("subscription")
 
-            # Méthode 2: Fallback depuis lines[0].parent.subscription_item_details.subscription
             if not subscription_id:
                 lines = invoice_data.get("lines", {})
                 lines_data = lines.get("data", [])
@@ -124,15 +119,8 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                         subscription_id = sub_item_details.get("subscription")
 
             if not subscription_id:
-                print("❌ Pas de subscription ID trouvé dans invoice")
                 return
 
-            print(f"💰 Paiement réussi pour subscription: {subscription_id}")
-            print(f"🔍 Invoice ID: {invoice_data.get('id')}")
-            print(f"🔍 Status: {invoice_data.get('status')}")
-            print(f"🔍 Amount paid: {invoice_data.get('amount_paid')} centimes")
-
-            # ✅ CORRECTION: Extraction des périodes depuis lines[0].period
             period_start = None
             period_end = None
 
@@ -143,39 +131,13 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 first_line = lines_data[0]
                 period = first_line.get("period", {})
 
-                period_start = period.get("start")  # 1753309329
-                period_end = period.get("end")      # 1784845329
-
-                print(f"✅ Périodes extraites depuis lines[0].period:")
-                print(f"  - start: {period_start}")
-                print(f"  - end: {period_end}")
-
-                # Debug des metadata dans la ligne
-                line_metadata = first_line.get("metadata", {})
-                print(f"  - line metadata: {line_metadata}")
-            else:
-                print("❌ Pas de lines trouvées dans invoice")
-
-            # ✅ BONUS: Extraction metadata depuis parent.subscription_details
-            metadata = {}
-            if parent.get("type") == "subscription_details":
-                subscription_details = parent.get("subscription_details", {})
-                metadata = subscription_details.get("metadata", {})
-                print(f"🔑 Metadata subscription: {metadata}")
+                period_start = period.get("start")
+                period_end = period.get("end")
 
             subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(subscription_id)
 
             if not subscription:
-                print(f"❌ Subscription non trouvé: {subscription_id}")
                 return
-
-            print(f"✅ Subscription trouvé:")
-            print(f"  - UUID: {subscription.uuid}")
-            print(f"  - Status avant: {subscription.status}")
-
-            # Conversion des timestamps en datetime
-            period_start_dt = None
-            period_end_dt = None
 
             try:
                 subscription.update_status_from_stripe(
@@ -183,24 +145,16 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                     period_start=period_start,
                     period_end=period_end
                 )
-                print(f"✅ Status mis à jour: {subscription.status}")
 
-            except Exception as update_error:
-                print(f"❌ Erreur update_status_from_stripe: {update_error}")
-                # Fallback: activation simple
+            except Exception:
                 subscription.update_status_from_stripe(
-                    status=TournamentSubscriptionStatus.ACTIVE,
-                    period_start=period_start
+                    status=TournamentSubscriptionStatus.ACTIVE.value,
+                    period_start=period_start,
+                    period_end=period_end
                 )
-                print("✅ Status forcé à 'active'")
 
             await tournament_subscription_repository.update(subscription)
 
-            print(f"🎉 Paiement traité avec succès:")
-            print(f"  - UUID: {subscription.uuid}")
-            print(f"  - Stripe ID: {subscription.stripe_subscription_id}")
-            print(f"  - Status final: {subscription.status}")
-            print(f"  - Période: {period_start_dt} → {period_end_dt}")
 
     async def _handle_payment_failed(self, invoice_data: dict) -> None:
         async with self._session_factory() as session:

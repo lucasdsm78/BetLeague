@@ -34,11 +34,9 @@ def map_stripe_status_to_enum(stripe_status: str) -> Optional[TournamentSubscrip
         "paused": TournamentSubscriptionStatus.PAST_DUE,
     }
 
-    # Mapping avec log
     mapped_status = stripe_to_enum_mapping.get(stripe_status.lower(), TournamentSubscriptionStatus.INCOMPLETE)
 
     if stripe_status.lower() not in stripe_to_enum_mapping:
         return None
     else:
-        print(f"✅ Mapping statut: '{stripe_status}' -> {mapped_status}")
         return mapped_status

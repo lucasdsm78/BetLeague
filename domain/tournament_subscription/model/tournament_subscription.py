@@ -112,12 +112,9 @@ class TournamentSubscription:
             period_end: int
     ) -> None:
 
-        print(f"🔄 Mise à jour status depuis Stripe: '{status}'")
-
         old_status = self._status
         self._status = map_stripe_status_to_enum(status)
 
-        print(f"📊 Changement status: {old_status} -> {self._status}")
 
         if period_start is not None:
             self._current_period_start = period_start
@@ -127,8 +124,6 @@ class TournamentSubscription:
 
         if hasattr(self, 'updated_at'):
             self._updated_at = datetime.utcnow()
-
-        print(f"✅ Status mis à jour vers: {self._status}")
 
     def update_stripe_subscription_id_from_stripe(
                 self,
