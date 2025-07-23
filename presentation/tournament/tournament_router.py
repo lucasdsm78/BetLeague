@@ -17,7 +17,7 @@ from application.tournament_subscription.tournament_subscription_command_model i
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
-    tournament_scheduler, create_tournament_subscription_use_case, \
+    tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
     stripe_service, process_webhook_tournament_subscription_use_case, get_async_session
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
@@ -329,7 +329,7 @@ async def create_tournament_subscription_checkout(
 )
 async def cancel_user_subscription(
         current_user: dict = Depends(current_user),
-        tournament_subscription_cancel_use_case: CancelTournamentSubscriptionUseCase = Depends(create_tournament_subscription_use_case),
+        tournament_subscription_cancel_use_case: CancelTournamentSubscriptionUseCase = Depends(cancel_tournament_subscription_use_case),
 ):
     try:
         result = await tournament_subscription_cancel_use_case.execute(current_user.get('email', ''))
