@@ -99,10 +99,7 @@ class TournamentSubscription:
         self._updated_at = int(datetime.now().timestamp())
 
     def cancel(self) -> None:
-        if self._status in [TournamentSubscriptionStatus.CANCELLED, TournamentSubscriptionStatus.UNPAID]:
-            return
-
-        self._status = TournamentSubscriptionStatus.CANCELLED
+        self._status = map_stripe_status_to_enum(TournamentSubscriptionStatus.CANCELLED.value)
         self._updated_at = int(datetime.now().timestamp())
 
     def update_status_from_stripe(
