@@ -22,7 +22,6 @@ class SubscriptionResponse(BaseModel):
 
 class CheckoutSessionResponse(BaseModel):
     checkout_url: str
-    subscription_id: str
 
 class StripeWebhookRequest(BaseModel):
     type: str

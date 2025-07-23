@@ -41,7 +41,7 @@ class TournamentSubscriptionRepositoryImpl(TournamentSubscriptionRepository):
         )
         tournament_subscription_db = result.scalar_one_or_none()
         if not tournament_subscription_db:
-            raise None
+            return None
         return tournament_subscription_db.to_entity()
 
     async def update(self, tournament_subscription: TournamentSubscription):

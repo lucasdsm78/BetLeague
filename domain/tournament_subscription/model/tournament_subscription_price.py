@@ -5,7 +5,7 @@ from decimal import Decimal
 @dataclass(frozen=True)
 class TournamentSubscriptionPrice:
     amount: float
-    currency: str
+    currency: str = "EUR"
 
     def __post_init__(self):
         if self.amount <= 0:

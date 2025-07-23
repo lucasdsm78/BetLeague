@@ -7,8 +7,8 @@ from domain.tournament_subscription.model.tournament_subscription_price import T
 class TournamentSubscriptionPricingService:
     # Prix IDs Stripe (à créer dans votre dashboard Stripe)
     STRIPE_PRICE_IDS = {
-        TournamentSubscriptionPlan.MONTHLY: "price_1234567890monthly",
-        TournamentSubscriptionPlan.YEARLY: "price_1234567890yearly"
+        TournamentSubscriptionPlan.MONTHLY: "price_1Ro7Vl4ZfdR2ZdtsrMyufhBJ",
+        TournamentSubscriptionPlan.YEARLY: "price_1Ro7Vl4ZfdR2ZdtsPDnvfK0b"
     }
 
     @staticmethod

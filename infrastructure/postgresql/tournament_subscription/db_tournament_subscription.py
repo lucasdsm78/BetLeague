@@ -31,8 +31,8 @@ class DBTournamentSubscription(Base):
     user = relationship('DBUser')
     created_at: Union[int, Column] = Column(BigInteger, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, nullable=False)
-    start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
-    end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
+    end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
 
     def to_entity(self) -> TournamentSubscription:
         return TournamentSubscription(
@@ -55,6 +55,8 @@ class DBTournamentSubscription(Base):
         tournament_subscription_db = db_tournament_subscription if db_tournament_subscription is not None else DBTournamentSubscription()
         tournament_subscription_db.id = tournament_subscription.id
         tournament_subscription_db.uuid = tournament_subscription.uuid
+        tournament_subscription_db.price_currency = tournament_subscription.price.currency
+        tournament_subscription_db.price_amount = tournament_subscription.price.amount
         tournament_subscription_db.stripe_subscription_id = tournament_subscription.stripe_subscription_id
         tournament_subscription_db.status = tournament_subscription.status.value
         tournament_subscription_db.plan = tournament_subscription.plan.value
