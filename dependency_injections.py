@@ -5,6 +5,12 @@ from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryU
 from application.purchase.purchase_command_usecase import PurchaseCommandUseCase, PurchaseCommandUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
 from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
+from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
+    CancelTournamentSubscriptionUseCase, CancelTournamentSubscriptionUseCaseImpl
+from application.tournament_subscription.create.create_tournament_subscription_usecase import CreateTournamentSubscriptionUseCase, \
+    CreateTournamentSubscriptionUseCaseImpl
+from application.tournament_subscription.webhook.process_stripe_webhook import \
+    ProcessStripeWebhookTournamentSubscriptionUseCase, ProcessStripeWebhookTournamentSubscriptionUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase, TournamentCommandUseCaseImpl
@@ -26,6 +32,9 @@ from domain.ticket.repository.match_choice_repository import MatchChoiceReposito
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
+from domain.tournament_subscription.repository.tournament_subscription_repository import \
+    TournamentSubscriptionRepository
+from domain.tournament_subscription.service.tournament_subscription_domain_service import SubscriptionDomainService
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
@@ -48,6 +57,8 @@ from infrastructure.postgresql.ticket.match_choices_repository import MatchChoic
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
+from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
+    TournamentSubscriptionRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
@@ -75,7 +86,6 @@ def get_session() -> Iterator[Session]:
     finally:
         session.close()
 
-@asynccontextmanager
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
@@ -358,4 +368,44 @@ def purchase_command_usecase(
         session_factory=session_factory,
         user_repository=user_repository,
         stripe_service=stripe_service_dependency,
+    )
+
+def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:
+    return TournamentSubscriptionRepositoryImpl(session)
+
+
+def tournament_subscription_domain_service_dependency(
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency)
+):
+    return SubscriptionDomainService(
+        repository=tournament_subscription_repository,
+       user_repository=user_repository,
+    )
+
+def create_tournament_subscription_use_case(
+        stripe_service_dependency: StripeService = Depends(stripe_service),
+        domain_service: SubscriptionDomainService = Depends(tournament_subscription_domain_service_dependency),
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory)
+) -> CreateTournamentSubscriptionUseCase:
+    return CreateTournamentSubscriptionUseCaseImpl(
+        stripe_service=stripe_service_dependency,
+        domain_service=domain_service,
+        session_factory=session_factory,
+    )
+
+def cancel_tournament_subscription_use_case(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        stripe_service_dependency: StripeService = Depends(stripe_service),
+) -> CancelTournamentSubscriptionUseCase:
+    return CancelTournamentSubscriptionUseCaseImpl(
+        session_factory=session_factory,
+        stripe_service=stripe_service_dependency,
+    )
+
+def process_webhook_tournament_subscription_use_case(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> ProcessStripeWebhookTournamentSubscriptionUseCase:
+    return ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(
+        session_factory=session_factory,
     )
