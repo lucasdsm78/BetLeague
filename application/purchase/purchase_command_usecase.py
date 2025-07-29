@@ -115,4 +115,5 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
                     if not user:
                         raise UserNotFoundError
                     user.nb_btl += purchase.pack.total_btl
+                    user.nb_btl_paid += purchase.pack.total_btl
                     await user_repo.update(user)

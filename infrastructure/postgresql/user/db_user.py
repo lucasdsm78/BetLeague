@@ -27,6 +27,8 @@ class DBUser(Base):
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)
     nb_btl: Union[float, Column] = Column(Float, default=200)
+    nb_btl_paid: Union[float, Column] = Column(Float, default=0)
+    btl_from_tickets: Union[float, Column] = Column(Float, default=0)
     two_factor_secret: Union[Optional[str], Column] = Column(String, nullable=True)
     is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
     is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
@@ -52,6 +54,8 @@ class DBUser(Base):
             nb_lose=self.nb_lose,
             is_tournament_subscriber=self.is_tournament_subscriber,
             nb_btl=self.nb_btl,
+            nb_btl_paid=self.nb_btl_paid,
+            btl_from_tickets=self.btl_from_tickets,
             two_factor_secret=self.two_factor_secret,
             is_two_factor_enabled=self.is_two_factor_enabled,
             is_two_factor_verified=self.is_two_factor_verified
@@ -71,6 +75,8 @@ class DBUser(Base):
         user_db_to_update.pseudo = user.pseudo
         user_db_to_update.nb_lose = user.nb_lose
         user_db_to_update.nb_btl = user.nb_btl
+        user_db_to_update.nb_btl_paid = user.nb_btl_paid
+        user_db_to_update.btl_from_tickets = user.btl_from_tickets
         user_db_to_update.nb_win = user.nb_win
         user_db_to_update.two_factor_secret = user.two_factor_secret
         user_db_to_update.is_two_factor_enabled = user.is_two_factor_enabled

@@ -26,17 +26,17 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         try:
             query = (
                 select(
-                    DBLeaguePlayers.nb_btl.label("nb_btl"),
+                    DBLeaguePlayers.btl_from_tickets.label("nb_btl"),
                     DBLeaguePlayers.nb_win.label("nb_win"),
                     DBLeaguePlayers.nb_lose.label("nb_lose"),
                     DBUser.pseudo.label("pseudo"),
                     func.rank().over(
-                        order_by=DBLeaguePlayers.nb_btl.desc()
+                        order_by=DBLeaguePlayers.btl_from_tickets.desc()
                     ).label("position")
                 )
                 .join(DBUser, DBLeaguePlayers.user_id == DBUser.id)
                 .where(DBLeaguePlayers.league_id == league_id)
-                .order_by(DBLeaguePlayers.nb_btl.desc())
+                .order_by(DBLeaguePlayers.btl_from_tickets.desc())
             )
 
             result = await self.session.execute(query)

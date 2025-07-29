@@ -22,6 +22,7 @@ class DBLeaguePlayers(Base):
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)
     nb_btl: Union[float, Column] = Column(Float, default=100)
+    btl_from_tickets: Union[float, Column] = Column(Float, default=0)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
 
@@ -43,6 +44,7 @@ class DBLeaguePlayers(Base):
             user_id=self.user_id,
             league_id=self.league_id,
             nb_btl=self.nb_btl,
+            btl_from_tickets=self.btl_from_tickets,
             nb_lose=self.nb_lose,
             nb_win=self.nb_win,
             created_at=self.created_at,
@@ -59,6 +61,7 @@ class DBLeaguePlayers(Base):
         league_players_db_to_update.user_id = league_players.user_id
         league_players_db_to_update.league_id = league_players.league_id
         league_players_db_to_update.nb_btl = league_players.nb_btl
+        league_players_db_to_update.btl_from_tickets = league_players.btl_from_tickets
         league_players_db_to_update.nb_win = league_players.nb_win
         league_players_db_to_update.nb_lose = league_players.nb_lose
         league_players_db_to_update.created_at = now

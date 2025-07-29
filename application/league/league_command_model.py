@@ -38,3 +38,11 @@ class LeagueFreeCreateResponse(BaseModel):
 
 class LeaguePlayerDeletedResponse(BaseModel):
     message: str = "The player is well deleted to the league"
+
+
+class LeagueInjectBtlModel(BaseModel):
+    amount: float
+
+
+class LeagueInjectBtlResponse(BaseModel):
+    message: str = "BTL successfully injected"

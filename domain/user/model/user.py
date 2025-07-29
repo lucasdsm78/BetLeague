@@ -15,6 +15,8 @@ class User:
             nb_btl: Optional[float] = None,
             nb_win: Optional[int] = None,
             nb_lose: Optional[int] = None,
+            nb_btl_paid: Optional[float] = None,
+            btl_from_tickets: Optional[float] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None,
             two_factor_secret: Optional[str] = None,
@@ -31,6 +33,8 @@ class User:
         self.nb_btl: float = nb_btl
         self.nb_win: int = nb_win
         self.nb_lose: int = nb_lose
+        self.nb_btl_paid: float = nb_btl_paid if nb_btl_paid is not None else 0
+        self.btl_from_tickets: float = btl_from_tickets if btl_from_tickets is not None else 0
         self.updated_at: Optional[int] = updated_at
         self.two_factor_secret = two_factor_secret
         self.is_two_factor_enabled = is_two_factor_enabled

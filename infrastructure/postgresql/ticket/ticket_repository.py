@@ -212,6 +212,7 @@ class TicketRepositoryImpl(TicketRepository):
             user_values.update({
                 "nb_win":  DBUser.nb_win + 1,
                 "nb_btl":  DBUser.nb_btl + gain,
+                "btl_from_tickets": DBUser.btl_from_tickets + gain,
             })
 
         await self.session.execute(
@@ -228,6 +229,7 @@ class TicketRepositoryImpl(TicketRepository):
             lp_values.update({
                 "nb_win": DBLeaguePlayers.nb_win + 1,
                 "nb_btl": DBLeaguePlayers.nb_btl + gain,
+                "btl_from_tickets": DBLeaguePlayers.btl_from_tickets + gain,
             })
 
         await self.session.execute(
