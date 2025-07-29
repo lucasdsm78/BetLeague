@@ -396,7 +396,7 @@ async def update_league(
 
 
 @router.post(
-    "/league/{id}/inject-btl",
+    "/league/{league_id}/inject-btl",
     response_model=LeagueInjectBtlResponse,
     status_code=status.HTTP_200_OK,
     summary="Inject paid BTL into league"

@@ -368,6 +368,9 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 league_repo = LeagueRepositoryImpl(session)
                 players_repo = LeaguePlayersRepositoryImpl(session)
 
+                if amount <= 0:
+                    raise LeagueNbBtlIsNotEnoughError
+
                 user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
