@@ -85,3 +85,9 @@ class LeagueNotFinishedError(Exception):
 
     def __str__(self):
         return LeagueNotFinishedError.message
+
+class LeagueFinishedError(Exception):
+    message = "The league is finished"
+
+    def __str__(self):
+        return LeagueFinishedError.message

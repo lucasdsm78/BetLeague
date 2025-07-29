@@ -121,14 +121,14 @@ class UserRepositoryImpl(UserRepository):
         try:
             result = await self.session.execute(
                 select(
-                    DBUser.nb_btl.label("nb_btl"),
+                    DBUser.btl_from_tickets.label("nb_btl"),
                     DBUser.nb_win.label("nb_win"),
                     DBUser.nb_lose.label("nb_lose"),
                     DBUser.pseudo.label("pseudo"),
                     func.rank().over(
-                        order_by=DBUser.nb_btl.desc()
+                        order_by=DBUser.btl_from_tickets.desc()
                     ).label("position")
-                ).order_by(DBUser.nb_btl.desc())
+                ).order_by(DBUser.btl_from_tickets.desc())
             )
             ranking_result = result.all()
 
@@ -152,6 +152,7 @@ class UserRepositoryImpl(UserRepository):
             )
             user = result.scalar_one()
             user.nb_btl += amount
+            user.btl_from_tickets += amount
             return user.to_entity()
         except NoResultFound:
             raise UserNotFoundError

@@ -8,7 +8,8 @@ import shortuuid
 
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, LeagueUpdateResponse
+    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, \
+    LeagueUpdateResponse, LeagueInjectBtlResponse
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -16,7 +17,7 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
     UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError, LeagueNbBtlIsNotEnoughError, \
-    LeagueNotFinishedError
+    LeagueNotFinishedError, LeagueNotStartedError, LeagueFinishedError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -58,6 +59,10 @@ class LeagueCommandUseCase(ABC):
 
     @abstractmethod
     async def process_payouts(self, as_of: datetime):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def inject_btl(self, league_id: int, amount: float, email: str) -> LeagueInjectBtlResponse:
         raise NotImplementedError
 
 
@@ -369,3 +374,48 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                     except LeagueNotFinishedError:
                         continue
+
+    async def inject_btl(
+            self,
+            league_id: int,
+            amount: float,
+            email: str
+    ) -> LeagueInjectBtlResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo = UserRepositoryImpl(session)
+                league_repo = LeagueRepositoryImpl(session)
+                players_repo = LeaguePlayersRepositoryImpl(session)
+
+                if amount <= 0:
+                    raise LeagueNbBtlIsNotEnoughError
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                if user.nb_btl_paid < amount:
+                    raise LeagueNbBtlIsNotEnoughError
+
+                league = await league_repo.find_by_id(league_id)
+                if not league:
+                    raise LeagueNotFoundError
+
+                if not league.is_started:
+                    raise LeagueNotStartedError
+
+                if league.winner_id is not None:
+                    raise LeagueFinishedError
+
+                league_player = await players_repo.get_participation(league_id, user.id)
+                if not league_player:
+                    raise LeagueParticipantNotFoundError
+
+                league_player.nb_btl += amount
+                await players_repo.update(league_player)
+
+                user.nb_btl_paid -= amount
+                await user_repo.update(user)
+
+        return LeagueInjectBtlResponse()
+
