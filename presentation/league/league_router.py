@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
-    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, LeagueUpdateModel
+    LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
+    LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel
 from application.league.league_query_usecase import LeagueQueryUseCase
@@ -383,3 +384,29 @@ async def update_league(
         )
 
     return update_league_result
+
+
+@router.post(
+    "/league/{league_id}/inject-btl",
+    response_model=LeagueInjectBtlResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Inject paid BTL into league"
+)
+async def inject_btl(
+        league_id: int,
+        inject_model: LeagueInjectBtlModel,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return await league_command_usecase.inject_btl(league_id, inject_model.amount, current_user.get('email', ''))
+    except LeagueNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except LeagueParticipantNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except LeagueNbBtlIsNotEnoughError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)

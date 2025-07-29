@@ -13,6 +13,8 @@ class User:
             password: Password,
             id: Optional[int] = None,
             nb_btl: Optional[float] = None,
+            btl_from_tickets: Optional[float] = None,
+            nb_btl_paid: Optional[float] = None,
             nb_win: Optional[int] = None,
             nb_lose: Optional[int] = None,
             created_at: Optional[int] = None,
@@ -29,6 +31,8 @@ class User:
         self.created_at: Optional[int] = created_at
         self.pseudo: str = pseudo
         self.nb_btl: float = nb_btl
+        self.nb_btl_paid: float = nb_btl_paid if nb_btl_paid is not None else 0
+        self.btl_from_tickets: float = btl_from_tickets if btl_from_tickets is not None else 0
         self.nb_win: int = nb_win
         self.nb_lose: int = nb_lose
         self.updated_at: Optional[int] = updated_at
