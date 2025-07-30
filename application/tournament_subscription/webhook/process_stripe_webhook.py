@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus
 from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
     TournamentSubscriptionRepositoryImpl
+from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
 class ProcessStripeWebhookTournamentSubscriptionUseCase(ABC):
@@ -44,6 +45,7 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 first_item = items_data[0]
 
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
+                user_repository = UserRepositoryImpl(session=session)
 
                 if not stripe_subscription_id:
                     return
@@ -56,6 +58,11 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
 
                 if not subscription:
                     return
+
+                user = await user_repository.find_by_id(subscription.user.id)
+                if user:
+                    user.is_tournament_subscriber = True
+                    await user_repository.update(user)
 
                 subscription.update_status_from_stripe(
                     status=subscription_data["status"],
@@ -88,10 +95,17 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
         async with self._session_factory() as session:
             async with session.begin():
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
+                user_repository = UserRepositoryImpl(session=session)
+
                 stripe_subscription_id = subscription_data["id"]
                 subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(stripe_subscription_id)
+                user = await user_repository.find_by_id(subscription.user.id)
 
                 if subscription:
+                    if user:
+                        user.is_tournament_subscriber = False
+                        await user_repository.update(user)
+
                     subscription.cancel()
                     await tournament_subscription_repository.update(subscription)
 
