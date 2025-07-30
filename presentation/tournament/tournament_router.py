@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request, Header
-from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
@@ -18,7 +17,8 @@ from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
-    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session
+    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
+    verify_tournament_subscription
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
@@ -36,7 +36,8 @@ router = APIRouter(tags=["tournament"])
 async def create_tournament(
     tournament_model: TournamentCreateModel,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-    current_user: dict = Depends(current_user)
+    current_user: dict = Depends(current_user),
+    _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.create_tournament(tournament_model, current_user.get("email", ""))
@@ -57,7 +58,8 @@ async def create_tournament(
 async def join_tournament(
     id: int,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-    current_user: dict = Depends(current_user)
+    current_user: dict = Depends(current_user),
+    _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.join_tournament(id, current_user.get("email", ""))
@@ -81,7 +83,8 @@ async def join_tournament(
 async def start_tournament(
         id: int,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.start_tournament(
@@ -119,7 +122,8 @@ async def start_tournament(
 async def get_tournament_stages(
         id: int,
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_tournament_stages(id, current_user.get("email", ""))
@@ -143,7 +147,8 @@ async def get_tournament_stages(
         stage: str,
         id: int,
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_stage_matches(id, stage, current_user.get("email", ""))
@@ -166,7 +171,8 @@ async def get_tournaments_registered(
         page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_user_tournaments_in_progress(current_user.get("email", ""), page, page_size)
@@ -189,7 +195,8 @@ async def get_tournaments_finished(
         page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_tournaments_finished(current_user.get("email", ""), page, page_size)
@@ -210,7 +217,8 @@ async def get_available_public_tournaments(
         page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_available_tournaments_public(current_user.get("email", ""), page, page_size)
@@ -232,7 +240,8 @@ async def update_tournament(
         id: int,
         update_tournament_model: TournamentUpdateModel,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('email'))
@@ -285,6 +294,7 @@ async def process_tournaments_background(scheduler: TournamentScheduler):
 async def run_tournament_scheduler(
         background_tasks: BackgroundTasks,
         scheduler: TournamentScheduler = Depends(tournament_scheduler),
+        _: None = Depends(verify_tournament_subscription),
 ):
     try:
         background_tasks.add_task(process_tournaments_background, scheduler)
