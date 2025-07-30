@@ -35,6 +35,7 @@ from domain.tournament.repository.tournament_stage_repository import TournamentS
 from domain.tournament_subscription.repository.tournament_subscription_repository import \
     TournamentSubscriptionRepository
 from domain.tournament_subscription.service.tournament_subscription_domain_service import SubscriptionDomainService
+from domain.tournament.exception.tournament_exception import UserNotSubscribedError
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
@@ -42,7 +43,7 @@ from domain.tournament.repository.tournament_players_repository import Tournamen
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm.session import Session
 
 from infrastructure.config import Settings
@@ -409,3 +410,18 @@ def process_webhook_tournament_subscription_use_case(
     return ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(
         session_factory=session_factory,
     )
+
+
+async def verify_tournament_subscription(
+        current_user: dict = Depends(current_user),
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+) -> None:
+    user = await user_repository.find_by_email(current_user.get("email", ""))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé")
+
+    subscription = await subscription_repository.find_active_by_user_id(user.id)
+    if not subscription or not subscription.is_active():
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=UserNotSubscribedError.message)
+
