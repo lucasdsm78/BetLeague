@@ -12,6 +12,7 @@ from infrastructure.postgresql.tournament.tournament_repository import Tournamen
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
+from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
 class TournamentSchedulerImpl(TournamentScheduler):
@@ -28,10 +29,11 @@ class TournamentSchedulerImpl(TournamentScheduler):
                 sr = TournamentStageRepositoryImpl(session)
                 mr = TournamentMatchRepositoryImpl(session)
                 pr = TournamentPlayersRepositoryImpl(session)
+                ur = UserRepositoryImpl(session)
 
                 active = await tr.find_all_by_status(TournamentStatus.IN_PROGRESS.value)
                 for tournament in active:
-                    await self._process_tournament(tournament, tr, sr, mr, pr)
+                    await self._process_tournament(tournament, tr, sr, mr, pr, ur)
 
     async def _process_tournament(
             self,
@@ -40,23 +42,17 @@ class TournamentSchedulerImpl(TournamentScheduler):
             sr: TournamentStageRepositoryImpl,
             mr: TournamentMatchRepositoryImpl,
             pr: TournamentPlayersRepositoryImpl,
+            ur: UserRepositoryImpl,
     ):
-        now = datetime.now()
         stages = await sr.find_all_by_tournament(tournament.id)
         active_stage = next((s for s in stages if s.is_active), None)
         if not active_stage or not active_stage.end_date:
             return
 
-        # Normalisation du timestamp (ms vs s)
-        raw = active_stage.end_date
-        end_dt = datetime.fromtimestamp(raw / 1000) if raw > 9_999_999_999 else datetime.fromtimestamp(raw)
-        if now < end_dt:
-            return
-
         # 1) Finaliser l’étape actuelle
         await self._finalize_stage(tournament, active_stage, sr, mr, pr)
         # 2) Passer à la suivante
-        await self._advance_to_next_stage(tournament, active_stage, tr, sr, mr, pr)
+        await self._advance_to_next_stage(tournament, active_stage, tr, sr, mr, pr, ur)
 
     async def _finalize_stage(
             self,
@@ -104,6 +100,7 @@ class TournamentSchedulerImpl(TournamentScheduler):
             sr: TournamentStageRepositoryImpl,
             mr: TournamentMatchRepositoryImpl,
             pr: TournamentPlayersRepositoryImpl,
+            ur: UserRepositoryImpl,
     ):
         # 1) Charger et trier les étapes
         stages = await sr.find_all_by_tournament(tournament.id)
@@ -116,7 +113,8 @@ class TournamentSchedulerImpl(TournamentScheduler):
             participants = await pr.find_players_by_tournament_id(tournament.id)
             qualified = [p for p in participants if not p.is_eliminated]
             if len(qualified) == 1:
-                tournament.winner_id = qualified[0].id
+                tournament.winner_id = qualified[0].user_id
+                await ur.credit_btl(tournament.winner_id, 400)
             tournament.status = TournamentStatus.COMPLETED
             await tr.update(tournament)
             return
