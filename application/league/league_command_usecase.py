@@ -262,6 +262,24 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if await invitation_repo.find_by_user_id_league_id(user.id, league.id):
                     raise InvitationFoundError
 
+                if league.nb_players_remaining == 0:
+                    raise LeagueMaxPlayersError
+
+                if not league.is_free:
+                    if user.nb_btl < league.nb_btl:
+                        raise LeagueNbBtlIsNotEnoughError
+
+                unixtimestamp = int(datetime.now().timestamp() * 1000)
+                if (
+                        league.nb_players_remaining != 0 and
+                        league.nb_players_remaining - 1 <= MIN_PLAYERS
+                        and unixtimestamp > league.start_date
+                ):
+                    league.is_started = True
+
+                league.nb_players_remaining -= 1
+                user.nb_btl-= league.nb_btl
+
                 invitation = Invitation(
                     league_id=league.id,
                     user_sender_id=user_owner.id,

@@ -118,7 +118,17 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 tournament.current_players += 1
                 tournament.prize_pool += tournament.entry_fee
+
                 await tournament_repo.update(tournament)
+
+                owner_email = tournament.user.email.value
+                tournament_full = tournament.current_players >= tournament.max_players
+
+                if tournament_full:
+                    pass
+
+        if tournament_full:
+            await self.start_tournament(tournament_id, owner_email)
 
         return TournamentJoinResponse()
 
@@ -146,10 +156,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 if tournament.status != TournamentStatus.PENDING:
                     raise ValueError("Le tournoi a déjà commencé ou est terminé")
-
-                players_with_paid_option = await tournament_player_repo.find_players_with_paid_option(tournament_id)
-                if len(players_with_paid_option) < 3:
-                    raise NotEnoughPaidPlayersError
 
                 # Définir les dates du tournoi
                 now = datetime.now()
@@ -211,11 +217,11 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 for stage in stages:
                     await tournament_stage_repository.add_stage(stage)
 
-                updated_tournament = await tournament_repo.update(tournament)
+                await tournament_repo.update(tournament)
 
                 # Générer les matchs pour la première étape active
                 await self._generate_matches_for_active_stage(tournament.id, session)
-                # Retourner un objet TournamentStartResponse au lieu du tournament
+
                 return TournamentStartResponse()
 
     async def _generate_matches_for_active_stage(self, tournament_id: int, session: AsyncSession):
@@ -254,8 +260,8 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 match = TournamentMatch(
                     tournament_id=tournament_id,
                     stage_id=active_stage.id,
-                    player1_id=players[i].user_id,
-                    player2_id=players[i + 1].user_id,
+                    player1_id=players[i].id,
+                    player2_id=players[i + 1].id,
                     type=active_stage.type,
                 )
                 matches.append(match)
