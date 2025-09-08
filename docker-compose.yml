@@ -13,6 +13,21 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  frontend:
+    build:
+      context: front
+      dockerfile: Dockerfile.dev
+    container_name: react_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -40,7 +55,7 @@ services:
       retries: 3
 
   backend:
-    build: .
+    build: back
     container_name: fastapi_app
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
     volumes:
@@ -70,7 +85,7 @@ services:
 
   score_consumer:
     build:
-      context: .
+      context: back
       dockerfile: consumer_match_choice.Dockerfile
     container_name: score_consumer
     env_file:
@@ -82,7 +97,7 @@ services:
 
   match_choice_consumer:
     build:
-      context: .
+      context: back
       dockerfile: consumer_ticket.Dockerfile
     container_name: match_choice_consumer
     env_file:
