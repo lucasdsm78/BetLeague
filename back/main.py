@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from dependency_injections import get_settings
 from infrastructure.postgresql.database import create_tables
@@ -12,6 +13,16 @@ from infrastructure.postgresql.init_models import init_models
 
 settings = get_settings()
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.on_event("startup")
 async def startup():
     # Create database tables

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import authService, { AuthError } from '../services/authService';
 import './AuthForms.css';
 
 const RegisterForm = ({ onRegister, onBack, onSwitchToLogin }) => {
@@ -74,41 +75,24 @@ const RegisterForm = ({ onRegister, onBack, onSwitchToLogin }) => {
         setErrors({});
 
         try {
-            const sanitizedData = {
-                username: formData.username.trim(),
-                email: formData.email.toLowerCase().trim(),
-                password: formData.password
-            };
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sanitizedData),
-                signal: controller.signal,
-                credentials: 'include'
-            });
-
-            clearTimeout(timeoutId);
-            const data = await response.json();
-
-            if (response.ok) {
-                onRegister(data.user, data.access_token);
-            } else {
-                const message = response.status === 409 ? 'Email ou nom d\'utilisateur déjà utilisé.' :
-                               response.status === 429 ? 'Trop de tentatives. Réessayez plus tard.' :
-                               data.detail || 'Erreur lors de l\'inscription';
-                setErrors({ general: message });
-            }
+            const data = await authService.register(
+                formData.username,
+                formData.email,
+                formData.password
+            );
+            
+            onRegister(data.user, data.access_token);
         } catch (error) {
-            if (error.name === 'AbortError') {
-                setErrors({ general: 'Timeout. Vérifiez votre connexion.' });
+            if (error instanceof AuthError) {
+                let message = error.getDisplayMessage();
+                
+                if (error.isConflict()) {
+                    message = 'Email ou nom d\'utilisateur déjà utilisé.';
+                }
+                
+                setErrors({ general: message });
             } else {
-                setErrors({ general: 'Erreur réseau. Veuillez réessayer.' });
+                setErrors({ general: 'Erreur inattendue. Veuillez réessayer.' });
             }
         } finally {
             setIsLoading(false);
