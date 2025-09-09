@@ -111,8 +111,8 @@ src/
 │   │   ├── Input.js
 │   │   ├── Button.js
 │   │   └── styles.css
-│   ├── OptimizedLoginForm.js
-│   ├── OptimizedRegisterForm.js
+│   ├── LoginForm.js
+│   ├── RegisterForm.js
 │   └── ProtectedRoute.js
 └── OptimizedApp.js           # App principal optimisé
 ```
