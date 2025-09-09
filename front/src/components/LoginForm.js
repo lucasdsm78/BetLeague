@@ -1,46 +1,66 @@
-import React, { useState, useRef, useCallback } from 'react';
-import authService, { AuthError } from '../services/authService';
+import React, { useState, useCallback, memo } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import Input from './ui/Input';
+import Button from './ui/Button';
+import { AuthError } from '../services/authService';
+import './ui/styles.css';
 import './AuthForms.css';
 
-const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
+const LoginForm = memo(({ onBack, onSwitchToRegister }) => {
+    const { login } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
     const [attemptCount, setAttemptCount] = useState(0);
-    const lastAttemptTime = useRef(0);
-    const formRef = useRef(null);
 
-    const validateForm = () => {
+    const validateEmail = useCallback((email) => {
+        if (!email.trim()) return 'Email requis';
+        if (email.length > 254) return 'Email trop long';
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+            return 'Email invalide';
+        }
+        return null;
+    }, []);
+
+    const validatePassword = useCallback((password) => {
+        if (!password) return 'Mot de passe requis';
+        if (password.length > 128) return 'Mot de passe trop long';
+        return null;
+    }, []);
+
+    const validateForm = useCallback(() => {
         const newErrors = {};
 
-        if (!formData.email.trim()) {
-            newErrors.email = 'Email requis';
-        } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
-            newErrors.email = 'Email invalide';
-        } else if (formData.email.length > 254) {
-            newErrors.email = 'Email trop long';
-        }
+        const emailError = validateEmail(formData.email);
+        const passwordError = validatePassword(formData.password);
 
-        if (!formData.password) {
-            newErrors.password = 'Mot de passe requis';
-        } else if (formData.password.length > 128) {
-            newErrors.password = 'Mot de passe trop long';
-        }
+        if (emailError) newErrors.email = emailError;
+        if (passwordError) newErrors.password = passwordError;
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
-    };
+    }, [formData, validateEmail, validatePassword]);
+
+    const handleChange = useCallback((e) => {
+        const { name, value } = e.target;
+
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Validation en temps réel
+        if (errors[name]) {
+            const error = name === 'email'
+                ? validateEmail(value)
+                : validatePassword(value);
+
+            setErrors(prev => ({
+                ...prev,
+                [name]: error
+            }));
+        }
+    }, [errors, validateEmail, validatePassword]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
-        
-        const now = Date.now();
-        if (now - lastAttemptTime.current < 1000) {
-            setErrors({ general: 'Veuillez patienter avant de réessayer.' });
-            return;
-        }
-        lastAttemptTime.current = now;
 
         if (attemptCount >= 5) {
             setErrors({ general: 'Trop de tentatives. Attendez quelques minutes.' });
@@ -51,23 +71,22 @@ const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
 
         setIsLoading(true);
         setErrors({});
-        setAttemptCount(prev => prev + 1);
 
         try {
-            const data = await authService.login(formData.email, formData.password);
-            
+            await login(formData.email, formData.password);
             setAttemptCount(0);
-            onLogin(data.user, data.access_token);
         } catch (error) {
+            setAttemptCount(prev => prev + 1);
+
             if (error instanceof AuthError) {
                 let message = error.getDisplayMessage();
-                
+
                 if (error.isUnauthorized()) {
                     message = 'Email ou mot de passe incorrect.';
-                } else if (error.isConflict()) {
-                    message = 'Email ou nom d\'utilisateur déjà utilisé.';
+                } else if (error.isTooManyRequests()) {
+                    message = 'Trop de tentatives. Réessayez plus tard.';
                 }
-                
+
                 setErrors({ general: message });
             } else {
                 setErrors({ general: 'Erreur inattendue. Veuillez réessayer.' });
@@ -75,23 +94,11 @@ const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [formData, validateForm, onLogin, attemptCount]);
-
-    const handleChange = useCallback((e) => {
-        const { name, value } = e.target;
-        
-        const maxLengths = { email: 254, password: 128 };
-        if (value.length > maxLengths[name]) return;
-        
-        setFormData(prev => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
-    }, [errors]);
+    }, [formData, login, validateForm, attemptCount]);
 
     return (
         <div className="auth-form">
-            <button className="back-btn" onClick={onBack}>
+            <button className="back-btn" onClick={onBack} type="button">
                 ← Retour
             </button>
 
@@ -100,74 +107,68 @@ const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
                 <p>Bon retour sur BetLeague !</p>
             </div>
 
-            <form ref={formRef} onSubmit={handleSubmit} autoComplete="on">
+            <form onSubmit={handleSubmit} noValidate>
                 {errors.general && (
-                    <div className="error-message">{errors.general}</div>
+                    <div className="error-message" role="alert">
+                        {errors.general}
+                    </div>
                 )}
 
-                <div className="form-group">
-                    <input
-                        type="email"
-                        name="email"
-                        placeholder="Email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className={errors.email ? 'error' : ''}
-                        autoComplete="email"
-                        maxLength={254}
-                        required
-                        disabled={isLoading}
-                        spellCheck={false}
-                    />
-                    {errors.email && <span className="field-error">{errors.email}</span>}
-                </div>
+                <Input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    error={errors.email}
+                    autoComplete="email"
+                    maxLength={254}
+                    required
+                    disabled={isLoading}
+                    spellCheck={false}
+                />
 
-                <div className="form-group">
-                    <div className="password-input-wrapper">
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            name="password"
-                            placeholder="Mot de passe"
-                            value={formData.password}
-                            onChange={handleChange}
-                            className={errors.password ? 'error' : ''}
-                            autoComplete="current-password"
-                            maxLength={128}
-                            required
-                            disabled={isLoading}
-                        />
-                        <button
-                            type="button"
-                            className="password-toggle"
-                            onClick={() => setShowPassword(!showPassword)}
-                            disabled={isLoading}
-                            aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                        >
-                            {showPassword ? '👁️' : '👁️‍🗨️'}
-                        </button>
-                    </div>
-                    {errors.password && <span className="field-error">{errors.password}</span>}
-                </div>
+                <Input
+                    type="password"
+                    name="password"
+                    placeholder="Mot de passe"
+                    value={formData.password}
+                    onChange={handleChange}
+                    error={errors.password}
+                    autoComplete="current-password"
+                    maxLength={128}
+                    required
+                    disabled={isLoading}
+                    showPasswordToggle
+                />
 
-                <button
+                <Button
                     type="submit"
-                    className="btn btn-primary"
+                    variant="primary"
+                    fullWidth
+                    loading={isLoading}
                     disabled={isLoading}
                 >
                     {isLoading ? 'Connexion...' : 'Se connecter'}
-                </button>
+                </Button>
             </form>
 
             <div className="form-footer">
                 <p>
                     Pas encore de compte ?{' '}
-                    <button className="link-btn" onClick={onSwitchToRegister}>
+                    <button
+                        className="link-btn"
+                        onClick={onSwitchToRegister}
+                        type="button"
+                    >
                         S'inscrire
                     </button>
                 </p>
             </div>
         </div>
     );
-};
+});
+
+LoginForm.displayName = 'OptimizedLoginForm';
 
 export default LoginForm;
