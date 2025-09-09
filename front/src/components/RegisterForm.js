@@ -43,7 +43,7 @@ PasswordStrength.displayName = 'PasswordStrength';
 const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
     const { register } = useAuth();
     const [formData, setFormData] = useState({
-        username: '',
+        pseudo: '',
         email: '',
         password: '',
         confirmPassword: ''
@@ -51,11 +51,11 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
 
-    const validateUsername = useCallback((username) => {
-        if (!username.trim()) return 'Nom d\'utilisateur requis';
-        if (username.length < 3) return 'Minimum 3 caractères';
-        if (username.length > 30) return 'Maximum 30 caractères';
-        if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    const validatePseudo = useCallback((pseudo) => {
+        if (!pseudo.trim()) return 'Nom d\'utilisateur requis';
+        if (pseudo.length < 3) return 'Minimum 3 caractères';
+        if (pseudo.length > 30) return 'Maximum 30 caractères';
+        if (!/^[a-zA-Z0-9_-]+$/.test(pseudo)) {
             return 'Seuls les lettres, chiffres, - et _ sont autorisés';
         }
         return null;
@@ -98,19 +98,19 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
     const validateForm = useCallback(() => {
         const newErrors = {};
 
-        const usernameError = validateUsername(formData.username);
+        const pseudoError = validatePseudo(formData.pseudo);
         const emailError = validateEmail(formData.email);
         const passwordError = validatePassword(formData.password);
         const confirmPasswordError = validateConfirmPassword(formData.confirmPassword, formData.password);
 
-        if (usernameError) newErrors.username = usernameError;
+        if (pseudoError) newErrors.pseudo = pseudoError;
         if (emailError) newErrors.email = emailError;
         if (passwordError) newErrors.password = passwordError;
         if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
-    }, [formData, validateUsername, validateEmail, validatePassword, validateConfirmPassword]);
+    }, [formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword]);
 
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
@@ -122,8 +122,8 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
             let error = null;
 
             switch (name) {
-                case 'username':
-                    error = validateUsername(value);
+                case 'pseudo':
+                    error = validatePseudo(value);
                     break;
                 case 'email':
                     error = validateEmail(value);
@@ -150,7 +150,7 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
                 [name]: error
             }));
         }
-    }, [errors, formData, validateUsername, validateEmail, validatePassword, validateConfirmPassword]);
+    }, [errors, formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword]);
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -161,7 +161,7 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
         setErrors({});
 
         try {
-            await register(formData.username, formData.email, formData.password);
+            await register(formData.pseudo, formData.email, formData.password);
         } catch (error) {
             if (error instanceof AuthError) {
                 let message = error.getDisplayMessage();
@@ -201,11 +201,11 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
 
                 <Input
                     type="text"
-                    name="username"
+                    name="pseudo"
                     placeholder="Nom d'utilisateur (3-30 caractères)"
-                    value={formData.username}
+                    value={formData.pseudo}
                     onChange={handleChange}
-                    error={errors.username}
+                    error={errors.pseudo}
                     autoComplete="username"
                     maxLength={30}
                     required

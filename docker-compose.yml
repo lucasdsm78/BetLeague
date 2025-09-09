@@ -55,11 +55,13 @@ services:
       retries: 3
 
   backend:
-    build: back
+    build:
+      context: back
+      dockerfile: Dockerfile
     container_name: fastapi_app
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
     volumes:
-      - ./:/app
+      - ./back:/app
     ports:
       - "8001:8001"
     environment:
@@ -89,7 +91,7 @@ services:
       dockerfile: consumer_match_choice.Dockerfile
     container_name: score_consumer
     env_file:
-      - .env
+      - back/.env
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -101,7 +103,7 @@ services:
       dockerfile: consumer_ticket.Dockerfile
     container_name: match_choice_consumer
     env_file:
-      - .env
+      - back/.env
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -70,11 +70,11 @@ class AuthService {
         return data;
     }
 
-    async register(username, email, password) {
+    async register(pseudo, email, password) {
         const data = await this.makeRequest('/register', {
             method: 'POST',
             body: JSON.stringify({
-                username: username.trim(),
+                pseudo: pseudo.trim(),
                 email: email.toLowerCase().trim(),
                 password: password
             }),
