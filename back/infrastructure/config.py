@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     rabbitmq_url: str
     stripe_api_key: str
     stripe_webhook_secret: str
+    the_odds_api_api_key: str
 
     class Config:
         env_file = ".env"

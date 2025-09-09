@@ -50,12 +50,12 @@ export const useAuth = () => {
         }
     }, []);
 
-    const register = useCallback(async (username, email, password) => {
+    const register = useCallback(async (pseudo, email, password) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const data = await authService.register(username, email, password);
+            const data = await authService.register(pseudo, email, password);
             setUser(data.user);
             setIsAuthenticated(true);
             return data;
