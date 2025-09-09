@@ -26,10 +26,10 @@ Dans `src/index.js`, remplacez l'import :
 import App from './App';
 
 // Nouveau
-import OptimizedApp from './OptimizedApp';
+import App from './App';
 
 // Et dans ReactDOM.render
-<OptimizedApp />
+<App />
 ```
 
 ### 2. Configuration environnement
@@ -114,7 +114,7 @@ src/
 │   ├── LoginForm.js
 │   ├── RegisterForm.js
 │   └── ProtectedRoute.js
-└── OptimizedApp.js           # App principal optimisé
+└── App.js           # App principal optimisé
 ```
 
 ## 🧪 Tests recommandés
