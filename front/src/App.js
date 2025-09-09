@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import authService, { AuthError } from './services/authService';
 import './App.css';
 import './components/Spinner.css';
 import LoginForm from './components/LoginForm';
@@ -31,35 +32,21 @@ function App() {
 
     const validateToken = useCallback(async (token) => {
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-            const response = await fetch('/api/auth/validate', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                signal: controller.signal,
-                credentials: 'include'
-            });
-
-            clearTimeout(timeoutId);
-
-            if (response.ok) {
-                const userData = await response.json();
-                setUser(userData);
-                setIsAuthenticated(true);
-                showSuccess(`Bon retour, ${userData.username || userData.email} !`);
-            } else {
-                localStorage.removeItem('authToken');
-                if (response.status === 401) {
-                    showWarning('Session expirée. Veuillez vous reconnecter.');
-                }
-            }
+            const data = await authService.validateToken();
+            setUser(data.user);
+            setIsAuthenticated(true);
+            showSuccess(`Bon retour, ${data.user.username || data.user.email} !`);
         } catch (error) {
-            localStorage.removeItem('authToken');
-            if (error.name !== 'AbortError') {
-                showError('Erreur de connexion. Vérifiez votre réseau.');
+            if (error instanceof AuthError) {
+                authService.logout();
+                if (error.isUnauthorized()) {
+                    showWarning('Session expirée. Veuillez vous reconnecter.');
+                } else if (!error.isNetworkError()) {
+                    showError('Erreur de validation. Veuillez vous reconnecter.');
+                }
+            } else {
+                authService.logout();
+                showError('Erreur inattendue. Veuillez vous reconnecter.');
             }
         }
     }, [showSuccess, showError, showWarning]);
@@ -77,7 +64,7 @@ function App() {
 
     const handleLogout = useCallback(() => {
         try {
-            localStorage.removeItem('authToken');
+            authService.logout();
             setUser(null);
             setIsAuthenticated(false);
             setCurrentView('home');

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import authService, { AuthError } from '../services/authService';
 import './AuthForms.css';
 
 const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
@@ -53,41 +54,23 @@ const LoginForm = ({ onLogin, onBack, onSwitchToRegister }) => {
         setAttemptCount(prev => prev + 1);
 
         try {
-            const sanitizedData = {
-                email: formData.email.toLowerCase().trim(),
-                password: formData.password
-            };
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sanitizedData),
-                signal: controller.signal,
-                credentials: 'include'
-            });
-
-            clearTimeout(timeoutId);
-            const data = await response.json();
-
-            if (response.ok) {
-                setAttemptCount(0);
-                onLogin(data.user, data.access_token);
-            } else {
-                const message = response.status === 429 ? 'Trop de tentatives. Réessayez plus tard.' : 
-                               response.status === 401 ? 'Email ou mot de passe incorrect.' :
-                               data.detail || 'Erreur de connexion';
-                setErrors({ general: message });
-            }
+            const data = await authService.login(formData.email, formData.password);
+            
+            setAttemptCount(0);
+            onLogin(data.user, data.access_token);
         } catch (error) {
-            if (error.name === 'AbortError') {
-                setErrors({ general: 'Timeout. Vérifiez votre connexion.' });
+            if (error instanceof AuthError) {
+                let message = error.getDisplayMessage();
+                
+                if (error.isUnauthorized()) {
+                    message = 'Email ou mot de passe incorrect.';
+                } else if (error.isConflict()) {
+                    message = 'Email ou nom d\'utilisateur déjà utilisé.';
+                }
+                
+                setErrors({ general: message });
             } else {
-                setErrors({ general: 'Erreur réseau. Veuillez réessayer.' });
+                setErrors({ general: 'Erreur inattendue. Veuillez réessayer.' });
             }
         } finally {
             setIsLoading(false);

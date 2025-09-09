@@ -16,15 +16,16 @@ from presentation.user.user_error_message import ErrorMessageUserEmailAlreadyExi
 from dependency_injections import current_user, user_command_usecase, user_query_usecase
 
 router = APIRouter(
-    tags=['user']
+    prefix="/api/auth",
+    tags=['auth']
 )
 
 
 @router.post(
-    "/user/create",
+    "/register",
     response_model=UserLoginResponse,
-    summary="Create a user",
-    status_code=status.HTTP_200_OK,
+    summary="Register a new user",
+    status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_409_CONFLICT: {
             "model": ErrorMessageUserEmailAlreadyExists,
@@ -79,9 +80,9 @@ async def get_users(
 
 
 @router.post(
-    "/user/login",
+    "/login",
     response_model=UserLoginResponse,
-    summary="User Login with 2FA",
+    summary="User Login",
 )
 async def login(
         user_login_model: UserLoginModel,
@@ -97,6 +98,32 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed."
+        )
+
+
+@router.get(
+    "/validate",
+    summary="Validate JWT token",
+    status_code=status.HTTP_200_OK,
+)
+async def validate_token(
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return {
+            "user": {
+                "id": current_user.get("id"),
+                "email": current_user.get("email"),
+                "username": current_user.get("username", current_user.get("pseudo")),
+                "is_verified": current_user.get("is_verified", True)
+            }
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
         )
 
 
