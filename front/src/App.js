@@ -64,7 +64,7 @@ const HomeScreen = memo(({ onNavigate }) => (
 
 HomeScreen.displayName = 'HomeScreen';
 
-function OptimizedApp() {
+function App() {
     const { isAuthenticated, user, logout, isLoading } = useAuth();
     const [currentView, setCurrentView] = useState('home');
     const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useToast();
@@ -143,4 +143,4 @@ function OptimizedApp() {
     );
 }
 
-export default memo(OptimizedApp);
+export default memo(App);
