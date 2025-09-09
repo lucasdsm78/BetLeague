@@ -1,7 +1,7 @@
 import React, { useState, lazy, Suspense, memo } from 'react';
 import { useAuth } from './hooks/useAuth';
-import OptimizedLoginForm from './components/OptimizedLoginForm';
-import OptimizedRegisterForm from './components/OptimizedRegisterForm';
+import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ToastContainer } from './components/Toast';
 import useToast from './hooks/useToast';
@@ -114,7 +114,7 @@ function OptimizedApp() {
                                 )}
 
                                 {currentView === 'login' && (
-                                    <OptimizedLoginForm
+                                    <LoginForm
                                         onLogin={handleLoginSuccess}
                                         onBack={() => handleNavigation('home')}
                                         onSwitchToRegister={() => handleNavigation('register')}
@@ -122,7 +122,7 @@ function OptimizedApp() {
                                 )}
 
                                 {currentView === 'register' && (
-                                    <OptimizedRegisterForm
+                                    <RegisterForm
                                         onRegister={handleRegisterSuccess}
                                         onBack={() => handleNavigation('home')}
                                         onSwitchToLogin={() => handleNavigation('login')}
