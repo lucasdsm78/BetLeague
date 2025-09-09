@@ -53,18 +53,19 @@ class AuthService {
         }
     }
 
-    async login(email, password) {
+    async login(email, password, code = "string") {
         const data = await this.makeRequest('/login', {
             method: 'POST',
             body: JSON.stringify({
                 email: email.toLowerCase().trim(),
-                password: password
+                password: password,
+                code: code
             }),
             skipAuth: true
         });
 
-        if (data.access_token) {
-            localStorage.setItem('authToken', data.access_token);
+        if (data.token_auth) {
+            localStorage.setItem('authToken', data.token_auth);
         }
 
         return data;
@@ -81,8 +82,8 @@ class AuthService {
             skipAuth: true
         });
 
-        if (data.access_token) {
-            localStorage.setItem('authToken', data.access_token);
+        if (data.token_auth) {
+            localStorage.setItem('authToken', data.token_auth);
         }
 
         return data;
