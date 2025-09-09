@@ -33,12 +33,12 @@ export const useAuth = () => {
         initAuth();
     }, []);
 
-    const login = useCallback(async (email, password) => {
+    const login = useCallback(async (email, password, code = "string") => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const data = await authService.login(email, password);
+            const data = await authService.login(email, password, code);
             setUser(data.user);
             setIsAuthenticated(true);
             return data;
