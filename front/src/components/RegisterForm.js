@@ -40,7 +40,7 @@ const PasswordStrength = memo(({ password }) => {
 
 PasswordStrength.displayName = 'PasswordStrength';
 
-const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
+const RegisterForm = memo(({ onBack, onSwitchToLogin, onRegister }) => {
     const { register } = useAuth();
     const [formData, setFormData] = useState({
         pseudo: '',
@@ -161,7 +161,11 @@ const RegisterForm = memo(({ onBack, onSwitchToLogin }) => {
         setErrors({});
 
         try {
-            await register(formData.pseudo, formData.email, formData.password);
+            const result = await register(formData.pseudo, formData.email, formData.password);
+            // Appeler le callback onRegister si fourni
+            if (onRegister && result) {
+                onRegister(result);
+            }
         } catch (error) {
             if (error instanceof AuthError) {
                 let message = error.getDisplayMessage();

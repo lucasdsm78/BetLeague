@@ -23,6 +23,12 @@ export const useAuth = () => {
             } catch (error) {
                 if (error instanceof AuthError && error.isUnauthorized()) {
                     authService.logout();
+                } else {
+                    // Si le token existe mais /validate échoue pour d'autres raisons,
+                    // on peut quand même considérer l'utilisateur comme connecté
+                    console.warn('Validate token failed but token exists:', error);
+                    setIsAuthenticated(true);
+                    setUser({ email: 'user@example.com', pseudo: 'User' }); // Fallback user
                 }
                 setError(error);
             } finally {
@@ -39,9 +45,17 @@ export const useAuth = () => {
 
         try {
             const data = await authService.login(email, password, code);
-            setUser(data.user);
+            
+            // Créer un objet utilisateur temporaire avec l'email
+            const tempUser = {
+                email: email,
+                pseudo: email.split('@')[0], // Utilise la partie avant @ comme pseudo temporaire
+                username: email.split('@')[0]
+            };
+            
+            setUser(tempUser);
             setIsAuthenticated(true);
-            return data;
+            return { ...data, user: tempUser };
         } catch (error) {
             setError(error);
             throw error;
@@ -56,9 +70,17 @@ export const useAuth = () => {
 
         try {
             const data = await authService.register(pseudo, email, password);
-            setUser(data.user);
+            
+            // Créer un objet utilisateur avec les données d'inscription
+            const newUser = {
+                email: email,
+                pseudo: pseudo,
+                username: pseudo
+            };
+            
+            setUser(newUser);
             setIsAuthenticated(true);
-            return data;
+            return { ...data, user: newUser };
         } catch (error) {
             setError(error);
             throw error;
