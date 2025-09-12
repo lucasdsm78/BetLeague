@@ -6,7 +6,7 @@ import { AuthError } from '../services/authService';
 import './ui/styles.css';
 import './AuthForms.css';
 
-const LoginForm = memo(({ onBack, onSwitchToRegister }) => {
+const LoginForm = memo(({ onBack, onSwitchToRegister, onLogin }) => {
     const { login } = useAuth();
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [errors, setErrors] = useState({});
@@ -73,8 +73,12 @@ const LoginForm = memo(({ onBack, onSwitchToRegister }) => {
         setErrors({});
 
         try {
-            await login(formData.email, formData.password);
+            const result = await login(formData.email, formData.password);
             setAttemptCount(0);
+            // Appeler le callback onLogin si fourni
+            if (onLogin && result) {
+                onLogin(result);
+            }
         } catch (error) {
             setAttemptCount(prev => prev + 1);
 
