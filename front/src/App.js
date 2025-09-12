@@ -74,11 +74,13 @@ function App() {
     };
 
     const handleLoginSuccess = (userData) => {
-        showSuccess(`Bienvenue, ${userData.username || userData.email} !`);
+        showSuccess(`Bienvenue, ${userData.username || userData.pseudo || userData.email} !`);
+        // L'authentification redirigera automatiquement vers le dashboard
     };
 
     const handleRegisterSuccess = (userData) => {
-        showSuccess(`Bienvenue sur BetLeague, ${userData.username || userData.email} !`);
+        showSuccess(`Bienvenue sur BetLeague, ${userData.username || userData.pseudo || userData.email} !`);
+        // L'authentification redirigera automatiquement vers le dashboard
     };
 
     const handleLogout = () => {

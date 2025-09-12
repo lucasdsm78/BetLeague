@@ -115,12 +115,12 @@ async def validate_token(
                 "id": current_user.get("id"),
                 "email": current_user.get("email"),
                 "username": current_user.get("username", current_user.get("pseudo")),
-                "is_verified": current_user.get("is_verified", True)
             }
         }
     except HTTPException as e:
         raise e
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
