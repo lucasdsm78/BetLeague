@@ -103,7 +103,7 @@ function App() {
 
     return (
         <>
-            <div className="app">
+            <div className={`app ${isAuthenticated ? 'dashboard-mode' : ''}`}>
                 <div className="container">
                     {/* Route protégée pour le dashboard */}
                     <ProtectedRoute
