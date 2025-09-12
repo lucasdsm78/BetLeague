@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
+import { NavLink } from 'react-router-dom';
+import './Dashboard.css';
 
-const Dashboard = ({ user, onLogout }) => {
+const Dashboard = ({ user, onLogout, children }) => {
     return (
         <div className="dashboard">
             <header className="dashboard-header">
@@ -9,11 +11,40 @@ const Dashboard = ({ user, onLogout }) => {
                     Déconnexion
                 </button>
             </header>
-            <div className="dashboard-content">
-                <p>Tableau de bord en cours de développement...</p>
-            </div>
+
+            <nav className="dashboard-nav">
+                <NavLink
+                    to="/matches"
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                >
+                    Matchs
+                </NavLink>
+                <NavLink
+                    to="/leagues"
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                >
+                    Ligues
+                </NavLink>
+                <NavLink
+                    to="/tickets"
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                >
+                    Tickets
+                </NavLink>
+                <NavLink
+                    to="/profile"
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                >
+                    Profil
+                </NavLink>
+            </nav>
+
+            <main className="dashboard-content">
+                {children}
+            </main>
         </div>
     );
 };
 
-export default Dashboard;
+export default memo(Dashboard);
+

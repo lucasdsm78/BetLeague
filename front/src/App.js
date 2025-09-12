@@ -1,4 +1,5 @@
-import React, { useState, lazy, Suspense, memo } from 'react';
+import React, { useState, lazy, Suspense, memo, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
@@ -10,6 +11,10 @@ import './components/Spinner.css';
 
 // Lazy loading pour des performances optimales
 const Dashboard = lazy(() => import('./components/Dashboard'));
+const Matches = lazy(() => import('./components/dashboard/Matches'));
+const Leagues = lazy(() => import('./components/dashboard/Leagues'));
+const Tickets = lazy(() => import('./components/dashboard/Tickets'));
+const Profile = lazy(() => import('./components/dashboard/Profile'));
 
 const LoadingSpinner = memo(() => (
     <div className="loading-spinner">
@@ -68,13 +73,11 @@ function App() {
     const { isAuthenticated, user, logout, isLoading } = useAuth();
     const [currentView, setCurrentView] = useState('home');
     const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useToast();
+    const navigate = useNavigate();
+    const wasAuthenticated = useRef(false);
 
     const handleNavigation = (view) => {
         setCurrentView(view);
-    };
-
-    const handleLoginSuccess = (userData) => {
-        showSuccess(`Bienvenue, ${userData.username || userData.email} !`);
     };
 
     const handleRegisterSuccess = (userData) => {
@@ -84,8 +87,19 @@ function App() {
     const handleLogout = () => {
         logout();
         setCurrentView('home');
+        navigate('/', { replace: true });
         showInfo('Déconnexion réussie. À bientôt !');
     };
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/matches', { replace: true });
+            if (!wasAuthenticated.current) {
+                showSuccess(`Bienvenue, ${user?.username || user?.email}!`);
+            }
+        }
+        wasAuthenticated.current = isAuthenticated;
+    }, [isAuthenticated, navigate, user, showSuccess]);
 
     // Loading initial de l'authentification
     if (isLoading) {
@@ -115,7 +129,6 @@ function App() {
 
                                 {currentView === 'login' && (
                                     <LoginForm
-                                        onLogin={handleLoginSuccess}
                                         onBack={() => handleNavigation('home')}
                                         onSwitchToRegister={() => handleNavigation('register')}
                                     />
@@ -133,7 +146,41 @@ function App() {
                     >
                         {/* Dashboard pour utilisateurs authentifiés */}
                         <Suspense fallback={<LoadingSpinner />}>
-                            <Dashboard user={user} onLogout={handleLogout} />
+                            <Routes>
+                                <Route
+                                    path="/matches"
+                                    element={
+                                        <Dashboard user={user} onLogout={handleLogout}>
+                                            <Matches />
+                                        </Dashboard>
+                                    }
+                                />
+                                <Route
+                                    path="/leagues"
+                                    element={
+                                        <Dashboard user={user} onLogout={handleLogout}>
+                                            <Leagues />
+                                        </Dashboard>
+                                    }
+                                />
+                                <Route
+                                    path="/tickets"
+                                    element={
+                                        <Dashboard user={user} onLogout={handleLogout}>
+                                            <Tickets />
+                                        </Dashboard>
+                                    }
+                                />
+                                <Route
+                                    path="/profile"
+                                    element={
+                                        <Dashboard user={user} onLogout={handleLogout}>
+                                            <Profile />
+                                        </Dashboard>
+                                    }
+                                />
+                                <Route path="*" element={<Navigate to="/matches" replace />} />
+                            </Routes>
                         </Suspense>
                     </ProtectedRoute>
                 </div>
