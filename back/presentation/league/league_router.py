@@ -14,6 +14,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError, League
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
+    prefix="/api",
     tags=['league']
 )
 

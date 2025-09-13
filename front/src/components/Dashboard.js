@@ -57,6 +57,13 @@ const Dashboard = memo(({ user, onLogout }) => {
         }
     }, [user, onLogout]);
 
+    // Mise à jour de l'URL au montage du Dashboard
+    useEffect(() => {
+        if (user && window.history.pushState) {
+            window.history.pushState(null, '', TABS[activeTab].path);
+        }
+    }, [user, activeTab]);
+
     // Navigation sécurisée
     const handleTabChange = useCallback((tabId) => {
         if (!TABS[tabId]) {

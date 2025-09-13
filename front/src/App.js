@@ -74,7 +74,9 @@ function App() {
     };
 
     const handleLoginSuccess = (userData) => {
-        showSuccess(`Bienvenue, ${userData.username || userData.pseudo || userData.email} !`);
+        // Utiliser les données utilisateur du résultat de login ou fallback
+        const userName = userData?.user?.username || userData?.user?.pseudo || userData?.username || userData?.pseudo || userData?.email || 'utilisateur';
+        showSuccess(`Bienvenue, ${userName} !`);
         // L'authentification redirigera automatiquement vers le dashboard
     };
 
