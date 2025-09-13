@@ -1,6 +1,6 @@
 class AuthService {
     constructor() {
-        this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api/auth';
+        this.baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:8001/api') + '/auth';
         this.defaultTimeout = 10000;
     }
 
@@ -21,7 +21,7 @@ class AuthService {
 
             const token = localStorage.getItem('authToken');
             if (token && !options.skipAuth) {
-                config.headers['Authorization'] = `Bearer ${token}`;
+                config.headers['X-Authentication'] = `Bearer ${token}`;
             }
 
             const response = await fetch(`${this.baseURL}${endpoint}`, config);
@@ -98,7 +98,7 @@ class AuthService {
         try {
             return await this.makeRequest('/validate');
         } catch (error) {
-            if (error.status === 401) {
+            if (error.status === 401 || error.status === 403) {
                 this.logout();
             }
             throw error;
