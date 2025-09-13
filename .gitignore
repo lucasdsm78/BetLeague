@@ -10,7 +10,10 @@ front/node_modules
 front/build
 /.pnp
 .pnp.js
-
+application/.DS_Store
+domain/.DS_Store
+infrastructure/.DS_Store
+presentation/.DS_Store
 # Tests
 /coverage
 
