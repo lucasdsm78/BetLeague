@@ -1,8 +1,54 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import './MatchesSection.css';
 
+// Types
+interface MatchOdds {
+    home: number;
+    draw: number;
+    away: number;
+}
+
+interface MatchScore {
+    home: number;
+    away: number;
+}
+
+interface Match {
+    id: number;
+    homeTeam: string;
+    awayTeam: string;
+    competition: string;
+    kickoff: string;
+    status: 'upcoming' | 'live' | 'finished';
+    odds: MatchOdds;
+    trending?: boolean;
+    score?: MatchScore;
+    minute?: number;
+}
+
+interface Bet {
+    matchId: number;
+    homeTeam: string;
+    awayTeam: string;
+    betType: 'home' | 'draw' | 'away';
+    odd: number;
+    competition: string;
+}
+
+interface SortOption {
+    value: string;
+    label: string;
+}
+
+interface User {
+    id: string;
+    email: string;
+    pseudo?: string;
+    username?: string;
+}
+
 // Mock data pour les matchs - à remplacer par l'API réelle
-const MOCK_MATCHES = [
+const MOCK_MATCHES: Match[] = [
     {
         id: 1,
         homeTeam: 'Paris SG',
@@ -62,22 +108,27 @@ const MOCK_MATCHES = [
 ];
 
 const COMPETITIONS = ['Tous', 'Ligue 1', 'Premier League', 'La Liga', 'Bundesliga', 'Champions League'];
-const SORT_OPTIONS = [
+const SORT_OPTIONS: SortOption[] = [
     { value: 'kickoff', label: 'Heure de début' },
     { value: 'trending', label: 'Populaires' },
     { value: 'odds', label: 'Meilleures cotes' }
 ];
 
-const MatchCard = memo(({ match, onAddToBet }) => {
-    const formatTime = useCallback((dateString) => {
+interface MatchCardProps {
+    match: Match;
+    onAddToBet: (bet: Bet) => void;
+}
+
+const MatchCard = memo<MatchCardProps>(({ match, onAddToBet }) => {
+    const formatTime = useCallback((dateString: string): string => {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('fr-FR', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+        return date.toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit'
         });
     }, []);
 
-    const formatDate = useCallback((dateString) => {
+    const formatDate = useCallback((dateString: string): string => {
         const date = new Date(dateString);
         const today = new Date();
         const tomorrow = new Date();
@@ -88,15 +139,15 @@ const MatchCard = memo(({ match, onAddToBet }) => {
         } else if (date.toDateString() === tomorrow.toDateString()) {
             return "Demain";
         } else {
-            return date.toLocaleDateString('fr-FR', { 
-                weekday: 'short', 
-                month: 'short', 
-                day: 'numeric' 
+            return date.toLocaleDateString('fr-FR', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
             });
         }
     }, []);
 
-    const handleOddClick = useCallback((type, odd) => {
+    const handleOddClick = useCallback((type: 'home' | 'draw' | 'away', odd: number) => {
         onAddToBet({
             matchId: match.id,
             homeTeam: match.homeTeam,
@@ -114,7 +165,7 @@ const MatchCard = memo(({ match, onAddToBet }) => {
                     🔥 Tendance
                 </div>
             )}
-            
+
             <div className="match-header">
                 <div className="match-info">
                     <span className="competition">{match.competition}</span>
@@ -141,11 +192,11 @@ const MatchCard = memo(({ match, onAddToBet }) => {
                         <span className="score">{match.score.home}</span>
                     )}
                 </div>
-                
+
                 <div className="vs-separator">
                     {match.status === 'live' ? 'LIVE' : 'vs'}
                 </div>
-                
+
                 <div className="team away-team">
                     {match.score && (
                         <span className="score">{match.score.away}</span>
@@ -155,7 +206,7 @@ const MatchCard = memo(({ match, onAddToBet }) => {
             </div>
 
             <div className="odds-section">
-                <button 
+                <button
                     className="odd-button home"
                     onClick={() => handleOddClick('home', match.odds.home)}
                     disabled={match.status === 'live'}
@@ -163,8 +214,8 @@ const MatchCard = memo(({ match, onAddToBet }) => {
                     <span className="odd-label">1</span>
                     <span className="odd-value">{match.odds.home}</span>
                 </button>
-                
-                <button 
+
+                <button
                     className="odd-button draw"
                     onClick={() => handleOddClick('draw', match.odds.draw)}
                     disabled={match.status === 'live'}
@@ -172,8 +223,8 @@ const MatchCard = memo(({ match, onAddToBet }) => {
                     <span className="odd-label">N</span>
                     <span className="odd-value">{match.odds.draw}</span>
                 </button>
-                
-                <button 
+
+                <button
                     className="odd-button away"
                     onClick={() => handleOddClick('away', match.odds.away)}
                     disabled={match.status === 'live'}
@@ -188,13 +239,22 @@ const MatchCard = memo(({ match, onAddToBet }) => {
 
 MatchCard.displayName = 'MatchCard';
 
-const FilterBar = memo(({ 
-    searchTerm, 
-    onSearchChange, 
-    selectedCompetition, 
+interface FilterBarProps {
+    searchTerm: string;
+    onSearchChange: (value: string) => void;
+    selectedCompetition: string;
+    onCompetitionChange: (value: string) => void;
+    sortBy: string;
+    onSortChange: (value: string) => void;
+}
+
+const FilterBar = memo<FilterBarProps>(({
+    searchTerm,
+    onSearchChange,
+    selectedCompetition,
     onCompetitionChange,
     sortBy,
-    onSortChange 
+    onSortChange
 }) => (
     <div className="filter-bar">
         <div className="search-input">
@@ -207,7 +267,7 @@ const FilterBar = memo(({
             />
             <span className="search-icon">🔍</span>
         </div>
-        
+
         <div className="filter-controls">
             <select
                 value={selectedCompetition}
@@ -218,7 +278,7 @@ const FilterBar = memo(({
                     <option key={comp} value={comp}>{comp}</option>
                 ))}
             </select>
-            
+
             <select
                 value={sortBy}
                 onChange={(e) => onSortChange(e.target.value)}
@@ -236,7 +296,14 @@ const FilterBar = memo(({
 
 FilterBar.displayName = 'FilterBar';
 
-const QuickBetPanel = memo(({ selectedBets, onRemoveBet, onClearAll, onCreateTicket }) => {
+interface QuickBetPanelProps {
+    selectedBets: Bet[];
+    onRemoveBet: (index: number) => void;
+    onClearAll: () => void;
+    onCreateTicket: () => void;
+}
+
+const QuickBetPanel = memo<QuickBetPanelProps>(({ selectedBets, onRemoveBet, onClearAll, onCreateTicket }) => {
     const totalOdds = useMemo(() => {
         return selectedBets.reduce((total, bet) => total * bet.odd, 1).toFixed(2);
     }, [selectedBets]);
@@ -251,7 +318,7 @@ const QuickBetPanel = memo(({ selectedBets, onRemoveBet, onClearAll, onCreateTic
                     Tout effacer
                 </button>
             </div>
-            
+
             <div className="selected-bets">
                 {selectedBets.map((bet, index) => (
                     <div key={`${bet.matchId}-${bet.betType}`} className="selected-bet">
@@ -260,11 +327,11 @@ const QuickBetPanel = memo(({ selectedBets, onRemoveBet, onClearAll, onCreateTic
                                 {bet.homeTeam} vs {bet.awayTeam}
                             </span>
                             <span className="bet-type-odd">
-                                {bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'} 
+                                {bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'}
                                 @ {bet.odd}
                             </span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => onRemoveBet(index)}
                             className="remove-bet-btn"
                         >
@@ -273,7 +340,7 @@ const QuickBetPanel = memo(({ selectedBets, onRemoveBet, onClearAll, onCreateTic
                     </div>
                 ))}
             </div>
-            
+
             <div className="panel-footer">
                 <div className="total-odds">
                     Cote totale: <strong>{totalOdds}</strong>
@@ -288,13 +355,17 @@ const QuickBetPanel = memo(({ selectedBets, onRemoveBet, onClearAll, onCreateTic
 
 QuickBetPanel.displayName = 'QuickBetPanel';
 
-const MatchesSection = memo(({ user }) => {
-    const [matches, setMatches] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCompetition, setSelectedCompetition] = useState('Tous');
-    const [sortBy, setSortBy] = useState('kickoff');
-    const [selectedBets, setSelectedBets] = useState([]);
+interface MatchesSectionProps {
+    user?: User;
+}
+
+const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
+    const [matches, setMatches] = useState<Match[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
+    const [sortBy, setSortBy] = useState<string>('kickoff');
+    const [selectedBets, setSelectedBets] = useState<Bet[]>([]);
 
     // Simulation du chargement des données
     useEffect(() => {
@@ -315,7 +386,7 @@ const MatchesSection = memo(({ user }) => {
 
         // Filtre par recherche
         if (searchTerm) {
-            filtered = filtered.filter(match => 
+            filtered = filtered.filter(match =>
                 match.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 match.awayTeam.toLowerCase().includes(searchTerm.toLowerCase())
             );
@@ -332,24 +403,24 @@ const MatchesSection = memo(({ user }) => {
                 case 'trending':
                     return (b.trending ? 1 : 0) - (a.trending ? 1 : 0);
                 case 'odds':
-                    return Math.min(a.odds.home, a.odds.draw, a.odds.away) - 
+                    return Math.min(a.odds.home, a.odds.draw, a.odds.away) -
                            Math.min(b.odds.home, b.odds.draw, b.odds.away);
                 case 'kickoff':
                 default:
-                    return new Date(a.kickoff) - new Date(b.kickoff);
+                    return new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
             }
         });
 
         return filtered;
     }, [matches, searchTerm, selectedCompetition, sortBy]);
 
-    const handleAddToBet = useCallback((bet) => {
+    const handleAddToBet = useCallback((bet: Bet) => {
         setSelectedBets(prev => {
             // Éviter les doublons du même match
             const existingIndex = prev.findIndex(
                 b => b.matchId === bet.matchId && b.betType === bet.betType
             );
-            
+
             if (existingIndex >= 0) {
                 // Remplacer le pari existant
                 const newBets = [...prev];
@@ -362,7 +433,7 @@ const MatchesSection = memo(({ user }) => {
         });
     }, []);
 
-    const handleRemoveBet = useCallback((index) => {
+    const handleRemoveBet = useCallback((index: number) => {
         setSelectedBets(prev => prev.filter((_, i) => i !== index));
     }, []);
 

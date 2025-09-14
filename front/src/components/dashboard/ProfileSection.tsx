@@ -1,7 +1,56 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, FormEvent, ChangeEvent } from 'react';
 import './ProfileSection.css';
 
-const MOCK_PROFILE = {
+// Types
+interface User {
+    id: string;
+    email: string;
+    pseudo?: string;
+    username?: string;
+}
+
+interface NotificationPreferences {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+}
+
+interface PrivacyPreferences {
+    profilePublic: boolean;
+    statsPublic: boolean;
+    leaguesPublic: boolean;
+}
+
+interface BettingPreferences {
+    defaultStake: number;
+    maxStake: number;
+    autoAcceptOddsChanges: boolean;
+}
+
+interface Preferences {
+    notifications: NotificationPreferences;
+    privacy: PrivacyPreferences;
+    betting: BettingPreferences;
+}
+
+interface Profile {
+    pseudo: string;
+    email: string;
+    phone?: string;
+    joinDate: string;
+    avatar?: string | null;
+    isVerified: boolean;
+    twoFactorEnabled: boolean;
+    preferences: Preferences;
+}
+
+interface AccountFormData {
+    pseudo: string;
+    email: string;
+    phone: string;
+}
+
+const MOCK_PROFILE: Profile = {
     pseudo: 'SportsBetter2024',
     email: 'user@example.com',
     phone: '+33 6 12 34 56 78',
@@ -28,7 +77,13 @@ const MOCK_PROFILE = {
     }
 };
 
-const ProfileHeader = memo(({ profile, onEditProfile, onChangeAvatar }) => (
+interface ProfileHeaderProps {
+    profile: Profile;
+    onEditProfile: () => void;
+    onChangeAvatar: () => void;
+}
+
+const ProfileHeader = memo<ProfileHeaderProps>(({ profile, onEditProfile, onChangeAvatar }) => (
     <div className="profile-header">
         <div className="profile-avatar-section">
             <div className="profile-avatar">
@@ -44,7 +99,7 @@ const ProfileHeader = memo(({ profile, onEditProfile, onChangeAvatar }) => (
                 </button>
             </div>
         </div>
-        
+
         <div className="profile-info">
             <div className="profile-name">
                 <h2>{profile.pseudo}</h2>
@@ -60,7 +115,7 @@ const ProfileHeader = memo(({ profile, onEditProfile, onChangeAvatar }) => (
                 })}
             </p>
         </div>
-        
+
         <button className="btn btn-primary" onClick={onEditProfile}>
             Modifier le profil
         </button>
@@ -69,22 +124,27 @@ const ProfileHeader = memo(({ profile, onEditProfile, onChangeAvatar }) => (
 
 ProfileHeader.displayName = 'ProfileHeader';
 
-const AccountSettings = memo(({ profile, onUpdateProfile }) => {
-    const [formData, setFormData] = useState({
+interface AccountSettingsProps {
+    profile: Profile;
+    onUpdateProfile: (data: Partial<Profile>) => void;
+}
+
+const AccountSettings = memo<AccountSettingsProps>(({ profile, onUpdateProfile }) => {
+    const [formData, setFormData] = useState<AccountFormData>({
         pseudo: profile.pseudo,
         email: profile.email,
         phone: profile.phone || ''
     });
-    
-    const [isEditing, setIsEditing] = useState(false);
 
-    const handleSubmit = (e) => {
+    const [isEditing, setIsEditing] = useState<boolean>(false);
+
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         onUpdateProfile(formData);
         setIsEditing(false);
     };
 
-    const handleChange = (e) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -92,7 +152,7 @@ const AccountSettings = memo(({ profile, onUpdateProfile }) => {
     return (
         <div className="settings-section">
             <h3>Informations du compte</h3>
-            
+
             {isEditing ? (
                 <form onSubmit={handleSubmit} className="account-form">
                     <div className="form-group">
@@ -105,7 +165,7 @@ const AccountSettings = memo(({ profile, onUpdateProfile }) => {
                             required
                         />
                     </div>
-                    
+
                     <div className="form-group">
                         <label>Email</label>
                         <input
@@ -116,7 +176,7 @@ const AccountSettings = memo(({ profile, onUpdateProfile }) => {
                             required
                         />
                     </div>
-                    
+
                     <div className="form-group">
                         <label>Téléphone (optionnel)</label>
                         <input
@@ -127,7 +187,7 @@ const AccountSettings = memo(({ profile, onUpdateProfile }) => {
                             placeholder="+33 6 12 34 56 78"
                         />
                     </div>
-                    
+
                     <div className="form-actions">
                         <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
                             Annuler
@@ -162,10 +222,17 @@ const AccountSettings = memo(({ profile, onUpdateProfile }) => {
 
 AccountSettings.displayName = 'AccountSettings';
 
-const SecuritySettings = memo(({ profile, onToggle2FA, onChangePassword, onLogout }) => (
+interface SecuritySettingsProps {
+    profile: Profile;
+    onToggle2FA: (enabled: boolean) => void;
+    onChangePassword: () => void;
+    onLogout: () => void;
+}
+
+const SecuritySettings = memo<SecuritySettingsProps>(({ profile, onToggle2FA, onChangePassword, onLogout }) => (
     <div className="settings-section">
         <h3>Sécurité</h3>
-        
+
         <div className="security-options">
             <div className="security-option">
                 <div className="option-info">
@@ -173,7 +240,7 @@ const SecuritySettings = memo(({ profile, onToggle2FA, onChangePassword, onLogou
                     <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
                 </div>
                 <div className="option-action">
-                    <button 
+                    <button
                         className={`btn ${profile.twoFactorEnabled ? 'btn-outline' : 'btn-primary'}`}
                         onClick={() => onToggle2FA(!profile.twoFactorEnabled)}
                     >
@@ -181,7 +248,7 @@ const SecuritySettings = memo(({ profile, onToggle2FA, onChangePassword, onLogou
                     </button>
                 </div>
             </div>
-            
+
             <div className="security-option">
                 <div className="option-info">
                     <h4>Mot de passe</h4>
@@ -193,7 +260,7 @@ const SecuritySettings = memo(({ profile, onToggle2FA, onChangePassword, onLogou
                     </button>
                 </div>
             </div>
-            
+
             <div className="security-option">
                 <div className="option-info">
                     <h4>Déconnexion</h4>
@@ -211,29 +278,34 @@ const SecuritySettings = memo(({ profile, onToggle2FA, onChangePassword, onLogou
 
 SecuritySettings.displayName = 'SecuritySettings';
 
-const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
-    const [prefs, setPrefs] = useState(preferences);
+interface PreferencesSettingsProps {
+    preferences: Preferences;
+    onUpdatePreferences: (preferences: Preferences) => void;
+}
 
-    const handleToggle = (section, key) => {
+const PreferencesSettings = memo<PreferencesSettingsProps>(({ preferences, onUpdatePreferences }) => {
+    const [prefs, setPrefs] = useState<Preferences>(preferences);
+
+    const handleToggle = (section: keyof Preferences, key: string) => {
         const newPrefs = {
             ...prefs,
             [section]: {
                 ...prefs[section],
-                [key]: !prefs[section][key]
+                [key]: !prefs[section][key as keyof typeof prefs[typeof section]]
             }
-        };
+        } as Preferences;
         setPrefs(newPrefs);
         onUpdatePreferences(newPrefs);
     };
 
-    const handleChange = (section, key, value) => {
+    const handleChange = (section: keyof Preferences, key: string, value: number) => {
         const newPrefs = {
             ...prefs,
             [section]: {
                 ...prefs[section],
                 [key]: value
             }
-        };
+        } as Preferences;
         setPrefs(newPrefs);
         onUpdatePreferences(newPrefs);
     };
@@ -241,11 +313,11 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
     return (
         <div className="settings-section">
             <h3>Préférences</h3>
-            
+
             <div className="preferences-groups">
                 <div className="preference-group">
                     <h4>Notifications</h4>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Notifications par email</span>
@@ -259,7 +331,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             </label>
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Notifications push</span>
@@ -273,7 +345,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             </label>
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Notifications SMS</span>
@@ -288,10 +360,10 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                         </label>
                     </div>
                 </div>
-                
+
                 <div className="preference-group">
                     <h4>Confidentialité</h4>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Profil public</span>
@@ -305,7 +377,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             </label>
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Statistiques publiques</span>
@@ -319,7 +391,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             </label>
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Ligues publiques</span>
@@ -334,10 +406,10 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                         </label>
                     </div>
                 </div>
-                
+
                 <div className="preference-group">
                     <h4>Paris</h4>
-                    
+
                     <div className="preference-option">
                         <label>
                             <span>Mise par défaut (€)</span>
@@ -351,7 +423,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             />
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label>
                             <span>Mise maximum (€)</span>
@@ -365,7 +437,7 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
                             />
                         </label>
                     </div>
-                    
+
                     <div className="preference-option">
                         <label className="toggle-label">
                             <span>Accepter automatiquement les changements de cotes</span>
@@ -387,21 +459,28 @@ const PreferencesSettings = memo(({ preferences, onUpdatePreferences }) => {
 
 PreferencesSettings.displayName = 'PreferencesSettings';
 
-const ProfileSection = memo(({ user, onLogout }) => {
-    const [activeTab, setActiveTab] = useState('account');
-    const [profile, setProfile] = useState(MOCK_PROFILE);
+type TabType = 'account' | 'security' | 'preferences';
 
-    const handleUpdateProfile = useCallback((updatedData) => {
+interface ProfileSectionProps {
+    user?: User;
+    onLogout?: () => void;
+}
+
+const ProfileSection = memo<ProfileSectionProps>(({ user, onLogout }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('account');
+    const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
+
+    const handleUpdateProfile = useCallback((updatedData: Partial<Profile>) => {
         setProfile(prev => ({ ...prev, ...updatedData }));
         console.log('Profil mis à jour:', updatedData);
     }, []);
 
-    const handleUpdatePreferences = useCallback((newPreferences) => {
+    const handleUpdatePreferences = useCallback((newPreferences: Preferences) => {
         setProfile(prev => ({ ...prev, preferences: newPreferences }));
         console.log('Préférences mises à jour:', newPreferences);
     }, []);
 
-    const handleToggle2FA = useCallback((enabled) => {
+    const handleToggle2FA = useCallback((enabled: boolean) => {
         setProfile(prev => ({ ...prev, twoFactorEnabled: enabled }));
         console.log('2FA:', enabled ? 'activé' : 'désactivé');
     }, []);
@@ -420,6 +499,12 @@ const ProfileSection = memo(({ user, onLogout }) => {
         setActiveTab('account');
     }, []);
 
+    const handleLogout = useCallback(() => {
+        if (onLogout) {
+            onLogout();
+        }
+    }, [onLogout]);
+
     return (
         <div className="profile-section">
             <ProfileHeader
@@ -429,19 +514,19 @@ const ProfileSection = memo(({ user, onLogout }) => {
             />
 
             <div className="profile-tabs">
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'account' ? 'active' : ''}`}
                     onClick={() => setActiveTab('account')}
                 >
                     Compte
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'security' ? 'active' : ''}`}
                     onClick={() => setActiveTab('security')}
                 >
                     Sécurité
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
                     onClick={() => setActiveTab('preferences')}
                 >
@@ -456,16 +541,16 @@ const ProfileSection = memo(({ user, onLogout }) => {
                         onUpdateProfile={handleUpdateProfile}
                     />
                 )}
-                
+
                 {activeTab === 'security' && (
                     <SecuritySettings
                         profile={profile}
                         onToggle2FA={handleToggle2FA}
                         onChangePassword={handleChangePassword}
-                        onLogout={onLogout}
+                        onLogout={handleLogout}
                     />
                 )}
-                
+
                 {activeTab === 'preferences' && (
                     <PreferencesSettings
                         preferences={profile.preferences}

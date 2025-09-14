@@ -24,7 +24,7 @@ class LeagueApiService {
      */
     async makeRequest(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
-        
+
         const config = {
             headers: this.getAuthHeaders(),
             ...options
@@ -32,21 +32,21 @@ class LeagueApiService {
 
         try {
             const response = await fetch(url, config);
-            
+
             // Handle authentication errors
             if (response.status === 401 || response.status === 403) {
                 localStorage.removeItem('authToken');
                 window.location.href = '/';
                 throw new Error('Session expirée. Veuillez vous reconnecter.');
             }
-            
+
             // Handle different error status codes
             if (!response.ok) {
                 let errorMessage = 'Une erreur est survenue';
-                
+
                 try {
                     const errorData = await response.json();
-                    
+
                     switch (response.status) {
                         case 400:
                             errorMessage = 'Données invalides';
@@ -80,7 +80,7 @@ class LeagueApiService {
                     // If error response is not JSON
                     errorMessage = `Erreur ${response.status}: ${response.statusText}`;
                 }
-                
+
                 throw new Error(errorMessage);
             }
 
@@ -153,7 +153,7 @@ class LeagueApiService {
         }
 
         const trimmedName = name.trim();
-        
+
         if (trimmedName.length < 3) {
             return { isValid: false, error: 'Minimum 3 caractères requis' };
         }
@@ -242,7 +242,7 @@ class LeagueApiService {
 
         try {
             const response = await this.makeRequest(
-                `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`, 
+                `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`,
                 { method: 'PUT' }
             );
             return {

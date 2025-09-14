@@ -1,7 +1,50 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import './TicketsSection.css';
 
-const MOCK_TICKETS = [
+// Types
+interface User {
+    id: string;
+    email: string;
+    pseudo?: string;
+    username?: string;
+}
+
+interface Bet {
+    match: string;
+    selection: string;
+    odds: number;
+}
+
+interface Ticket {
+    id: number;
+    status: 'pending' | 'won' | 'lost' | 'draft';
+    createdAt: string;
+    totalOdds: number;
+    stake: number;
+    potentialWin: number;
+    actualWin?: number;
+    bets: Bet[];
+}
+
+interface Template {
+    id: number;
+    name: string;
+    description: string;
+    usageCount: number;
+}
+
+interface Stats {
+    total: number;
+    won: number;
+    lost: number;
+    pending: number;
+    totalStake: number;
+    totalWinnings: number;
+    roi: number;
+    winRate: number;
+}
+
+const MOCK_TICKETS: Ticket[] = [
     {
         id: 1,
         status: 'pending',
@@ -41,7 +84,7 @@ const MOCK_TICKETS = [
     }
 ];
 
-const MOCK_TEMPLATES = [
+const MOCK_TEMPLATES: Template[] = [
     {
         id: 1,
         name: 'Favori du week-end',
@@ -56,8 +99,15 @@ const MOCK_TEMPLATES = [
     }
 ];
 
-const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
-    const getStatusIcon = (status) => {
+interface TicketCardProps {
+    ticket: Ticket;
+    onView: (ticket: Ticket) => void;
+    onEdit: (ticket: Ticket) => void;
+    onDelete: (ticket: Ticket) => void;
+}
+
+const TicketCard = memo<TicketCardProps>(({ ticket, onView, onEdit, onDelete }) => {
+    const getStatusIcon = (status: Ticket['status']): string => {
         switch (status) {
             case 'pending': return '⏳';
             case 'won': return '✅';
@@ -67,7 +117,7 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
         }
     };
 
-    const getStatusLabel = (status) => {
+    const getStatusLabel = (status: Ticket['status']): string => {
         switch (status) {
             case 'pending': return 'En cours';
             case 'won': return 'Gagné';
@@ -77,7 +127,7 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
         }
     };
 
-    const getStatusColor = (status) => {
+    const getStatusColor = (status: Ticket['status']): string => {
         switch (status) {
             case 'pending': return 'var(--warning-color)';
             case 'won': return 'var(--success-color)';
@@ -93,7 +143,7 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
                 <div className="ticket-info">
                     <div className="ticket-status">
                         <span className="status-icon">{getStatusIcon(ticket.status)}</span>
-                        <span 
+                        <span
                             className="status-label"
                             style={{ color: getStatusColor(ticket.status) }}
                         >
@@ -147,7 +197,7 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
             </div>
 
             <div className="ticket-actions">
-                <button 
+                <button
                     className="btn btn-secondary btn-sm"
                     onClick={() => onView(ticket)}
                 >
@@ -155,13 +205,13 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
                 </button>
                 {ticket.status === 'draft' && (
                     <>
-                        <button 
+                        <button
                             className="btn btn-primary btn-sm"
                             onClick={() => onEdit(ticket)}
                         >
                             Modifier
                         </button>
-                        <button 
+                        <button
                             className="btn btn-outline btn-sm"
                             onClick={() => onDelete(ticket)}
                         >
@@ -176,29 +226,36 @@ const TicketCard = memo(({ ticket, onView, onEdit, onDelete }) => {
 
 TicketCard.displayName = 'TicketCard';
 
-const TemplateCard = memo(({ template, onUse, onEdit, onDelete }) => (
+interface TemplateCardProps {
+    template: Template;
+    onUse: (template: Template) => void;
+    onEdit: (template: Template) => void;
+    onDelete: (template: Template) => void;
+}
+
+const TemplateCard = memo<TemplateCardProps>(({ template, onUse, onEdit, onDelete }) => (
     <div className="template-card">
         <div className="template-header">
             <h4 className="template-name">{template.name}</h4>
             <span className="usage-count">{template.usageCount} utilisations</span>
         </div>
-        
+
         <p className="template-description">{template.description}</p>
-        
+
         <div className="template-actions">
-            <button 
+            <button
                 className="btn btn-primary btn-sm"
                 onClick={() => onUse(template)}
             >
                 Utiliser
             </button>
-            <button 
+            <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => onEdit(template)}
             >
                 Modifier
             </button>
-            <button 
+            <button
                 className="btn btn-outline btn-sm"
                 onClick={() => onDelete(template)}
             >
@@ -210,16 +267,20 @@ const TemplateCard = memo(({ template, onUse, onEdit, onDelete }) => (
 
 TemplateCard.displayName = 'TemplateCard';
 
-const StatsPanel = memo(({ tickets }) => {
-    const stats = React.useMemo(() => {
+interface StatsPanelProps {
+    tickets: Ticket[];
+}
+
+const StatsPanel = memo<StatsPanelProps>(({ tickets }) => {
+    const stats = useMemo((): Stats => {
         const won = tickets.filter(t => t.status === 'won');
         const lost = tickets.filter(t => t.status === 'lost');
         const pending = tickets.filter(t => t.status === 'pending');
-        
+
         const totalStake = tickets.reduce((sum, t) => sum + (t.stake || 0), 0);
         const totalWinnings = won.reduce((sum, t) => sum + (t.actualWin || 0), 0);
         const roi = totalStake > 0 ? ((totalWinnings - totalStake) / totalStake * 100) : 0;
-        
+
         return {
             total: tickets.length,
             won: won.length,
@@ -275,13 +336,20 @@ const StatsPanel = memo(({ tickets }) => {
 
 StatsPanel.displayName = 'StatsPanel';
 
-const TicketsSection = memo(({ user }) => {
-    const [activeTab, setActiveTab] = useState('current');
-    const [tickets] = useState(MOCK_TICKETS);
-    const [templates] = useState(MOCK_TEMPLATES);
-    const [filterStatus, setFilterStatus] = useState('all');
+type TabType = 'current' | 'history' | 'templates';
+type StatusFilter = 'all' | 'pending' | 'draft' | 'won' | 'lost';
 
-    const filteredTickets = React.useMemo(() => {
+interface TicketsSectionProps {
+    user?: User;
+}
+
+const TicketsSection = memo<TicketsSectionProps>(({ user }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('current');
+    const [tickets] = useState<Ticket[]>(MOCK_TICKETS);
+    const [templates] = useState<Template[]>(MOCK_TEMPLATES);
+    const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+
+    const filteredTickets = useMemo(() => {
         let filtered = tickets;
 
         if (activeTab === 'current') {
@@ -294,35 +362,35 @@ const TicketsSection = memo(({ user }) => {
             filtered = filtered.filter(t => t.status === filterStatus);
         }
 
-        return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [tickets, activeTab, filterStatus]);
 
-    const handleViewTicket = useCallback((ticket) => {
+    const handleViewTicket = useCallback((ticket: Ticket) => {
         console.log('Voir ticket:', ticket);
         // Ici, navigation vers le détail du ticket
     }, []);
 
-    const handleEditTicket = useCallback((ticket) => {
+    const handleEditTicket = useCallback((ticket: Ticket) => {
         console.log('Modifier ticket:', ticket);
         // Ici, navigation vers l'édition du ticket
     }, []);
 
-    const handleDeleteTicket = useCallback((ticket) => {
+    const handleDeleteTicket = useCallback((ticket: Ticket) => {
         console.log('Supprimer ticket:', ticket);
         // Ici, suppression du ticket
     }, []);
 
-    const handleUseTemplate = useCallback((template) => {
+    const handleUseTemplate = useCallback((template: Template) => {
         console.log('Utiliser template:', template);
         // Ici, création d'un nouveau ticket avec le template
     }, []);
 
-    const handleEditTemplate = useCallback((template) => {
+    const handleEditTemplate = useCallback((template: Template) => {
         console.log('Modifier template:', template);
         // Ici, édition du template
     }, []);
 
-    const handleDeleteTemplate = useCallback((template) => {
+    const handleDeleteTemplate = useCallback((template: Template) => {
         console.log('Supprimer template:', template);
         // Ici, suppression du template
     }, []);
@@ -341,19 +409,19 @@ const TicketsSection = memo(({ user }) => {
             <StatsPanel tickets={tickets} />
 
             <div className="tickets-tabs">
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
                     onClick={() => setActiveTab('current')}
                 >
                     En cours ({tickets.filter(t => ['pending', 'draft'].includes(t.status)).length})
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
                     onClick={() => setActiveTab('history')}
                 >
                     Historique ({tickets.filter(t => ['won', 'lost'].includes(t.status)).length})
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`}
                     onClick={() => setActiveTab('templates')}
                 >
@@ -363,9 +431,9 @@ const TicketsSection = memo(({ user }) => {
 
             {(activeTab === 'current' || activeTab === 'history') && (
                 <div className="tickets-filters">
-                    <select 
-                        value={filterStatus} 
-                        onChange={(e) => setFilterStatus(e.target.value)}
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
                         className="status-filter"
                     >
                         <option value="all">Tous les statuts</option>
@@ -403,7 +471,7 @@ const TicketsSection = memo(({ user }) => {
                                 <span className="empty-icon">🎫</span>
                                 <h3>Aucun ticket trouvé</h3>
                                 <p>
-                                    {activeTab === 'current' 
+                                    {activeTab === 'current'
                                         ? "Vous n'avez pas de tickets en cours"
                                         : "Votre historique est vide"
                                     }
@@ -424,7 +492,7 @@ const TicketsSection = memo(({ user }) => {
                                 Nouveau template
                             </button>
                         </div>
-                        
+
                         <div className="templates-grid">
                             {templates.length > 0 ? (
                                 templates.map(template => (
