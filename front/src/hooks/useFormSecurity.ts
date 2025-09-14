@@ -4,7 +4,7 @@ export const useFormSecurity = (initialAttempts = 0, maxAttempts = 5) => {
     const [attemptCount, setAttemptCount] = useState(initialAttempts);
     const [isBlocked, setIsBlocked] = useState(false);
     const lastAttemptTime = useRef(0);
-    const blockTimeoutRef = useRef(null);
+    const blockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const checkRateLimit = useCallback(() => {
         const now = Date.now();
@@ -38,7 +38,7 @@ export const useFormSecurity = (initialAttempts = 0, maxAttempts = 5) => {
         }
     }, []);
 
-    const sanitizeInput = useCallback((input, type = 'text') => {
+    const sanitizeInput = useCallback((input: any, type: string = 'text') => {
         if (typeof input !== 'string') return '';
         
         switch (type) {
@@ -52,7 +52,7 @@ export const useFormSecurity = (initialAttempts = 0, maxAttempts = 5) => {
         }
     }, []);
 
-    const validateInput = useCallback((value, type, maxLength) => {
+    const validateInput = useCallback((value: string, type: string, maxLength: number) => {
         if (!value) return { isValid: false, error: 'Ce champ est requis' };
         if (value.length > maxLength) return { isValid: false, error: 'Valeur trop longue' };
         

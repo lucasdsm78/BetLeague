@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
-const ProtectedRoute = ({ children, fallback = null, requireAuth = true }) => {
+interface ProtectedRouteProps {
+    children: ReactNode;
+    fallback?: ReactNode;
+    requireAuth?: boolean;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+    children, 
+    fallback = null, 
+    requireAuth = true 
+}) => {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
@@ -15,15 +25,15 @@ const ProtectedRoute = ({ children, fallback = null, requireAuth = true }) => {
 
     // Si authentification requise mais utilisateur non connecté
     if (requireAuth && !isAuthenticated) {
-        return fallback;
+        return <>{fallback}</>;
     }
 
     // Si pas d'authentification requise mais utilisateur connecté
     if (!requireAuth && isAuthenticated) {
-        return fallback;
+        return <>{fallback}</>;
     }
 
-    return children;
+    return <>{children}</>;
 };
 
 export default ProtectedRoute;

@@ -1,8 +1,46 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react';
 import leagueApiService from '../../services/leagueApiService';
 import './LeaguesSection.css';
 
-const MOCK_LEAGUES = [
+// Types
+interface User {
+    id: string;
+    email: string;
+    pseudo?: string;
+    username?: string;
+}
+
+interface League {
+    id: number;
+    name: string;
+    type: 'public' | 'private';
+    members: number;
+    maxMembers: number;
+    myRank: number;
+    totalPot: number;
+    endDate: string;
+    status: 'active' | 'ended' | 'pending';
+    admin: string;
+}
+
+interface Invitation {
+    id: number;
+    leagueName: string;
+    inviterName: string;
+    inviteDate: string;
+    members: number;
+    maxMembers: number;
+}
+
+interface CreateLeagueFormData {
+    name: string;
+    type: 'public' | 'private';
+    maxMembers: number;
+    entryFee: number;
+    description: string;
+}
+
+const MOCK_LEAGUES: League[] = [
     {
         id: 1,
         name: 'Ligue des Champions 2024',
@@ -29,7 +67,7 @@ const MOCK_LEAGUES = [
     }
 ];
 
-const MOCK_INVITATIONS = [
+const MOCK_INVITATIONS: Invitation[] = [
     {
         id: 1,
         leagueName: 'Bureau FC 2024',
@@ -40,8 +78,15 @@ const MOCK_INVITATIONS = [
     }
 ];
 
-const LeagueCard = memo(({ league, onJoin, onView, onManage }) => {
-    const getStatusColor = (status) => {
+interface LeagueCardProps {
+    league: League;
+    onJoin?: (league: League) => void;
+    onView: (league: League) => void;
+    onManage?: (league: League) => void;
+}
+
+const LeagueCard = memo<LeagueCardProps>(({ league, onJoin, onView, onManage }) => {
+    const getStatusColor = (status: League['status']): string => {
         switch (status) {
             case 'active': return 'var(--success-color)';
             case 'ended': return 'var(--text-light)';
@@ -50,7 +95,7 @@ const LeagueCard = memo(({ league, onJoin, onView, onManage }) => {
         }
     };
 
-    const getStatusLabel = (status) => {
+    const getStatusLabel = (status: League['status']): string => {
         switch (status) {
             case 'active': return 'Active';
             case 'ended': return 'Terminée';
@@ -68,7 +113,7 @@ const LeagueCard = memo(({ league, onJoin, onView, onManage }) => {
                         <span className="league-type">
                             {league.type === 'private' ? '🔒 Privée' : '🌍 Publique'}
                         </span>
-                        <span 
+                        <span
                             className="league-status"
                             style={{ color: getStatusColor(league.status) }}
                         >
@@ -102,14 +147,14 @@ const LeagueCard = memo(({ league, onJoin, onView, onManage }) => {
             </div>
 
             <div className="league-actions">
-                <button 
+                <button
                     className="btn btn-secondary"
                     onClick={() => onView(league)}
                 >
                     Voir classement
                 </button>
-                {league.admin === 'Moi' && (
-                    <button 
+                {league.admin === 'Moi' && onManage && (
+                    <button
                         className="btn btn-outline"
                         onClick={() => onManage(league)}
                     >
@@ -123,7 +168,13 @@ const LeagueCard = memo(({ league, onJoin, onView, onManage }) => {
 
 LeagueCard.displayName = 'LeagueCard';
 
-const InvitationCard = memo(({ invitation, onAccept, onDecline }) => (
+interface InvitationCardProps {
+    invitation: Invitation;
+    onAccept: (invitation: Invitation) => void;
+    onDecline: (invitation: Invitation) => void;
+}
+
+const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecline }) => (
     <div className="invitation-card">
         <div className="invitation-info">
             <h4 className="league-name">{invitation.leagueName}</h4>
@@ -137,13 +188,13 @@ const InvitationCard = memo(({ invitation, onAccept, onDecline }) => (
             </div>
         </div>
         <div className="invitation-actions">
-            <button 
+            <button
                 className="btn btn-primary btn-sm"
                 onClick={() => onAccept(invitation)}
             >
                 Accepter
             </button>
-            <button 
+            <button
                 className="btn btn-outline btn-sm"
                 onClick={() => onDecline(invitation)}
             >
@@ -155,19 +206,25 @@ const InvitationCard = memo(({ invitation, onAccept, onDecline }) => (
 
 InvitationCard.displayName = 'InvitationCard';
 
-const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
-    const [formData, setFormData] = useState({
+interface CreateLeagueModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit?: (leagueData: any, message: string) => void;
+}
+
+const CreateLeagueModal = memo<CreateLeagueModalProps>(({ isOpen, onClose, onSubmit }) => {
+    const [formData, setFormData] = useState<CreateLeagueFormData>({
         name: '',
         type: 'private',
         maxMembers: 10,
         entryFee: 20,
         description: ''
     });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState('');
-    const [nameError, setNameError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [error, setError] = useState<string>('');
+    const [nameError, setNameError] = useState<string>('');
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSubmitting(true);
         setError('');
@@ -176,13 +233,13 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
             // Client-side validation
             const nameValidation = leagueApiService.validateLeagueName(formData.name);
             if (!nameValidation.isValid) {
-                setNameError(nameValidation.error);
+                setNameError(nameValidation.error || 'Nom de ligue invalide');
                 return;
             }
 
             // Call API
             const result = await leagueApiService.createLeague(formData);
-            
+
             if (result.success) {
                 // Reset form
                 setFormData({
@@ -194,7 +251,7 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                 });
                 setNameError('');
                 onClose();
-                
+
                 // Call success callback
                 if (onSubmit) {
                     onSubmit(result.data, result.message);
@@ -210,9 +267,9 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
         }
     };
 
-    const handleChange = (e) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        
+
         // Clear errors when user types
         setError('');
         if (name === 'name') {
@@ -220,11 +277,11 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
         }
 
         // Update form data with proper type conversion
-        setFormData(prev => ({ 
-            ...prev, 
-            [name]: name === 'maxMembers' || name === 'entryFee' 
-                ? (value === '' ? 0 : parseInt(value)) 
-                : value 
+        setFormData(prev => ({
+            ...prev,
+            [name]: name === 'maxMembers' || name === 'entryFee'
+                ? (value === '' ? 0 : parseInt(value))
+                : value
         }));
     };
 
@@ -233,7 +290,7 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
         if (formData.name) {
             const validation = leagueApiService.validateLeagueName(formData.name);
             if (!validation.isValid) {
-                setNameError(validation.error);
+                setNameError(validation.error || 'Nom de ligue invalide');
             }
         }
     }, [formData.name]);
@@ -245,15 +302,15 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>Créer une nouvelle ligue</h3>
-                    <button 
-                        className="modal-close" 
+                    <button
+                        className="modal-close"
                         onClick={onClose}
                         disabled={isSubmitting}
                     >
                         ✕
                     </button>
                 </div>
-                
+
                 {/* Error Display */}
                 {error && (
                     <div className="error-alert" style={{
@@ -271,7 +328,7 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                         <span>{error}</span>
                     </div>
                 )}
-                
+
                 <form onSubmit={handleSubmit} className="create-league-form">
                     <div className="form-group">
                         <label>Nom de la ligue</label>
@@ -298,13 +355,13 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                             </span>
                         )}
                     </div>
-                    
+
                     <div className="form-row">
                         <div className="form-group">
                             <label>Type</label>
-                            <select 
-                                name="type" 
-                                value={formData.type} 
+                            <select
+                                name="type"
+                                value={formData.type}
                                 onChange={handleChange}
                                 disabled={isSubmitting}
                             >
@@ -325,7 +382,7 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                             />
                         </div>
                     </div>
-                    
+
                     <div className="form-group">
                         <label>Mise d'entrée (BTL)</label>
                         <input
@@ -347,7 +404,7 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                             {formData.entryFee === 0 ? 'Ligue gratuite' : 'Mise d\'entrée en BTL'}
                         </small>
                     </div>
-                    
+
                     <div className="form-group">
                         <label>Description (optionnel)</label>
                         <textarea
@@ -355,12 +412,12 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                             value={formData.description}
                             onChange={handleChange}
                             placeholder="Règles, prix, informations..."
-                            rows="3"
+                            rows={3}
                             disabled={isSubmitting}
                             maxLength={500}
                         />
                     </div>
-                    
+
                     {/* Pot Preview */}
                     {formData.entryFee > 0 && formData.maxMembers > 0 && (
                         <div style={{
@@ -375,20 +432,20 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
                             </strong>
                         </div>
                     )}
-                    
+
                     <div className="modal-actions">
-                        <button 
-                            type="button" 
-                            className="btn btn-secondary" 
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
                             onClick={onClose}
                             disabled={isSubmitting}
                         >
                             Annuler
                         </button>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             className="btn btn-primary"
-                            disabled={isSubmitting || !formData.name.trim() || nameError}
+                            disabled={isSubmitting || !formData.name.trim() || !!nameError}
                         >
                             {isSubmitting ? (
                                 <>
@@ -408,14 +465,20 @@ const CreateLeagueModal = memo(({ isOpen, onClose, onSubmit }) => {
 
 CreateLeagueModal.displayName = 'CreateLeagueModal';
 
-const LeaguesSection = memo(({ user }) => {
-    const [activeTab, setActiveTab] = useState('myLeagues');
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [leagues, setLeagues] = useState(MOCK_LEAGUES);
-    const [invitations, setInvitations] = useState(MOCK_INVITATIONS);
-    const [isLoading, setIsLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
-    const [error, setError] = useState('');
+type TabType = 'myLeagues' | 'invitations' | 'join';
+
+interface LeaguesSectionProps {
+    user?: User;
+}
+
+const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+    const [leagues, setLeagues] = useState<League[]>(MOCK_LEAGUES);
+    const [invitations, setInvitations] = useState<Invitation[]>(MOCK_INVITATIONS);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [successMessage, setSuccessMessage] = useState<string>('');
+    const [error, setError] = useState<string>('');
 
     // Load real data from API
     const loadLeagues = useCallback(async () => {
@@ -450,19 +513,19 @@ const LeaguesSection = memo(({ user }) => {
     }, [loadLeagues, loadInvitations]);
 
     // Handle league creation success
-    const handleCreateLeague = useCallback((leagueData, message) => {
+    const handleCreateLeague = useCallback((leagueData: any, message: string) => {
         console.log('Ligue créée:', leagueData);
         setIsCreateModalOpen(false);
-        
+
         // Show success message
         setSuccessMessage(message || 'Ligue créée avec succès !');
         setTimeout(() => setSuccessMessage(''), 5000);
-        
+
         // Reload leagues
         loadLeagues();
     }, [loadLeagues]);
 
-    const handleJoinLeague = useCallback(async (leagueCode) => {
+    const handleJoinLeague = useCallback(async (leagueCode: string) => {
         if (!leagueCode || leagueCode.trim() === '') {
             setError('Code de ligue requis');
             return;
@@ -490,7 +553,7 @@ const LeaguesSection = memo(({ user }) => {
         }
     }, [loadLeagues]);
 
-    const handleAcceptInvitation = useCallback(async (invitation) => {
+    const handleAcceptInvitation = useCallback(async (invitation: Invitation) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, true);
             if (result.success) {
@@ -507,7 +570,7 @@ const LeaguesSection = memo(({ user }) => {
         }
     }, [loadLeagues, loadInvitations]);
 
-    const handleDeclineInvitation = useCallback(async (invitation) => {
+    const handleDeclineInvitation = useCallback(async (invitation: Invitation) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, false);
             if (result.success) {
@@ -538,7 +601,7 @@ const LeaguesSection = memo(({ user }) => {
                     alignItems: 'center'
                 }}>
                     <span>✅ {successMessage}</span>
-                    <button 
+                    <button
                         onClick={() => setSuccessMessage('')}
                         style={{
                             background: 'none',
@@ -566,7 +629,7 @@ const LeaguesSection = memo(({ user }) => {
                     alignItems: 'center'
                 }}>
                     <span>⚠️ {error}</span>
-                    <button 
+                    <button
                         onClick={() => setError('')}
                         style={{
                             background: 'none',
@@ -584,7 +647,7 @@ const LeaguesSection = memo(({ user }) => {
             <div className="section-header">
                 <h2>Mes Ligues</h2>
                 <div className="header-actions">
-                    <button 
+                    <button
                         className="btn btn-primary"
                         onClick={() => setIsCreateModalOpen(true)}
                         disabled={isLoading}
@@ -595,19 +658,19 @@ const LeaguesSection = memo(({ user }) => {
             </div>
 
             <div className="leagues-tabs">
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'myLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('myLeagues')}
                 >
                     Mes ligues ({leagues.length})
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
                     onClick={() => setActiveTab('invitations')}
                 >
                     Invitations ({invitations.length})
                 </button>
-                <button 
+                <button
                     className={`tab-button ${activeTab === 'join' ? 'active' : ''}`}
                     onClick={() => setActiveTab('join')}
                 >
@@ -639,8 +702,8 @@ const LeaguesSection = memo(({ user }) => {
                             </div>
                         ) : leagues.length > 0 ? (
                             leagues.map(league => (
-                                <LeagueCard 
-                                    key={league.id} 
+                                <LeagueCard
+                                    key={league.id}
                                     league={league}
                                     onView={(league) => console.log('Voir', league)}
                                     onManage={(league) => console.log('Gérer', league)}
@@ -651,7 +714,7 @@ const LeaguesSection = memo(({ user }) => {
                                 <span className="empty-icon">🏆</span>
                                 <h3>Aucune ligue active</h3>
                                 <p>Créez votre première ligue ou rejoignez-en une existante</p>
-                                <button 
+                                <button
                                     className="btn btn-primary"
                                     onClick={() => setIsCreateModalOpen(true)}
                                     disabled={isLoading}
@@ -689,10 +752,11 @@ const LeaguesSection = memo(({ user }) => {
                         <div className="join-form">
                             <h3>Rejoindre une ligue</h3>
                             <p>Entrez le code de la ligue pour la rejoindre</p>
-                            
-                            <form onSubmit={(e) => {
+
+                            <form onSubmit={(e: FormEvent<HTMLFormElement>) => {
                                 e.preventDefault();
-                                const code = e.target.code.value;
+                                const formData = new FormData(e.currentTarget);
+                                const code = formData.get('code') as string;
                                 handleJoinLeague(code);
                             }}>
                                 <div className="form-group">
@@ -709,7 +773,7 @@ const LeaguesSection = memo(({ user }) => {
                                 </div>
                             </form>
                         </div>
-                        
+
                         <div className="public-leagues">
                             <h4>Ligues publiques disponibles</h4>
                             <p>Explorez les ligues publiques que vous pouvez rejoindre</p>
