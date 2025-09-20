@@ -38,7 +38,6 @@ export {
 // Store initialization and cleanup utilities
 export const initializeStores = () => {
   // Initialize stores if needed
-  console.log('Stores initialized');
 };
 
 export const clearAllStores = () => {
@@ -51,8 +50,7 @@ export const clearAllStores = () => {
     isLoading: false,
     error: null,
   });
-  
-  console.log('All stores cleared');
+
 };
 
 // Store persist configuration

@@ -366,32 +366,26 @@ const TicketsSection = memo<TicketsSectionProps>(({ user }) => {
     }, [tickets, activeTab, filterStatus]);
 
     const handleViewTicket = useCallback((ticket: Ticket) => {
-        console.log('Voir ticket:', ticket);
         // Ici, navigation vers le détail du ticket
     }, []);
 
     const handleEditTicket = useCallback((ticket: Ticket) => {
-        console.log('Modifier ticket:', ticket);
         // Ici, navigation vers l'édition du ticket
     }, []);
 
     const handleDeleteTicket = useCallback((ticket: Ticket) => {
-        console.log('Supprimer ticket:', ticket);
         // Ici, suppression du ticket
     }, []);
 
     const handleUseTemplate = useCallback((template: Template) => {
-        console.log('Utiliser template:', template);
         // Ici, création d'un nouveau ticket avec le template
     }, []);
 
     const handleEditTemplate = useCallback((template: Template) => {
-        console.log('Modifier template:', template);
         // Ici, édition du template
     }, []);
 
     const handleDeleteTemplate = useCallback((template: Template) => {
-        console.log('Supprimer template:', template);
         // Ici, suppression du template
     }, []);
 

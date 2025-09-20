@@ -10,7 +10,6 @@ import { LeagueServiceError } from './leagueService';
 
 // Service initialization and configuration
 export const initializeServices = () => {
-  console.log('Services initialized');
 };
 
 // Global error handlers
@@ -18,27 +17,27 @@ export const handleServiceError = (error: any): string => {
   if (error instanceof AuthError) {
     return error.getDisplayMessage?.() || error.message;
   }
-  
+
   if (error instanceof LeagueServiceError) {
     return error.message;
   }
-  
+
   if (error instanceof ApiClientError) {
     return error.message;
   }
-  
+
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   return 'Une erreur inconnue s\'est produite';
 };
 
 // Service health check
-export const checkServicesHealth = async (): Promise<{ 
-  api: boolean; 
-  auth: boolean; 
-  league: boolean; 
+export const checkServicesHealth = async (): Promise<{
+  api: boolean;
+  auth: boolean;
+  league: boolean;
 }> => {
   const results = {
     api: false,

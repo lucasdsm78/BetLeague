@@ -231,7 +231,6 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
     setErrors({});
 
     try {
-      console.log('📝 LoginForm - Attempting login with:', { email: formData.email, password: '***' });
       const result = await login({
         email: formData.email,
         password: formData.password,
@@ -239,10 +238,6 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
       });
       setAttemptCount(0);
 
-      // Succès - rediriger directement vers /matches
-      console.log('✅ LoginForm - Login successful:', result);
-      console.log('✅ LoginForm - Redirecting to /matches...');
-      navigate('/matches');
     } catch (error) {
       setAttemptCount(prev => prev + 1);
 
