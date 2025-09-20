@@ -343,19 +343,10 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
 
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('🚀 RegisterForm - Form submitted with:', {
-      email: formData.email,
-      pseudo: formData.pseudo,
-      hasPassword: !!formData.password,
-      passwordsMatch: formData.password === formData.confirmPassword
-    });
 
     if (!validateForm()) {
-      console.log('❌ RegisterForm - Validation failed');
       return;
     }
-
-    console.log('⏳ RegisterForm - Starting registration process...');
     setIsLoading(true);
     setErrors({});
 
@@ -368,8 +359,6 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
         acceptTerms: true
       });
 
-      // Succès - rediriger directement vers /matches
-      console.log('✅ Register successful:', result);
       navigate('/matches');
     } catch (error) {
       let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';

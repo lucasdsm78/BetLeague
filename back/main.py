@@ -14,13 +14,24 @@ from infrastructure.postgresql.init_models import init_models
 settings = get_settings()
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS avec options complètes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+    ],
+    expose_headers=["*"],
 )
 
 @app.on_event("startup")
@@ -28,8 +39,13 @@ async def startup():
     # Create database tables
     init_models()
     await create_tables()
-# Add all routers
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "message": "BetLeague API is running"}
+
+# Add all routers
 app.include_router(user_router)
 app.include_router(league_router)
 app.include_router(match_router)

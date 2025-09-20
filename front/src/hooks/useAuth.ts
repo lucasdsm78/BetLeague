@@ -14,14 +14,14 @@ export interface UseAuthReturn {
   user: User | null;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   login: (credentials: LoginForm) => Promise<User>;
   register: (credentials: RegisterForm) => Promise<User>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   clearError: () => void;
-  
+
   // Helpers
   hasPermission: (permission: string) => boolean;
   hasRole: (role: string) => boolean;
@@ -66,46 +66,35 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
   // Initialize authentication state - Check if user is already authenticated
   useEffect(() => {
     const initAuth = async () => {
-      console.log('🔐 useAuth - Starting initialization...');
-      console.log('🔐 useAuth - Current store state:', { isAuthenticated, user: !!user, isLoading });
 
       // If already authenticated and not loading, we're done
       if (isAuthenticated && user && !isLoading) {
-        console.log('🔐 useAuth - User already authenticated in store:', user);
         return;
       }
 
       // Check if we're already loading to avoid duplicate initialization
       if (isLoading) {
-        console.log('🔐 useAuth - Already loading, skipping initialization');
         return;
       }
 
-      console.log('🔐 useAuth - Setting loading to true and checking token...');
       setLoading(true);
 
       const token = authService.getCurrentToken();
-      console.log('🔐 useAuth - Got token from service:', token ? 'EXISTS' : 'NULL');
 
       if (!token) {
-        console.log('🔐 useAuth - No token found, setting loading to false');
         setLoading(false);
         return;
       }
 
-      console.log('🔐 useAuth - Token exists, validating with API...');
       try {
         // Validate token with API
         const validation = await authService.validateToken();
-        console.log('🔐 useAuth - Token validation successful:', validation);
 
         if (!validation.user) {
           throw new AuthError('Données utilisateur manquantes dans la validation', 401);
         }
 
-        console.log('🔐 useAuth - Restoring user session with validated user:', validation.user);
         storeLogin(validation.user, token);
-        console.log('🔐 useAuth - Store login completed');
 
       } catch (error) {
         console.error('🔐 useAuth - Error during validation:', error);
@@ -125,7 +114,6 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     const needsInit = !isAuthenticated || !user;
 
     if (needsInit) {
-      console.log('🔐 useAuth - Need initialization, calling initAuth');
       initAuth();
     }
   }, []); // Empty dependency array to run only once
@@ -188,12 +176,10 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
   // Login function
   const login = useCallback(async (credentials: LoginForm): Promise<User> => {
     try {
-      console.log('🔐 useAuth - Starting login process...');
       setLoading(true);
       storeClearError();
 
       const response = await authService.login(credentials);
-      console.log('🔐 useAuth - Login response received:', response);
 
       if (!response.data?.token_auth || !response.data?.uuid) {
         throw new AuthError('Réponse de connexion invalide', 500);
@@ -207,10 +193,7 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
         username: credentials.email.split('@')[0]
       };
 
-      console.log('🔐 useAuth - Constructed user object:', user);
-      console.log('🔐 useAuth - Calling storeLogin with user and token...');
       storeLogin(user, response.data.token_auth);
-      console.log('🔐 useAuth - storeLogin completed, isAuthenticated should now be true');
       return user;
 
     } catch (error) {
@@ -288,14 +271,14 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     user,
     isLoading,
     error,
-    
+
     // Actions
     login,
     register,
     logout,
     refreshSession,
     clearError,
-    
+
     // Helpers
     hasPermission,
     hasRole,
@@ -327,7 +310,7 @@ export const useAuthLoading = () => {
 // Permission hook
 export const usePermissions = (requiredPermissions: string[] = []) => {
   const { hasPermission, isAuthenticated } = useAuth();
-  
+
   const checkPermissions = useCallback((permissions: string[] = requiredPermissions) => {
     if (!isAuthenticated) return false;
     return permissions.every(permission => hasPermission(permission));
@@ -349,7 +332,7 @@ export const usePermissions = (requiredPermissions: string[] = []) => {
 // Role hook
 export const useRoles = (requiredRoles: string[] = []) => {
   const { hasRole, isAuthenticated } = useAuth();
-  
+
   const checkRoles = useCallback((roles: string[] = requiredRoles) => {
     if (!isAuthenticated) return false;
     return roles.every(role => hasRole(role));
@@ -386,11 +369,11 @@ export const useSessionMonitor = () => {
 
   const formatTimeRemaining = useCallback((ms: number): string => {
     if (ms <= 0) return '0s';
-    
+
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) return `${hours}h ${minutes % 60}m`;
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
     return `${seconds}s`;

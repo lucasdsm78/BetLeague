@@ -472,27 +472,20 @@ const ProfileSection = memo<ProfileSectionProps>(({ user, onLogout }) => {
 
     const handleUpdateProfile = useCallback((updatedData: Partial<Profile>) => {
         setProfile(prev => ({ ...prev, ...updatedData }));
-        console.log('Profil mis à jour:', updatedData);
     }, []);
 
     const handleUpdatePreferences = useCallback((newPreferences: Preferences) => {
         setProfile(prev => ({ ...prev, preferences: newPreferences }));
-        console.log('Préférences mises à jour:', newPreferences);
     }, []);
 
     const handleToggle2FA = useCallback((enabled: boolean) => {
         setProfile(prev => ({ ...prev, twoFactorEnabled: enabled }));
-        console.log('2FA:', enabled ? 'activé' : 'désactivé');
     }, []);
 
     const handleChangePassword = useCallback(() => {
-        console.log('Changement de mot de passe demandé');
-        // Ici, redirection vers le formulaire de changement de mot de passe
     }, []);
 
     const handleChangeAvatar = useCallback(() => {
-        console.log('Changement d\'avatar demandé');
-        // Ici, ouverture du sélecteur de fichiers
     }, []);
 
     const handleEditProfile = useCallback(() => {

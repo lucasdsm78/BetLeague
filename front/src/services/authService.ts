@@ -78,19 +78,19 @@ export class AuthError extends Error {
     if (this.isNetworkError()) {
       return 'Erreur de connexion. Vérifiez votre réseau.';
     }
-    
+
     if (this.isTimeout()) {
       return 'Timeout. Vérifiez votre connexion.';
     }
-    
+
     if (this.isUnauthorized()) {
       return 'Session expirée. Veuillez vous reconnecter.';
     }
-    
+
     if (this.isTooManyRequests()) {
       return 'Trop de tentatives. Réessayez plus tard.';
     }
-    
+
     if (this.isServerError()) {
       return 'Erreur serveur. Réessayez plus tard.';
     }
@@ -106,7 +106,7 @@ export class AuthError extends Error {
 // Login attempt tracking for security
 class LoginAttemptTracker {
   private attempts: Map<string, { count: number; lastAttempt: number; lockedUntil?: number }> = new Map();
-  
+
   private readonly MAX_ATTEMPTS = 5;
   private readonly LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
   private readonly ATTEMPT_WINDOW = 60 * 60 * 1000; // 1 hour
@@ -153,7 +153,7 @@ class LoginAttemptTracker {
   getBlockTimeRemaining(identifier: string): number {
     const record = this.attempts.get(identifier);
     if (!record?.lockedUntil) return 0;
-    
+
     return Math.max(0, record.lockedUntil - Date.now());
   }
 }
@@ -168,7 +168,7 @@ export class AuthService {
   private validateEmail(email: string): string {
     const trimmed = email.toLowerCase().trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     if (!emailRegex.test(trimmed)) {
       throw new AuthError('Format d\'email invalide', 400, 'INVALID_EMAIL');
     }
@@ -199,7 +199,7 @@ export class AuthService {
 
   private validatePseudo(pseudo: string): string {
     const trimmed = pseudo.trim();
-    
+
     if (!trimmed) {
       throw new AuthError('Pseudo requis', 400, 'PSEUDO_REQUIRED');
     }
@@ -290,14 +290,11 @@ export class AuthService {
 
   // Public API Methods
   async login(credentials: LoginForm): Promise<LoginResponse> {
-    console.log('🔐 AuthService.login() called with:', { email: credentials.email, hasPassword: !!credentials.password });
 
     try {
       // Validate and sanitize input
       const email = this.validateEmail(credentials.email);
       const password = this.validatePassword(credentials.password);
-
-      console.log('✅ AuthService.login() - Validation passed');
 
       // Check for rate limiting
       if (this.loginTracker.isBlocked(email)) {
@@ -316,9 +313,7 @@ export class AuthService {
         code: credentials.code || "string",
       };
 
-      console.log('📡 AuthService.login() - Making API call to /auth/login with payload:', payload);
       const response: any = await apiClient.post('/auth/login', payload);
-      console.log('📡 AuthService.login() - API response:', response);
 
       if (!response.success || !response.data) {
         throw new AuthError('Réponse invalide du serveur', 500);
@@ -342,7 +337,7 @@ export class AuthService {
       if (credentials.email) {
         this.loginTracker.recordAttempt(credentials.email.toLowerCase().trim(), false);
       }
-      
+
       this.handleApiError(error);
     }
   }
@@ -395,7 +390,7 @@ export class AuthService {
   async validateToken(): Promise<ValidateTokenResponse> {
     try {
       const token = this.getToken();
-      
+
       if (!token) {
         throw new AuthError('Aucun token trouvé', 401, 'NO_TOKEN');
       }
@@ -413,7 +408,7 @@ export class AuthService {
       if (error instanceof AuthError && error.isUnauthorized()) {
         this.clearTokens();
       }
-      
+
       this.handleApiError(error);
     }
   }
@@ -421,7 +416,7 @@ export class AuthService {
   async refreshToken(): Promise<LoginResponse> {
     try {
       const refreshToken = this.getRefreshToken();
-      
+
       if (!refreshToken) {
         throw new AuthError('Aucun refresh token trouvé', 401, 'NO_REFRESH_TOKEN');
       }
@@ -449,7 +444,7 @@ export class AuthService {
   async logout(): Promise<void> {
     try {
       const token = this.getToken();
-      
+
       if (token) {
         // Attempt to logout on server (don't fail if it doesn't work)
         try {
@@ -461,7 +456,7 @@ export class AuthService {
 
       // Always clear local tokens
       this.clearTokens();
-      
+
     } catch (error) {
       // Always clear tokens, even if logout fails
       this.clearTokens();

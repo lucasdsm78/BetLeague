@@ -28,33 +28,33 @@ const LoadingSpinner = () => (
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  console.log('🔒 ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
-
   if (isLoading) {
-    console.log('🔒 ProtectedRoute - Showing loading spinner');
     return <LoadingSpinner />;
   }
 
   if (!isAuthenticated) {
-    console.log('🔒 ProtectedRoute - Not authenticated, redirecting to /');
     return <Navigate to="/" replace />;
   }
 
-  console.log('🔒 ProtectedRoute - Authenticated, showing protected content');
   return <>{children}</>;
 };
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, error } = useAuth();
+  const navigate = useNavigate();
 
-  console.log('🌍 PublicRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'error:', error);
+  // Écouter les changements d'authentification et rediriger automatiquement
+  React.useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/matches', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   // Timeout de sécurité pour éviter le loading infini (HOOK TOUJOURS APPELÉ)
   React.useEffect(() => {
     if (isLoading) {
       const timeout = setTimeout(() => {
-        console.error('🚨 PublicRoute - Loading timeout after 5 seconds, something is wrong with useAuth()');
       }, 5000);
 
       return () => clearTimeout(timeout);
@@ -62,16 +62,13 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [isLoading]);
 
   if (isLoading) {
-    console.log('🌍 PublicRoute - Showing loading spinner');
     return <LoadingSpinner />;
   }
 
   if (isAuthenticated) {
-    console.log('🌍 PublicRoute - Authenticated, redirecting to /matches');
     return <Navigate to="/matches" replace />;
   }
 
-  console.log('🌍 PublicRoute - Not authenticated, showing public content');
   return <>{children}</>;
 };
 

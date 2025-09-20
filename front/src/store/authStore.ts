@@ -17,12 +17,12 @@ interface AuthActions {
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   clearError: () => void;
-  
+
   // Security actions
   updateSecurityContext: (context: Partial<SecurityContext>) => void;
   refreshSession: () => Promise<void>;
   checkSessionExpiry: () => boolean;
-  
+
   // Getters
   hasPermission: (permission: string) => boolean;
   hasRole: (role: string) => boolean;
@@ -48,7 +48,7 @@ const secureStorage = {
   getItem: (name: string): string | null => {
     const item = localStorage.getItem(name);
     if (!item) return null;
-    
+
     try {
       // In production, decrypt here
       return item;
@@ -85,10 +85,9 @@ export const useAuthStore = create<AuthStoreWithActions>()(
   persist(
     immer((set, get) => ({
       ...initialState,
-      
+
       // Auth actions
       login: (user: User, token: string) => {
-        console.log('🗄️ AuthStore - Login called with user:', user, 'token:', token);
         set((state) => {
           const now = Date.now();
           const expiry = now + SECURITY_CONFIG.SESSION_TIMEOUT;
@@ -100,8 +99,6 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           state.isLoading = false;
           state.sessionExpiry = expiry;
 
-          console.log('🗄️ AuthStore - State updated, isAuthenticated:', state.isAuthenticated);
-          
           // Initialize security context
           state.securityContext = {
             permissions: ['user:read', 'league:read', 'bet:create'] as string[],
@@ -112,7 +109,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           };
         });
       },
-      
+
       logout: () => {
         set((state) => {
           // Clear all auth data
@@ -124,11 +121,11 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           state.securityContext = null;
           state.sessionExpiry = null;
         });
-        
+
         // Clear token from secure storage
         secureStorage.removeItem('auth-token');
       },
-      
+
       updateUser: (updates: Partial<User>) => {
         set((state) => {
           if (state.user) {
@@ -136,14 +133,14 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           }
         });
       },
-      
+
       setError: (error: string | null) => {
         set((state) => {
           state.error = error;
           state.isLoading = false;
         });
       },
-      
+
       setLoading: (isLoading: boolean) => {
         set((state) => {
           state.isLoading = isLoading;
@@ -152,13 +149,13 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           }
         });
       },
-      
+
       clearError: () => {
         set((state) => {
           state.error = null;
         });
       },
-      
+
       // Security actions
       updateSecurityContext: (context: Partial<SecurityContext>) => {
         set((state) => {
@@ -173,11 +170,11 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           }
         });
       },
-      
+
       refreshSession: async () => {
         const state = get();
         if (!state.isAuthenticated || !state.token) return;
-        
+
         try {
           // Call refresh endpoint
           const response = await fetch('/api/auth/refresh', {
@@ -187,7 +184,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
               'Content-Type': 'application/json',
             },
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             if (data.token) {
@@ -204,40 +201,40 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           get().logout();
         }
       },
-      
+
       checkSessionExpiry: () => {
         const state = get();
         if (!state.sessionExpiry) return false;
-        
+
         const now = Date.now();
         const isExpired = now > state.sessionExpiry;
-        
+
         if (isExpired) {
           get().logout();
           return true;
         }
-        
+
         // Check for inactivity
         const lastActivity = state.securityContext?.lastActivity;
         if (lastActivity) {
           const lastActivityTime = new Date(lastActivity).getTime();
           const isInactive = now - lastActivityTime > SECURITY_CONFIG.INACTIVITY_TIMEOUT;
-          
+
           if (isInactive) {
             get().logout();
             return true;
           }
         }
-        
+
         return false;
       },
-      
+
       // Getters
       hasPermission: (permission: string) => {
         const state = get();
         return state.securityContext?.permissions.includes(permission) ?? false;
       },
-      
+
       hasRole: (role: string) => {
         const state = get();
         return state.securityContext?.roles.includes(role) ?? false;
@@ -271,26 +268,26 @@ export const useAuthStore = create<AuthStoreWithActions>()(
 // Session management hooks
 export const useSessionManager = () => {
   const { checkSessionExpiry, refreshSession, updateSecurityContext } = useAuthStore();
-  
+
   React.useEffect(() => {
     // Check session expiry every minute
     const interval = setInterval(() => {
       checkSessionExpiry();
     }, 60 * 1000);
-    
+
     // Track user activity
     const trackActivity = () => {
       updateSecurityContext({
         lastActivity: new Date().toISOString(),
       });
     };
-    
+
     // Activity event listeners
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     events.forEach(event => {
       document.addEventListener(event, trackActivity, { passive: true });
     });
-    
+
     // Auto-refresh session when it's close to expiry
     const refreshInterval = setInterval(() => {
       const state = useAuthStore.getState();
@@ -302,7 +299,7 @@ export const useSessionManager = () => {
         }
       }
     }, 60 * 1000);
-    
+
     return () => {
       clearInterval(interval);
       clearInterval(refreshInterval);
@@ -321,13 +318,13 @@ export const useAuthLoading = () => useAuthStore((state) => state.isLoading);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 
 // Security selectors
-export const useHasPermission = (permission: string) => 
+export const useHasPermission = (permission: string) =>
   useAuthStore((state) => state.hasPermission(permission));
 
-export const useHasRole = (role: string) => 
+export const useHasRole = (role: string) =>
   useAuthStore((state) => state.hasRole(role));
 
-export const useSecurityContext = () => 
+export const useSecurityContext = () =>
   useAuthStore((state) => state.securityContext);
 
 export default useAuthStore;

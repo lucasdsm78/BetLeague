@@ -252,7 +252,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       const now = Date.now();
       const currentState = securityState;
       if (now - currentState.lastActivity > INACTIVITY_TIMEOUT) {
-        console.log('🔒 Auto-logout due to inactivity');
         handleLogout();
       }
     };
@@ -262,7 +261,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }, [handleLogout]); // Remove securityState.lastActivity from dependencies
 
   // Security: Validate user session - but wait for auth initialization
-  console.log('🔒 DashboardLayout validation:', { isValidUser, isLoading, user: !!user, isAuthenticated });
 
   if (!isValidUser && !isLoading && !isAuthenticated) {
     console.warn('🔒 Dashboard accessed without valid user session');
@@ -272,7 +270,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
   // Performance: Show loading state
   if (isLoading || !user) {
-    console.log('🔒 DashboardLayout showing loading state:', { isLoading, user: !!user });
     return <LoadingSection />;
   }
 

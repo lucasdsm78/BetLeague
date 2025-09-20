@@ -82,18 +82,15 @@ function App(): React.JSX.Element {
         // Initialiser les services et stores
         initializeServices();
         initializeStores();
-        
-        
+
+
         // Appliquer la configuration de sécurité
         const securityConfig = SecurityUtils.DEFAULT_SECURITY_CONFIG;
-        console.log('Security configuration applied:', securityConfig);
-        
+
         // Marquer comme initialisé
         setIsInitialized(true);
-        
-        console.log('BetLeague Application initialized successfully');
+
       } catch (error) {
-        console.error('Failed to initialize application:', error);
         showError('Erreur d\'initialisation', 'Impossible de démarrer l\'application');
       }
     };
