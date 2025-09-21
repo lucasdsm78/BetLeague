@@ -45,6 +45,11 @@ async def startup():
 async def health_check():
     return {"status": "ok", "message": "BetLeague API is running"}
 
+# CORS preflight handler for auth endpoints
+@app.options("/api/auth/{path:path}")
+async def options_auth_handler():
+    return {"message": "OK"}
+
 # Add all routers
 app.include_router(user_router)
 app.include_router(league_router)

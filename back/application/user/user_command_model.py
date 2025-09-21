@@ -49,6 +49,17 @@ class UserLoginResponse(BaseModel):
         )
 
 
+class RefreshTokenModel(BaseModel):
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    token_auth: str
+    refresh_token: str
+    token_expiration: str
+    message: str = "Token refreshed successfully"
+
+
 class InvalidPasswordError(Exception):
 
     def __init__(self, email: str):
