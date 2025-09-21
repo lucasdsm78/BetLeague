@@ -42,8 +42,12 @@ export class AuthError extends Error {
   isNetworkError(): boolean { return this.status === 0; }
   isUnauthorized(): boolean { return this.status === 401; }
   isForbidden(): boolean { return this.status === 403; }
+  isTooManyRequests(): boolean { return this.status === 429; }
+  isConflict(): boolean { return this.status === 409; }
   isServerError(): boolean { return this.status >= 500; }
   canRetry(): boolean { return this.retryable || this.isNetworkError() || this.isServerError(); }
+
+  getDisplayMessage(): string { return this.message; }
 }
 
 class EnhancedAuthService {
@@ -146,7 +150,10 @@ class EnhancedAuthService {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...(token && {
+        'X-Authentication': `Bearer ${token}`,
+        'Authorization': `Bearer ${token}` // Keep for compatibility
+      }),
       ...(options.headers || {}),
     };
 
@@ -166,7 +173,10 @@ class EnhancedAuthService {
           const newToken = this.getCurrentAccessToken();
           const retryHeaders = {
             ...headers,
-            ...(newToken && { 'Authorization': `Bearer ${newToken}` }),
+            ...(newToken && {
+              'X-Authentication': `Bearer ${newToken}`,
+              'Authorization': `Bearer ${newToken}` // Keep for compatibility
+            }),
           };
 
           const retryResponse = await fetch(url, { ...config, headers: retryHeaders });
@@ -351,27 +361,35 @@ class EnhancedAuthService {
         }),
       });
 
-      if (!response.data?.token_auth || !response.data?.uuid) {
+      if (!response.token_auth || !response.uuid) {
         throw new AuthError('Invalid login response', 500, 'INVALID_RESPONSE');
       }
 
       // Create user object
       const user: User = {
-        id: response.data.uuid,
+        id: response.uuid,
         email: credentials.email,
         pseudo: credentials.email.split('@')[0],
         username: credentials.email.split('@')[0],
       };
 
-      // Calculate token expiry
-      const expiresAt = response.data.token_expiration
-        ? new Date(response.data.token_expiration).getTime()
-        : Date.now() + 24 * 60 * 60 * 1000;
+      // Calculate token expiry - decode from access token JWT
+      let expiresAt = Date.now() + 24 * 60 * 60 * 1000; // Default fallback
 
-      // Store tokens (assume refresh token is same as access token for now)
+      try {
+        // Decode the JWT token to get the actual expiry time
+        const tokenPayload = JSON.parse(atob(response.token_auth.split('.')[1]));
+        if (tokenPayload.exp) {
+          expiresAt = tokenPayload.exp * 1000; // Convert from seconds to milliseconds
+        }
+      } catch (error) {
+        console.warn('Failed to decode token expiry, using fallback:', error);
+      }
+
+      // Store tokens (token_expiration is actually a refresh token)
       const tokenPair: TokenPair = {
-        accessToken: response.data.token_auth,
-        refreshToken: response.data.token_auth, // Update when backend provides separate refresh token
+        accessToken: response.token_auth,
+        refreshToken: response.token_expiration, // This is the actual refresh token
         expiresAt,
       };
 
@@ -401,27 +419,35 @@ class EnhancedAuthService {
         }),
       });
 
-      if (!response.data?.token_auth || !response.data?.uuid) {
+      if (!response.token_auth || !response.uuid) {
         throw new AuthError('Invalid registration response', 500, 'INVALID_RESPONSE');
       }
 
       // Create user object
       const user: User = {
-        id: response.data.uuid,
+        id: response.uuid,
         email: credentials.email,
         pseudo: credentials.pseudo,
         username: credentials.pseudo,
       };
 
-      // Calculate token expiry
-      const expiresAt = response.data.token_expiration
-        ? new Date(response.data.token_expiration).getTime()
-        : Date.now() + 24 * 60 * 60 * 1000;
+      // Calculate token expiry - decode from access token JWT
+      let expiresAt = Date.now() + 24 * 60 * 60 * 1000; // Default fallback
 
-      // Store tokens
+      try {
+        // Decode the JWT token to get the actual expiry time
+        const tokenPayload = JSON.parse(atob(response.token_auth.split('.')[1]));
+        if (tokenPayload.exp) {
+          expiresAt = tokenPayload.exp * 1000; // Convert from seconds to milliseconds
+        }
+      } catch (error) {
+        console.warn('Failed to decode token expiry, using fallback:', error);
+      }
+
+      // Store tokens (token_expiration is actually a refresh token)
       const tokenPair: TokenPair = {
-        accessToken: response.data.token_auth,
-        refreshToken: response.data.token_auth,
+        accessToken: response.token_auth,
+        refreshToken: response.token_expiration, // This is the actual refresh token
         expiresAt,
       };
 
