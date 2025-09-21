@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from dependency_injections import get_settings
 from infrastructure.postgresql.database import create_tables
@@ -14,12 +15,41 @@ from infrastructure.postgresql.init_models import init_models
 settings = get_settings()
 app = FastAPI()
 
-# Configure CORS avec options complètes
+# Enhanced CORS Middleware for OPTIONS requests
+class CORSOptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Handle OPTIONS requests immediately
+        if request.method == "OPTIONS":
+            response = Response(
+                content="OK",
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": "http://localhost:3000",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-Authentication",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Max-Age": "3600",
+                }
+            )
+            return response
+
+        # For all other requests, proceed normally
+        response = await call_next(request)
+        return response
+
+# Add the custom CORS middleware BEFORE the standard CORS middleware
+app.add_middleware(CORSOptionsMiddleware)
+
+# Configure CORS avec options complètes pour la sécurité
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",  # Dev server backup
+    ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allow_headers=[
         "Accept",
         "Accept-Language",
@@ -30,8 +60,12 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
+        "X-Authentication",  # Custom auth header
+        "Cache-Control",
+        "Pragma",
     ],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight for 1 hour
 )
 
 @app.on_event("startup")
@@ -45,10 +79,7 @@ async def startup():
 async def health_check():
     return {"status": "ok", "message": "BetLeague API is running"}
 
-# CORS preflight handler for auth endpoints
-@app.options("/api/auth/{path:path}")
-async def options_auth_handler():
-    return {"message": "OK"}
+# CORS preflight is now handled by CORSOptionsMiddleware
 
 # Add all routers
 app.include_router(user_router)

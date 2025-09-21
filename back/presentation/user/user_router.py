@@ -46,6 +46,7 @@ async def create_user(
         )
 
     except Exception as e:
+        print(e)
         raise
 
     return user
@@ -57,21 +58,18 @@ async def create_user(
     status_code=status.HTTP_200_OK,
 )
 async def logout_current_device(
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase)
 ):
-    """
-    Logout current device - invalidate current session
-    """
     try:
-        # In a real implementation, you would:
-        # 1. Add token to blacklist
-        # 2. Remove refresh token from database
-        # 3. Log security event
+        user_id = current_user.get("id") or current_user.get("uuid", "")
+        token = current_user.get("token", "")  # We'll need to pass the token in the dependency
 
-        return {
-            "message": "Déconnexion réussie",
-            "timestamp": "2023-01-01T00:00:00Z"  # In real app, use current timestamp
-        }
+        result = await user_command_usecase.logout(user_id, token)
+        return result
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
         print(f"❌ Logout error: {e}")
         raise HTTPException(

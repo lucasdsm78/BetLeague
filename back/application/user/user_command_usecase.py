@@ -6,6 +6,7 @@ import shortuuid
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+import datetime
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse, RefreshTokenResponse
@@ -52,6 +53,12 @@ class UserCommandUseCase(ABC):
     async def refresh_token(self, refresh_token: str) -> RefreshTokenResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def logout(self, user_id: str, token: str) -> dict:
+        """
+        Logout current device - invalidate current token
+        """
+        raise NotImplementedError
 
 class UserCommandUseCaseImpl(UserCommandUseCase):
 
@@ -234,7 +241,6 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             refresh_coro = self.manager_token.generate_expiration_token_login(user)
             new_token, new_refresh = await asyncio.gather(token_coro, refresh_coro)
 
-            import datetime
             expiration_time = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
 
             return RefreshTokenResponse(
@@ -250,4 +256,28 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             raise HTTPException(
                 status_code=401,
                 detail="Token refresh failed"
+            )
+
+    async def logout(self, user_id: str, token: str) -> dict:
+        try:
+            success = await self.manager_token.invalidate_token(token, user_id)
+
+            if success:
+                return {
+                    "message": "Déconnexion réussie",
+                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                    "user_id": user_id
+                }
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Erreur lors de l'invalidation du token"
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail="Erreur lors de la déconnexion"
             )
