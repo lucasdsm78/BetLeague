@@ -8,6 +8,7 @@ import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import LogoutModal from './auth/LogoutModal';
 import type { User } from '../types';
 import './Dashboard.css';
 
@@ -96,6 +97,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [logoutTriggerReason, setLogoutTriggerReason] = useState<'manual' | 'inactivity' | 'security' | 'session_expired'>('manual');
   const [securityState, setSecurityState] = useState<SecurityState>({
     attemptedPaths: [],
     suspiciousActivity: false,
@@ -200,32 +203,41 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     }
   }, [navigate, user, securityState.lastActivity, showError]);
 
-  // Secure logout handler
+  // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {
     try {
-      // Security: Confirm logout for high-security actions
-      const confirmLogout = activeTab === 'profile' || securityState.suspiciousActivity;
-
-      if (confirmLogout && !window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-        return;
-      }
-
-      await logout();
-
-      // Security: Clear sensitive data
-      setSecurityState({
-        attemptedPaths: [],
-        suspiciousActivity: false,
-        lastActivity: Date.now()
-      });
-
-      navigate('/', { replace: true });
+      // Open logout modal for enhanced experience
+      setLogoutTriggerReason('manual');
+      setIsLogoutModalOpen(true);
     } catch (error) {
-      console.error('🔒 Logout error:', error);
-      // Force logout even on error
-      navigate('/', { replace: true });
+      console.error('🔒 Logout modal error:', error);
+      // Fallback to direct logout
+      try {
+        await logout();
+        navigate('/', { replace: true });
+      } catch (logoutError) {
+        console.error('🔒 Fallback logout error:', logoutError);
+        window.location.href = '/';
+      }
     }
-  }, [logout, navigate, activeTab, securityState.suspiciousActivity]);
+  }, [logout, navigate]);
+
+  // Handle logout modal close
+  const handleLogoutModalClose = useCallback(() => {
+    setIsLogoutModalOpen(false);
+  }, []);
+
+  // Handle inactivity logout
+  const handleInactivityLogout = useCallback(() => {
+    setLogoutTriggerReason('inactivity');
+    setIsLogoutModalOpen(true);
+  }, []);
+
+  // Handle security logout
+  const handleSecurityLogout = useCallback(() => {
+    setLogoutTriggerReason('security');
+    setIsLogoutModalOpen(true);
+  }, []);
 
   // Security: Handle mobile menu clicks outside
   useEffect(() => {
@@ -252,13 +264,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       const now = Date.now();
       const currentState = securityState;
       if (now - currentState.lastActivity > INACTIVITY_TIMEOUT) {
-        handleLogout();
+        handleInactivityLogout();
       }
     };
 
     const interval = setInterval(checkInactivity, 60000); // Check every minute
     return () => clearInterval(interval);
-  }, [handleLogout]); // Remove securityState.lastActivity from dependencies
+  }, [handleInactivityLogout]); // Updated dependency
 
   // Security: Validate user session - but wait for auth initialization
 
@@ -305,6 +317,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 </span>
               )}
             </div>
+
+            {/* Desktop Logout Button */}
+            <button
+              className="desktop-logout-btn"
+              onClick={handleLogout}
+              aria-label="Se déconnecter"
+              title="Se déconnecter"
+            >
+              <span className="logout-icon">🚪</span>
+              <span className="logout-text">Déconnexion</span>
+            </button>
 
             <button
               className="menu-toggle"
@@ -416,6 +439,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </button>
         ))}
       </nav>
+
+      {/* Enhanced Logout Modal */}
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={handleLogoutModalClose}
+        triggerReason={logoutTriggerReason}
+        showDeviceOptions={true}
+        enableQuickLogout={true}
+      />
     </div>
   );
 });

@@ -51,20 +51,20 @@ const HomeScreen = memo(() => (
     </div>
 
     <div className="auth-buttons">
-      <Link
-        to="/login"
+      <button
+        onClick={() => window.location.href = '/login'}
         className="btn btn-primary btn-lg"
         aria-label="Se connecter à votre compte"
       >
         Se connecter
-      </Link>
-      <Link
-        to="/register"
+      </button>
+      <button
+        onClick={() => window.location.href = '/register'}
         className="btn btn-secondary btn-lg"
         aria-label="Créer un nouveau compte"
       >
         S'inscrire
-      </Link>
+      </button>
     </div>
   </div>
 ));

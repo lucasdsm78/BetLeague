@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
-    InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse
+    InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse, RefreshTokenResponse
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
@@ -46,6 +46,10 @@ class UserCommandUseCase(ABC):
 
     @abstractmethod
     async def verify_2fa(self, email: str, code: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def refresh_token(self, refresh_token: str) -> RefreshTokenResponse:
         raise NotImplementedError
 
 
@@ -199,3 +203,51 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         token, refresh = await asyncio.gather(token_coro, refresh_coro)
 
         return UserUpdateResponse(token_auth=token, token_expiration=refresh)
+
+    async def refresh_token(self, refresh_token: str) -> RefreshTokenResponse:
+        try:
+            payload = await self.manager_token.verify_token(refresh_token)
+            if not payload:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired refresh token"
+                )
+
+            user_email = payload.get("sub")
+            if not user_email:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid token payload"
+                )
+
+            async with self._session_factory() as session:
+                async with session.begin():
+                    repo = UserRepositoryImpl(session)
+                    user = await repo.find_by_email(user_email)
+                    if not user:
+                        raise HTTPException(
+                            status_code=401,
+                            detail="User not found"
+                        )
+
+            token_coro = self.manager_token.generate_token_login(user)
+            refresh_coro = self.manager_token.generate_expiration_token_login(user)
+            new_token, new_refresh = await asyncio.gather(token_coro, refresh_coro)
+
+            import datetime
+            expiration_time = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+
+            return RefreshTokenResponse(
+                token_auth=new_token,
+                refresh_token=new_refresh,
+                token_expiration=expiration_time.isoformat() + "Z",
+                message="Token refreshed successfully"
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=401,
+                detail="Token refresh failed"
+            )

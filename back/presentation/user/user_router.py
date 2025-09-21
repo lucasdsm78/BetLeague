@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
-    UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel
+    UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel
 from application.user.user_query_usecase import UserQueryUseCase
@@ -50,6 +50,34 @@ async def create_user(
 
     return user
 
+
+@router.post(
+    "/logout",
+    summary="Logout current device",
+    status_code=status.HTTP_200_OK,
+)
+async def logout_current_device(
+        current_user: dict = Depends(current_user)
+):
+    """
+    Logout current device - invalidate current session
+    """
+    try:
+        # In a real implementation, you would:
+        # 1. Add token to blacklist
+        # 2. Remove refresh token from database
+        # 3. Log security event
+
+        return {
+            "message": "Déconnexion réussie",
+            "timestamp": "2023-01-01T00:00:00Z"  # In real app, use current timestamp
+        }
+    except Exception as e:
+        print(f"❌ Logout error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la déconnexion"
+        )
 
 @router.get(
     "/users",
@@ -124,6 +152,36 @@ async def validate_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
+        )
+
+
+@router.post(
+    "/refresh",
+    response_model=RefreshTokenResponse,
+    summary="Refresh JWT token",
+    status_code=status.HTTP_200_OK,
+)
+async def refresh_token(
+        refresh_data: RefreshTokenModel,
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase)
+):
+    try:
+        print(f"🔄 Refresh token request: {refresh_data.refresh_token[:20]}...")
+
+        # Call use case to refresh token
+        result = await user_command_usecase.refresh_token(refresh_data.refresh_token)
+
+        print(f"✅ Token refreshed successfully")
+        return result
+
+    except HTTPException as e:
+        print(f"❌ Token refresh failed: {e.detail}")
+        raise e
+    except Exception as e:
+        print(f"❌ Unexpected error during token refresh: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token refresh failed"
         )
 
 

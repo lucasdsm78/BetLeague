@@ -5,7 +5,7 @@
 
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import App from '../App';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
@@ -26,7 +26,7 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useEnhancedAuth();
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -41,33 +41,50 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, error } = useAuth();
+  const { isAuthenticated, isLoading, error } = useEnhancedAuth();
   const navigate = useNavigate();
+  const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
 
   // Écouter les changements d'authentification et rediriger automatiquement
   React.useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    // Wait for initial auth check to complete before redirecting
+    if (!isLoading && !initialCheckComplete) {
+      setInitialCheckComplete(true);
+    }
+  }, [isLoading, initialCheckComplete]);
+
+  // Separate effect for redirection to avoid interference with navigation
+  React.useEffect(() => {
+    if (isAuthenticated && !isLoading && initialCheckComplete) {
+      console.log('🔄 PublicRoute: Redirecting authenticated user to dashboard');
       navigate('/matches', { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, initialCheckComplete, navigate]);
 
-  // Timeout de sécurité pour éviter le loading infini (HOOK TOUJOURS APPELÉ)
+  // Timeout de sécurité pour éviter le loading infini
   React.useEffect(() => {
     if (isLoading) {
       const timeout = setTimeout(() => {
-      }, 5000);
+        console.warn('⚠️ Auth loading timeout, proceeding as unauthenticated');
+        setInitialCheckComplete(true);
+      }, 3000); // Reduced to 3 seconds
 
       return () => clearTimeout(timeout);
     }
   }, [isLoading]);
 
-  if (isLoading) {
+  // Show loading until initial check is complete
+  if (isLoading || !initialCheckComplete) {
     return <LoadingSpinner />;
   }
 
-  if (isAuthenticated) {
+  // Only redirect if user is actually authenticated after initial check
+  if (isAuthenticated && initialCheckComplete) {
+    console.log('🔄 PublicRoute: Navigating to matches (authenticated user)');
     return <Navigate to="/matches" replace />;
   }
+
+  console.log('🌍 PublicRoute: Showing public content (unauthenticated user)');
 
   return <>{children}</>;
 };

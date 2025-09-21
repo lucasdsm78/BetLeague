@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 
 interface ProtectedRouteProps {
     children: ReactNode;
@@ -12,7 +12,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     fallback = null, 
     requireAuth = true 
 }) => {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading } = useEnhancedAuth();
 
     if (isLoading) {
         return (

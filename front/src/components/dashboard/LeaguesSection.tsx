@@ -1,5 +1,6 @@
 import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react';
 import leagueApiService from '../../services/leagueApiService';
+import CreateLeagueForm from '../league/CreateLeagueForm';
 import './LeaguesSection.css';
 
 // Types
@@ -32,13 +33,6 @@ interface Invitation {
     maxMembers: number;
 }
 
-interface CreateLeagueFormData {
-    name: string;
-    type: 'public' | 'private';
-    maxMembers: number;
-    entryFee: number;
-    description: string;
-}
 
 const MOCK_LEAGUES: League[] = [
     {
@@ -206,264 +200,6 @@ const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecl
 
 InvitationCard.displayName = 'InvitationCard';
 
-interface CreateLeagueModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSubmit?: (leagueData: any, message: string) => void;
-}
-
-const CreateLeagueModal = memo<CreateLeagueModalProps>(({ isOpen, onClose, onSubmit }) => {
-    const [formData, setFormData] = useState<CreateLeagueFormData>({
-        name: '',
-        type: 'private',
-        maxMembers: 10,
-        entryFee: 20,
-        description: ''
-    });
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [error, setError] = useState<string>('');
-    const [nameError, setNameError] = useState<string>('');
-
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        setError('');
-
-        try {
-            // Client-side validation
-            const nameValidation = leagueApiService.validateLeagueName(formData.name);
-            if (!nameValidation.isValid) {
-                setNameError(nameValidation.error || 'Nom de ligue invalide');
-                return;
-            }
-
-            // Call API
-            const result = await leagueApiService.createLeague(formData);
-
-            if (result.success) {
-                // Reset form
-                setFormData({
-                    name: '',
-                    type: 'private',
-                    maxMembers: 10,
-                    entryFee: 20,
-                    description: ''
-                });
-                setNameError('');
-                onClose();
-
-                // Call success callback
-                if (onSubmit) {
-                    onSubmit(result.data, result.message);
-                }
-            } else {
-                setError(result.error);
-            }
-        } catch (err) {
-            setError('Erreur inattendue lors de la création');
-            console.error('League creation error:', err);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-
-        // Clear errors when user types
-        setError('');
-        if (name === 'name') {
-            setNameError('');
-        }
-
-        // Update form data with proper type conversion
-        setFormData(prev => ({
-            ...prev,
-            [name]: name === 'maxMembers' || name === 'entryFee'
-                ? (value === '' ? 0 : parseInt(value))
-                : value
-        }));
-    };
-
-    // Real-time name validation
-    const handleNameBlur = useCallback(() => {
-        if (formData.name) {
-            const validation = leagueApiService.validateLeagueName(formData.name);
-            if (!validation.isValid) {
-                setNameError(validation.error || 'Nom de ligue invalide');
-            }
-        }
-    }, [formData.name]);
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3>Créer une nouvelle ligue</h3>
-                    <button
-                        className="modal-close"
-                        onClick={onClose}
-                        disabled={isSubmitting}
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                {/* Error Display */}
-                {error && (
-                    <div className="error-alert" style={{
-                        background: 'var(--danger-color)',
-                        color: 'white',
-                        padding: '0.75rem 1rem',
-                        margin: '1rem',
-                        borderRadius: 'var(--border-radius-sm)',
-                        fontSize: '0.875rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                    }}>
-                        <span>⚠️</span>
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="create-league-form">
-                    <div className="form-group">
-                        <label>Nom de la ligue</label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            onBlur={handleNameBlur}
-                            placeholder="Ex: Ligue des amis 2024"
-                            required
-                            disabled={isSubmitting}
-                            maxLength={50}
-                            style={nameError ? { borderColor: 'var(--danger-color)' } : {}}
-                        />
-                        {nameError && (
-                            <span style={{
-                                color: 'var(--danger-color)',
-                                fontSize: '0.75rem',
-                                marginTop: '0.25rem',
-                                display: 'block'
-                            }}>
-                                {nameError}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>Type</label>
-                            <select
-                                name="type"
-                                value={formData.type}
-                                onChange={handleChange}
-                                disabled={isSubmitting}
-                            >
-                                <option value="private">Privée (invitation)</option>
-                                <option value="public">Publique</option>
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Participants max</label>
-                            <input
-                                type="number"
-                                name="maxMembers"
-                                value={formData.maxMembers}
-                                onChange={handleChange}
-                                min="2"
-                                max="200"
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="form-group">
-                        <label>Mise d'entrée (BTL)</label>
-                        <input
-                            type="number"
-                            name="entryFee"
-                            value={formData.entryFee}
-                            onChange={handleChange}
-                            min="0"
-                            max="10000"
-                            step="5"
-                            disabled={isSubmitting}
-                        />
-                        <small style={{
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.75rem',
-                            display: 'block',
-                            marginTop: '0.25rem'
-                        }}>
-                            {formData.entryFee === 0 ? 'Ligue gratuite' : 'Mise d\'entrée en BTL'}
-                        </small>
-                    </div>
-
-                    <div className="form-group">
-                        <label>Description (optionnel)</label>
-                        <textarea
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            placeholder="Règles, prix, informations..."
-                            rows={3}
-                            disabled={isSubmitting}
-                            maxLength={500}
-                        />
-                    </div>
-
-                    {/* Pot Preview */}
-                    {formData.entryFee > 0 && formData.maxMembers > 0 && (
-                        <div style={{
-                            background: 'var(--bg-secondary)',
-                            padding: '0.75rem',
-                            borderRadius: 'var(--border-radius-sm)',
-                            marginBottom: '1rem',
-                            border: '1px solid var(--border-color)'
-                        }}>
-                            <strong style={{ color: 'var(--success-color)' }}>
-                                💰 Cagnotte totale estimée: {(formData.maxMembers * formData.entryFee).toLocaleString()} BTL
-                            </strong>
-                        </div>
-                    )}
-
-                    <div className="modal-actions">
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={onClose}
-                            disabled={isSubmitting}
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={isSubmitting || !formData.name.trim() || !!nameError}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <span style={{ marginRight: '0.5rem' }}>⏳</span>
-                                    Création...
-                                </>
-                            ) : (
-                                'Créer la ligue'
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-});
-
-CreateLeagueModal.displayName = 'CreateLeagueModal';
 
 type TabType = 'myLeagues' | 'invitations' | 'join';
 
@@ -485,7 +221,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         setIsLoading(true);
         try {
             const result = await leagueApiService.getLeagues();
-            if (result.success) {
+            if (result.success && result.data) {
                 setLeagues(result.data.leagues || result.data || []);
             }
         } catch (err) {
@@ -498,7 +234,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const loadInvitations = useCallback(async () => {
         try {
             const result = await leagueApiService.getInvitations(true);
-            if (result.success) {
+            if (result.success && result.data) {
                 setInvitations(result.data.invitations || result.data || []);
             }
         } catch (err) {
@@ -541,11 +277,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
             const result = await leagueApiService.joinLeague(leagueId);
             if (result.success) {
-                setSuccessMessage(result.message);
+                setSuccessMessage(result.message || 'Vous avez rejoint la ligue !');
                 setTimeout(() => setSuccessMessage(''), 5000);
                 loadLeagues();
             } else {
-                setError(result.error);
+                setError(result.error || 'Erreur lors de la tentative de rejoindre la ligue');
             }
         } catch (err) {
             setError('Erreur lors de la tentative de rejoindre la ligue');
@@ -557,12 +293,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, true);
             if (result.success) {
-                setSuccessMessage(result.message);
+                setSuccessMessage(result.message || 'Invitation acceptée');
                 setTimeout(() => setSuccessMessage(''), 5000);
                 loadLeagues();
                 loadInvitations();
             } else {
-                setError(result.error);
+                setError(result.error || 'Erreur lors de l\'acceptation de l\'invitation');
             }
         } catch (err) {
             setError('Erreur lors de l\'acceptation de l\'invitation');
@@ -574,11 +310,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, false);
             if (result.success) {
-                setSuccessMessage(result.message);
+                setSuccessMessage(result.message || 'Invitation refusée');
                 setTimeout(() => setSuccessMessage(''), 3000);
                 loadInvitations();
             } else {
-                setError(result.error);
+                setError(result.error || 'Erreur lors du refus de l\'invitation');
             }
         } catch (err) {
             setError('Erreur lors du refus de l\'invitation');
@@ -785,10 +521,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 )}
             </div>
 
-            <CreateLeagueModal
+            <CreateLeagueForm
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onSubmit={handleCreateLeague}
+                onSuccess={handleCreateLeague}
             />
         </div>
     );
