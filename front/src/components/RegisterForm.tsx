@@ -5,8 +5,8 @@
 
 import React, { useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { AuthError } from '../services/authService';
+import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
+import { AuthError } from '../services/authService.enhanced';
 import type { User } from '../types';
 
 // Types
@@ -216,9 +216,15 @@ FormButton.displayName = 'FormButton';
 
 const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegister }) => {
   const navigate = useNavigate();
-  const { register } = useAuth({
-    redirectOnExpiry: false,
-    onAuthChange: () => {}
+  const { register } = useEnhancedAuth({
+    autoRefresh: true,
+    activityTracking: true,
+    onAuthChange: (isAuthenticated) => {
+      if (isAuthenticated) {
+        console.log('🔐 User registered and authenticated, redirecting to dashboard...');
+        navigate('/matches', { replace: true });
+      }
+    }
   });
   const [formData, setFormData] = useState<FormData>({
     pseudo: '',
@@ -359,7 +365,13 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
         acceptTerms: true
       });
 
-      navigate('/matches');
+      // Call onRegister callback with user data
+      if (result && onRegister) {
+        onRegister({ user: result });
+      }
+
+      // Navigation will be handled by onAuthChange callback
+      console.log('✅ Registration successful, user data:', result);
     } catch (error) {
       let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
 

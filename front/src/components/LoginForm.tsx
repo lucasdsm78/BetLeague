@@ -5,8 +5,8 @@
 
 import React, { useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { AuthError } from '../services/authService';
+import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
+import { AuthError } from '../services/authService.enhanced';
 import type { User } from '../types';
 
 // Types
@@ -154,9 +154,15 @@ FormButton.displayName = 'FormButton';
 
 const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin }) => {
   const navigate = useNavigate();
-  const { login } = useAuth({
-    redirectOnExpiry: false,
-    onAuthChange: () => {}
+  const { login } = useEnhancedAuth({
+    autoRefresh: true,
+    activityTracking: true,
+    onAuthChange: (isAuthenticated) => {
+      if (isAuthenticated) {
+        console.log('🔐 User authenticated, redirecting to dashboard...');
+        navigate('/matches', { replace: true });
+      }
+    }
   });
   const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -236,7 +242,16 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
         password: formData.password,
         code: "string"
       });
+
       setAttemptCount(0);
+
+      // Call onLogin callback with user data
+      if (result && onLogin) {
+        onLogin({ user: result });
+      }
+
+      // Navigation will be handled by onAuthChange callback
+      console.log('✅ Login successful, user data:', result);
 
     } catch (error) {
       setAttemptCount(prev => prev + 1);

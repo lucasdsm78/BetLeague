@@ -6,7 +6,7 @@
 
 import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { useToast } from '../hooks/useToast';
 import LogoutModal from './auth/LogoutModal';
 import type { User } from '../types';
@@ -92,7 +92,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   // Hooks with error boundaries
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading, isAuthenticated } = useAuth();
+  const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth();
   const { showError, showWarning } = useToast();
 
   // Secure state management

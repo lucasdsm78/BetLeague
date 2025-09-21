@@ -199,6 +199,8 @@ class SecureApiClient {
       });
 
       if (token) {
+        headers['X-Authentication'] = `Bearer ${token}`;
+        // Also keep Authorization header for compatibility
         headers['Authorization'] = `Bearer ${token}`;
       } else if (!config.skipAuth) {
         console.warn('⚠️ No token available for authenticated request');
