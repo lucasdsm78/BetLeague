@@ -341,7 +341,10 @@ async def current_user(
         token: str = Depends(authentication),
         manager_token: ManagerToken = Depends(manager_token_dependency)
 ) -> dict:
-    return await manager_token.decode_token_login(token)
+    decoded = await manager_token.verify_token(token)  # Use verify_token to check blacklist
+    if decoded:
+        decoded['token'] = token  # Add original token for logout operations
+    return decoded
 
 
 def stripe_service(settings: Settings = Depends(get_settings)) -> StripeService:

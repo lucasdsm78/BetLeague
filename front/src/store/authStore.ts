@@ -124,6 +124,27 @@ export const useAuthStore = create<AuthStoreWithActions>()(
 
         // Clear token from secure storage
         secureStorage.removeItem('auth-token');
+
+        // IMPORTANT: Clear Zustand persist storage completely
+        secureStorage.removeItem('auth-store');
+
+        // Also clear all auth-related keys that might exist
+        const authKeys = [
+          'auth_access_token',
+          'auth_refresh_token',
+          'auth_token_expiry',
+          'auth_token',
+          'refresh_token',
+          'user_data',
+          'token_expiry'
+        ];
+
+        authKeys.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+
+        console.log('🔒 Zustand auth store cleared completely');
       },
 
       updateUser: (updates: Partial<User>) => {

@@ -22,3 +22,11 @@ class ManagerToken(ABC):
     @abstractmethod
     async def decode_expiration_token_login(self, token: str, password: Password) -> Optional[dict]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def verify_token(self, token: str) -> Optional[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def invalidate_token(self, token: str, user_id: str) -> bool:
+        raise NotImplementedError

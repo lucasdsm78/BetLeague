@@ -26,13 +26,24 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useEnhancedAuth();
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining } = useEnhancedAuth();
 
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
+  // Enhanced authentication check
   if (!isAuthenticated) {
+    console.log('🚫 ProtectedRoute: User not authenticated, redirecting to home');
+    return <Navigate to="/" replace />;
+  }
+
+  // Double check: verify we have a valid session and user
+  const sessionTimeRemaining = getSessionTimeRemaining();
+  const hasValidUser = user && user.id;
+
+  if (!hasValidUser || sessionTimeRemaining <= 0) {
+    console.log('🚫 ProtectedRoute: Invalid session detected, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
@@ -41,7 +52,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, error } = useEnhancedAuth();
+  const { isAuthenticated, isLoading, error, user, getSessionTimeRemaining } = useEnhancedAuth();
   const navigate = useNavigate();
   const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
 
@@ -56,10 +67,18 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Separate effect for redirection to avoid interference with navigation
   React.useEffect(() => {
     if (isAuthenticated && !isLoading && initialCheckComplete) {
-      console.log('🔄 PublicRoute: Redirecting authenticated user to dashboard');
-      navigate('/matches', { replace: true });
+      // Double check: verify we have a valid session and user
+      const sessionTimeRemaining = getSessionTimeRemaining();
+      const hasValidUser = user && user.id;
+
+      if (hasValidUser && sessionTimeRemaining > 0) {
+        console.log('🔄 PublicRoute: Redirecting authenticated user to dashboard');
+        navigate('/matches', { replace: true });
+      } else {
+        console.log('🚫 PublicRoute: Invalid session detected, staying on public route');
+      }
     }
-  }, [isAuthenticated, isLoading, initialCheckComplete, navigate]);
+  }, [isAuthenticated, isLoading, initialCheckComplete, navigate, user, getSessionTimeRemaining]);
 
   // Timeout de sécurité pour éviter le loading infini
   React.useEffect(() => {
@@ -80,8 +99,16 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   // Only redirect if user is actually authenticated after initial check
   if (isAuthenticated && initialCheckComplete) {
-    console.log('🔄 PublicRoute: Navigating to matches (authenticated user)');
-    return <Navigate to="/matches" replace />;
+    // Double check: verify we have a valid session and user
+    const sessionTimeRemaining = getSessionTimeRemaining();
+    const hasValidUser = user && user.id;
+
+    if (hasValidUser && sessionTimeRemaining > 0) {
+      console.log('🔄 PublicRoute: Navigating to matches (authenticated user)');
+      return <Navigate to="/matches" replace />;
+    } else {
+      console.log('🚫 PublicRoute: Invalid session detected, showing public content');
+    }
   }
 
   console.log('🌍 PublicRoute: Showing public content (unauthenticated user)');
