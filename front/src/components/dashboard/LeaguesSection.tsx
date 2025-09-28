@@ -124,7 +124,7 @@ const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecl
 InvitationCard.displayName = 'InvitationCard';
 
 
-type TabType = 'myLeagues' | 'invitations' | 'join';
+type TabType = 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
 
 interface LeaguesSectionProps {
     user?: { id: string; email: string; pseudo?: string; username?: string };
@@ -133,27 +133,47 @@ interface LeaguesSectionProps {
 const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
+    const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
+    const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
+    const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
 
-    // Load real data from API
-    const loadLeagues = useCallback(async () => {
-        setIsLoading(true);
+    // Load created leagues
+    const loadCreatedLeagues = useCallback(async () => {
+        setIsLoadingCreated(true);
         try {
-            const result = await leagueApiService.getLeagues();
+            const result = await leagueApiService.getCreatedLeagues();
             if (result.success && result.data) {
-                setLeagues(result.data.leagues || []);
+                setCreatedLeagues(result.data.leagues || []);
             } else {
-                setLeagues([]);
+                setCreatedLeagues([]);
             }
         } catch (err) {
-            console.error('Failed to load leagues:', err);
-            setLeagues([]);
+            console.error('Failed to load created leagues:', err);
+            setCreatedLeagues([]);
         } finally {
-            setIsLoading(false);
+            setIsLoadingCreated(false);
+        }
+    }, []);
+
+    // Load available leagues
+    const loadAvailableLeagues = useCallback(async () => {
+        setIsLoadingAvailable(true);
+        try {
+            const result = await leagueApiService.getAvailableLeagues();
+            if (result.success && result.data) {
+                setAvailableLeagues(result.data.leagues || []);
+            } else {
+                setAvailableLeagues([]);
+            }
+        } catch (err) {
+            console.error('Failed to load available leagues:', err);
+            setAvailableLeagues([]);
+        } finally {
+            setIsLoadingAvailable(false);
         }
     }, []);
 
@@ -179,17 +199,19 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Load data on component mount
     useEffect(() => {
-        loadLeagues();
+        loadCreatedLeagues();
+        loadAvailableLeagues();
         loadInvitations();
-    }, [loadLeagues, loadInvitations]);
+    }, [loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
 
     // Handle league creation success
     const handleCreateLeague = useCallback((leagueData: any, message: string) => {
         setIsCreateModalOpen(false);
         setSuccessMessage(message || 'Ligue créée avec succès !');
         setTimeout(() => setSuccessMessage(''), 5000);
-        loadLeagues();
-    }, [loadLeagues]);
+        loadCreatedLeagues();
+        loadAvailableLeagues();
+    }, [loadCreatedLeagues, loadAvailableLeagues]);
 
     const handleJoinLeague = useCallback(async (leagueCode: string) => {
         if (!leagueCode || leagueCode.trim() === '') {
@@ -208,7 +230,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             if (result.success) {
                 setSuccessMessage(result.message || 'Vous avez rejoint la ligue !');
                 setTimeout(() => setSuccessMessage(''), 5000);
-                loadLeagues();
+                loadCreatedLeagues();
+                loadAvailableLeagues();
             } else {
                 setError(result.error || 'Erreur lors de la tentative de rejoindre la ligue');
             }
@@ -216,7 +239,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             setError('Erreur lors de la tentative de rejoindre la ligue');
             console.error('Join league error:', err);
         }
-    }, [loadLeagues]);
+    }, [loadCreatedLeagues, loadAvailableLeagues]);
 
     const handleAcceptInvitation = useCallback(async (invitation: InvitationUI) => {
         try {
@@ -224,7 +247,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             if (result.success) {
                 setSuccessMessage(result.message || 'Invitation acceptée');
                 setTimeout(() => setSuccessMessage(''), 5000);
-                loadLeagues();
+                loadCreatedLeagues();
+                loadAvailableLeagues();
                 loadInvitations();
             } else {
                 setError(result.error || 'Erreur lors de l\'acceptation de l\'invitation');
@@ -233,7 +257,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             setError('Erreur lors de l\'acceptation de l\'invitation');
             console.error('Accept invitation error:', err);
         }
-    }, [loadLeagues, loadInvitations]);
+    }, [loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
 
     const handleDeclineInvitation = useCallback(async (invitation: InvitationUI) => {
         try {
@@ -315,9 +339,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     <button
                         className="btn btn-primary"
                         onClick={() => setIsCreateModalOpen(true)}
-                        disabled={isLoading}
+                        disabled={isLoadingCreated || isLoadingAvailable}
                     >
-                        {isLoading ? '⏳ Chargement...' : 'Créer une ligue'}
+                        {(isLoadingCreated || isLoadingAvailable) ? '⏳ Chargement...' : 'Créer une ligue'}
                     </button>
                 </div>
             </div>
@@ -327,7 +351,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     className={`tab-button ${activeTab === 'myLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('myLeagues')}
                 >
-                    Mes ligues ({leagues.length})
+                    Mes ligues créées ({createdLeagues.length})
+                </button>
+                <button
+                    className={`tab-button ${activeTab === 'availableLeagues' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('availableLeagues')}
+                >
+                    Ligues disponibles ({availableLeagues.length})
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
@@ -345,8 +375,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
             <div className="tab-content">
                 {activeTab === 'myLeagues' && (
-                    <div className="leagues-grid">
-                        {isLoading ? (
+                    <div className="leagues-grid" data-tab="myLeagues">
+                        {isLoadingCreated ? (
                             <div style={{
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -363,10 +393,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     animation: 'spin 1s linear infinite',
                                     marginBottom: '1rem'
                                 }}></div>
-                                <p style={{ color: 'var(--text-secondary)' }}>Chargement de vos ligues...</p>
+                                <p style={{ color: 'var(--text-secondary)' }}>Chargement de vos ligues créées...</p>
                             </div>
-                        ) : leagues.length > 0 ? (
-                            leagues.map(league => (
+                        ) : createdLeagues.length > 0 ? (
+                            createdLeagues.map(league => (
                                 <LeagueCard
                                     key={league.id}
                                     league={league}
@@ -375,15 +405,61 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                             ))
                         ) : (
                             <div className="empty-state">
-                                <span className="empty-icon">🏆</span>
-                                <h3>Aucune ligue active</h3>
-                                <p>Créez votre première ligue ou rejoignez-en une existante</p>
+                                <span className="empty-icon">🎯</span>
+                                <h3>Aucune ligue créée</h3>
+                                <p>Créez votre première ligue et invitez vos amis à participer</p>
                                 <button
                                     className="btn btn-primary"
                                     onClick={() => setIsCreateModalOpen(true)}
-                                    disabled={isLoading}
+                                    disabled={isLoadingCreated}
                                 >
                                     Créer une ligue
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'availableLeagues' && (
+                    <div className="leagues-grid" data-tab="availableLeagues">
+                        {isLoadingAvailable ? (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                padding: '2rem',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    width: '2rem',
+                                    height: '2rem',
+                                    border: '3px solid var(--border-color)',
+                                    borderTop: '3px solid var(--primary-color)',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    marginBottom: '1rem'
+                                }}></div>
+                                <p style={{ color: 'var(--text-secondary)' }}>Chargement des ligues disponibles...</p>
+                            </div>
+                        ) : availableLeagues.length > 0 ? (
+                            availableLeagues.map(league => (
+                                <LeagueCard
+                                    key={league.id}
+                                    league={league}
+                                    onView={(l) => console.log('Voir', l)}
+                                />
+                            ))
+                        ) : (
+                            <div className="empty-state">
+                                <span className="empty-icon">🌍</span>
+                                <h3>Aucune ligue disponible</h3>
+                                <p>Aucune ligue publique n'est disponible pour le moment</p>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => loadAvailableLeagues()}
+                                    disabled={isLoadingAvailable}
+                                >
+                                    {isLoadingAvailable ? '⏳ Actualisation...' : 'Actualiser'}
                                 </button>
                             </div>
                         )}
