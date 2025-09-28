@@ -77,6 +77,29 @@ class LeagueRepositoryImpl(LeagueRepository):
 
         return [league_db.to_entity() for league_db in leagues_dbs]
 
+    async def find_created_leagues(
+            self, user_id: int, page: int = 1, limit: int = 10
+    ) -> List[League]:
+        """Find leagues created by the user"""
+        offset = (page - 1) * limit
+
+        query = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.user_id == user_id)
+            .order_by(DBLeague.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await self.session.execute(query)
+        leagues_dbs = result.scalars().all()
+
+        if not leagues_dbs:
+            return []
+
+        return [league_db.to_entity() for league_db in leagues_dbs]
+
     async def find_by_uuid(self, league_uuid: str) -> Optional[League]:
         q = (
             select(DBLeague)

@@ -571,3 +571,81 @@
     display: none;
   }
 }
+
+/* Enhanced visual distinction for different league types */
+.leagues-grid[data-tab="myLeagues"] .league-card {
+  border-left: 4px solid var(--primary-color);
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, transparent 100%);
+}
+
+.leagues-grid[data-tab="availableLeagues"] .league-card {
+  border-left: 4px solid var(--success-color);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+}
+
+.leagues-grid[data-tab="myLeagues"] .league-card::before {
+  background: linear-gradient(90deg, var(--primary-color), rgba(0, 210, 255, 0.7));
+}
+
+.leagues-grid[data-tab="availableLeagues"] .league-card::before {
+  background: linear-gradient(90deg, var(--success-color), rgba(16, 185, 129, 0.7));
+}
+
+/* Enhanced tab styling for sports betting theme */
+.tab-button {
+  position: relative;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--primary-color);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.tab-button.active::after {
+  width: 100%;
+}
+
+.tab-button:hover:not(.active) {
+  color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+/* Enhanced empty states with better spacing */
+.empty-state {
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  margin: 2rem 0;
+  transition: var(--transition);
+}
+
+.empty-state:hover {
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, transparent 100%);
+}
+
+/* Touch-friendly interactions */
+@media (pointer: coarse) {
+  .btn,
+  .tab-button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .league-actions .btn {
+    min-height: 48px;
+  }
+
+  .join-input {
+    min-height: 48px;
+  }
+}
