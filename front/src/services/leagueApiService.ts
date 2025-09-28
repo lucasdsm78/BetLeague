@@ -143,7 +143,7 @@ class LeagueApiService {
             .map((err: any) => err.msg || err.message)
             .join(', ');
         }
-        return errorData.detail || 'Erreur de validation';
+        return errorData.detail || 'Erreur de validation des données';
       case 500:
         return 'Erreur serveur interne. Veuillez réessayer plus tard.';
       default:
