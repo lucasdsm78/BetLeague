@@ -169,12 +169,12 @@ async def delete_league_player(
     status_code=status.HTTP_200_OK
 )
 async def get_league(
-        league_id: int,
+        id: int,
         league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
-        league = await league_query_usecase.get_league_by_id(league_id, current_user.get('email', ''))
+        league = await league_query_usecase.get_league_by_id(id, current_user.get('email', ''))
     except LeagueNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
