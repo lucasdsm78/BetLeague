@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -44,3 +44,47 @@ class UserSummaryReadModel(BaseModel):
             email=str(user_summary.email),
             pseudo=user_summary.pseudo
         )
+
+
+class UserSearchQuery(BaseModel):
+    query: str
+    limit: Optional[int] = 10
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def validate_query(self) -> None:
+        if not self.query or not isinstance(self.query, str):
+            raise ValueError("Terme de recherche requis")
+
+        trimmed = self.query.strip()
+        if len(trimmed) < 2:
+            raise ValueError("Le terme de recherche doit contenir au moins 2 caractères")
+
+        if len(trimmed) > 50:
+            raise ValueError("Le terme de recherche ne peut pas dépasser 50 caractères")
+
+        import re
+        forbidden_patterns = r'[<>\\&"\']|script|javascript|eval|onclick|onerror'
+        if re.search(forbidden_patterns, trimmed, re.IGNORECASE):
+            raise ValueError("Caractères ou mots-clés non autorisés dans la recherche")
+
+
+class UserSearchResultModel(BaseModel):
+    id: int
+    pseudo: str
+    email: str
+
+    @staticmethod
+    def from_user_read_model(user: UserReadModel) -> "UserSearchResultModel":
+        return UserSearchResultModel(
+            id=user.id,
+            pseudo=user.pseudo or 'Utilisateur',
+            email=user.email or ''
+        )
+
+
+class UserSearchResponse(BaseModel):
+    users: List[UserSearchResultModel]
+    total: int
+    query: str

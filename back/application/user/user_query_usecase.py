@@ -3,7 +3,7 @@ from typing import Optional, List, Dict
 
 from pydantic import BaseModel
 
-from application.user.user_query_model import UserReadModel
+from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse, UserSearchResultModel
 from domain.user.exception.user_exception import UserNotFoundError, UserNotOwnerError
 from domain.user.repository.user_repository import UserRepository
 
@@ -20,6 +20,10 @@ class UserQueryUseCase(ABC):
 
     @abstractmethod
     async def get_all_rank_users(self) -> List[Dict[str, any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def search_users(self, search_query: UserSearchQuery) -> UserSearchResponse:
         raise NotImplementedError
 
 
@@ -56,5 +60,44 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
             return await self.user_repository.get_all_rank_users()
 
         except Exception as e:
+            raise
+
+    async def search_users(self, search_query: UserSearchQuery) -> UserSearchResponse:
+        try:
+            search_query.validate_query()
+
+            all_users_response = await self.fetch_users()
+            all_users = all_users_response.get('users', [])
+
+            if not all_users:
+                return UserSearchResponse(
+                    users=[],
+                    total=0,
+                    query=search_query.query.strip()
+                )
+
+            query_lower = search_query.query.strip().lower()
+            filtered_users = []
+
+            for user_read_model in all_users:
+                pseudo = (user_read_model.pseudo or '').lower()
+                email = (user_read_model.email or '').lower()
+
+                if query_lower in pseudo or query_lower in email:
+                    search_result = UserSearchResultModel.from_user_read_model(user_read_model)
+                    filtered_users.append(search_result)
+
+            limited_results = filtered_users[:search_query.limit]
+
+            return UserSearchResponse(
+                users=limited_results,
+                total=len(limited_results),
+                query=search_query.query.strip()
+            )
+
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            print(f"User search error in use case: {e}")
             raise
 
