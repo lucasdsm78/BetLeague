@@ -765,3 +765,40 @@
     margin-right: 0.25rem;
   }
 }
+
+/* Invitation button styling */
+.invite-icon {
+  font-size: 1rem;
+  margin-right: 0.375rem;
+}
+
+.btn-outline .invite-icon {
+  transition: var(--transition);
+}
+
+.btn-outline:hover .invite-icon {
+  transform: scale(1.1);
+}
+
+/* Enhanced league actions for better UX */
+.league-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: var(--transition);
+}
+
+/* Mobile optimizations for invite button */
+@media (max-width: 640px) {
+  .invite-icon {
+    font-size: 0.875rem;
+    margin-right: 0.25rem;
+  }
+}
+
+/* Touch feedback for invite button */
+@media (pointer: coarse) {
+  .btn-outline:active {
+    transform: scale(0.98);
+  }
+}

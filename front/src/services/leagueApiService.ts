@@ -6,21 +6,20 @@
 import secureApiClient from './secureApiClient';
 import { LeagueSummary } from '../types';
 
-// Types matching backend models
-export interface LeagueCreateRequest {
-  name: string;
-  max_players: number;
-  is_private: boolean;
-  is_free?: boolean;
-  nb_btl?: number;
-}
-
 export interface LeagueCreateFormData {
   name: string;
   type: 'public' | 'private';
   maxMembers: number;
   entryFee: number;
   description?: string;
+}
+
+export interface LeagueCreateRequest {
+  name: string;
+  max_players: number;
+  is_private: boolean;
+  is_free: boolean;
+  nb_btl?: number;
 }
 
 export interface LeagueResponse {
@@ -59,6 +58,17 @@ export interface ApiResponse<T = any> {
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
+}
+
+export interface UserSearchResult {
+  id: number;
+  pseudo: string;
+  email: string;
+}
+
+export interface InviteUserRequest {
+  leagueId: number;
+  userId: number;
 }
 
 class LeagueApiService {
@@ -248,9 +258,8 @@ class LeagueApiService {
   /**
    * Get available leagues (public leagues user can join)
    */
-  public async getAvailableLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
+  public async getAvailableLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     try {
-      // Le backend retourne { leagues: LeagueReadModel[] } ou 204 sans contenu
       const raw = await this.makeRequest<any>('/leagues');
 
       const items = (raw?.leagues ?? raw ?? []) as any[];
@@ -290,11 +299,10 @@ class LeagueApiService {
   }
 
   /**
-   * Get user's created leagues
+   * Get leagues created by the user
    */
-  public async getCreatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
+  public async getCreatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     try {
-      // Le backend retourne { leagues: LeagueReadModel[] } ou 204 sans contenu
       const raw = await this.makeRequest<any>('/leagues/created');
 
       const items = (raw?.leagues ?? raw ?? []) as any[];
@@ -440,24 +448,88 @@ class LeagueApiService {
   }
 
   /**
-   * Get league ranking
+   * Search users with enhanced validation and security
    */
-  public async getLeagueRanking(leagueId: number): Promise<ApiResponse<any>> {
+  public async searchUsers(query: string): Promise<ApiResponse<{ users: UserSearchResult[] }>> {
     try {
+      if (!query || typeof query !== 'string') {
+        throw new Error('Terme de recherche requis');
+      }
+
+      const trimmedQuery = query.trim();
+
+      if (trimmedQuery.length < 2) {
+        throw new Error('Minimum 2 caractères requis pour la recherche');
+      }
+
+      if (trimmedQuery.length > 50) {
+        throw new Error('Maximum 50 caractères autorisés');
+      }
+
+      // Enhanced security: check for forbidden characters and patterns
+      const forbiddenChars = /[<>\\/\\&\"'`]/;
+      if (forbiddenChars.test(trimmedQuery)) {
+        throw new Error('Caractères non autorisés détectés');
+      }
+
+      // Check for suspicious patterns
+      const suspiciousPatterns = /(script|javascript|eval|onclick|onerror)/i;
+      if (suspiciousPatterns.test(trimmedQuery)) {
+        throw new Error('Terme de recherche non autorisé');
+      }
+
+      console.log('🔍 Searching users with query:', trimmedQuery);
+
+      const response = await this.makeRequest<{ users: UserSearchResult[] }>(`/users/search?q=${encodeURIComponent(trimmedQuery)}`);
+
+      console.log('✅ Users search completed:', response);
+
+      return {
+        success: true,
+        data: response,
+        message: 'Recherche effectuée avec succès',
+      };
+    } catch (error: any) {
+      console.error('❌ User search failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la recherche d\'utilisateurs',
+      };
+    }
+  }
+
+  /**
+   * Invite a user to a league with enhanced validation
+   */
+  public async inviteUserToLeague(leagueId: number, userId: number): Promise<ApiResponse<LeagueResponse>> {
+    try {
+      // Input validation
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      const response = await this.makeRequest(`/league/${leagueId}/rank`);
+      if (!Number.isInteger(userId) || userId <= 0) {
+        throw new Error('ID d\'utilisateur invalide');
+      }
+
+      console.log(`📤 Inviting user ${userId} to league ${leagueId}`);
+
+      const response = await this.makeRequest<LeagueResponse>(`/league/${leagueId}/${userId}/invite`, {
+        method: 'POST',
+      });
+
+      console.log('✅ User invited successfully:', response);
+
       return {
         success: true,
         data: response,
+        message: response.message || 'Utilisateur invité avec succès !',
       };
     } catch (error: any) {
-      console.error('❌ Failed to load league ranking:', error);
+      console.error('❌ User invitation failed:', error);
       return {
         success: false,
-        error: error.message || 'Erreur lors du chargement du classement',
+        error: error.message || 'Erreur lors de l\'invitation de l\'utilisateur',
       };
     }
   }
