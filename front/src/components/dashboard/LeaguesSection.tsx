@@ -17,9 +17,12 @@ interface InvitationUI {
 interface LeagueCardProps {
     league: LeagueSummary;
     onView: (league: LeagueSummary) => void;
+    onJoin?: (league: LeagueSummary) => void;
+    isJoining?: boolean;
+    showJoinButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, isJoining = false, showJoinButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
@@ -78,6 +81,26 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView }) => {
                 >
                     Voir détails
                 </button>
+                {showJoinButton && onJoin && (
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => onJoin(league)}
+                        disabled={isJoining || league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Rejoindre cette ligue'}
+                        aria-label={`Rejoindre la ligue ${league.name}`}
+                    >
+                        {isJoining ? (
+                            <>
+                                <span className="loading-spinner"></span>
+                                Rejoindre...
+                            </>
+                        ) : league.isStarted ? (
+                            'Déjà commencée'
+                        ) : (
+                            'Rejoindre'
+                        )}
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -138,6 +161,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
     const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
     const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
+    const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
 
@@ -213,7 +237,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         loadAvailableLeagues();
     }, [loadCreatedLeagues, loadAvailableLeagues]);
 
-    const handleJoinLeague = useCallback(async (leagueCode: string) => {
+    const handleJoinLeagueByCode = useCallback(async (leagueCode: string) => {
         if (!leagueCode || leagueCode.trim() === '') {
             setError('Code de ligue requis');
             return;
@@ -258,6 +282,67 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             console.error('Accept invitation error:', err);
         }
     }, [loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
+
+    const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
+        if (joiningLeagueId !== null) {
+            return; // Prevent multiple simultaneous join requests
+        }
+
+        // Validation before joining
+        if (league.isStarted) {
+            setError('Cette ligue a déjà commencé, impossible de la rejoindre.');
+            return;
+        }
+
+        setJoiningLeagueId(league.id);
+        setError('');
+
+        try {
+            console.log(`🔄 Joining league ${league.id}: ${league.name}`);
+
+            const result = await leagueApiService.joinLeague(league.id);
+
+            if (result.success) {
+                // Enhanced success message with league info
+                const successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
+                setSuccessMessage(successMsg);
+                setTimeout(() => setSuccessMessage(''), 6000);
+
+                // Refresh both lists to reflect the changes
+                await Promise.all([
+                    loadCreatedLeagues(),
+                    loadAvailableLeagues()
+                ]);
+
+                console.log(`✅ Successfully joined league: ${league.name}`);
+            } else {
+                // Enhanced error handling with specific messages
+                let errorMsg = result.error || 'Erreur lors de la tentative de rejoindre la ligue';
+
+                // Map common backend errors to user-friendly messages
+                if (errorMsg.includes('already')) {
+                    errorMsg = 'Vous participez déjà à cette ligue.';
+                } else if (errorMsg.includes('full') || errorMsg.includes('max')) {
+                    errorMsg = 'Cette ligue est complète.';
+                } else if (errorMsg.includes('started')) {
+                    errorMsg = 'Cette ligue a déjà commencé.';
+                } else if (errorMsg.includes('private')) {
+                    errorMsg = 'Cette ligue est privée et nécessite une invitation.';
+                } else if (errorMsg.includes('btl') || errorMsg.includes('insufficient')) {
+                    errorMsg = 'Vous n\'avez pas assez de BTL pour rejoindre cette ligue.';
+                }
+
+                setError(errorMsg);
+                console.error('❌ Failed to join league:', result.error);
+            }
+        } catch (err: any) {
+            const errorMessage = `Erreur réseau lors de la tentative de rejoindre la ligue "${league.name}". Veuillez réessayer.`;
+            setError(errorMessage);
+            console.error('❌ Exception while joining league:', err);
+        } finally {
+            setJoiningLeagueId(null);
+        }
+    }, [joiningLeagueId, loadCreatedLeagues, loadAvailableLeagues]);
 
     const handleDeclineInvitation = useCallback(async (invitation: InvitationUI) => {
         try {
@@ -401,6 +486,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     key={league.id}
                                     league={league}
                                     onView={(l) => console.log('Voir', l)}
+                                    showJoinButton={false}
                                 />
                             ))
                         ) : (
@@ -447,6 +533,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     key={league.id}
                                     league={league}
                                     onView={(l) => console.log('Voir', l)}
+                                    onJoin={handleJoinLeague}
+                                    isJoining={joiningLeagueId === league.id}
+                                    showJoinButton={true}
                                 />
                             ))
                         ) : (
@@ -497,7 +586,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 e.preventDefault();
                                 const formData = new FormData(e.currentTarget);
                                 const code = formData.get('code') as string;
-                                handleJoinLeague(code);
+                                handleJoinLeagueByCode(code);
                             }}>
                                 <div className="form-group">
                                     <input

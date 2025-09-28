@@ -46,12 +46,12 @@ async def create_league(
     status_code=status.HTTP_200_OK
 )
 async def join_league(
-        league_id: int,
+        id: int,
         league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
-        league_players = await league_command_usecase.join_league(league_id, current_user.get('email', ''))
+        league_players = await league_command_usecase.join_league(id, current_user.get('email', ''))
 
     except LeagueNotFoundError as e:
         raise HTTPException(
