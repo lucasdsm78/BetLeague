@@ -269,7 +269,7 @@ async def get_general_ranking(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return user_query_usecase.get_all_rank_users()
+        return await user_query_usecase.get_all_rank_users()
 
     except Exception as e:
         raise HTTPException(
@@ -355,3 +355,84 @@ async def get_user_by_id(
         )
 
     return user
+
+
+@router.get(
+    "/users/search",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Search users by pseudo or email",
+)
+async def search_users(
+        q: str,
+        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    """
+    Search users by pseudo or email with query parameter 'q'.
+    Requires authentication and returns limited user information for privacy.
+    """
+    try:
+        # Input validation
+        if not q or len(q.strip()) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Le terme de recherche doit contenir au moins 2 caractères"
+            )
+
+        if len(q.strip()) > 50:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Le terme de recherche ne peut pas dépasser 50 caractères"
+            )
+
+        # Security: prevent potentially harmful patterns
+        import re
+        forbidden_patterns = r'[<>\\&"\']|script|javascript|eval|onclick|onerror'
+        if re.search(forbidden_patterns, q, re.IGNORECASE):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Caractères ou mots-clés non autorisés dans la recherche"
+            )
+
+        # Get all users and filter (in a real app, this should be done in the database)
+        all_users_response = await user_query_usecase.fetch_users()
+        all_users = all_users_response.get('users', [])
+
+        if not all_users:
+            return {"users": []}
+
+        # Filter users based on query (case-insensitive)
+        query_lower = q.strip().lower()
+        filtered_users = []
+
+        for user in all_users:
+            # user is a UserReadModel object, access attributes directly
+            pseudo = (user.pseudo or '').lower()
+            email = (user.email or '').lower()
+
+            if query_lower in pseudo or query_lower in email:
+                # Return only safe, limited information
+                filtered_users.append({
+                    'id': user.id,
+                    'pseudo': user.pseudo or 'Utilisateur',
+                    'email': user.email or '',
+                })
+
+        # Limit results for performance and privacy
+        limited_results = filtered_users[:10]
+
+        return {
+            "users": limited_results,
+            "total": len(limited_results),
+            "query": q.strip()
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"❌ User search error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la recherche d'utilisateurs"
+        )
