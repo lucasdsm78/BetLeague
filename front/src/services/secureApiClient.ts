@@ -332,6 +332,16 @@ class SecureApiClient {
 
     this.logResponse(requestId, status, headers);
 
+    // Handle No Content explicitly to avoid parsing errors
+    if (status === 204) {
+      return {
+        success: true,
+        data: undefined as unknown as T,
+        status,
+        headers,
+      };
+    }
+
     if (!response.ok) {
       const error = await this.parseErrorResponse(response);
       return {
@@ -351,8 +361,11 @@ class SecureApiClient {
         data = await response.json();
       } else if (contentType.includes('text/')) {
         data = (await response.text()) as unknown as T;
-      } else {
+      } else if (contentType) {
         data = (await response.blob()) as unknown as T;
+      } else {
+        // Fallback when no content-type is provided
+        data = undefined as unknown as T;
       }
 
       return {

@@ -4,6 +4,7 @@
  */
 
 import secureApiClient from './secureApiClient';
+import { LeagueSummary } from '../types';
 
 // Types matching backend models
 export interface LeagueCreateRequest {
@@ -247,12 +248,37 @@ class LeagueApiService {
   /**
    * Get user's leagues with caching support
    */
-  public async getLeagues(): Promise<ApiResponse<{ leagues: League[] }>> {
+  public async getLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
     try {
-      const response = await this.makeRequest<{ leagues: League[] }>('/leagues');
+      // Le backend retourne { leagues: LeagueReadModel[] } ou 204 sans contenu
+      const raw = await this.makeRequest<any>('/leagues');
+
+      const items = (raw?.leagues ?? raw ?? []) as any[];
+
+      const toEpochMs = (ts: number | string | null | undefined): number | null => {
+        if (ts === null || ts === undefined) return null;
+        const n = typeof ts === 'string' ? Number(ts) : ts;
+        if (!Number.isFinite(n)) return null;
+        // Heuristique: si < 10^12, c'est en secondes -> convertir en ms
+        return n < 1_000_000_000_000 ? n * 1000 : n;
+      };
+
+      const leagues: LeagueSummary[] = Array.isArray(items)
+        ? items.map((l) => {
+            const startMs = toEpochMs(l.start_date);
+            return {
+              id: Number(l.id),
+              name: String(l.name ?? ''),
+              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
+              isStarted: Boolean(l.is_started ?? false),
+              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+            } as LeagueSummary;
+          })
+        : [];
+
       return {
         success: true,
-        data: response,
+        data: { leagues },
       };
     } catch (error: any) {
       console.error('❌ Failed to load leagues:', error);
@@ -366,3 +392,4 @@ class LeagueApiService {
 // Export singleton instance
 const leagueApiService = new LeagueApiService();
 export default leagueApiService;
+
