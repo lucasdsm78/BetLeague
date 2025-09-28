@@ -71,12 +71,12 @@ export interface League {
   readonly endDate?: string;
 }
 
-export type LeagueStatus = 
-  | 'draft' 
-  | 'open' 
-  | 'full' 
-  | 'active' 
-  | 'completed' 
+export type LeagueStatus =
+  | 'draft'
+  | 'open'
+  | 'full'
+  | 'active'
+  | 'completed'
   | 'cancelled';
 
 export interface LeagueDetails extends League {
@@ -86,6 +86,15 @@ export interface LeagueDetails extends League {
   readonly participants: LeagueParticipant[];
   readonly matches: Match[];
   readonly leaderboard: LeaderboardEntry[];
+}
+
+// Ajout: résumé léger des ligues renvoyé par /api/leagues
+export interface LeagueSummary {
+  readonly id: number;
+  readonly name: string;
+  readonly startDate: string; // ISO string
+  readonly isStarted?: boolean;
+  readonly playersRemaining?: number; // nb_players_remaining
 }
 
 export interface LeagueRules {
@@ -136,12 +145,12 @@ export interface Match {
   readonly statistics?: MatchStatistics;
 }
 
-export type MatchStatus = 
-  | 'scheduled' 
-  | 'live' 
-  | 'half-time' 
-  | 'finished' 
-  | 'postponed' 
+export type MatchStatus =
+  | 'scheduled'
+  | 'live'
+  | 'half-time'
+  | 'finished'
+  | 'postponed'
   | 'cancelled';
 
 export interface Team {
@@ -220,11 +229,11 @@ export interface Bet {
 
 export type BetPrediction = 'home' | 'draw' | 'away';
 
-export type BetStatus = 
-  | 'pending' 
-  | 'won' 
-  | 'lost' 
-  | 'void' 
+export type BetStatus =
+  | 'pending'
+  | 'won'
+  | 'lost'
+  | 'void'
   | 'cancelled';
 
 export interface BetDetails extends Bet {
@@ -248,11 +257,11 @@ export interface Invitation {
   readonly expiresAt: string;
 }
 
-export type InvitationStatus = 
-  | 'pending' 
-  | 'accepted' 
-  | 'declined' 
-  | 'expired' 
+export type InvitationStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'expired'
   | 'cancelled';
 
 // ============= Notification Entity =============
@@ -268,7 +277,7 @@ export interface Notification {
   readonly expiresAt?: string;
 }
 
-export type NotificationType = 
+export type NotificationType =
   | 'league_invitation'
   | 'match_result'
   | 'bet_won'

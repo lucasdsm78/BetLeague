@@ -2,29 +2,10 @@ import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react'
 import leagueApiService from '../../services/leagueApiService';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import './LeaguesSection.css';
+import { LeagueSummary } from '../../types';
 
-// Types
-interface User {
-    id: string;
-    email: string;
-    pseudo?: string;
-    username?: string;
-}
-
-interface League {
-    id: number;
-    name: string;
-    type: 'public' | 'private';
-    members: number;
-    maxMembers: number;
-    myRank: number;
-    totalPot: number;
-    endDate: string;
-    status: 'active' | 'ended' | 'pending';
-    admin: string;
-}
-
-interface Invitation {
+// Types locaux minimum pour l'UI Invitations (la liste des ligues utilise LeagueSummary)
+interface InvitationUI {
     id: number;
     leagueName: string;
     inviterName: string;
@@ -33,110 +14,60 @@ interface Invitation {
     maxMembers: number;
 }
 
-
-const MOCK_LEAGUES: League[] = [
-    {
-        id: 1,
-        name: 'Ligue des Champions 2024',
-        type: 'public',
-        members: 24,
-        maxMembers: 50,
-        myRank: 3,
-        totalPot: 1200,
-        endDate: '2024-06-15',
-        status: 'active',
-        admin: 'SportsMaster'
-    },
-    {
-        id: 2,
-        name: 'Entre Amis - Ligue 1',
-        type: 'private',
-        members: 8,
-        maxMembers: 10,
-        myRank: 1,
-        totalPot: 400,
-        endDate: '2024-05-30',
-        status: 'active',
-        admin: 'Moi'
-    }
-];
-
-const MOCK_INVITATIONS: Invitation[] = [
-    {
-        id: 1,
-        leagueName: 'Bureau FC 2024',
-        inviterName: 'JeanDupont',
-        inviteDate: '2024-01-18',
-        members: 15,
-        maxMembers: 20
-    }
-];
-
 interface LeagueCardProps {
-    league: League;
-    onJoin?: (league: League) => void;
-    onView: (league: League) => void;
-    onManage?: (league: League) => void;
+    league: LeagueSummary;
+    onView: (league: LeagueSummary) => void;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onJoin, onView, onManage }) => {
-    const getStatusColor = (status: League['status']): string => {
-        switch (status) {
-            case 'active': return 'var(--success-color)';
-            case 'ended': return 'var(--text-light)';
-            case 'pending': return 'var(--warning-color)';
-            default: return 'var(--text-secondary)';
-        }
-    };
+const LeagueCard = memo<LeagueCardProps>(({ league, onView }) => {
+    const statusLabel = league.isStarted ? 'Active' : 'En attente';
+    const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
-    const getStatusLabel = (status: League['status']): string => {
-        switch (status) {
-            case 'active': return 'Active';
-            case 'ended': return 'Terminée';
-            case 'pending': return 'En attente';
-            default: return status;
+    const startDateLabel = (() => {
+        try {
+            return new Date(league.startDate).toLocaleDateString('fr-FR');
+        } catch {
+            return '';
         }
-    };
+    })();
 
     return (
-        <div className={`league-card ${league.type}`}>
+        <div className="league-card">
             <div className="league-header">
                 <div className="league-info">
                     <h3 className="league-name">{league.name}</h3>
                     <div className="league-meta">
-                        <span className="league-type">
-                            {league.type === 'private' ? '🔒 Privée' : '🌍 Publique'}
-                        </span>
+                        <span className="league-type" aria-label="Type de ligue">🌍 Publique</span>
+                        <span className="league-type" aria-label="Date de début">Débute le {startDateLabel}</span>
                         <span
                             className="league-status"
-                            style={{ color: getStatusColor(league.status) }}
+                            style={{ color: statusColor }}
+                            aria-live="polite"
                         >
-                            {getStatusLabel(league.status)}
+                            {statusLabel}
                         </span>
                     </div>
                 </div>
-                <div className="league-rank">
-                    <div className="rank-badge">
-                        #{league.myRank}
-                    </div>
+                <div className="league-rank" aria-label="Votre position dans la ligue">
+                    <div className="rank-badge" title="Votre rang">#1</div>
                     <span className="rank-label">Ma position</span>
                 </div>
             </div>
 
             <div className="league-stats">
+                {typeof league.playersRemaining === 'number' && (
+                    <div className="stat">
+                        <span className="stat-value">{league.playersRemaining}</span>
+                        <span className="stat-label">Places restantes</span>
+                    </div>
+                )}
                 <div className="stat">
-                    <span className="stat-value">{league.members}/{league.maxMembers}</span>
-                    <span className="stat-label">Participants</span>
+                    <span className="stat-value">{statusLabel}</span>
+                    <span className="stat-label">Statut</span>
                 </div>
                 <div className="stat">
-                    <span className="stat-value">{league.totalPot}€</span>
-                    <span className="stat-label">Cagnotte</span>
-                </div>
-                <div className="stat">
-                    <span className="stat-value">
-                        {new Date(league.endDate).toLocaleDateString('fr-FR')}
-                    </span>
-                    <span className="stat-label">Fin</span>
+                    <span className="stat-value">#{league.id}</span>
+                    <span className="stat-label">ID</span>
                 </div>
             </div>
 
@@ -145,16 +76,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onJoin, onView, onManage }) 
                     className="btn btn-secondary"
                     onClick={() => onView(league)}
                 >
-                    Voir classement
+                    Voir détails
                 </button>
-                {league.admin === 'Moi' && onManage && (
-                    <button
-                        className="btn btn-outline"
-                        onClick={() => onManage(league)}
-                    >
-                        Gérer
-                    </button>
-                )}
             </div>
         </div>
     );
@@ -163,9 +86,9 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onJoin, onView, onManage }) 
 LeagueCard.displayName = 'LeagueCard';
 
 interface InvitationCardProps {
-    invitation: Invitation;
-    onAccept: (invitation: Invitation) => void;
-    onDecline: (invitation: Invitation) => void;
+    invitation: InvitationUI;
+    onAccept: (invitation: InvitationUI) => void;
+    onDecline: (invitation: InvitationUI) => void;
 }
 
 const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecline }) => (
@@ -204,14 +127,14 @@ InvitationCard.displayName = 'InvitationCard';
 type TabType = 'myLeagues' | 'invitations' | 'join';
 
 interface LeaguesSectionProps {
-    user?: User;
+    user?: { id: string; email: string; pseudo?: string; username?: string };
 }
 
 const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-    const [leagues, setLeagues] = useState<League[]>(MOCK_LEAGUES);
-    const [invitations, setInvitations] = useState<Invitation[]>(MOCK_INVITATIONS);
+    const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
+    const [invitations, setInvitations] = useState<InvitationUI[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
@@ -222,10 +145,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         try {
             const result = await leagueApiService.getLeagues();
             if (result.success && result.data) {
-                setLeagues(result.data.leagues || result.data || []);
+                setLeagues(result.data.leagues || []);
+            } else {
+                setLeagues([]);
             }
         } catch (err) {
             console.error('Failed to load leagues:', err);
+            setLeagues([]);
         } finally {
             setIsLoading(false);
         }
@@ -235,7 +161,16 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         try {
             const result = await leagueApiService.getInvitations(true);
             if (result.success && result.data) {
-                setInvitations(result.data.invitations || result.data || []);
+                // Adapter minimalement vers InvitationUI si nécessaire
+                const mapped: InvitationUI[] = (result.data.invitations as any[] || []).map((inv: any) => ({
+                    id: Number(inv.id),
+                    leagueName: String(inv.leagueName || inv?.league?.name || ''),
+                    inviterName: String(inv.inviterName || inv?.sender?.pseudo || 'Inconnu'),
+                    inviteDate: String(inv.inviteDate || inv?.sentAt || new Date().toISOString()),
+                    members: Number(inv.members || 0),
+                    maxMembers: Number(inv.maxMembers || inv?.league?.maxPlayers || 0),
+                }));
+                setInvitations(mapped);
             }
         } catch (err) {
             console.error('Failed to load invitations:', err);
@@ -250,14 +185,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Handle league creation success
     const handleCreateLeague = useCallback((leagueData: any, message: string) => {
-        console.log('Ligue créée:', leagueData);
         setIsCreateModalOpen(false);
-
-        // Show success message
         setSuccessMessage(message || 'Ligue créée avec succès !');
         setTimeout(() => setSuccessMessage(''), 5000);
-
-        // Reload leagues
         loadLeagues();
     }, [loadLeagues]);
 
@@ -268,8 +198,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         }
 
         try {
-            // Parse league code to ID (assuming it's numeric for now)
-            const leagueId = parseInt(leagueCode);
+            const leagueId = parseInt(leagueCode, 10);
             if (isNaN(leagueId)) {
                 setError('Code de ligue invalide');
                 return;
@@ -289,7 +218,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         }
     }, [loadLeagues]);
 
-    const handleAcceptInvitation = useCallback(async (invitation: Invitation) => {
+    const handleAcceptInvitation = useCallback(async (invitation: InvitationUI) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, true);
             if (result.success) {
@@ -306,7 +235,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         }
     }, [loadLeagues, loadInvitations]);
 
-    const handleDeclineInvitation = useCallback(async (invitation: Invitation) => {
+    const handleDeclineInvitation = useCallback(async (invitation: InvitationUI) => {
         try {
             const result = await leagueApiService.updateInvitation(invitation.id, false);
             if (result.success) {
@@ -441,8 +370,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 <LeagueCard
                                     key={league.id}
                                     league={league}
-                                    onView={(league) => console.log('Voir', league)}
-                                    onManage={(league) => console.log('Gérer', league)}
+                                    onView={(l) => console.log('Voir', l)}
                                 />
                             ))
                         ) : (
