@@ -2,6 +2,7 @@ import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom';
 import leagueApiService from '../../services/leagueApiService';
 import CreateLeagueForm from '../league/CreateLeagueForm';
+import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -158,6 +159,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
+    const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
@@ -364,8 +367,25 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
-        navigate(`/league/${league.id}`);
-    }, [navigate]);
+        setSelectedLeagueId(league.id);
+        setIsDetailsModalOpen(true);
+    }, []);
+
+    // Handle close details modal
+    const handleCloseDetailsModal = useCallback(() => {
+        setIsDetailsModalOpen(false);
+        setSelectedLeagueId(null);
+    }, []);
+
+    // Handle league joined from modal
+    const handleLeagueJoined = useCallback(() => {
+        // Refresh both lists when a league is joined from the modal
+        loadCreatedLeagues();
+        loadAvailableLeagues();
+        // Show success message
+        setSuccessMessage('🎉 Vous avez rejoint la ligue avec succès !');
+        setTimeout(() => setSuccessMessage(''), 5000);
+    }, [loadCreatedLeagues, loadAvailableLeagues]);
 
     return (
         <div className="leagues-section">
@@ -625,6 +645,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onSuccess={handleCreateLeague}
+            />
+
+            <LeagueDetailsModal
+                isOpen={isDetailsModalOpen}
+                leagueId={selectedLeagueId}
+                onClose={handleCloseDetailsModal}
+                onJoined={handleLeagueJoined}
             />
         </div>
     );
