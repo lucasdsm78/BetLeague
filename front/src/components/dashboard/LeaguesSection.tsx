@@ -225,16 +225,16 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     const loadInvitations = useCallback(async () => {
         try {
-            const result = await leagueApiService.getInvitations(true);
+            const result = await leagueApiService.getReceivedInvitations();
             if (result.success && result.data) {
-                // Adapter minimalement vers InvitationUI si nécessaire
-                const mapped: InvitationUI[] = (result.data.invitations as any[] || []).map((inv: any) => ({
+                // Adapter les nouvelles interfaces vers InvitationUI
+                const mapped: InvitationUI[] = (result.data as any[] || []).map((inv: any) => ({
                     id: Number(inv.id),
-                    leagueName: String(inv.leagueName || inv?.league?.name || ''),
-                    inviterName: String(inv.inviterName || inv?.sender?.pseudo || 'Inconnu'),
-                    inviteDate: String(inv.inviteDate || inv?.sentAt || new Date().toISOString()),
-                    members: Number(inv.members || 0),
-                    maxMembers: Number(inv.maxMembers || inv?.league?.maxPlayers || 0),
+                    leagueName: String(inv.league?.name || ''),
+                    inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
+                    inviteDate: String(new Date(inv.league?.start_date * 1000 || Date.now()).toISOString()),
+                    members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
+                    maxMembers: Number(inv.league?.max_players || 0),
                 }));
                 setInvitations(mapped);
             }
