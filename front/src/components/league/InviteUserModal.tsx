@@ -122,10 +122,18 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
         }
 
         setError(errorMsg);
-        console.error('❌ Failed to send invitation:', result.error);
+        console.error('❌ Failed to send invitation:', result.error || result);
       }
     } catch (err: any) {
-      const errorMessage = `Erreur réseau lors de l'envoi de l'invitation à ${selectedUser.pseudo}. Veuillez réessayer.`;
+      let errorMessage = `Erreur réseau lors de l'envoi de l'invitation à ${selectedUser.pseudo}. Veuillez réessayer.`;
+
+      // Try to extract more specific error message
+      if (err?.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+
       setError(errorMessage);
       console.error('❌ Exception while sending invitation:', err);
     } finally {

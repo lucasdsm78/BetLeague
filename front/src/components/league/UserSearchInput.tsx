@@ -38,7 +38,10 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
     setError('');
 
     try {
+      console.log(`🔍 Searching for users with query: "${searchQuery}"`);
       const response = await leagueApiService.searchUsers(searchQuery);
+
+      console.log('📥 Search response:', response);
 
       if (response.success && response.data) {
         // Filter out excluded users
@@ -47,17 +50,21 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
         );
 
         setResults(filteredResults);
-        setIsOpen(filteredResults.length > 0);
+        setIsOpen(true); // Always show dropdown to display results or "no results"
         setSelectedIndex(-1);
+
+        console.log(`✅ Found ${filteredResults.length} users after filtering`);
       } else {
+        console.warn('⚠️ Search failed:', response);
         setError(response.error || 'Erreur lors de la recherche');
         setResults([]);
-        setIsOpen(false);
+        setIsOpen(true); // Show dropdown to display error
       }
     } catch (err: any) {
+      console.error('❌ Search error:', err);
       setError('Erreur réseau lors de la recherche');
       setResults([]);
-      setIsOpen(false);
+      setIsOpen(true); // Show dropdown to display error
     } finally {
       setIsLoading(false);
     }
@@ -218,6 +225,16 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
         <div className="search-error" role="alert">
           <span className="error-icon">⚠️</span>
           {error}
+        </div>
+      )}
+
+      {/* No results message */}
+      {!isLoading && !error && query.length >= 2 && results.length === 0 && (
+        <div className="search-no-results">
+          <span className="no-results-icon">🔍</span>
+          <span className="no-results-message">
+            Aucun utilisateur trouvé pour "{query}"
+          </span>
         </div>
       )}
 

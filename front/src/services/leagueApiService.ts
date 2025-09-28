@@ -129,7 +129,20 @@ class LeagueApiService {
       return response.data as T;
     } catch (error: any) {
       console.error(`League API request failed: ${method} ${endpoint}`, error);
-      throw error;
+
+      // Better error handling for object errors
+      let errorMessage = 'Request failed';
+      if (error?.response?.data?.detail) {
+        errorMessage = typeof error.response.data.detail === 'string'
+          ? error.response.data.detail
+          : JSON.stringify(error.response.data.detail);
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object') {
+        errorMessage = JSON.stringify(error);
+      }
+
+      throw new Error(errorMessage);
     }
   }
 
@@ -480,17 +493,66 @@ class LeagueApiService {
 
       console.log('🔍 Searching users with query:', trimmedQuery);
 
-      const response = await this.makeRequest<{ users: UserSearchResult[] }>(`/users/search?q=${encodeURIComponent(trimmedQuery)}`);
+      // Use the new dedicated search endpoint
+      const response = await this.makeRequest<{ users: UserSearchResult[]; total: number; query: string }>(`/auth/users/search?q=${encodeURIComponent(trimmedQuery)}`);
 
-      console.log('✅ Users search completed:', response);
+      if (!response?.users || !Array.isArray(response.users)) {
+        throw new Error('Format de réponse invalide');
+      }
+
+      // Map and validate the response
+      const users = response.users.map((user: any) => ({
+        id: Number(user.id),
+        pseudo: String(user.pseudo || 'Utilisateur'),
+        email: String(user.email || ''),
+      }));
+
+      console.log(`✅ Found ${users.length} users matching query:`, trimmedQuery);
 
       return {
         success: true,
-        data: response,
-        message: 'Recherche effectuée avec succès',
+        data: { users },
+        message: `${users.length} utilisateur(s) trouvé(s)`,
       };
     } catch (error: any) {
       console.error('❌ User search failed:', error);
+
+      // Handle specific error cases with better logging
+      console.log('🔍 Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        return {
+          success: true,
+          data: { users: [] },
+          message: 'Aucun utilisateur trouvé',
+        };
+      }
+
+      if (error.message?.includes('403') || error.message?.includes('Forbidden') || error.message?.includes('Not authenticated')) {
+        return {
+          success: false,
+          error: 'Vous devez être connecté pour rechercher des utilisateurs.',
+        };
+      }
+
+      if (error.message?.includes('500') || error.message?.includes('Internal Server Error') || error.message?.includes('Erreur interne')) {
+        return {
+          success: false,
+          error: 'Erreur serveur temporaire. Veuillez réessayer dans quelques instants.',
+        };
+      }
+
+      if (error.message?.includes('400') || error.message?.includes('Bad Request')) {
+        return {
+          success: false,
+          error: 'Terme de recherche invalide. Utilisez au moins 2 caractères.',
+        };
+      }
+
       return {
         success: false,
         error: error.message || 'Erreur lors de la recherche d\'utilisateurs',
@@ -514,7 +576,10 @@ class LeagueApiService {
 
       console.log(`📤 Inviting user ${userId} to league ${leagueId}`);
 
-      const response = await this.makeRequest<LeagueResponse>(`/league/${leagueId}/${userId}/invite`, {
+      const inviteEndpoint = `/league/${leagueId}/${userId}/invite`;
+      console.log(`🔗 Invite endpoint: ${inviteEndpoint}`);
+
+      const response = await this.makeRequest<LeagueResponse>(inviteEndpoint, {
         method: 'POST',
       });
 

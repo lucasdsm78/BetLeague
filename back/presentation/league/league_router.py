@@ -243,7 +243,7 @@ async def get_created_leagues(
 
 
 @router.post(
-    "/league/{id}/{user_id}/invite",
+    "/league/{league_id}/{user_id}/invite",
     response_model=LeagueInviteResponse,
     summary="Invite user to a league",
     status_code=status.HTTP_200_OK

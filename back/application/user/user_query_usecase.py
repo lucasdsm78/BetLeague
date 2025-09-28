@@ -11,15 +11,15 @@ from domain.user.repository.user_repository import UserRepository
 class UserQueryUseCase(ABC):
 
     @abstractmethod
-    def fetch_users(self) -> dict:
+    async def fetch_users(self) -> dict:
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
+    async def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_all_rank_users(self) -> List[Dict[str, any]]:
+    async def get_all_rank_users(self) -> List[Dict[str, any]]:
         raise NotImplementedError
 
 
@@ -29,9 +29,9 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def fetch_users(self) -> dict:
+    async def fetch_users(self) -> dict:
         try:
-            users = self.user_repository.find_users()
+            users = await self.user_repository.find_users()
             return dict(
                 users=list(map(lambda user: UserReadModel.from_entity(
                     user=user), users))
@@ -40,10 +40,10 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
         except Exception as e:
             raise
 
-    def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
+    async def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
         try:
-            user_connected = self.user_repository.find_by_email(email)
-            user = self.user_repository.find_by_id(user_id)
+            user_connected = await self.user_repository.find_by_email(email)
+            user = await self.user_repository.find_by_id(user_id)
             if user_connected.id != user.id:
                 raise UserNotOwnerError
         except:
@@ -51,9 +51,9 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
 
         return UserReadModel.from_entity(user)
 
-    def get_all_rank_users(self) -> List[Dict[str, any]]:
+    async def get_all_rank_users(self) -> List[Dict[str, any]]:
         try:
-            return self.user_repository.get_all_rank_users()
+            return await self.user_repository.get_all_rank_users()
 
         except Exception as e:
             raise
