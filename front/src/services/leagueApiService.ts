@@ -246,9 +246,9 @@ class LeagueApiService {
   }
 
   /**
-   * Get user's leagues with caching support
+   * Get available leagues (public leagues user can join)
    */
-  public async getLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
+  public async getAvailableLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
     try {
       // Le backend retourne { leagues: LeagueReadModel[] } ou 204 sans contenu
       const raw = await this.makeRequest<any>('/leagues');
@@ -281,12 +281,63 @@ class LeagueApiService {
         data: { leagues },
       };
     } catch (error: any) {
-      console.error('❌ Failed to load leagues:', error);
+      console.error('❌ Failed to load available leagues:', error);
       return {
         success: false,
-        error: error.message || 'Erreur lors du chargement des ligues',
+        error: error.message || 'Erreur lors du chargement des ligues disponibles',
       };
     }
+  }
+
+  /**
+   * Get user's created leagues
+   */
+  public async getCreatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
+    try {
+      // Le backend retourne { leagues: LeagueReadModel[] } ou 204 sans contenu
+      const raw = await this.makeRequest<any>('/leagues/created');
+
+      const items = (raw?.leagues ?? raw ?? []) as any[];
+
+      const toEpochMs = (ts: number | string | null | undefined): number | null => {
+        if (ts === null || ts === undefined) return null;
+        const n = typeof ts === 'string' ? Number(ts) : ts;
+        if (!Number.isFinite(n)) return null;
+        // Heuristique: si < 10^12, c'est en secondes -> convertir en ms
+        return n < 1_000_000_000_000 ? n * 1000 : n;
+      };
+
+      const leagues: LeagueSummary[] = Array.isArray(items)
+        ? items.map((l) => {
+            const startMs = toEpochMs(l.start_date);
+            return {
+              id: Number(l.id),
+              name: String(l.name ?? ''),
+              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
+              isStarted: Boolean(l.is_started ?? false),
+              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+            } as LeagueSummary;
+          })
+        : [];
+
+      return {
+        success: true,
+        data: { leagues },
+      };
+    } catch (error: any) {
+      console.error('❌ Failed to load created leagues:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors du chargement des ligues créées',
+      };
+    }
+  }
+
+  /**
+   * Get user's leagues (backward compatibility - now gets available leagues)
+   */
+  public async getLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
+    return this.getAvailableLeagues();
   }
 
   /**
