@@ -1,8 +1,9 @@
 import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import leagueApiService from '../../services/leagueApiService';
+import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
+import InviteUserModal from '../league/InviteUserModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -20,11 +21,13 @@ interface LeagueCardProps {
     league: LeagueSummary;
     onView: (league: LeagueSummary) => void;
     onJoin?: (league: LeagueSummary) => void;
+    onInvite?: (league: LeagueSummary) => void;
     isJoining?: boolean;
     showJoinButton?: boolean;
+    showInviteButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, isJoining = false, showJoinButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, isJoining = false, showJoinButton = false, showInviteButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
@@ -103,6 +106,18 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, isJoining = 
                         )}
                     </button>
                 )}
+                {showInviteButton && onInvite && (
+                    <button
+                        className="btn btn-outline"
+                        onClick={() => onInvite(league)}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
+                        aria-label={`Inviter des utilisateurs dans la ligue ${league.name}`}
+                    >
+                        <span className="invite-icon">✉️</span>
+                        Inviter
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -160,7 +175,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
+    const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
@@ -387,6 +404,26 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         setTimeout(() => setSuccessMessage(''), 5000);
     }, [loadCreatedLeagues, loadAvailableLeagues]);
 
+    // Handle invite user to league
+    const handleInviteUser = useCallback((league: LeagueSummary) => {
+        setSelectedLeagueForInvite(league);
+        setIsInviteModalOpen(true);
+    }, []);
+
+    // Handle close invite modal
+    const handleCloseInviteModal = useCallback(() => {
+        setIsInviteModalOpen(false);
+        setSelectedLeagueForInvite(null);
+    }, []);
+
+    // Handle invitation sent
+    const handleInvitationSent = useCallback((user: UserSearchResult) => {
+        // Show success message
+        setSuccessMessage(`🎉 Invitation envoyée à ${user.pseudo} avec succès !`);
+        setTimeout(() => setSuccessMessage(''), 5000);
+        // Could refresh league data here if needed
+    }, []);
+
     return (
         <div className="leagues-section">
             {/* Success Message */}
@@ -513,7 +550,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     key={league.id}
                                     league={league}
                                     onView={handleViewLeague}
+                                    onInvite={handleInviteUser}
                                     showJoinButton={false}
+                                    showInviteButton={true}
                                 />
                             ))
                         ) : (
@@ -652,6 +691,15 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 leagueId={selectedLeagueId}
                 onClose={handleCloseDetailsModal}
                 onJoined={handleLeagueJoined}
+            />
+
+            <InviteUserModal
+                isOpen={isInviteModalOpen}
+                leagueId={selectedLeagueForInvite?.id || null}
+                leagueName={selectedLeagueForInvite?.name}
+                onClose={handleCloseInviteModal}
+                onInviteSent={handleInvitationSent}
+                excludeUserIds={[]} // Could exclude current user and already invited users
             />
         </div>
     );
