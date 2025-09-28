@@ -218,6 +218,29 @@ async def get_leagues(
     return leagues
 
 
+@router.get(
+    "/leagues/created",
+    response_model=dict,
+    status_code=status.HTTP_200_OK
+)
+async def get_created_leagues(
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        created_leagues = await league_query_usecase.get_created_leagues(current_user.get('email', ''))
+
+        if not created_leagues or not created_leagues.get('leagues'):
+            raise HTTPException(
+                status_code=status.HTTP_204_NO_CONTENT,
+                detail="No created leagues found."
+            )
+
+    except Exception as e:
+        raise
+
+    return created_leagues
+
 
 @router.post(
     "/league/{id}/{user_id}/invite",
