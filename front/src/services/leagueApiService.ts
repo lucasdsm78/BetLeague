@@ -417,6 +417,29 @@ class LeagueApiService {
   }
 
   /**
+   * Get league details by ID
+   */
+  public async getLeagueDetails(leagueId: number): Promise<ApiResponse<any>> {
+    try {
+      if (!Number.isInteger(leagueId) || leagueId <= 0) {
+        throw new Error('ID de ligue invalide');
+      }
+
+      const response = await this.makeRequest(`/league/${leagueId}`);
+      return {
+        success: true,
+        data: response,
+      };
+    } catch (error: any) {
+      console.error('❌ Failed to load league details:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors du chargement des détails de la ligue',
+      };
+    }
+  }
+
+  /**
    * Get league ranking
    */
   public async getLeagueRanking(leagueId: number): Promise<ApiResponse<any>> {

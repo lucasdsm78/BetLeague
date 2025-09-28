@@ -1,4 +1,5 @@
 import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import leagueApiService from '../../services/leagueApiService';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import './LeaguesSection.css';
@@ -154,6 +155,7 @@ interface LeaguesSectionProps {
 }
 
 const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
@@ -360,6 +362,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         }
     }, [loadInvitations]);
 
+    // Handle view league details
+    const handleViewLeague = useCallback((league: LeagueSummary) => {
+        navigate(`/league/${league.id}`);
+    }, [navigate]);
+
     return (
         <div className="leagues-section">
             {/* Success Message */}
@@ -485,7 +492,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 <LeagueCard
                                     key={league.id}
                                     league={league}
-                                    onView={(l) => console.log('Voir', l)}
+                                    onView={handleViewLeague}
                                     showJoinButton={false}
                                 />
                             ))
@@ -532,7 +539,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 <LeagueCard
                                     key={league.id}
                                     league={league}
-                                    onView={(l) => console.log('Voir', l)}
+                                    onView={handleViewLeague}
                                     onJoin={handleJoinLeague}
                                     isJoining={joiningLeagueId === league.id}
                                     showJoinButton={true}
