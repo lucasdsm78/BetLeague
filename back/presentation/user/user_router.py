@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
     UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel
 from application.user.user_command_usecase import UserCommandUseCase
-from application.user.user_query_model import UserReadModel
+from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
 from application.user.user_query_usecase import UserQueryUseCase
 from domain.user.exception.user_exception import UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError, \
     FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError
@@ -359,79 +359,41 @@ async def get_user_by_id(
 
 @router.get(
     "/users/search",
-    response_model=dict,
+    response_model=UserSearchResponse,
     status_code=status.HTTP_200_OK,
     summary="Search users by pseudo or email",
+    description="Search users with secure validation. Requires authentication."
 )
 async def search_users(
         q: str,
+        limit: Optional[int] = 10,
         user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
         current_user: dict = Depends(current_user),
-):
+) -> UserSearchResponse:
     """
-    Search users by pseudo or email with query parameter 'q'.
-    Requires authentication and returns limited user information for privacy.
+    Search users by pseudo or email using DDD architecture.
+    All business logic is handled by the Use Case layer.
     """
     try:
-        # Input validation
-        if not q or len(q.strip()) < 2:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Le terme de recherche doit contenir au moins 2 caractères"
-            )
+        # Create domain query object
+        search_query = UserSearchQuery(
+            query=q,
+            limit=min(limit or 10, 20)  # Cap limit for security
+        )
 
-        if len(q.strip()) > 50:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Le terme de recherche ne peut pas dépasser 50 caractères"
-            )
+        # Delegate to Use Case (Domain layer handles validation and logic)
+        result = await user_query_usecase.search_users(search_query)
 
-        # Security: prevent potentially harmful patterns
-        import re
-        forbidden_patterns = r'[<>\\&"\']|script|javascript|eval|onclick|onerror'
-        if re.search(forbidden_patterns, q, re.IGNORECASE):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Caractères ou mots-clés non autorisés dans la recherche"
-            )
+        return result
 
-        # Get all users and filter (in a real app, this should be done in the database)
-        all_users_response = await user_query_usecase.fetch_users()
-        all_users = all_users_response.get('users', [])
-
-        if not all_users:
-            return {"users": []}
-
-        # Filter users based on query (case-insensitive)
-        query_lower = q.strip().lower()
-        filtered_users = []
-
-        for user in all_users:
-            # user is a UserReadModel object, access attributes directly
-            pseudo = (user.pseudo or '').lower()
-            email = (user.email or '').lower()
-
-            if query_lower in pseudo or query_lower in email:
-                # Return only safe, limited information
-                filtered_users.append({
-                    'id': user.id,
-                    'pseudo': user.pseudo or 'Utilisateur',
-                    'email': user.email or '',
-                })
-
-        # Limit results for performance and privacy
-        limited_results = filtered_users[:10]
-
-        return {
-            "users": limited_results,
-            "total": len(limited_results),
-            "query": q.strip()
-        }
-
-    except HTTPException as e:
-        raise e
+    except ValueError as ve:
+        # Domain validation errors
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
     except Exception as e:
-        print(f"❌ User search error: {e}")
+        print(f"❌ User search router error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la recherche d'utilisateurs"
