@@ -311,7 +311,7 @@ async def get_invitations(
         current_user: dict = Depends(current_user),
 ):
     try:
-        invitations = league_query_usecase.get_invitations(current_user.get('email', ''), is_received)
+        invitations = await league_query_usecase.get_invitations(current_user.get('email', ''), is_received)
 
         if not invitations:
             raise HTTPException(

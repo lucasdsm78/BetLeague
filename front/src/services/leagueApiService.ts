@@ -39,13 +39,35 @@ export interface League {
   admin: string;
 }
 
-export interface Invitation {
+export interface UserSummaryLeagueDetail {
   id: number;
-  leagueName: string;
-  inviterName: string;
-  inviteDate: string;
-  members: number;
-  maxMembers: number;
+  pseudo: string;
+}
+
+export interface LeagueInvitationSummary {
+  id: number;
+  name: string;
+  max_players: number;
+  start_date: number;
+  user_creator: UserSummaryLeagueDetail;
+  nb_players_remaining: number;
+  is_started?: boolean;
+}
+
+export interface InvitationReceived {
+  id: number;
+  league: LeagueInvitationSummary;
+  status: string;
+}
+
+export interface InvitationsResponse {
+  pending?: InvitationReceived[];
+}
+
+export interface InvitationActionResponse {
+  message: string;
+  success: boolean;
+  error?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -389,19 +411,72 @@ class LeagueApiService {
   }
 
   /**
-   * Get invitations
+   * Get received invitations with enhanced error handling
    */
-  public async getInvitations(isReceived = true): Promise<ApiResponse<{ invitations: Invitation[] }>> {
+  public async getReceivedInvitations(): Promise<ApiResponse<InvitationReceived[]>> {
     try {
-      const response = await this.makeRequest<{ invitations: Invitation[] }>(
-        `/invitations?is_received=${isReceived}`
+      console.log('🔍 Fetching received invitations...');
+
+      const response = await this.makeRequest<InvitationReceived[]>(
+        `/invitations?is_received=true`
       );
+
+      // Handle empty response (204 No Content)
+      if (!response || response === null || response === undefined) {
+        return {
+          success: true,
+          data: [],
+          message: 'Aucune invitation reçue',
+        };
+      }
+
+      if (!Array.isArray(response)) {
+        throw new Error('Format de réponse invalide');
+      }
+
+      // Validate and sanitize response data
+      const invitations = response.map((invitation: any) => ({
+        id: Number(invitation.id),
+        league: {
+          id: Number(invitation.league.id),
+          name: String(invitation.league.name || 'Ligue sans nom'),
+          max_players: Number(invitation.league.max_players || 0),
+          start_date: Number(invitation.league.start_date || 0),
+          user_creator: {
+            id: Number(invitation.league.user_creator?.id || 0),
+            pseudo: String(invitation.league.user_creator?.pseudo || 'Utilisateur'),
+          },
+          nb_players_remaining: Number(invitation.league.nb_players_remaining || 0),
+          is_started: Boolean(invitation.league.is_started),
+        },
+        status: String(invitation.status || 'pending'),
+      }));
+
+      console.log(`✅ Found ${invitations.length} received invitations`);
+
       return {
         success: true,
-        data: response,
+        data: invitations,
+        message: `${invitations.length} invitation(s) reçue(s)`,
       };
     } catch (error: any) {
-      console.error('❌ Failed to load invitations:', error);
+      console.error('❌ Failed to load received invitations:', error);
+
+      if (error.message?.includes('204') || error.message?.includes('No Content')) {
+        return {
+          success: true,
+          data: [],
+          message: 'Aucune invitation reçue',
+        };
+      }
+
+      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        return {
+          success: false,
+          error: 'Vous devez être connecté pour voir vos invitations.',
+        };
+      }
+
       return {
         success: false,
         error: error.message || 'Erreur lors du chargement des invitations',
@@ -410,29 +485,53 @@ class LeagueApiService {
   }
 
   /**
-   * Update invitation status (accept/decline)
+   * Update invitation status (accept/decline) with enhanced validation
    */
-  public async updateInvitation(invitationId: number, accept: boolean): Promise<ApiResponse<LeagueResponse>> {
+  public async updateInvitation(invitationId: number, accept: boolean): Promise<ApiResponse<InvitationActionResponse>> {
     try {
       if (!Number.isInteger(invitationId) || invitationId <= 0) {
         throw new Error('ID d\'invitation invalide');
       }
 
-      const response = await this.makeRequest<LeagueResponse>(
+      console.log(`🔄 ${accept ? 'Accepting' : 'Declining'} invitation ${invitationId}`);
+
+      const response = await this.makeRequest<InvitationActionResponse>(
         `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`,
         { method: 'PUT' }
       );
 
+      const actionText = accept ? 'acceptée' : 'refusée';
+      const successMessage = response.message || `Invitation ${actionText} avec succès !`;
+
+      console.log(`✅ Invitation ${actionText} successfully`);
+
       return {
         success: true,
         data: response,
-        message: response.message || (accept ? 'Invitation acceptée' : 'Invitation refusée'),
+        message: successMessage,
       };
     } catch (error: any) {
       console.error('❌ Failed to update invitation:', error);
+
+      let errorMessage = `Erreur lors de la ${accept ? 'acceptation' : 'refus'} de l'invitation`;
+
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        errorMessage = 'Invitation introuvable ou déjà traitée';
+      } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        errorMessage = 'Vous n\'avez pas l\'autorisation de modifier cette invitation';
+      } else if (error.message?.includes('409') || error.message?.includes('Conflict')) {
+        errorMessage = 'Cette invitation a déjà été traitée';
+      } else if (error.message?.includes('btl') || error.message?.includes('insufficient')) {
+        errorMessage = 'Vous n\'avez pas assez de BTL pour rejoindre cette ligue';
+      } else if (error.message?.includes('full') || error.message?.includes('max')) {
+        errorMessage = 'Cette ligue est complète';
+      } else if (error.message?.includes('started')) {
+        errorMessage = 'Cette ligue a déjà commencé';
+      }
+
       return {
         success: false,
-        error: error.message || 'Erreur lors de la mise à jour de l\'invitation',
+        error: errorMessage,
       };
     }
   }

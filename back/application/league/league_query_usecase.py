@@ -33,7 +33,7 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_invitations(self, email: str, is_received: bool):
+    async def get_invitations(self, email: str, is_received: bool):
         raise NotImplementedError
 
 
@@ -117,13 +117,13 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             ]
         }
 
-    def get_invitations(self, email: str, is_received: bool) -> List[InvitationReceivedReadModel]:
+    async def get_invitations(self, email: str, is_received: bool) -> List[InvitationReceivedReadModel]:
         try:
-            user = self.user_repository.find_by_email(email)
+            user = await self.user_repository.find_by_email(email)
             if not user:
                 raise UserNotFoundError
 
-            grouped_invitations = self.invitation_repository.find_invitations(
+            grouped_invitations = await self.invitation_repository.find_invitations(
                 user_id=user.id,
                 status=InvitationStatus.pending,
                 is_received=is_received
@@ -132,7 +132,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             invitation_models = []
 
             for invitation in grouped_invitations.get("pending", []):
-                league = self.league_repository.find_by_id(invitation.league_id)
+                league = await self.league_repository.find_by_id(invitation.league_id)
 
                 league_summary = LeagueInvitationReceivedSummary(
                     id=league.id,

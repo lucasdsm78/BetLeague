@@ -353,6 +353,16 @@ class SecureApiClient {
     }
 
     try {
+      // Handle 204 No Content specifically
+      if (status === 204) {
+        return {
+          success: true,
+          data: null as unknown as T,
+          status,
+          headers,
+        };
+      }
+
       // Handle different content types
       const contentType = response.headers.get('content-type') || '';
 
