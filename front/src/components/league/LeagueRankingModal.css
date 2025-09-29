@@ -159,13 +159,6 @@
   border-radius: 0;
 }
 
-.ranking-modal__content .league-ranking__stats {
-  background: var(--bg-secondary);
-  margin: 0;
-  border-top: 1px solid var(--border-primary);
-  border-radius: 0;
-}
-
 /* ========== SCROLLBAR STYLING ========== */
 
 .ranking-modal__content::-webkit-scrollbar {

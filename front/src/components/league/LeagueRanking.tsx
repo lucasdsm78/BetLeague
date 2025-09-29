@@ -12,7 +12,6 @@ interface LeagueRankingProps {
   leagueId: number;
   leagueName?: string;
   className?: string;
-  showStats?: boolean;
   onPlayerClick?: (pseudo: string, position: number) => void;
 }
 
@@ -73,7 +72,7 @@ const RankingEntryComponent: React.FC<RankingEntryComponentProps> = memo(({ entr
 
 RankingEntryComponent.displayName = 'RankingEntryComponent';
 
-const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, className = '', showStats = true, onPlayerClick }) => {
+const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, className = '', onPlayerClick }) => {
   const { ranking, isLoading, error, refresh } = useLeagueRanking(leagueId);
 
   const handleRefresh = useCallback(async () => {
@@ -84,16 +83,7 @@ const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, cla
     }
   }, [refresh]);
 
-  const stats = useMemo(() => {
-    if (!ranking || !ranking.entries.length) return null;
-
-    const totalPlayers = ranking.entries.length;
-    const totalBets = ranking.entries.reduce((sum, entry) => sum + entry.nb_win + entry.nb_lose, 0);
-    const totalWins = ranking.entries.reduce((sum, entry) => sum + entry.nb_win, 0);
-    const averageWinRate = totalBets > 0 ? Math.round((totalWins / totalBets) * 100) : 0;
-
-    return { totalPlayers, totalBets, averageWinRate };
-  }, [ranking]);
+  // Stats supprimées - plus besoin de calculs de statistiques globales
 
   const renderContent = () => {
     if (isLoading) {
@@ -143,22 +133,6 @@ const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, cla
           ))}
         </div>
 
-        {showStats && stats && (
-          <div className="league-ranking__stats">
-            <div className="league-ranking__stat">
-              <span className="league-ranking__stat-value">{stats.totalPlayers}</span>
-              <span className="league-ranking__stat-label">Joueurs</span>
-            </div>
-            <div className="league-ranking__stat">
-              <span className="league-ranking__stat-value">{stats.totalBets.toLocaleString()}</span>
-              <span className="league-ranking__stat-label">Paris totaux</span>
-            </div>
-            <div className="league-ranking__stat">
-              <span className="league-ranking__stat-value">{stats.averageWinRate}%</span>
-              <span className="league-ranking__stat-label">Taux moyen</span>
-            </div>
-          </div>
-        )}
       </>
     );
   };
