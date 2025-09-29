@@ -697,6 +697,79 @@ class LeagueApiService {
       };
     }
   }
+
+  /**
+   * Get user's leagues (leagues the authenticated user participates in)
+   */
+  public async getUserLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
+    try {
+      const raw = await this.makeRequest<any>('/leagues');
+
+      const items = (raw?.leagues ?? raw ?? []) as any[];
+
+      const toEpochMs = (ts: number | string | null | undefined): number | null => {
+        if (ts === null || ts === undefined) return null;
+        const n = typeof ts === 'string' ? Number(ts) : ts;
+        if (!Number.isFinite(n)) return null;
+        return n < 1_000_000_000_000 ? n * 1000 : n;
+      };
+
+      const leagues: LeagueSummary[] = Array.isArray(items)
+        ? items.map((l) => {
+            const startMs = toEpochMs(l.start_date);
+            return {
+              id: Number(l.id),
+              name: String(l.name ?? ''),
+              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
+              isStarted: Boolean(l.is_started ?? false),
+              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+            } as LeagueSummary;
+          })
+        : [];
+
+      return {
+        success: true,
+        data: { leagues },
+      };
+    } catch (error: any) {
+      console.error('❌ Failed to load user leagues:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors du chargement de vos ligues',
+      };
+    }
+  }
+
+  /**
+   * Get league ranking with enhanced security and validation
+   */
+  public async getLeagueRanking(leagueId: number): Promise<ApiResponse<any[]>> {
+    try {
+      if (!Number.isInteger(leagueId) || leagueId <= 0) {
+        throw new Error('ID de ligue invalide');
+      }
+
+      const response = await this.makeRequest<any[]>(`/league/${leagueId}/rank`);
+
+      if (!Array.isArray(response)) {
+        throw new Error('Format de réponse invalide');
+      }
+
+      return {
+        success: true,
+        data: response,
+        message: 'Classement récupéré avec succès',
+      };
+    } catch (error: any) {
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        return { success: false, error: 'Ligue ou classement introuvable' };
+      }
+      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        return { success: false, error: 'Vous devez être membre de cette ligue pour voir le classement' };
+      }
+      return { success: false, error: error.message || 'Erreur lors du chargement du classement' };
+    }
+  }
 }
 
 // Export singleton instance
