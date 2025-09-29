@@ -66,6 +66,9 @@ const RankingEntryComponent: React.FC<RankingEntryComponentProps> = memo(({ entr
       <div className="league-ranking__wins">{entry.nb_win}</div>
       <div className="league-ranking__losses">{entry.nb_lose}</div>
       <div className={`league-ranking__winrate ${winRateClass}`}>{winRate}%</div>
+      <div className={`league-ranking__combined ${winRateClass}`}>
+        {entry.nb_win}/{entry.nb_lose} ({winRate}%)
+      </div>
     </div>
   );
 });
@@ -122,6 +125,7 @@ const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, cla
             <div role="columnheader">Victoires</div>
             <div role="columnheader">Défaites</div>
             <div role="columnheader">% Réussite</div>
+            <div role="columnheader">V/D (%)</div>
           </div>
           {ranking.entries.map((entry, index) => (
             <RankingEntryComponent
