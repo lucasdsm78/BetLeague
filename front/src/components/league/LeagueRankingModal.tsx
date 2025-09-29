@@ -101,7 +101,6 @@ const LeagueRankingModal: React.FC<LeagueRankingModalProps> = ({
             leagueId={leagueId}
             leagueName={leagueName}
             onPlayerClick={onPlayerClick}
-            showStats={true}
             className="ranking-modal__ranking"
           />
         </div>
