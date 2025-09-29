@@ -4,6 +4,7 @@ import leagueApiService, { UserSearchResult } from '../../services/leagueApiServ
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
+import LeagueRankingModal from '../league/LeagueRankingModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -22,12 +23,14 @@ interface LeagueCardProps {
     onView: (league: LeagueSummary) => void;
     onJoin?: (league: LeagueSummary) => void;
     onInvite?: (league: LeagueSummary) => void;
+    onViewRanking?: (league: LeagueSummary) => void;
     isJoining?: boolean;
     showJoinButton?: boolean;
     showInviteButton?: boolean;
+    showRankingButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, isJoining = false, showJoinButton = false, showInviteButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, onViewRanking, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
@@ -118,6 +121,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, is
                         Inviter
                     </button>
                 )}
+                {showRankingButton && onViewRanking && (
+                    <button
+                        className="btn btn-secondary btn-ranking"
+                        onClick={() => onViewRanking(league)}
+                        title={`Voir le classement de ${league.name}`}
+                        aria-label={`Voir le classement de la ligue ${league.name}`}
+                    >
+                        <span className="ranking-icon">🏆</span>
+                        Classement
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -164,7 +178,7 @@ const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecl
 InvitationCard.displayName = 'InvitationCard';
 
 
-type TabType = 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
+type TabType = 'joinedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
 
 interface LeaguesSectionProps {
     user?: { id: string; email: string; pseudo?: string; username?: string };
@@ -176,16 +190,38 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
+    const [isRankingModalOpen, setIsRankingModalOpen] = useState<boolean>(false);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
+    const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
+    const [userLeagues, setUserLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
+    const [isLoadingUser, setIsLoadingUser] = useState<boolean>(false);
     const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
     const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
     const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
+
+    // Load user leagues (participated)
+    const loadUserLeagues = useCallback(async () => {
+        setIsLoadingUser(true);
+        try {
+            const result = await leagueApiService.getUserLeagues();
+            if (result.success && result.data) {
+                setUserLeagues(result.data.leagues || []);
+            } else {
+                setUserLeagues([]);
+            }
+        } catch (err) {
+            console.error('Failed to load user leagues:', err);
+            setUserLeagues([]);
+        } finally {
+            setIsLoadingUser(false);
+        }
+    }, []);
 
     // Load created leagues
     const loadCreatedLeagues = useCallback(async () => {
@@ -245,10 +281,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Load data on component mount
     useEffect(() => {
+        loadUserLeagues();
         loadCreatedLeagues();
         loadAvailableLeagues();
         loadInvitations();
-    }, [loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
+    }, [loadUserLeagues, loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
 
     // Handle league creation success
     const handleCreateLeague = useCallback((leagueData: any, message: string) => {
@@ -397,12 +434,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     // Handle league joined from modal
     const handleLeagueJoined = useCallback(() => {
         // Refresh both lists when a league is joined from the modal
+        loadUserLeagues();
         loadCreatedLeagues();
         loadAvailableLeagues();
         // Show success message
         setSuccessMessage('🎉 Vous avez rejoint la ligue avec succès !');
         setTimeout(() => setSuccessMessage(''), 5000);
-    }, [loadCreatedLeagues, loadAvailableLeagues]);
+    }, [loadUserLeagues, loadCreatedLeagues, loadAvailableLeagues]);
 
     // Handle invite user to league
     const handleInviteUser = useCallback((league: LeagueSummary) => {
@@ -414,6 +452,17 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const handleCloseInviteModal = useCallback(() => {
         setIsInviteModalOpen(false);
         setSelectedLeagueForInvite(null);
+    }, []);
+
+    // Handle view ranking
+    const handleViewRanking = useCallback((league: LeagueSummary) => {
+        setSelectedLeagueForRanking(league);
+        setIsRankingModalOpen(true);
+    }, []);
+
+    const handleCloseRankingModal = useCallback(() => {
+        setIsRankingModalOpen(false);
+        setSelectedLeagueForRanking(null);
     }, []);
 
     // Handle invitation sent
@@ -497,6 +546,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
             <div className="leagues-tabs">
                 <button
+                    className={`tab-button ${activeTab === 'joinedLeagues' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('joinedLeagues')}
+                >
+                    Mes ligues ({userLeagues.length})
+                </button>
+                <button
                     className={`tab-button ${activeTab === 'myLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('myLeagues')}
                 >
@@ -523,6 +578,63 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             </div>
 
             <div className="tab-content">
+                {activeTab === 'joinedLeagues' && (
+                    <div className="leagues-grid" data-tab="joinedLeagues">
+                        {isLoadingUser ? (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                padding: '2rem',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    width: '2rem',
+                                    height: '2rem',
+                                    border: '3px solid var(--border-color)',
+                                    borderTop: '3px solid var(--primary-color)',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    marginBottom: '1rem'
+                                }}></div>
+                                <p style={{ color: 'var(--text-secondary)' }}>Chargement de vos ligues...</p>
+                            </div>
+                        ) : userLeagues.length > 0 ? (
+                            userLeagues.map(league => (
+                                <LeagueCard
+                                    key={league.id}
+                                    league={league}
+                                    onView={handleViewLeague}
+                                    onViewRanking={handleViewRanking}
+                                    showJoinButton={false}
+                                    showInviteButton={false}
+                                    showRankingButton={true}
+                                />
+                            ))
+                        ) : (
+                            <div className="empty-state">
+                                <span className="empty-icon">🏟️</span>
+                                <h3>Vous ne participez à aucune ligue</h3>
+                                <p>Rejoignez une ligue publique ou acceptez une invitation pour commencer</p>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => setActiveTab('availableLeagues')}
+                                    >
+                                        Voir les ligues disponibles
+                                    </button>
+                                    <button
+                                        className="btn btn-outline"
+                                        onClick={() => setActiveTab('invitations')}
+                                    >
+                                        Voir mes invitations
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {activeTab === 'myLeagues' && (
                     <div className="leagues-grid" data-tab="myLeagues">
                         {isLoadingCreated ? (
@@ -551,8 +663,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     league={league}
                                     onView={handleViewLeague}
                                     onInvite={handleInviteUser}
+                                    onViewRanking={handleViewRanking}
                                     showJoinButton={false}
                                     showInviteButton={true}
+                                    showRankingButton={true}
                                 />
                             ))
                         ) : (
@@ -691,6 +805,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 leagueId={selectedLeagueId}
                 onClose={handleCloseDetailsModal}
                 onJoined={handleLeagueJoined}
+            />
+
+            <LeagueRankingModal
+                isOpen={isRankingModalOpen}
+                leagueId={selectedLeagueForRanking?.id || null}
+                leagueName={selectedLeagueForRanking?.name}
+                onClose={handleCloseRankingModal}
             />
 
             <InviteUserModal
