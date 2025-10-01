@@ -570,3 +570,89 @@
     display: none;
   }
 }
+
+/* ===== Enhance Visibility Select (name/id = type) ===== */
+/* Base appearance: clearer background, stronger contrast, larger radius */
+#type.form-select {
+  background: linear-gradient(180deg, var(--bg-secondary, #f8fafc) 0%, var(--bg-primary, #ffffff) 100%);
+  border-color: var(--border-color, #e5e7eb);
+  color: var(--text-primary, #1f2937);
+  font-weight: 600;
+  border-radius: 12px;
+  padding-right: 2.5rem; /* room for bigger arrow */
+  min-height: 48px;
+}
+
+/* Hover: hint that it's interactive */
+#type.form-select:hover:not(:disabled) {
+  border-color: var(--primary-color, #3b82f6);
+}
+
+/* Focus ring: brand-oriented, highly visible */
+.form-group.focused #type.form-select,
+#type.form-select:focus {
+  border-color: var(--primary-color, #3b82f6) !important;
+  box-shadow:
+    0 0 0 2px var(--bg-primary, #ffffff),
+    0 0 0 5px rgba(59, 130, 246, 0.35);
+}
+
+/* Larger, brand-colored arrow */
+#type + .select-arrow {
+  right: 0.875rem;
+  font-size: 0.9rem;
+  color: var(--primary-color, #3b82f6);
+  background: transparent;
+}
+
+/* When focused, rotate arrow and strengthen color */
+.form-group.focused #type + .select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  color: #2563eb; /* darker brand shade */
+}
+
+/* Wrapper subtle pill effect to match brand visual language */
+#type.form-select {
+  background-clip: padding-box;
+}
+
+/* High-contrast options text (cannot style native dropdown fully, but ensure base font) */
+#type.form-select option {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Mobile tuning: larger tap target, prevent iOS zoom, comfortable spacing */
+@media (max-width: 768px) {
+  #type.form-select {
+    font-size: 16px; /* iOS no zoom */
+    min-height: 52px;
+    border-radius: 14px;
+    padding-right: 2.75rem;
+  }
+
+  #type + .select-arrow {
+    font-size: 1rem;
+  }
+}
+
+/* === Enlarged Visibility Select (desktop) === */
+#type.form-select {
+  /* increase overall size */
+  min-height: 56px;
+  font-size: 1.0625rem; /* ~17px for better readability */
+  border-radius: 14px;
+  padding-right: 3rem; /* more room for arrow */
+}
+#type + .select-arrow { font-size: 1rem; right: 1rem; }
+
+/* Mobile: even larger tap target */
+@media (max-width: 768px) {
+  #type.form-select {
+    min-height: 60px;
+    font-size: 17px; /* stays >=16px to avoid iOS zoom */
+    border-radius: 16px;
+    padding-right: 3.25rem;
+  }
+  #type + .select-arrow { font-size: 1.15rem; right: 0.9rem; }
+}
