@@ -84,6 +84,7 @@ async def join_league(
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
