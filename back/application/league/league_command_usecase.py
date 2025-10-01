@@ -161,7 +161,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueMaxPlayersError
 
                 if not league.is_free:
-                    if user.nb_btl < league.nb_btl:
+                    if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
                 unixtimestamp = int(datetime.now().timestamp() * 1000)
@@ -173,7 +173,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     league.is_started = True
 
                 league.nb_players_remaining -= 1
-                user.nb_btl-= league.nb_btl
+                if not league.is_free and league.nb_btl is not None:
+                    user.nb_btl -= league.nb_btl
 
                 league_players = LeaguePlayers(
                     user_id=user.id,
@@ -266,7 +267,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueMaxPlayersError
 
                 if not league.is_free:
-                    if user.nb_btl < league.nb_btl:
+                    if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
                 unixtimestamp = int(datetime.now().timestamp() * 1000)
@@ -278,7 +279,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     league.is_started = True
 
                 league.nb_players_remaining -= 1
-                user.nb_btl-= league.nb_btl
+                if not league.is_free and league.nb_btl is not None:
+                    user.nb_btl -= league.nb_btl
 
                 invitation = Invitation(
                     league_id=league.id,
