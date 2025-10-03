@@ -178,7 +178,7 @@ const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecl
 InvitationCard.displayName = 'InvitationCard';
 
 
-type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
+type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations';
 
 interface LeaguesSectionProps {
     user?: { id: string; email: string; pseudo?: string; username?: string };
@@ -569,12 +569,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 >
                     Invitations ({invitations.length})
                 </button>
-                <button
-                    className={`tab-button ${activeTab === 'join' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('join')}
-                >
-                    Rejoindre
-                </button>
             </div>
 
             <div className="tab-content">
@@ -753,43 +747,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 <p>Vous n'avez pas d'invitations en attente</p>
                             </div>
                         )}
-                    </div>
-                )}
-
-                {activeTab === 'join' && (
-                    <div className="join-league-section">
-                        <div className="join-form">
-                            <h3>Rejoindre une ligue</h3>
-                            <p>Entrez le code de la ligue pour la rejoindre</p>
-
-                            <form onSubmit={(e: FormEvent<HTMLFormElement>) => {
-                                e.preventDefault();
-                                const formData = new FormData(e.currentTarget);
-                                const code = formData.get('code') as string;
-                                handleJoinLeagueByCode(code);
-                            }}>
-                                <div className="form-group">
-                                    <input
-                                        type="text"
-                                        name="code"
-                                        placeholder="Code de la ligue (ex: ABCD1234)"
-                                        className="join-input"
-                                        required
-                                    />
-                                    <button type="submit" className="btn btn-primary">
-                                        Rejoindre
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <div className="public-leagues">
-                            <h4>Ligues publiques disponibles</h4>
-                            <p>Explorez les ligues publiques que vous pouvez rejoindre</p>
-                            <button className="btn btn-secondary">
-                                Parcourir les ligues publiques
-                            </button>
-                        </div>
                     </div>
                 )}
             </div>
