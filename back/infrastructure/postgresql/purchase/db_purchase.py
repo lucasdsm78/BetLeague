@@ -13,7 +13,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBPurchase(Base):
@@ -41,7 +42,7 @@ class DBPurchase(Base):
                 price_cents=self.pack.price_cents,
                 total_btl=self.pack.total_btl,
             ),
-            created_at=unixtimestamp(),
+            created_at=self.created_at,
             user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
         )
 
@@ -55,5 +56,6 @@ class DBPurchase(Base):
         purchase_db_to_update.status = purchase.status.value
         purchase_db_to_update.user_id = purchase.user.id
         purchase_db_to_update.pack_id = purchase.pack.id
-        purchase_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        purchase_db_to_update.created_at = purchase_db_to_update.created_at if db_purchase is not None else now
         return purchase_db_to_update

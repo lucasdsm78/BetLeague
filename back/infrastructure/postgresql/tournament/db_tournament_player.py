@@ -10,7 +10,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBTournamentPlayer(Base):
@@ -78,6 +79,7 @@ class DBTournamentPlayer(Base):
         player_db.stage = player.current_stage.value if player.current_stage else None
         player_db.nb_btl = player.nb_btl
         player_db.is_eliminated = player.is_eliminated
-        player_db.created_at = now
+        # Preserve original creation time when updating
+        player_db.created_at = player_db.created_at if db_player is not None else now
         player_db.updated_at = now
         return player_db

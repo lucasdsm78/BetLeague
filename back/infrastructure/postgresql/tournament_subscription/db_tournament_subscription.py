@@ -14,7 +14,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBTournamentSubscription(Base):
@@ -63,6 +64,7 @@ class DBTournamentSubscription(Base):
         tournament_subscription_db.start_date = tournament_subscription.current_period_start
         tournament_subscription_db.end_date = tournament_subscription.current_period_end
         tournament_subscription_db.user_id = tournament_subscription.user.id
-        tournament_subscription_db.created_at = now
+        # Preserve original creation time when updating
+        tournament_subscription_db.created_at = tournament_subscription_db.created_at if db_tournament_subscription is not None else now
         tournament_subscription_db.updated_at = now
         return tournament_subscription_db

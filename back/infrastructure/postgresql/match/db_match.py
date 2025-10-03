@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger
 from sqlalchemy.orm import relationship
 
 from domain.match.model.match import Match
@@ -9,7 +9,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp())
+    # Always use UTC and milliseconds for consistency
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBMatch(Base):
@@ -23,9 +24,10 @@ class DBMatch(Base):
     cote_draw: Union[float, Column] = Column(Float, nullable=False)
     cote_away: Union[float, Column] = Column(Float, nullable=False)
     time: Union[datetime, Column] = Column(DateTime, nullable=False)
-    created_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
+    # Store timestamps as BigInteger (ms)
+    created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     winner: Union[str, Column] = Column(String, nullable=True)
-    updated_at: Union[int, Column] = Column(Integer, index=True, nullable=False)
+    updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     match_choices = relationship("DBMatchChoices", back_populates="match")
 
     def to_entity(self) -> Match:
@@ -56,6 +58,7 @@ class DBMatch(Base):
         match_db_to_update.cote_draw = match.cote_draw
         match_db_to_update.cote_away = match.cote_away
         match_db_to_update.time = match.time
-        match_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        match_db_to_update.created_at = match_db_to_update.created_at if db_match is not None else now
         match_db_to_update.updated_at = now
         return match_db_to_update
