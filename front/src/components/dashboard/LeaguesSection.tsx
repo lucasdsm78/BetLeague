@@ -178,7 +178,7 @@ const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecl
 InvitationCard.displayName = 'InvitationCard';
 
 
-type TabType = 'joinedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
+type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations' | 'join';
 
 interface LeaguesSectionProps {
     user?: { id: string; email: string; pseudo?: string; username?: string };
@@ -194,32 +194,32 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
-    const [userLeagues, setUserLeagues] = useState<LeagueSummary[]>([]);
+    const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
     const [invitations, setInvitations] = useState<InvitationUI[]>([]);
-    const [isLoadingUser, setIsLoadingUser] = useState<boolean>(false);
+    const [isLoadingParticipated, setIsLoadingParticipated] = useState<boolean>(false);
     const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
     const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
     const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
 
-    // Load user leagues (participated)
-    const loadUserLeagues = useCallback(async () => {
-        setIsLoadingUser(true);
+    // Load participated leagues (leagues where user is participant but not creator)
+    const loadParticipatedLeagues = useCallback(async () => {
+        setIsLoadingParticipated(true);
         try {
-            const result = await leagueApiService.getUserLeagues();
+            const result = await leagueApiService.getParticipatedLeagues();
             if (result.success && result.data) {
-                setUserLeagues(result.data.leagues || []);
+                setParticipatedLeagues(result.data.leagues || []);
             } else {
-                setUserLeagues([]);
+                setParticipatedLeagues([]);
             }
         } catch (err) {
-            console.error('Failed to load user leagues:', err);
-            setUserLeagues([]);
+            console.error('Failed to load participated leagues:', err);
+            setParticipatedLeagues([]);
         } finally {
-            setIsLoadingUser(false);
+            setIsLoadingParticipated(false);
         }
     }, []);
 
@@ -281,11 +281,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Load data on component mount
     useEffect(() => {
-        loadUserLeagues();
+        loadParticipatedLeagues();
         loadCreatedLeagues();
         loadAvailableLeagues();
         loadInvitations();
-    }, [loadUserLeagues, loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
+    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
 
     // Handle league creation success
     const handleCreateLeague = useCallback((leagueData: any, message: string) => {
@@ -434,13 +434,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     // Handle league joined from modal
     const handleLeagueJoined = useCallback(() => {
         // Refresh both lists when a league is joined from the modal
-        loadUserLeagues();
+        loadParticipatedLeagues();
         loadCreatedLeagues();
         loadAvailableLeagues();
         // Show success message
         setSuccessMessage('🎉 Vous avez rejoint la ligue avec succès !');
         setTimeout(() => setSuccessMessage(''), 5000);
-    }, [loadUserLeagues, loadCreatedLeagues, loadAvailableLeagues]);
+    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues]);
 
     // Handle invite user to league
     const handleInviteUser = useCallback((league: LeagueSummary) => {
@@ -546,10 +546,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
             <div className="leagues-tabs">
                 <button
-                    className={`tab-button ${activeTab === 'joinedLeagues' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('joinedLeagues')}
+                    className={`tab-button ${activeTab === 'participatedLeagues' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('participatedLeagues')}
                 >
-                    Mes ligues ({userLeagues.length})
+                    Ligues participées ({participatedLeagues.length})
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'myLeagues' ? 'active' : ''}`}
@@ -578,9 +578,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             </div>
 
             <div className="tab-content">
-                {activeTab === 'joinedLeagues' && (
-                    <div className="leagues-grid" data-tab="joinedLeagues">
-                        {isLoadingUser ? (
+                {activeTab === 'participatedLeagues' && (
+                    <div className="leagues-grid" data-tab="participatedLeagues">
+                        {isLoadingParticipated ? (
                             <div style={{
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -597,10 +597,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     animation: 'spin 1s linear infinite',
                                     marginBottom: '1rem'
                                 }}></div>
-                                <p style={{ color: 'var(--text-secondary)' }}>Chargement de vos ligues...</p>
+                                <p style={{ color: 'var(--text-secondary)' }}>Chargement des ligues participées...</p>
                             </div>
-                        ) : userLeagues.length > 0 ? (
-                            userLeagues.map(league => (
+                        ) : participatedLeagues.length > 0 ? (
+                            participatedLeagues.map(league => (
                                 <LeagueCard
                                     key={league.id}
                                     league={league}
@@ -616,7 +616,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                 <span className="empty-icon">🏟️</span>
                                 <h3>Vous ne participez à aucune ligue</h3>
                                 <p>Rejoignez une ligue publique ou acceptez une invitation pour commencer</p>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                                     <button
                                         className="btn btn-secondary"
                                         onClick={() => setActiveTab('availableLeagues')}

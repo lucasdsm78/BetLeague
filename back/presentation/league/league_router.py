@@ -243,6 +243,40 @@ async def get_created_leagues(
     return created_leagues
 
 
+@router.get(
+    "/leagues/participated",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Get leagues where user is a participant"
+)
+async def get_participated_leagues(
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        participated_leagues = await league_query_usecase.get_participated_leagues(current_user.get('email', ''))
+
+        if not participated_leagues or not participated_leagues.get('leagues'):
+            raise HTTPException(
+                status_code=status.HTTP_204_NO_CONTENT,
+                detail="No participated leagues found."
+            )
+
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while fetching participated leagues."
+        )
+
+    return participated_leagues
+
+
 @router.post(
     "/league/{league_id}/{user_id}/invite",
     response_model=LeagueInviteResponse,

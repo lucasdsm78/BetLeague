@@ -700,10 +700,20 @@ class LeagueApiService {
 
   /**
    * Get user's leagues (leagues the authenticated user participates in)
+   * Now calls getParticipatedLeagues for backward compatibility
    */
   public async getUserLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
+    return this.getParticipatedLeagues();
+  }
+
+  /**
+   * Get participated leagues (leagues where user is a participant, excluding created leagues)
+   */
+  public async getParticipatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     try {
-      const raw = await this.makeRequest<any>('/leagues');
+      console.log('🔍 Fetching participated leagues...');
+
+      const raw = await this.makeRequest<any>('/leagues/participated');
 
       const items = (raw?.leagues ?? raw ?? []) as any[];
 
@@ -711,6 +721,7 @@ class LeagueApiService {
         if (ts === null || ts === undefined) return null;
         const n = typeof ts === 'string' ? Number(ts) : ts;
         if (!Number.isFinite(n)) return null;
+        // Heuristic: if < 10^12, it's in seconds -> convert to ms
         return n < 1_000_000_000_000 ? n * 1000 : n;
       };
 
@@ -727,15 +738,26 @@ class LeagueApiService {
           })
         : [];
 
+      console.log(`✅ Found ${leagues.length} participated leagues`);
+
       return {
         success: true,
         data: { leagues },
       };
     } catch (error: any) {
-      console.error('❌ Failed to load user leagues:', error);
+      console.error('❌ Failed to load participated leagues:', error);
+
+      // Handle 204 No Content gracefully
+      if (error.message?.includes('204') || error.message?.includes('No Content')) {
+        return {
+          success: true,
+          data: { leagues: [] },
+        };
+      }
+
       return {
         success: false,
-        error: error.message || 'Erreur lors du chargement de vos ligues',
+        error: error.message || 'Erreur lors du chargement des ligues participées',
       };
     }
   }
