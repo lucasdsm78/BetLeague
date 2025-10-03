@@ -268,7 +268,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     id: Number(inv.id),
                     leagueName: String(inv.league?.name || ''),
                     inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
-                    inviteDate: String(new Date(inv.league?.start_date * 1000 || Date.now()).toISOString()),
+                    inviteDate: String(new Date(inv.league?.start_date || Date.now()).toISOString()),
                     members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
                     maxMembers: Number(inv.league?.max_players || 0),
                 }));

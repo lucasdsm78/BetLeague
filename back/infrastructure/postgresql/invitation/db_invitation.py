@@ -10,7 +10,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBInvitation(Base):

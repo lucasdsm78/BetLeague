@@ -113,7 +113,7 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
 
   const formatDate = (timestamp: number) => {
     try {
-      return new Date(timestamp * 1000).toLocaleDateString('fr-FR', {
+      return new Date(timestamp).toLocaleDateString('fr-FR', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -130,7 +130,7 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     if (details.is_started) {
       return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };
     }
-    if (details.start_date && details.start_date * 1000 > Date.now()) {
+    if (details.start_date && details.start_date > Date.now()) {
       return { label: 'À venir', color: 'var(--warning-color)', icon: '🟡' };
     }
     return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };

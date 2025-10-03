@@ -146,7 +146,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 
     const formatDate = (timestamp: number) => {
         try {
-            return new Date(timestamp * 1000).toLocaleDateString('fr-FR', {
+            return new Date(timestamp).toLocaleDateString('fr-FR', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -161,7 +161,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         if (leagueData.is_started) {
             return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };
         }
-        if (leagueData.start_date && leagueData.start_date * 1000 > Date.now()) {
+        if (leagueData.start_date && leagueData.start_date > Date.now()) {
             return { label: 'À venir', color: 'var(--warning-color)', icon: '🟡' };
         }
         return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };
@@ -310,3 +310,4 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 LeagueDetail.displayName = 'LeagueDetail';
 
 export default LeagueDetail;
+
