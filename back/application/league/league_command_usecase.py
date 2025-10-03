@@ -106,7 +106,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if data.is_free is False and (data.nb_btl is None or data.nb_btl <= 0):
                     raise LeagueMustHaveNbBtlError
 
-                now_ms = int(datetime.now().timestamp() * 1000)
+                now_ms = int(datetime.utcnow().timestamp() * 1000)
                 uuid = shortuuid.uuid()
                 league = League(
                     is_free=data.is_free,
@@ -117,7 +117,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     max_players=data.max_players,
                     is_private=data.is_private,
                     start_date=now_ms,
-                    end_date=int((datetime.now() + timedelta(weeks=1)).timestamp() * 1000),
+                    end_date=int((datetime.utcnow() + timedelta(weeks=1)).timestamp() * 1000),
                     nb_players_remaining=data.max_players - 1,
                     user=UserSummary(
                         id=user.id,
@@ -164,7 +164,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
-                unixtimestamp = int(datetime.now().timestamp() * 1000)
+                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
                 if (
                         league.nb_players_remaining != 0 and
                         league.nb_players_remaining - 1 <= MIN_PLAYERS
@@ -270,7 +270,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
-                unixtimestamp = int(datetime.now().timestamp() * 1000)
+                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
                 if (
                         league.nb_players_remaining != 0 and
                         league.nb_players_remaining - 1 <= MIN_PLAYERS
@@ -438,4 +438,3 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 await user_repo.update(user)
 
         return LeagueInjectBtlResponse()
-

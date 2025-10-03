@@ -11,7 +11,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBLeague(Base):
@@ -74,6 +75,7 @@ class DBLeague(Base):
         league_db_to_update.start_date = league.start_date
         league_db_to_update.end_date = league.end_date
         league_db_to_update.user_id = league.user.id
-        league_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        league_db_to_update.created_at = league_db_to_update.created_at if db_league is not None else now
         league_db_to_update.updated_at = now
         return league_db_to_update
