@@ -33,6 +33,10 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_participated_leagues(self, email: str) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_invitations(self, email: str, is_received: bool):
         raise NotImplementedError
 
@@ -114,6 +118,20 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             "leagues": [
                 LeagueReadModel.from_entity_get_all(league=league)
                 for league in created_leagues
+            ]
+        }
+
+    async def get_participated_leagues(self, email: str) -> dict:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        participated_leagues = await self.league_repository.find_participated_leagues(user_id=user.id)
+
+        return {
+            "leagues": [
+                LeagueReadModel.from_entity_get_all(league=league)
+                for league in participated_leagues
             ]
         }
 
