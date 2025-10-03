@@ -12,7 +12,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBUser(Base):
@@ -69,7 +70,8 @@ class DBUser(Base):
         user_db_to_update.uuid = user.uuid
         user_db_to_update.email = user.email.value
         user_db_to_update.password = user.password.password
-        user_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        user_db_to_update.created_at = user_db_to_update.created_at if db_user is not None else now
         user_db_to_update.is_tournament_subscriber = user.is_tournament_subscriber
         user_db_to_update.updated_at = now
         user_db_to_update.pseudo = user.pseudo

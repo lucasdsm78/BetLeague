@@ -82,10 +82,12 @@ class TournamentSubscription:
     def _calculate_period_end(self) -> int:
         if self._current_period_start is None:
             raise ValueError("Current period start is not set.")
+        # Return ms duration according to plan
+        day_ms = 24 * 60 * 60 * 1000
         if self._plan == TournamentSubscriptionPlan.MONTHLY:
-            return self._current_period_start + 30 * 24 * 60 * 60
+            return self._current_period_start + 30 * day_ms
         elif self._plan == TournamentSubscriptionPlan.YEARLY:
-            return self._current_period_start + 365 * 24 * 60 * 60
+            return self._current_period_start + 365 * day_ms
         else:
             raise ValueError(f"Unknown plan: {self._plan}")
 
@@ -96,11 +98,11 @@ class TournamentSubscription:
         self._status = TournamentSubscriptionStatus.ACTIVE
         self._current_period_start = period_start
         self._current_period_end = period_end
-        self._updated_at = int(datetime.now().timestamp())
+        self._updated_at = int(datetime.utcnow().timestamp() * 1000)
 
     def cancel(self) -> None:
         self._status = map_stripe_status_to_enum(TournamentSubscriptionStatus.CANCELLED.value)
-        self._updated_at = int(datetime.now().timestamp())
+        self._updated_at = int(datetime.utcnow().timestamp() * 1000)
 
     def update_status_from_stripe(
             self,
@@ -120,7 +122,7 @@ class TournamentSubscription:
             self._current_period_end = period_end
 
         if hasattr(self, 'updated_at'):
-            self._updated_at = datetime.utcnow()
+            self._updated_at = int(datetime.utcnow().timestamp() * 1000)
 
     def update_stripe_subscription_id_from_stripe(
                 self,
@@ -130,4 +132,4 @@ class TournamentSubscription:
 
     def is_active(self) -> bool:
         return (self._status == TournamentSubscriptionStatus.ACTIVE and
-                self._current_period_end > int(datetime.now().timestamp()))
+                self._current_period_end > int(datetime.utcnow().timestamp() * 1000))

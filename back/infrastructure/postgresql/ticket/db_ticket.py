@@ -12,7 +12,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBTicket(Base):
@@ -59,6 +60,7 @@ class DBTicket(Base):
         ticket_db_to_update.league_id = ticket.league_id
         ticket_db_to_update.user_id = ticket.user.id
         ticket_db_to_update.status = ticket.status.value
-        ticket_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        ticket_db_to_update.created_at = ticket_db_to_update.created_at if db_ticket is not None else now
         ticket_db_to_update.updated_at = now
         return ticket_db_to_update

@@ -65,13 +65,13 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                     raise UserNotFoundError
 
                 uuid = shortuuid.uuid()
-                now_ms = int(datetime.now().timestamp() * 1000)
+                now_ms = int(datetime.utcnow().timestamp() * 1000)
                 tournament = Tournament(
                     uuid=uuid,
                     name=data.name,
                     is_private=data.is_private,
                     start_date=now_ms,
-                    end_date=int((datetime.now() + timedelta(days=7)).timestamp() * 1000),
+                    end_date=int((datetime.utcnow() + timedelta(days=7)).timestamp() * 1000),
                     user=UserSummary(id=user.id, email=user.email, pseudo=user.pseudo),
                 )
 
@@ -158,7 +158,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                     raise ValueError("Le tournoi a déjà commencé ou est terminé")
 
                 # Définir les dates du tournoi
-                now = datetime.now()
+                now = datetime.utcnow()
                 now_timestamp = int(now.timestamp() * 1000)
                 tournament.start_date = now_timestamp
                 tournament.end_date = int((now + timedelta(days=7)).timestamp() * 1000)

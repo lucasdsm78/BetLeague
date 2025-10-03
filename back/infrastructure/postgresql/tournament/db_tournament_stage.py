@@ -11,7 +11,8 @@ from infrastructure.postgresql.tournament import DBTournament
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 class DBTournamentStage(Base):
     __tablename__ = "tournament_stage"

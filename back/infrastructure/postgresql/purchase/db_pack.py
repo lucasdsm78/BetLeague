@@ -9,7 +9,8 @@ from infrastructure.postgresql.database import Base
 
 
 def unixtimestamp() -> int:
-    return int(datetime.now().timestamp() * 1000)
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
 
 
 class DBPack(Base):
@@ -51,5 +52,6 @@ class DBPack(Base):
         pack_db_to_update.total_btl = pack.total_btl
         pack_db_to_update.price_per_100 = pack.price_per_100
         pack_db_to_update.note = pack.note
-        pack_db_to_update.created_at = now
+        # Preserve original creation time when updating
+        pack_db_to_update.created_at = pack_db_to_update.created_at if db_pack is not None else now
         return pack_db_to_update
