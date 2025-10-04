@@ -548,26 +548,46 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 <button
                     className={`tab-button ${activeTab === 'participatedLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('participatedLeagues')}
+                    aria-label="Ligues participées"
                 >
-                    Ligues participées ({participatedLeagues.length})
+                    <span className="tab-icon">🎮</span>
+                    <span className="tab-label">
+                        <span className="tab-text">Participées</span>
+                        <span className="tab-count">{participatedLeagues.length}</span>
+                    </span>
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'myLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('myLeagues')}
+                    aria-label="Mes ligues créées"
                 >
-                    Mes ligues créées ({createdLeagues.length})
+                    <span className="tab-icon">👑</span>
+                    <span className="tab-label">
+                        <span className="tab-text">Créées</span>
+                        <span className="tab-count">{createdLeagues.length}</span>
+                    </span>
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'availableLeagues' ? 'active' : ''}`}
                     onClick={() => setActiveTab('availableLeagues')}
+                    aria-label="Ligues disponibles"
                 >
-                    Ligues disponibles ({availableLeagues.length})
+                    <span className="tab-icon">🌍</span>
+                    <span className="tab-label">
+                        <span className="tab-text">Disponibles</span>
+                        <span className="tab-count">{availableLeagues.length}</span>
+                    </span>
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
                     onClick={() => setActiveTab('invitations')}
+                    aria-label="Invitations"
                 >
-                    Invitations ({invitations.length})
+                    <span className="tab-icon">📨</span>
+                    <span className="tab-label">
+                        <span className="tab-text">Invitations</span>
+                        <span className="tab-count">{invitations.length}</span>
+                    </span>
                 </button>
             </div>
 
