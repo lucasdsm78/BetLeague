@@ -550,10 +550,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     onClick={() => setActiveTab('participatedLeagues')}
                     aria-label="Ligues participées"
                 >
-                    <span className="tab-icon">🎮</span>
-                    <span className="tab-label">
-                        <span className="tab-text">Participées</span>
-                        <span className="tab-count">{participatedLeagues.length}</span>
+                    <span className="tab-content-wrapper">
+                        <span className="tab-title">Participées</span>
+                        <span className="tab-badge">{participatedLeagues.length}</span>
                     </span>
                 </button>
                 <button
@@ -561,10 +560,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     onClick={() => setActiveTab('myLeagues')}
                     aria-label="Mes ligues créées"
                 >
-                    <span className="tab-icon">👑</span>
-                    <span className="tab-label">
-                        <span className="tab-text">Créées</span>
-                        <span className="tab-count">{createdLeagues.length}</span>
+                    <span className="tab-content-wrapper">
+                        <span className="tab-title">Créées</span>
+                        <span className="tab-badge">{createdLeagues.length}</span>
                     </span>
                 </button>
                 <button
@@ -572,10 +570,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     onClick={() => setActiveTab('availableLeagues')}
                     aria-label="Ligues disponibles"
                 >
-                    <span className="tab-icon">🌍</span>
-                    <span className="tab-label">
-                        <span className="tab-text">Disponibles</span>
-                        <span className="tab-count">{availableLeagues.length}</span>
+                    <span className="tab-content-wrapper">
+                        <span className="tab-title">Disponibles</span>
+                        <span className="tab-badge">{availableLeagues.length}</span>
                     </span>
                 </button>
                 <button
@@ -583,10 +580,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                     onClick={() => setActiveTab('invitations')}
                     aria-label="Invitations"
                 >
-                    <span className="tab-icon">📨</span>
-                    <span className="tab-label">
-                        <span className="tab-text">Invitations</span>
-                        <span className="tab-count">{invitations.length}</span>
+                    <span className="tab-content-wrapper">
+                        <span className="tab-title">Invitations</span>
+                        <span className="tab-badge">{invitations.length}</span>
                     </span>
                 </button>
             </div>
