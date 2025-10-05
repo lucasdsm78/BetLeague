@@ -5,6 +5,7 @@ import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
 import LeagueRankingModal from '../league/LeagueRankingModal';
+import LeaveLeagueModal from '../league/LeaveLeagueModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -24,13 +25,15 @@ interface LeagueCardProps {
     onJoin?: (league: LeagueSummary) => void;
     onInvite?: (league: LeagueSummary) => void;
     onViewRanking?: (league: LeagueSummary) => void;
+    onLeave?: (league: LeagueSummary) => void;
     isJoining?: boolean;
     showJoinButton?: boolean;
     showInviteButton?: boolean;
     showRankingButton?: boolean;
+    showLeaveButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, onViewRanking, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, onViewRanking, onLeave, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
@@ -128,6 +131,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
                         Classement
                     </button>
                 )}
+                {showLeaveButton && onLeave && (
+                    <button
+                        className="btn btn-danger btn-leave"
+                        onClick={() => onLeave(league)}
+                        title={`Quitter la ligue ${league.name}`}
+                        aria-label={`Quitter la ligue ${league.name}`}
+                    >
+                        <span className="leave-icon">🚪</span>
+                        Quitter
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -187,9 +201,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
     const [isRankingModalOpen, setIsRankingModalOpen] = useState<boolean>(false);
+    const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
+    const [selectedLeagueForLeave, setSelectedLeagueForLeave] = useState<LeagueSummary | null>(null);
     const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
@@ -429,14 +445,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
 
     // Handle league joined from modal
     const handleLeagueJoined = useCallback(() => {
-        // Refresh both lists when a league is joined from the modal
-        loadParticipatedLeagues();
-        loadCreatedLeagues();
-        loadAvailableLeagues();
-        // Show success message
-        setSuccessMessage('🎉 Vous avez rejoint la ligue avec succès !');
-        setTimeout(() => setSuccessMessage(''), 5000);
-    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues]);
+        console.log('✅ League joined - reloading page...');
+        // Reload page to refresh all data
+        window.location.reload();
+    }, []);
 
     // Handle invite user to league
     const handleInviteUser = useCallback((league: LeagueSummary) => {
@@ -460,6 +472,27 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         setIsRankingModalOpen(false);
         setSelectedLeagueForRanking(null);
     }, []);
+
+    // Handle leave league
+    const handleLeaveLeague = useCallback((league: LeagueSummary) => {
+        setSelectedLeagueForLeave(league);
+        setIsLeaveModalOpen(true);
+    }, []);
+
+    // Handle close leave modal
+    const handleCloseLeaveModal = useCallback(() => {
+        setIsLeaveModalOpen(false);
+        setSelectedLeagueForLeave(null);
+    }, []);
+
+    // Handle leave success
+    const handleLeaveSuccess = useCallback(() => {
+        // Close modal
+        handleCloseLeaveModal();
+
+        // Reload page to refresh all data
+        window.location.reload();
+    }, [handleCloseLeaveModal]);
 
     // Handle invitation sent
     const handleInvitationSent = useCallback((user: UserSearchResult) => {
@@ -612,9 +645,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     league={league}
                                     onView={handleViewLeague}
                                     onViewRanking={handleViewRanking}
+                                    onLeave={handleLeaveLeague}
                                     showJoinButton={false}
                                     showInviteButton={false}
                                     showRankingButton={true}
+                                    showLeaveButton={true}
                                 />
                             ))
                         ) : (
@@ -790,6 +825,14 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 onClose={handleCloseInviteModal}
                 onInviteSent={handleInvitationSent}
                 excludeUserIds={[]} // Could exclude current user and already invited users
+            />
+
+            <LeaveLeagueModal
+                isOpen={isLeaveModalOpen}
+                leagueId={selectedLeagueForLeave?.id || null}
+                leagueName={selectedLeagueForLeave?.name}
+                onClose={handleCloseLeaveModal}
+                onLeaveSuccess={handleLeaveSuccess}
             />
         </div>
     );
