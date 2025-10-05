@@ -129,13 +129,13 @@ async def get_league_ranking(
     response_model=LeaguePlayerDeletedResponse
 )
 async def delete_league_player(
-        league_id: int,
+        id: int,
         league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
         delete_league_player = await league_command_usecase.delete_league_player(
-            league_id,
+            id,
             current_user.get('email', '')
         )
     except UserNotFoundError as e:

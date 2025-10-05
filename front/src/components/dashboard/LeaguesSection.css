@@ -575,6 +575,37 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Danger Button - For Leave League */
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger-color), #dc2626);
+  color: white;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+.btn-leave {
+  font-size: 0.875rem;
+  padding: 0.625rem 1rem;
+}
+
+.leave-icon {
+  font-size: 1rem;
+}
+
 /* Responsive Design */
 @media (min-width: 640px) {
   .leagues-grid {

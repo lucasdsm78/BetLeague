@@ -42,7 +42,7 @@ class LeagueCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
+    async def delete_league_player(self, id: int, email: str) -> LeaguePlayerDeletedResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -189,7 +189,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
     async def delete_league_player(
             self,
-            league_id: int,
+            id: int,
             email: str
     ) -> LeaguePlayerDeletedResponse:
         async with self._session_factory() as session:
@@ -202,7 +202,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if not user:
                     raise UserNotFoundError
 
-                league = await league_repo.find_by_id(league_id)
+                league = await league_repo.find_by_id(id)
                 if not league:
                     raise LeagueNotFoundError
 

@@ -98,13 +98,15 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
       const res = await leagueApiService.joinLeague(details.id);
       if (!res.success) {
         setError(res.error || 'Impossible de rejoindre la ligue');
+        setJoining(false);
       } else {
-        if (onJoined) onJoined();
+        // Close modal first
         onClose();
+        // Then reload page
+        window.location.reload();
       }
     } catch (e: any) {
       setError(e?.message || 'Erreur lors de la tentative de rejoindre la ligue');
-    } finally {
       setJoining(false);
     }
   };

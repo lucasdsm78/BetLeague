@@ -792,6 +792,65 @@ class LeagueApiService {
       return { success: false, error: error.message || 'Erreur lors du chargement du classement' };
     }
   }
+
+  /**
+   * Leave a league (unsubscribe from league) with enhanced validation and security
+   */
+  public async leaveLeague(leagueId: number): Promise<ApiResponse<{ message: string }>> {
+    try {
+      // Validation: ensure leagueId is valid
+      if (!Number.isInteger(leagueId) || leagueId <= 0) {
+        throw new Error('ID de ligue invalide');
+      }
+
+      console.log(`🚪 Leaving league ${leagueId}`);
+
+      // Backend endpoint: /api/league/[id]/player/delete where [id] is the league ID
+      const response = await this.makeRequest<{ message: string }>(
+        `/league/${leagueId}/player/delete`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      console.log(`✅ Successfully left league ${leagueId}`);
+
+      return {
+        success: true,
+        data: response,
+        message: response.message || 'Vous avez quitté la ligue avec succès',
+      };
+    } catch (error: any) {
+      console.error(`❌ Failed to leave league ${leagueId}:`, error);
+
+      // Enhanced error handling with specific messages
+      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+        return {
+          success: false,
+          error: 'Ligue introuvable ou vous n\'êtes pas membre de cette ligue.',
+        };
+      }
+
+      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        return {
+          success: false,
+          error: 'Vous n\'avez pas l\'autorisation de quitter cette ligue.',
+        };
+      }
+
+      if (error.message?.includes('400') || error.message?.includes('Bad Request')) {
+        return {
+          success: false,
+          error: 'Impossible de quitter cette ligue. Elle a peut-être déjà commencé.',
+        };
+      }
+
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la désinscription de la ligue',
+      };
+    }
+  }
 }
 
 // Export singleton instance
