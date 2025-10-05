@@ -353,12 +353,26 @@
     font-size: 1.125rem;
   }
 
+  .user-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
   .user-pseudo {
-    font-size: 0.95rem;
+    font-size: 1rem;
+    display: block;
+    visibility: visible;
+    opacity: 1;
   }
 
   .user-email {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    display: block;
+    visibility: visible;
+    opacity: 1;
   }
 
   .user-search-no-results {
