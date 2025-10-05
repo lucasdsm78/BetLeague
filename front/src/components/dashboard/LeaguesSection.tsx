@@ -59,10 +59,6 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
                         </span>
                     </div>
                 </div>
-                <div className="league-rank" aria-label="Votre position dans la ligue">
-                    <div className="rank-badge" title="Votre rang">#1</div>
-                    <span className="rank-label">Ma position</span>
-                </div>
             </div>
 
             <div className="league-stats">
