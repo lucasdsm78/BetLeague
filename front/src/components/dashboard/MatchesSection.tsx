@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MatchesSection.css';
 import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
@@ -332,6 +332,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [sortBy, setSortBy] = useState<string>('kickoff');
     const [selectedBets, setSelectedBets] = useState<Bet[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
+    const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState<boolean>(false);
 
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
@@ -447,9 +448,15 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     }, []);
 
     const handleCreateTicket = useCallback(() => {
-        // Ouvrir la modale de création de ticket
         setIsCreateOpen(true);
+        setIsTicketDrawerOpen(false);
     }, []);
+
+    const toggleTicketDrawer = useCallback(() => {
+        setIsTicketDrawerOpen((v) => !v);
+    }, []);
+
+    const closeTicketDrawer = useCallback(() => setIsTicketDrawerOpen(false), []);
 
     const handleTicketCreated = useCallback(() => {
         // Nettoyer les paris sélectionnés mais garder la modale ouverte pour afficher le succès
@@ -523,6 +530,57 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 onClearAll={handleClearAllBets}
                 onCreateTicket={handleCreateTicket}
             />
+
+            {/* Bouton flottant mobile pour ouvrir le tiroir du ticket */}
+            <button
+                className="fab-ticket"
+                aria-label="Ouvrir le ticket"
+                onClick={toggleTicketDrawer}
+            >
+                <span className="fab-icon" aria-hidden>🎫</span>
+                {selectedBets.length > 0 && (
+                    <span className="fab-badge" aria-label={`${selectedBets.length} paris`}>
+                        {selectedBets.length}
+                    </span>
+                )}
+            </button>
+
+            {/* Overlay et tiroir du ticket (mobile) */}
+            <div
+                className={`drawer-overlay ${isTicketDrawerOpen ? 'open' : ''}`}
+                onClick={closeTicketDrawer}
+                aria-hidden={!isTicketDrawerOpen}
+            />
+            <div className={`ticket-drawer ${isTicketDrawerOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
+                <div className="drawer-header">
+                    <h3>Mon ticket</h3>
+                    <button className="icon-btn" onClick={closeTicketDrawer} aria-label="Fermer">×</button>
+                </div>
+                <div className="drawer-content">
+                    {selectedBets.length === 0 ? (
+                        <div className="empty-drawer">
+                            <span className="empty-icon">🎫</span>
+                            <p>Votre ticket est vide. Ajoutez des matchs en appuyant sur une cote.</p>
+                        </div>
+                    ) : (
+                        <ul className="drawer-bets">
+                            {selectedBets.map((bet, index) => (
+                                <li key={`${bet.matchId}-${bet.betType}`} className="drawer-bet">
+                                    <div className="bet-main">
+                                        <span className="teams">{bet.homeTeam} vs {bet.awayTeam}</span>
+                                        <span className="pick">{bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'} @ {bet.odd}</span>
+                                    </div>
+                                    <button className="remove" onClick={() => handleRemoveBet(index)} aria-label="Retirer">✕</button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+                <div className="drawer-actions">
+                    <button className="btn btn-outline" onClick={handleClearAllBets} disabled={selectedBets.length === 0}>Vider</button>
+                    <button className="btn btn-primary" onClick={handleCreateTicket} disabled={selectedBets.length === 0}>Créer le ticket</button>
+                </div>
+            </div>
 
             <CreateTicketModal
                 isOpen={isCreateOpen}
