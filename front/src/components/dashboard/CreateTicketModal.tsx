@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import './CreateTicketModal.css';
 import { createTicket, TicketCreateResponse } from '../../services/ticketsApi';
+import type { MatchChoiceData, TicketCreatePayload } from '../../services/ticketsApi';
 import { getParticipatedLeagues, getLeagueBalance, LeagueSummaryApi } from '../../services/leaguesApi';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { useNavigate } from 'react-router-dom';
@@ -101,7 +102,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     return isOpen && !isSubmitting && error == null && isValidStake && !!selectedLeagueId && bets.length > 0;
   }, [isOpen, isSubmitting, error, isValidStake, selectedLeagueId, bets]);
 
-  const formatBetType = (b: BetType) => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
+  const formatBetType = (b: BetType): MatchChoiceData['choice'] => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit || !selectedLeagueId) return;
@@ -109,8 +110,9 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
       setIsSubmitting(true);
       setError(null);
 
-      const payload = {
-        match_choices: bets.map(b => ({ match_id: b.matchId, choice: b.betType })),
+      const match_choices: MatchChoiceData[] = bets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+      const payload: TicketCreatePayload = {
+        match_choices,
         mise: stakeNumber,
         gain: null,
       };

@@ -112,15 +112,29 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         if already_started:
             raise MatchAlreadyStartedError
 
+        def normalize_choice(choice: str) -> str:
+            c = (choice or '').strip()
+            mapping = {
+                'home': '1',
+                'draw': 'N',
+                'away': '2',
+                '1': '1',
+                '2': '2',
+                'N': 'N',
+                'n': 'N',
+            }
+            return mapping.get(c, c)
+
         for choice_data in match_choices_data:
             match = await match_repo.find_by_id(choice_data.match_id)
             if not match:
                 raise MatchNotFoundError
 
+            normalized = normalize_choice(choice_data.choice)
             mc = MatchChoice(
                 match_id=match.id,
                 ticket_id=ticket_id,
-                choice=choice_data.choice,
+                choice=normalized,
                 status=MatchChoiceStatus.pending,
             )
             await mc_repo.create(mc)
