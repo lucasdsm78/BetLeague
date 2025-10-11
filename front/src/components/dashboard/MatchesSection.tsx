@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import './MatchesSection.css';
-import { getMatches, ApiMatchReadModel } from '../../services/matchesApi';
+import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
 
 // Types
 interface MatchOdds {
@@ -331,27 +331,57 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [sortBy, setSortBy] = useState<string>('kickoff');
     const [selectedBets, setSelectedBets] = useState<Bet[]>([]);
 
-    // Chargement des données depuis l'API
+    // Pagination & Infinite Scroll
+    const [page, setPage] = useState<number>(1);
+    const [pageSize] = useState<number>(20);
+    const [totalPages, setTotalPages] = useState<number>(1);
+    const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
+
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const isFetchingRef = useRef<boolean>(false);
+
+    const loadPage = useCallback(async (nextPage: number) => {
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+        try {
+            if (nextPage === 1) setIsLoading(true); else setIsFetchingMore(true);
+            setError(null);
+            const res: GetMatchesApiResponse = await getMatchesPage(nextPage, pageSize);
+            const uiMatches = (res.matches || []).map(mapApiMatchToUi);
+            setMatches(prev => nextPage === 1 ? uiMatches : [...prev, ...uiMatches]);
+            setPage(res.page || nextPage);
+            setTotalPages(res.total_pages || 1);
+        } catch (e: any) {
+            setError(e?.message || 'Une erreur est survenue lors du chargement des matchs.');
+            if (nextPage === 1) setMatches([]);
+        } finally {
+            isFetchingRef.current = false;
+            setIsLoading(false);
+            setIsFetchingMore(false);
+        }
+    }, [pageSize]);
+
+    // Initial load
     useEffect(() => {
-        let isMounted = true;
-        (async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-                const apiMatches = await getMatches();
-                if (!isMounted) return;
-                const uiMatches = apiMatches.map(mapApiMatchToUi);
-                setMatches(uiMatches);
-            } catch (e: any) {
-                if (!isMounted) return;
-                setError(e?.message || 'Une erreur est survenue lors du chargement des matchs.');
-                setMatches([]);
-            } finally {
-                if (isMounted) setIsLoading(false);
+        loadPage(1);
+    }, [loadPage]);
+
+    // IntersectionObserver pour scroll vertical (tous formats)
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+        if (page >= totalPages) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            if (entry.isIntersecting && !isFetchingRef.current && page < totalPages) {
+                loadPage(page + 1);
             }
-        })();
-        return () => { isMounted = false; };
-    }, []);
+        }, { root: null, rootMargin: '200px', threshold: 0 });
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [page, totalPages, loadPage]);
 
     // Filtrage et tri des matchs
     const filteredMatches = useMemo(() => {
@@ -470,6 +500,18 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 )}
             </div>
 
+            {/* Sentinel pour infinite scroll vertical */}
+            {page < totalPages && (
+                <div ref={sentinelRef} className="infinite-sentinel" aria-hidden="true" />
+            )}
+
+            {isFetchingMore && (
+                <div className="matches-loading" aria-live="polite">
+                    <div className="spinner-large"></div>
+                    <p>Chargement de plus de matchs...</p>
+                </div>
+            )}
+
             <QuickBetPanel
                 selectedBets={selectedBets}
                 onRemoveBet={handleRemoveBet}
@@ -483,4 +525,3 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
 MatchesSection.displayName = 'MatchesSection';
 
 export default MatchesSection;
-
