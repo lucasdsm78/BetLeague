@@ -2,6 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import './MatchesSection.css';
 import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
+import { createTicket } from '../../services/ticketsApi';
+import { getParticipatedLeagues, getLeagueBalance } from '../../services/leaguesApi';
+import { useCurrentLeague } from '../../store/leagueStore';
 
 // Types
 interface MatchOdds {
@@ -334,6 +337,14 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
     const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState<boolean>(false);
 
+    // États pour le tiroir mobile avec création directe
+    const [drawerStake, setDrawerStake] = useState<string>('');
+    const [drawerLeagues, setDrawerLeagues] = useState<any[]>([]);
+    const [drawerSelectedLeagueId, setDrawerSelectedLeagueId] = useState<number | null>(null);
+    const [drawerBalance, setDrawerBalance] = useState<number | null>(null);
+    const [drawerError, setDrawerError] = useState<string | null>(null);
+    const [isSubmittingDrawer, setIsSubmittingDrawer] = useState<boolean>(false);
+
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
     const [pageSize] = useState<number>(20);
@@ -456,7 +467,113 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         setIsTicketDrawerOpen((v) => !v);
     }, []);
 
-    const closeTicketDrawer = useCallback(() => setIsTicketDrawerOpen(false), []);
+    const closeTicketDrawer = useCallback(() => {
+        setIsTicketDrawerOpen(false);
+        setDrawerError(null);
+        setDrawerStake('');
+    }, []);
+
+    const currentLeague = useCurrentLeague();
+
+    // Charger les ligues quand le drawer s'ouvre
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!isTicketDrawerOpen) return;
+            try {
+                setDrawerError(null);
+                const list = await getParticipatedLeagues();
+                if (!mounted) return;
+                setDrawerLeagues(list);
+                const preferred = currentLeague?.id && list.some((l: any) => l.id === currentLeague.id)
+                    ? currentLeague.id
+                    : (list[0]?.id ?? null);
+                setDrawerSelectedLeagueId(preferred);
+            } catch (e: any) {
+                if (!mounted) return;
+                setDrawerError(e?.message || 'Impossible de charger les ligues.');
+                setDrawerLeagues([]);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [isTicketDrawerOpen, currentLeague]);
+
+    // Charger le solde BTL quand on a une ligue sélectionnée
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!isTicketDrawerOpen || !drawerSelectedLeagueId) {
+                setDrawerBalance(null);
+                return;
+            }
+            try {
+                const btl = await getLeagueBalance(drawerSelectedLeagueId);
+                if (!mounted) return;
+                setDrawerBalance(btl);
+            } catch (e: any) {
+                if (!mounted) return;
+                setDrawerError(e?.message || 'Impossible de charger le solde BTL.');
+                setDrawerBalance(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [isTicketDrawerOpen, drawerSelectedLeagueId]);
+
+    // Calculs pour le drawer
+    const drawerTotalOdds = useMemo(() => {
+        if (!selectedBets || selectedBets.length === 0) return 0;
+        return Number(selectedBets.reduce((acc, b) => acc * b.odd, 1).toFixed(2));
+    }, [selectedBets]);
+
+    const drawerStakeNumber = useMemo(() => Number(drawerStake || '0'), [drawerStake]);
+
+    const drawerPotentialWin = useMemo(() => {
+        if (!drawerStakeNumber || !isFinite(drawerStakeNumber)) return 0;
+        return Number((drawerStakeNumber * drawerTotalOdds).toFixed(2));
+    }, [drawerStakeNumber, drawerTotalOdds]);
+
+    const isValidDrawerStake = useMemo(() => {
+        if (!Number.isFinite(drawerStakeNumber)) return false;
+        if (!Number.isInteger(drawerStakeNumber)) return false;
+        if (drawerStakeNumber <= 0) return false;
+        if (drawerBalance != null && drawerStakeNumber > drawerBalance) return false;
+        return true;
+    }, [drawerStakeNumber, drawerBalance]);
+
+    const canSubmitDrawer = useMemo(() => {
+        return isTicketDrawerOpen && !isSubmittingDrawer && drawerError == null && isValidDrawerStake && !!drawerSelectedLeagueId && selectedBets.length > 0;
+    }, [isTicketDrawerOpen, isSubmittingDrawer, drawerError, isValidDrawerStake, drawerSelectedLeagueId, selectedBets]);
+
+    const handleDrawerCreateTicket = useCallback(async () => {
+        if (!canSubmitDrawer || !drawerSelectedLeagueId) return;
+        try {
+            setIsSubmittingDrawer(true);
+            setDrawerError(null);
+
+            const formatBetType = (b: 'home' | 'draw' | 'away'): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
+            const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+            const payload = {
+                match_choices,
+                mise: drawerStakeNumber,
+                gain: null,
+            };
+
+            const res = await createTicket(drawerSelectedLeagueId, payload);
+
+            // Succès : nettoyer et fermer
+            setSelectedBets([]);
+            setDrawerStake('');
+            setIsTicketDrawerOpen(false);
+
+            // Optionnel : afficher une notification de succès
+            alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+        } catch (e: any) {
+            const msg = e?.message || 'Erreur lors de la création du ticket';
+            setDrawerError(msg);
+        } finally {
+            setIsSubmittingDrawer(false);
+        }
+    }, [canSubmitDrawer, drawerSelectedLeagueId, selectedBets, drawerStakeNumber]);
 
     const handleTicketCreated = useCallback(() => {
         // Nettoyer les paris sélectionnés mais garder la modale ouverte pour afficher le succès
@@ -563,22 +680,94 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                             <p>Votre ticket est vide. Ajoutez des matchs en appuyant sur une cote.</p>
                         </div>
                     ) : (
-                        <ul className="drawer-bets">
-                            {selectedBets.map((bet, index) => (
-                                <li key={`${bet.matchId}-${bet.betType}`} className="drawer-bet">
-                                    <div className="bet-main">
-                                        <span className="teams">{bet.homeTeam} vs {bet.awayTeam}</span>
-                                        <span className="pick">{bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'} @ {bet.odd}</span>
+                        <>
+                            {/* Liste des paris */}
+                            <ul className="drawer-bets">
+                                {selectedBets.map((bet, index) => (
+                                    <li key={`${bet.matchId}-${bet.betType}`} className="drawer-bet">
+                                        <div className="bet-main">
+                                            <span className="teams">{bet.homeTeam} vs {bet.awayTeam}</span>
+                                            <span className="pick">{bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'} @ {bet.odd}</span>
+                                        </div>
+                                        <button className="remove" onClick={() => handleRemoveBet(index)} aria-label="Retirer">✕</button>
+                                    </li>
+                                ))}
+                            </ul>
+
+                            {/* Sélection de la ligue */}
+                            <div className="drawer-league-select">
+                                <label htmlFor="drawer-league">Ligue</label>
+                                <select
+                                    id="drawer-league"
+                                    className="drawer-select"
+                                    value={drawerSelectedLeagueId ?? ''}
+                                    onChange={(e) => setDrawerSelectedLeagueId(e.target.value ? Number(e.target.value) : null)}
+                                >
+                                    {drawerLeagues.map((l: any) => (
+                                        <option key={l.id} value={l.id}>{l.name}</option>
+                                    ))}
+                                </select>
+                                {(!drawerLeagues || drawerLeagues.length === 0) && (
+                                    <div className="drawer-warning" role="alert">
+                                        Vous ne participez à aucune ligue.
                                     </div>
-                                    <button className="remove" onClick={() => handleRemoveBet(index)} aria-label="Retirer">✕</button>
-                                </li>
-                            ))}
-                        </ul>
+                                )}
+                            </div>
+
+                            {/* Solde */}
+                            <div className="drawer-balance">
+                                <span>Solde disponible</span>
+                                <strong>{drawerBalance != null ? `${drawerBalance} BTL` : '-'}</strong>
+                            </div>
+
+                            {/* Mise */}
+                            <div className="drawer-stake-form">
+                                <label htmlFor="drawer-stake">Mise</label>
+                                <div className="drawer-stake-input-wrap">
+                                    <input
+                                        id="drawer-stake"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        className="drawer-stake-input"
+                                        placeholder="Ex: 10"
+                                        value={drawerStake}
+                                        onChange={(e) => {
+                                            const v = e.target.value.replace(/[^0-9]/g, '');
+                                            setDrawerStake(v);
+                                        }}
+                                    />
+                                    <span className="drawer-currency">BTL</span>
+                                </div>
+                                {drawerBalance != null && drawerStakeNumber > drawerBalance && (
+                                    <div className="drawer-warning" role="alert">
+                                        Mise supérieure au solde disponible.
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Récapitulatif */}
+                            <div className="drawer-summary">
+                                <div className="drawer-summary-row">
+                                    <span>Cote totale</span>
+                                    <strong>{drawerTotalOdds || '-'}</strong>
+                                </div>
+                                <div className="drawer-summary-row primary">
+                                    <span>Gain potentiel</span>
+                                    <strong>{drawerPotentialWin || '-'} BTL</strong>
+                                </div>
+                            </div>
+
+                            {drawerError && (
+                                <div className="drawer-error" role="alert">{drawerError}</div>
+                            )}
+                        </>
                     )}
                 </div>
                 <div className="drawer-actions">
                     <button className="btn btn-outline" onClick={handleClearAllBets} disabled={selectedBets.length === 0}>Vider</button>
-                    <button className="btn btn-primary" onClick={handleCreateTicket} disabled={selectedBets.length === 0}>Créer le ticket</button>
+                    <button className="btn btn-primary" onClick={handleDrawerCreateTicket} disabled={!canSubmitDrawer}>
+                        {isSubmittingDrawer ? 'Création…' : 'Créer le ticket'}
+                    </button>
                 </div>
             </div>
 
