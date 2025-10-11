@@ -17,6 +17,10 @@ export interface ApiMatchReadModel {
 
 export interface GetMatchesApiResponse {
   matches: ApiMatchReadModel[];
+  page?: number;
+  page_size?: number;
+  total?: number;
+  total_pages?: number;
 }
 
 export async function getMatches(): Promise<ApiMatchReadModel[]> {
@@ -29,7 +33,18 @@ export async function getMatches(): Promise<ApiMatchReadModel[]> {
   return res.data?.matches ?? [];
 }
 
+export async function getMatchesPage(page: number, pageSize: number): Promise<GetMatchesApiResponse> {
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  const res: ApiResponse<GetMatchesApiResponse> = await secureApiClient.get(`/matches?${query.toString()}`);
+
+  if (!res.success) {
+    throw new Error(res.error || 'Impossible de récupérer les matchs');
+  }
+
+  return res.data as GetMatchesApiResponse;
+}
+
 export default {
   getMatches,
+  getMatchesPage,
 };
-

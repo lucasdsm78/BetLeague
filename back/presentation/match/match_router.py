@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from datetime import datetime
 from application.match.match_command_model import MatchScoreUpdatedResponse
 from application.match.match_command_usecase import MatchCommandUseCase
@@ -25,16 +25,19 @@ router = APIRouter(
     }
 )
 async def get_matches(
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100),
         match_query_usecase: MatchQueryUseCase = Depends(match_query_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
-        matches = await match_query_usecase.get_matches(current_user.get('email', ''))
+        matches = await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
 
     except Exception as e:
         raise
 
-    if not len(matches.get("matches")):
+    # Ne renvoyer 404 que si total == 0 (aucun match en base)
+    if matches.get("total", 0) == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=MatchesNotFoundError.message,
