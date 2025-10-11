@@ -1258,6 +1258,52 @@
   padding: 0.75rem 1.25rem 1rem;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
+  background: var(--bg-primary);
+}
+
+/* Boutons dans le drawer */
+.drawer-actions .btn {
+  flex: 1;
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition-all);
+  border: none;
+}
+
+.drawer-actions .btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.drawer-actions .btn-outline:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.drawer-actions .btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.drawer-actions .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.drawer-actions .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.drawer-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Responsive Design */
