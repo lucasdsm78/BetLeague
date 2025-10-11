@@ -579,7 +579,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 60vh;
+  height: 75vh;
+  max-height: 75vh;
   background: var(--bg-primary);
   border-top-left-radius: 1rem;
   border-top-right-radius: 1rem;
@@ -600,12 +601,16 @@
   justify-content: space-between;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .drawer-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem 1.25rem;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .empty-drawer {
@@ -618,37 +623,182 @@
   height: 100%;
 }
 
+.empty-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+}
+
 .drawer-bets {
   list-style: none;
   margin: 0;
   padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  max-height: 150px;
+  overflow-y: auto;
 }
 
 .drawer-bet {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 0;
+  padding: 0.75rem 0.875rem;
   border-bottom: 1px solid var(--border-color);
+}
+.drawer-bet:last-child {
+  border-bottom: none;
 }
 .drawer-bet .bet-main {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1;
 }
 .drawer-bet .teams {
   font-weight: 600;
   color: var(--text-primary);
+  font-size: 0.9rem;
 }
 .drawer-bet .pick {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 600;
 }
 .drawer-bet .remove {
   border: none;
   background: transparent;
   color: var(--text-light);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: var(--transition);
+}
+.drawer-bet .remove:hover {
+  color: var(--danger-color);
+}
+
+/* Sélection de ligue dans le drawer */
+.drawer-league-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.drawer-league-select label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.drawer-select {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+/* Solde dans le drawer */
+.drawer-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.65rem 0.875rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.drawer-balance strong {
+  color: var(--text-primary);
   font-size: 1rem;
+}
+
+/* Formulaire de mise dans le drawer */
+.drawer-stake-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.drawer-stake-form label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.drawer-stake-input-wrap {
+  position: relative;
+}
+
+.drawer-stake-input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.drawer-currency {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Récapitulatif dans le drawer */
+.drawer-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.75rem 0.875rem;
+}
+
+.drawer-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.drawer-summary-row.primary {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.drawer-summary-row strong {
+  color: var(--text-primary);
+}
+
+/* Messages dans le drawer */
+.drawer-warning {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid var(--warning-color);
+  color: var(--warning-color);
+  font-size: 0.85rem;
+}
+
+.drawer-error {
+  padding: 0.65rem 0.875rem;
+  border-radius: var(--border-radius-sm);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  font-size: 0.85rem;
 }
 
 .drawer-actions {
@@ -656,6 +806,7 @@
   gap: 0.75rem;
   padding: 0.75rem 1.25rem 1rem;
   border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 /* Responsive Design */
