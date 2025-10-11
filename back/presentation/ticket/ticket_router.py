@@ -18,6 +18,7 @@ from domain.tournament.exception.tournament_exception import TournamentNotFoundE
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
+    prefix="/api",
     tags=['ticket']
 )
 

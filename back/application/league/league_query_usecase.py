@@ -40,6 +40,10 @@ class LeagueQueryUseCase(ABC):
     async def get_invitations(self, email: str, is_received: bool):
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_league_balance(self, email: str, league_id: int) -> dict:
+        raise NotImplementedError
+
 
 class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     league_players_repository: LeaguePlayersRepository
@@ -175,3 +179,25 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
         except Exception as e:
             raise e
+
+    async def get_league_balance(self, email: str, league_id: int) -> dict:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        league = await self.league_repository.find_by_id(league_id)
+        if not league:
+            raise LeagueNotFoundError
+
+        participated = await self.league_players_repository.find_participation(
+            league_id=league_id,
+            user_id=user.id
+        )
+        if not participated:
+            raise LeagueParticipantNotFoundError
+
+        league_player = await self.league_players_repository.get_participation(
+            league_id=league_id,
+            user_id=user.id
+        )
+        return {"nb_btl": league_player.nb_btl}
