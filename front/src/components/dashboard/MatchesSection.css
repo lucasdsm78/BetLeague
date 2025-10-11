@@ -1333,16 +1333,16 @@
   .matches-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  @media (min-width: 1024px) {
-    .matches-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+@media (min-width: 1024px) {
+  .matches-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 768px) {
-  /* Mobile: layout vertical simple */
+@media (max-width: 1023px) {
+  /* Mobile et Tablet: layout vertical simple */
   .matches-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1356,15 +1356,25 @@
     max-width: 100%;
   }
 
-  /* Masquer le panneau rapide en mobile pour éviter la redondance */
-  .quick-bet-panel { display: none; }
-  /* Afficher le FAB et le tiroir en mobile */
-  .fab-ticket { display: flex; }
+  /* Afficher le FAB et le tiroir en mobile et tablet */
+  .fab-ticket {
+    display: flex;
+  }
 }
 
-@media (min-width: 769px) {
-  /* Sur desktop, pas de tiroir ni overlay ni FAB */
+@media (min-width: 641px) and (max-width: 1023px) {
+  /* Tablet: grille 2 colonnes */
+  .matches-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Sur desktop uniquement (1024px+), masquer le tiroir, overlay et FAB */
+  /* car le sidebar desktop est visible */
   .drawer-overlay,
   .ticket-drawer,
-  .fab-ticket { display: none !important; }
+  .fab-ticket {
+    display: none !important;
+  }
 }
