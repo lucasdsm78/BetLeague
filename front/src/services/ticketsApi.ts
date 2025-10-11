@@ -3,7 +3,7 @@ import secureApiClient, { ApiResponse } from './secureApiClient';
 
 export interface MatchChoiceData {
   match_id: number;
-  choice: 'home' | 'draw' | 'away';
+  choice: '1' | 'N' | '2';
 }
 
 export interface TicketCreatePayload {
