@@ -241,64 +241,197 @@ const FilterBar = memo<FilterBarProps>(({
 
 FilterBar.displayName = 'FilterBar';
 
-interface QuickBetPanelProps {
+interface DesktopBetSidebarProps {
     selectedBets: Bet[];
     onRemoveBet: (index: number) => void;
     onClearAll: () => void;
+    leagues: any[];
+    selectedLeagueId: number | null;
+    onLeagueChange: (leagueId: number | null) => void;
+    balance: number | null;
+    stake: string;
+    onStakeChange: (stake: string) => void;
     onCreateTicket: () => void;
+    isSubmitting: boolean;
+    error: string | null;
+    isValid: boolean;
 }
 
-const QuickBetPanel = memo<QuickBetPanelProps>(({ selectedBets, onRemoveBet, onClearAll, onCreateTicket }) => {
+const DesktopBetSidebar = memo<DesktopBetSidebarProps>(({
+    selectedBets,
+    onRemoveBet,
+    onClearAll,
+    leagues,
+    selectedLeagueId,
+    onLeagueChange,
+    balance,
+    stake,
+    onStakeChange,
+    onCreateTicket,
+    isSubmitting,
+    error,
+    isValid
+}) => {
     const totalOdds = useMemo(() => {
-        return selectedBets.reduce((total, bet) => total * bet.odd, 1).toFixed(2);
+        if (selectedBets.length === 0) return 0;
+        return Number(selectedBets.reduce((total, bet) => total * bet.odd, 1).toFixed(2));
     }, [selectedBets]);
 
-    if (selectedBets.length === 0) return null;
+    const stakeNumber = useMemo(() => Number(stake || '0'), [stake]);
+
+    const potentialWin = useMemo(() => {
+        if (!stakeNumber || !isFinite(stakeNumber)) return 0;
+        return Number((stakeNumber * totalOdds).toFixed(2));
+    }, [stakeNumber, totalOdds]);
+
+    const formatBetLabel = useCallback((betType: 'home' | 'draw' | 'away'): string => {
+        return betType === 'home' ? '1' : betType === 'draw' ? 'N' : '2';
+    }, []);
 
     return (
-        <div className="quick-bet-panel">
-            <div className="panel-header">
-                <h3>Ticket rapide ({selectedBets.length})</h3>
-                <button onClick={onClearAll} className="clear-all-btn">
-                    Tout effacer
-                </button>
+        <aside className="desktop-bet-sidebar">
+            <div className="sidebar-header">
+                <div className="sidebar-title">
+                    <h3>Mon ticket</h3>
+                    {selectedBets.length > 0 && (
+                        <span className="bet-count">{selectedBets.length}</span>
+                    )}
+                </div>
+                {selectedBets.length > 0 && (
+                    <button onClick={onClearAll} className="clear-all-btn" aria-label="Tout effacer">
+                        Vider
+                    </button>
+                )}
             </div>
 
-            <div className="selected-bets">
-                {selectedBets.map((bet, index) => (
-                    <div key={`${bet.matchId}-${bet.betType}`} className="selected-bet">
-                        <div className="bet-info">
-                            <span className="match-teams">
-                                {bet.homeTeam} vs {bet.awayTeam}
-                            </span>
-                            <span className="bet-type-odd">
-                                {bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'}
-                                @ {bet.odd}
+            <div className="sidebar-content">
+                {selectedBets.length === 0 ? (
+                    <div className="empty-state">
+                        <div className="empty-icon">🎫</div>
+                        <h4>Aucun pari sélectionné</h4>
+                        <p>Cliquez sur une cote pour commencer</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Liste des paris */}
+                        <div className="bets-list">
+                            {selectedBets.map((bet, index) => (
+                                <div key={`${bet.matchId}-${bet.betType}`} className="bet-item">
+                                    <div className="bet-match">
+                                        <span className="match-name">{bet.homeTeam} vs {bet.awayTeam}</span>
+                                        <div className="bet-pick">
+                                            <span className="pick-label">{formatBetLabel(bet.betType)}</span>
+                                            <span className="pick-odd">{bet.odd.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => onRemoveBet(index)}
+                                        className="remove-btn"
+                                        aria-label="Retirer ce pari"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Divider */}
+                        <div className="sidebar-divider" />
+
+                        {/* Sélection de ligue */}
+                        <div className="form-group">
+                            <label htmlFor="desktop-league-select" className="form-label">
+                                Ligue
+                            </label>
+                            <select
+                                id="desktop-league-select"
+                                className="form-select"
+                                value={selectedLeagueId ?? ''}
+                                onChange={(e) => onLeagueChange(e.target.value ? Number(e.target.value) : null)}
+                                disabled={leagues.length === 0}
+                            >
+                                {leagues.length === 0 ? (
+                                    <option value="">Aucune ligue disponible</option>
+                                ) : (
+                                    leagues.map((league: any) => (
+                                        <option key={league.id} value={league.id}>
+                                            {league.name}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                        </div>
+
+                        {/* Solde */}
+                        <div className="balance-display">
+                            <span className="balance-label">Solde disponible</span>
+                            <span className="balance-value">
+                                {balance !== null ? `${balance} BTL` : '-'}
                             </span>
                         </div>
-                        <button
-                            onClick={() => onRemoveBet(index)}
-                            className="remove-bet-btn"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                ))}
-            </div>
 
-            <div className="panel-footer">
-                <div className="total-odds">
-                    Cote totale: <strong>{totalOdds}</strong>
-                </div>
-                <button onClick={onCreateTicket} className="create-ticket-btn">
-                    Créer le ticket
-                </button>
+                        {/* Mise */}
+                        <div className="form-group">
+                            <label htmlFor="desktop-stake-input" className="form-label">
+                                Mise
+                            </label>
+                            <div className="stake-input-wrapper">
+                                <input
+                                    id="desktop-stake-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="stake-input"
+                                    placeholder="0"
+                                    value={stake}
+                                    onChange={(e) => {
+                                        const sanitized = e.target.value.replace(/[^0-9]/g, '');
+                                        onStakeChange(sanitized);
+                                    }}
+                                    disabled={isSubmitting}
+                                />
+                                <span className="input-suffix">BTL</span>
+                            </div>
+                            {balance !== null && stakeNumber > balance && (
+                                <p className="input-error">Mise supérieure au solde disponible</p>
+                            )}
+                        </div>
+
+                        {/* Récapitulatif */}
+                        <div className="summary-card">
+                            <div className="summary-row">
+                                <span className="summary-label">Cote totale</span>
+                                <span className="summary-value">{totalOdds.toFixed(2)}</span>
+                            </div>
+                            <div className="summary-row highlight">
+                                <span className="summary-label">Gain potentiel</span>
+                                <span className="summary-value">{potentialWin.toFixed(2)} BTL</span>
+                            </div>
+                        </div>
+
+                        {/* Erreur */}
+                        {error && (
+                            <div className="error-message" role="alert">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Bouton de création */}
+                        <button
+                            className="create-ticket-btn"
+                            onClick={onCreateTicket}
+                            disabled={!isValid || isSubmitting || selectedBets.length === 0}
+                        >
+                            {isSubmitting ? 'Création en cours...' : 'Créer le ticket'}
+                        </button>
+                    </>
+                )}
             </div>
-        </div>
+        </aside>
     );
 });
 
-QuickBetPanel.displayName = 'QuickBetPanel';
+DesktopBetSidebar.displayName = 'DesktopBetSidebar';
 
 interface MatchesSectionProps {
     user?: User;
@@ -344,6 +477,14 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [drawerBalance, setDrawerBalance] = useState<number | null>(null);
     const [drawerError, setDrawerError] = useState<string | null>(null);
     const [isSubmittingDrawer, setIsSubmittingDrawer] = useState<boolean>(false);
+
+    // États pour le sidebar desktop (partage la logique avec le drawer mobile)
+    const [desktopStake, setDesktopStake] = useState<string>('');
+    const [desktopLeagues, setDesktopLeagues] = useState<any[]>([]);
+    const [desktopSelectedLeagueId, setDesktopSelectedLeagueId] = useState<number | null>(null);
+    const [desktopBalance, setDesktopBalance] = useState<number | null>(null);
+    const [desktopError, setDesktopError] = useState<string | null>(null);
+    const [isSubmittingDesktop, setIsSubmittingDesktop] = useState<boolean>(false);
 
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
@@ -474,6 +615,93 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     }, []);
 
     const currentLeague = useCurrentLeague();
+
+    // Charger les ligues pour le sidebar desktop (au montage du composant)
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const list = await getParticipatedLeagues();
+                if (!mounted) return;
+                setDesktopLeagues(list);
+                const preferred = currentLeague?.id && list.some((l: any) => l.id === currentLeague.id)
+                    ? currentLeague.id
+                    : (list[0]?.id ?? null);
+                setDesktopSelectedLeagueId(preferred);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading leagues for desktop sidebar:', e);
+                setDesktopLeagues([]);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [currentLeague]);
+
+    // Charger le solde BTL pour le sidebar desktop
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!desktopSelectedLeagueId) {
+                setDesktopBalance(null);
+                return;
+            }
+            try {
+                const btl = await getLeagueBalance(desktopSelectedLeagueId);
+                if (!mounted) return;
+                setDesktopBalance(btl);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading balance for desktop sidebar:', e);
+                setDesktopBalance(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [desktopSelectedLeagueId]);
+
+    // Calculs pour le sidebar desktop
+    const desktopStakeNumber = useMemo(() => Number(desktopStake || '0'), [desktopStake]);
+
+    const isValidDesktopStake = useMemo(() => {
+        if (!Number.isFinite(desktopStakeNumber)) return false;
+        if (!Number.isInteger(desktopStakeNumber)) return false;
+        if (desktopStakeNumber <= 0) return false;
+        if (desktopBalance != null && desktopStakeNumber > desktopBalance) return false;
+        return true;
+    }, [desktopStakeNumber, desktopBalance]);
+
+    const canSubmitDesktop = useMemo(() => {
+        return !isSubmittingDesktop && desktopError == null && isValidDesktopStake && !!desktopSelectedLeagueId && selectedBets.length > 0;
+    }, [isSubmittingDesktop, desktopError, isValidDesktopStake, desktopSelectedLeagueId, selectedBets]);
+
+    const handleDesktopCreateTicket = useCallback(async () => {
+        if (!canSubmitDesktop || !desktopSelectedLeagueId) return;
+        try {
+            setIsSubmittingDesktop(true);
+            setDesktopError(null);
+
+            const formatBetType = (b: 'home' | 'draw' | 'away'): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
+            const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+            const payload = {
+                match_choices,
+                mise: desktopStakeNumber,
+                gain: null,
+            };
+
+            const res = await createTicket(desktopSelectedLeagueId, payload);
+
+            // Succès : nettoyer
+            setSelectedBets([]);
+            setDesktopStake('');
+
+            // Notification de succès (on pourrait utiliser un toast ici)
+            alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+        } catch (e: any) {
+            const msg = e?.message || 'Erreur lors de la création du ticket';
+            setDesktopError(msg);
+        } finally {
+            setIsSubmittingDesktop(false);
+        }
+    }, [canSubmitDesktop, desktopSelectedLeagueId, selectedBets, desktopStakeNumber]);
 
     // Charger les ligues quand le drawer s'ouvre
     useEffect(() => {
@@ -641,11 +869,20 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 </div>
             )}
 
-            <QuickBetPanel
+            <DesktopBetSidebar
                 selectedBets={selectedBets}
                 onRemoveBet={handleRemoveBet}
                 onClearAll={handleClearAllBets}
-                onCreateTicket={handleCreateTicket}
+                leagues={desktopLeagues}
+                selectedLeagueId={desktopSelectedLeagueId}
+                onLeagueChange={setDesktopSelectedLeagueId}
+                balance={desktopBalance}
+                stake={desktopStake}
+                onStakeChange={setDesktopStake}
+                onCreateTicket={handleDesktopCreateTicket}
+                isSubmitting={isSubmittingDesktop}
+                error={desktopError}
+                isValid={canSubmitDesktop}
             />
 
             {/* Bouton flottant mobile pour ouvrir le tiroir du ticket */}
