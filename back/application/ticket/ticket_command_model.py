@@ -22,6 +22,7 @@ class TicketUpdateModel(BaseModel):
 
 class TicketCreateResponse(BaseModel):
     message: str = "The ticket is well created"
+    ticket_id: Optional[int] = None
 
 
 class TicketUpdateResponse(BaseModel):

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
 import './MatchesSection.css';
 import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
+import CreateTicketModal from './CreateTicketModal';
 
 // Types
 interface MatchOdds {
@@ -330,6 +331,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
     const [sortBy, setSortBy] = useState<string>('kickoff');
     const [selectedBets, setSelectedBets] = useState<Bet[]>([]);
+    const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
 
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
@@ -445,11 +447,14 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     }, []);
 
     const handleCreateTicket = useCallback(() => {
-        console.log('Création du ticket:', selectedBets);
-        // Ici, redirection vers la création de ticket
-        alert(`Ticket créé avec ${selectedBets.length} paris !`);
+        // Ouvrir la modale de création de ticket
+        setIsCreateOpen(true);
+    }, []);
+
+    const handleTicketCreated = useCallback(() => {
+        // Nettoyer les paris sélectionnés mais garder la modale ouverte pour afficher le succès
         setSelectedBets([]);
-    }, [selectedBets]);
+    }, []);
 
     if (isLoading) {
         return (
@@ -517,6 +522,13 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 onRemoveBet={handleRemoveBet}
                 onClearAll={handleClearAllBets}
                 onCreateTicket={handleCreateTicket}
+            />
+
+            <CreateTicketModal
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                bets={selectedBets}
+                onCreated={handleTicketCreated}
             />
         </div>
     );

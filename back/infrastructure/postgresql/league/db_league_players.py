@@ -53,9 +53,15 @@ class DBLeaguePlayers(Base):
         )
 
     @staticmethod
-    def from_entity(league_players: LeaguePlayers, db_league_players: Optional["DBLeaguePlayers"] = None) -> "DBLeaguePlayers":
+    def from_entity(
+        league_players: LeaguePlayers,
+        db_league_players: Optional["DBLeaguePlayers"] = None,
+    ) -> "DBLeaguePlayers":
         now = unixtimestamp()
-        league_players_db_to_update = db_league_players if db_league_players is not None else DBLeaguePlayers()
+        # Create or reuse the DB model instance
+        league_players_db_to_update = (
+            db_league_players if db_league_players is not None else DBLeaguePlayers()
+        )
         league_players_db_to_update.id = league_players.id
         league_players_db_to_update.user_id = league_players.user_id
         league_players_db_to_update.league_id = league_players.league_id
@@ -64,6 +70,8 @@ class DBLeaguePlayers(Base):
         league_players_db_to_update.btl_from_tickets = league_players.btl_from_tickets
         league_players_db_to_update.nb_lose = league_players.nb_lose
         # Preserve original creation time when updating
-        league_players_db_to_update.created_at = league_players_db_to_update.created_at if db_league_players is not None else now
+        league_players_db_to_update.created_at = (
+            league_players_db_to_update.created_at if db_league_players is not None else now
+        )
         league_players_db_to_update.updated_at = now
         return league_players_db_to_update

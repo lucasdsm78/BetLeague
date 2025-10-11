@@ -197,7 +197,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     match_choices_data=ticket_create_model.match_choices
                 )
 
-        return TicketCreateResponse()
+        return TicketCreateResponse(ticket_id=created.id)
 
     async def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
         async with self._session_factory() as session:
@@ -356,7 +356,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     match_choices_data=ticket_create_model.match_choices
                 )
 
-        return TicketCreateResponse()
+        return TicketCreateResponse(ticket_id=created.id)
 
     async def check_match_choices_by_match_id(self, token: str, match_id: int):
         if token != self.settings.secret_key_token:

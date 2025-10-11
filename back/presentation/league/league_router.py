@@ -469,3 +469,24 @@ async def inject_btl(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
+
+@router.get(
+    "/league/{league_id}/balance",
+    status_code=status.HTTP_200_OK,
+    summary="Get league balance of a user"
+)
+async def get_league_balance(
+        league_id: int,
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return await league_query_usecase.get_league_balance(current_user.get('email', ''), league_id)
+    except LeagueNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except LeagueParticipantNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error")
