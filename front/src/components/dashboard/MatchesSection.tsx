@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import './MatchesSection.css';
+import { getMatches, ApiMatchReadModel } from '../../services/matchesApi';
 
 // Types
 interface MatchOdds {
@@ -46,66 +47,6 @@ interface User {
     pseudo?: string;
     username?: string;
 }
-
-// Mock data pour les matchs - à remplacer par l'API réelle
-const MOCK_MATCHES: Match[] = [
-    {
-        id: 1,
-        homeTeam: 'Paris SG',
-        awayTeam: 'Olympique de Marseille',
-        competition: 'Ligue 1',
-        kickoff: '2024-01-20T21:00:00Z',
-        status: 'upcoming',
-        odds: {
-            home: 1.85,
-            draw: 3.40,
-            away: 4.20
-        },
-        trending: true
-    },
-    {
-        id: 2,
-        homeTeam: 'Real Madrid',
-        awayTeam: 'FC Barcelona',
-        competition: 'La Liga',
-        kickoff: '2024-01-21T16:15:00Z',
-        status: 'upcoming',
-        odds: {
-            home: 2.10,
-            draw: 3.20,
-            away: 3.50
-        },
-        trending: true
-    },
-    {
-        id: 3,
-        homeTeam: 'Manchester United',
-        awayTeam: 'Liverpool',
-        competition: 'Premier League',
-        kickoff: '2024-01-21T18:30:00Z',
-        status: 'upcoming',
-        odds: {
-            home: 3.20,
-            draw: 3.10,
-            away: 2.40
-        }
-    },
-    {
-        id: 4,
-        homeTeam: 'Bayern Munich',
-        awayTeam: 'Borussia Dortmund',
-        competition: 'Bundesliga',
-        kickoff: '2024-01-22T15:30:00Z',
-        status: 'live',
-        odds: {
-            home: 1.95,
-            draw: 3.60,
-            away: 3.80
-        },
-        score: { home: 1, away: 0 },
-        minute: 67
-    }
-];
 
 const COMPETITIONS = ['Tous', 'Ligue 1', 'Premier League', 'La Liga', 'Bundesliga', 'Champions League'];
 const SORT_OPTIONS: SortOption[] = [
@@ -359,25 +300,57 @@ interface MatchesSectionProps {
     user?: User;
 }
 
+const mapApiMatchToUi = (m: ApiMatchReadModel): Match => {
+    const kickoffIso = typeof m.time === 'string' ? m.time : new Date(m.time as unknown as string).toISOString();
+    const now = Date.now();
+    const startTs = new Date(kickoffIso).getTime();
+    const status: 'upcoming' | 'live' | 'finished' = startTs > now ? 'upcoming' : 'finished';
+
+    return {
+        id: m.id,
+        homeTeam: m.home_team,
+        awayTeam: m.away_team,
+        competition: 'Tous', // Valeur neutre pour rester compatible avec le filtre
+        kickoff: kickoffIso,
+        status,
+        odds: {
+            home: m.cote_home,
+            draw: m.cote_draw,
+            away: m.cote_away,
+        },
+        trending: false,
+    };
+};
+
 const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [matches, setMatches] = useState<Match[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
     const [sortBy, setSortBy] = useState<string>('kickoff');
     const [selectedBets, setSelectedBets] = useState<Bet[]>([]);
 
-    // Simulation du chargement des données
+    // Chargement des données depuis l'API
     useEffect(() => {
-        const loadMatches = async () => {
-            setIsLoading(true);
-            // Simulation d'un appel API
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setMatches(MOCK_MATCHES);
-            setIsLoading(false);
-        };
-
-        loadMatches();
+        let isMounted = true;
+        (async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
+                const apiMatches = await getMatches();
+                if (!isMounted) return;
+                const uiMatches = apiMatches.map(mapApiMatchToUi);
+                setMatches(uiMatches);
+            } catch (e: any) {
+                if (!isMounted) return;
+                setError(e?.message || 'Une erreur est survenue lors du chargement des matchs.');
+                setMatches([]);
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
+        })();
+        return () => { isMounted = false; };
     }, []);
 
     // Filtrage et tri des matchs
@@ -473,6 +446,12 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 onSortChange={setSortBy}
             />
 
+            {error && (
+                <div role="alert" className="error-banner">
+                    {error}
+                </div>
+            )}
+
             <div className="matches-grid">
                 {filteredMatches.length > 0 ? (
                     filteredMatches.map(match => (
@@ -504,3 +483,4 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
 MatchesSection.displayName = 'MatchesSection';
 
 export default MatchesSection;
+

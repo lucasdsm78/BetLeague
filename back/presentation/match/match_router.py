@@ -9,6 +9,7 @@ from presentation.match.match_error_message import ErrorMessageMatchesNotFound
 from dependency_injections import current_user, match_query_usecase, match_command_usecase
 
 router = APIRouter(
+    prefix="/api",
     tags=['match']
 )
 
