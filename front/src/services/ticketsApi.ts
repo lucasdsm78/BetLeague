@@ -1,5 +1,6 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
+import type { TicketsInProgressResponse } from '../types/ticket';
 
 export interface MatchChoiceData {
   match_id: number;
@@ -26,4 +27,20 @@ export async function createTicket(leagueId: number, payload: TicketCreatePayloa
   return res.data as TicketCreateResponse;
 }
 
-export default { createTicket };
+export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
+  // 1) Essaye l’endpoint documenté côté backend (/tickets/in-progress)
+  let res: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/tickets/in-progress');
+  if (!res.success) {
+    // 2) Fallback: certaines docs mentionnent /ticket/in-progress
+    const fallback: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/ticket/in-progress');
+    if (!fallback.success) {
+      throw new Error(fallback.error || res.error || 'Récupération des tickets en cours échouée');
+    }
+    const data = fallback.data as TicketsInProgressResponse;
+    return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+  }
+  const data = res.data as TicketsInProgressResponse;
+  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+}
+
+export default { createTicket, getInProgressTickets };
