@@ -5,6 +5,69 @@
   margin: 0 auto;
 }
 
+/* Section Header */
+.tickets-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.tickets-section .section-header h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tickets-section .header-actions .btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+/* Boutons avec style dégradé cyan cohérent */
+.tickets-section .btn-primary,
+.tickets-section .header-actions .btn-primary {
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
+}
+
+.tickets-section .btn-primary:hover:not(:disabled),
+.tickets-section .header-actions .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  filter: brightness(1.1);
+}
+
+.tickets-section .btn-primary:active:not(:disabled),
+.tickets-section .header-actions .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Boutons "Voir détail" avec le même dégradé */
+.tickets-section .ticket-card-modern .btn-primary {
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.tickets-section .ticket-card-modern .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
+  filter: brightness(1.1);
+}
+
 /* Stats Panel */
 .stats-panel {
   background: var(--bg-primary);
@@ -479,7 +542,13 @@
   margin-bottom: 0.75rem;
 }
 
-.ticket-stats .stat { display: flex; flex-direction: column; gap: 0.2rem; }
+.ticket-stats .stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+  text-align: center;
+}
 .ticket-stats .stat .label { font-size: 0.75rem; color: var(--text-secondary); }
 .ticket-stats .stat .value { font-weight: 700; color: var(--text-primary); }
 .ticket-stats .stat.primary .value { color: var(--primary-color); }
