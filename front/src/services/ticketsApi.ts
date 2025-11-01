@@ -28,7 +28,7 @@ export async function createTicket(leagueId: number, payload: TicketCreatePayloa
 }
 
 export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
-  // 1) Essaye l’endpoint documenté côté backend (/tickets/in-progress)
+  // 1) Essaye l'endpoint documenté côté backend (/tickets/in-progress)
   let res: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/tickets/in-progress');
   if (!res.success) {
     // 2) Fallback: certaines docs mentionnent /ticket/in-progress
@@ -43,4 +43,14 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
   return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
 }
 
-export default { createTicket, getInProgressTickets };
+export async function getFinishedTickets(): Promise<TicketsInProgressResponse> {
+  // Endpoint documenté: /tickets/finished
+  const res: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/tickets/finished');
+  if (!res.success) {
+    throw new Error(res.error || 'Récupération des tickets terminés échouée');
+  }
+  const data = res.data as TicketsInProgressResponse;
+  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+}
+
+export default { createTicket, getInProgressTickets, getFinishedTickets };
