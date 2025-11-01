@@ -35,3 +35,6 @@ export interface TicketsInProgressResponse {
   tickets: TicketReadModel[];
 }
 
+export interface TicketsFinishedResponse {
+  tickets: TicketReadModel[];
+}
