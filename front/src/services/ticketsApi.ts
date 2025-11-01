@@ -1,6 +1,6 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
-import type { TicketsInProgressResponse } from '../types/ticket';
+import type { TicketsInProgressResponse, TicketsFinishedResponse } from 'types/ticket';
 
 export interface MatchChoiceData {
   match_id: number;
@@ -43,4 +43,20 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
   return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
 }
 
-export default { createTicket, getInProgressTickets };
+export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
+  // Endpoint principal communiqué: /tapi/tickets/finished
+  let res: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/tapi/tickets/finished');
+  if (!res.success) {
+    // Fallback éventuel si le préfixe diffère en environnement
+    const fallback: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/tickets/finished');
+    if (!fallback.success) {
+      throw new Error(fallback.error || res.error || 'Récupération des tickets terminés échouée');
+    }
+    const data = fallback.data as TicketsFinishedResponse;
+    return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+  }
+  const data = res.data as TicketsFinishedResponse;
+  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+}
+
+export default { createTicket, getInProgressTickets, getFinishedTickets };
