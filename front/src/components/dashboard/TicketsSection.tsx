@@ -5,6 +5,7 @@ import { useFinishedTickets } from 'hooks/useFinishedTickets';
 import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
 import { useNavigate } from 'react-router-dom';
 import TicketDetailModal from './TicketDetailModal';
+import DeleteTicketModal from './DeleteTicketModal';
 
 type TabType = 'current' | 'finished' | 'history' | 'templates';
 
@@ -36,9 +37,10 @@ const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> 
 interface InProgressTicketCardProps {
   ticket: TicketReadModel;
   onView: (id: number) => void;
+  onDelete: (id: number) => void;
 }
 
-const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView }) => {
+const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
   const potentialGain = ticket.gain; // backend returns gain (potential when pending)
 
@@ -76,8 +78,11 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView }
       </div>
 
       <footer className="ticket-actions">
-        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticket.id}`}>
+        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} style={{flex: 1}} aria-label={`Voir le ticket ${ticket.id}`}>
           Voir détail
+        </button>
+        <button className="btn-icon-danger" onClick={() => onDelete(ticket.id)} aria-label={`Supprimer le ticket ${ticket.id}`} title="Supprimer">
+          🗑️
         </button>
       </footer>
     </article>
@@ -256,10 +261,13 @@ const TicketsSection: React.FC = memo(() => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<{ id: number; number: number } | null>(null);
+
   // Data for current (in-progress)
   const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
 
-  // Data for finished tickets (manual refresh, pas d’auto-refresh par défaut)
+  // Data for finished tickets (manual refresh, pas d'auto-refresh par défaut)
   const { tickets: finishedTickets, loading: loadingFinished, error: errorFinished, refetch: refetchFinished, lastUpdated: lastUpdatedFinished } = useFinishedTickets();
 
   const handleViewTicket = useCallback((id: number) => {
@@ -271,10 +279,33 @@ const TicketsSection: React.FC = memo(() => {
     setIsDetailOpen(false);
   }, []);
 
+  const handleDeleteClick = useCallback((id: number) => {
+    setTicketToDelete({ id, number: id });
+    setIsDeleteModalOpen(true);
+  }, []);
+
+  const handleCloseDeleteModal = useCallback(() => {
+    setIsDeleteModalOpen(false);
+    setTicketToDelete(null);
+  }, []);
+
+  const handleDeleteSuccess = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
   return (
     <div className="tickets-section">
       {/* Modale de détail */}
       <TicketDetailModal isOpen={isDetailOpen} onClose={handleCloseDetail} ticketId={selectedTicketId} />
+
+      {/* Modale de suppression */}
+      <DeleteTicketModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        ticketId={ticketToDelete?.id ?? null}
+        ticketNumber={ticketToDelete?.number ?? null}
+        onSuccess={handleDeleteSuccess}
+      />
 
       <div className="section-header">
         <h2>Mes Tickets</h2>
@@ -327,7 +358,7 @@ const TicketsSection: React.FC = memo(() => {
             )}
 
             {tickets.map((t) => (
-              <InProgressTicketCard key={t.id} ticket={t} onView={handleViewTicket} />
+              <InProgressTicketCard key={t.id} ticket={t} onView={handleViewTicket} onDelete={handleDeleteClick} />
             ))}
           </div>
         </>

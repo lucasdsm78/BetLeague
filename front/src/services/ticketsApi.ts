@@ -89,4 +89,25 @@ export async function getTicketDetail(ticketId: number | string): Promise<Ticket
   return tryParse(resSingular.data);
 }
 
-export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail };
+export interface TicketDeleteResponse {
+  message: string;
+}
+
+export async function deleteTicket(ticketId: number): Promise<TicketDeleteResponse> {
+  // Validation de sécurité
+  const id = Math.floor(Number(ticketId));
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error('ID de ticket invalide');
+  }
+
+  // Endpoint: DELETE /api/ticket/{ticket_id}
+  const res: ApiResponse<TicketDeleteResponse> = await secureApiClient.delete(`/ticket/${id}`);
+
+  if (!res.success) {
+    throw new Error(res.error || 'Suppression du ticket échouée');
+  }
+
+  return res.data as TicketDeleteResponse;
+}
+
+export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail, deleteTicket };
