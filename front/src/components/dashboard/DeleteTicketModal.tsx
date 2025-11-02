@@ -1,122 +1,78 @@
-import React, { memo, useCallback, useState } from 'react';
-import { deleteTicket } from 'services/ticketsApi';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './CreateTicketModal.css';
 
 interface DeleteTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticketId: number | null;
-  ticketNumber: number | null;
-  onSuccess: () => void;
+  onConfirm: (id: number) => Promise<void>;
 }
 
-const DeleteTicketModal: React.FC<DeleteTicketModalProps> = memo(({
-  isOpen,
-  onClose,
-  ticketId,
-  ticketNumber,
-  onSuccess
-}) => {
-  const [loading, setLoading] = useState(false);
+const DeleteTicketModal: React.FC<DeleteTicketModalProps> = ({ isOpen, onClose, ticketId, onConfirm }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const handleDelete = useCallback(async () => {
-    if (!ticketId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      await deleteTicket(ticketId);
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Erreur lors de la suppression du ticket');
-      console.error('Delete ticket error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [ticketId, onSuccess, onClose]);
+  useEffect(() => {
+    if (isOpen && closeBtnRef.current) closeBtnRef.current.focus();
+  }, [isOpen]);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !loading) {
-      onClose();
-    }
-  }, [onClose, loading]);
+    if (e.target === e.currentTarget && !isSubmitting) onClose();
+  }, [onClose, isSubmitting]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && !loading) {
-      onClose();
-    }
-  }, [onClose, loading]);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isOpen) return;
+    if (e.key === 'Escape' && !isSubmitting) onClose();
+  }, [isOpen, onClose, isSubmitting]);
 
-  if (!isOpen || !ticketId) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleKeyDown]);
+
+  const handleConfirm = useCallback(async () => {
+    if (!ticketId) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onConfirm(ticketId);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur lors de la suppression');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [ticketId, onConfirm]);
+
+  if (!isOpen || ticketId == null) return null;
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-modal-title"
-      onClick={handleOverlayClick}
-      onKeyDown={handleKeyDown}
-    >
-      <div className="modal-card delete-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-ticket-title" onClick={handleOverlayClick}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 id="delete-modal-title">Supprimer le ticket</h3>
-          <button
-            className="icon-btn"
-            onClick={onClose}
-            disabled={loading}
-            aria-label="Fermer"
-          >
-            ×
-          </button>
+          <h3 id="delete-ticket-title">Supprimer le ticket</h3>
+          <button ref={closeBtnRef} className="icon-btn" onClick={onClose} aria-label="Fermer" disabled={isSubmitting}>×</button>
         </div>
 
-        <div className="modal-body">
-          <div className="delete-warning">
-            <span className="warning-icon" aria-hidden="true">⚠️</span>
-            <div className="warning-content">
-              <p className="warning-title">Attention</p>
-              <p className="warning-message">
-                Êtes-vous sûr de vouloir supprimer le ticket <strong>#{ticketNumber}</strong> ?
-              </p>
-              <p className="warning-note">
-                Cette action est <strong>irréversible</strong>. Votre mise sera restituée.
-              </p>
-            </div>
-          </div>
-
-          {error && (
-            <div className="error-banner" role="alert">
-              {error}
-            </div>
-          )}
+        <div className="inline-warning" role="alert">
+          Cette action est définitive. Le ticket #{ticketId} sera supprimé.
         </div>
+
+        {error && (
+          <div className="error-banner" role="alert">{error}</div>
+        )}
 
         <div className="modal-actions">
-          <button
-            className="btn btn-outline"
-            onClick={onClose}
-            disabled={loading}
-            type="button"
-          >
-            Annuler
-          </button>
-          <button
-            className="btn btn-danger"
-            onClick={handleDelete}
-            disabled={loading}
-            type="button"
-          >
-            {loading ? 'Suppression...' : 'Supprimer'}
+          <button className="btn btn-outline" onClick={onClose} disabled={isSubmitting}>Annuler</button>
+          <button className="btn btn-danger" onClick={handleConfirm} disabled={isSubmitting}>
+            {isSubmitting ? 'Suppression…' : 'Supprimer définitivement'}
           </button>
         </div>
       </div>
     </div>
   );
-});
-
-DeleteTicketModal.displayName = 'DeleteTicketModal';
+};
 
 export default DeleteTicketModal;
+
