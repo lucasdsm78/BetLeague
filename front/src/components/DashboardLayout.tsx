@@ -32,7 +32,7 @@ interface TabConfig {
   readonly securityLevel?: 'low' | 'medium' | 'high';
 }
 
-type TabId = 'matches' | 'leagues' | 'tickets' | 'profile';
+type TabId = 'matches' | 'leagues' | 'invitations' | 'tickets' | 'profile';
 
 // Immutable tabs configuration for security
 const TABS: Readonly<Record<TabId, TabConfig>> = {
@@ -48,6 +48,13 @@ const TABS: Readonly<Record<TabId, TabConfig>> = {
     label: 'Ligues',
     icon: '🏆',
     path: '/leagues',
+    securityLevel: 'medium'
+  },
+  invitations: {
+    id: 'invitations',
+    label: 'Invitations',
+    icon: '📨',
+    path: '/invitations',
     securityLevel: 'medium'
   },
   tickets: {
