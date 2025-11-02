@@ -1,0 +1,184 @@
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import './CreateTicketModal.css';
+import './TicketDetailSection.css';
+import './TicketsSection.css';
+import { useTicketDetail } from 'hooks/useTicketDetail';
+import type { MatchChoiceSummary } from 'types/ticket';
+import { useNavigate } from 'react-router-dom';
+
+interface TicketDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  ticketId: number | string | null;
+}
+
+type NormalizedStatus = 'pending' | 'correct' | 'wrong';
+
+const normalizeStatus = (status: string | null | undefined): NormalizedStatus => {
+  const s = (status || '').toString().trim().toLowerCase();
+  if (s === 'correct') return 'correct';
+  if (s === 'wrong') return 'wrong';
+  if (s === 'pending') return 'pending';
+  return 'pending';
+};
+
+const statusToLabel = (status: string | null | undefined): string => {
+  switch (normalizeStatus(status)) {
+    case 'pending': return 'En cours';
+    case 'correct': return 'Gagné';
+    case 'wrong': return 'Perdu';
+    default: return 'En cours';
+  }
+};
+
+const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
+  const teamChoice = choice.choice === '1' ? choice.match_summary.home_team : choice.choice === '2' ? choice.match_summary.away_team : 'Match nul';
+  const chipClass = normalizeStatus(choice.status) === 'correct' ? 'chip success' : normalizeStatus(choice.status) === 'wrong' ? 'chip danger' : 'chip';
+  return (
+    <li className="choice-row">
+      <div className="teams">
+        <span className="home">{choice.match_summary.home_team}</span>
+        <span className="vs">vs</span>
+        <span className="away">{choice.match_summary.away_team}</span>
+      </div>
+      <div className="meta">
+        <span className="time">{new Date(choice.match_summary.time).toLocaleString('fr-FR')}</span>
+      </div>
+      <div className="selection">
+        <span className={chipClass}>
+          Sélection: <strong>{teamChoice}</strong>
+        </span>
+      </div>
+    </li>
+  );
+};
+
+const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId }) => {
+  const navigate = useNavigate();
+  const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
+
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen && closeBtnRef.current) {
+      closeBtnRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  }, [onClose]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isOpen) return;
+    if (e.key === 'Escape') onClose();
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleKeyDown]);
+
+  const leagueName = ticket?.league_summary?.name || 'Ligues';
+  const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
+  const badgeClass = isWin ? 'badge badge-success' : normalizeStatus(ticket?.status) === 'wrong' ? 'badge badge-danger' : 'badge badge-warning';
+  const statusLabel = statusToLabel(ticket?.status);
+  const totalChoices = ticket?.match_choice_summaries?.length || 0;
+
+  const summary = useMemo(() => {
+    if (!ticket) return { mise: 0, gain: 0 };
+    return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
+  }, [ticket]);
+
+  if (!isOpen || ticketId == null) return null;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="ticket-detail-title" onClick={handleOverlayClick}>
+      <div ref={modalRef} className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 id="ticket-detail-title">Détail du ticket</h3>
+          <button ref={closeBtnRef} className="icon-btn" onClick={onClose} aria-label="Fermer">×</button>
+        </div>
+
+        <div className="ticket-detail-section" style={{ paddingTop: 0 }}>
+          <div className="section-header" style={{ marginBottom: '.5rem' }}>
+            <div className="header-right">
+              <button className="btn btn-secondary btn-sm" onClick={refetch} disabled={loading}>
+                {loading ? 'Rafraîchissement…' : 'Rafraîchir'}
+              </button>
+              {lastUpdated && (
+                <span className="last-updated">Maj: {new Date(lastUpdated).toLocaleTimeString('fr-FR')}</span>
+              )}
+            </div>
+          </div>
+
+          {loading && !ticket && (
+            <div className="detail-skeleton" aria-hidden="true">
+              <div className="skeleton-bar title" />
+              <div className="skeleton-card" />
+              <div className="skeleton-list">
+                <div className="skeleton-row" />
+                <div className="skeleton-row" />
+                <div className="skeleton-row" />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              <span>Impossible de charger le ticket: {error}</span>
+              <button className="btn btn-outline btn-sm" onClick={refetch}>Réessayer</button>
+            </div>
+          )}
+
+          {ticket && (
+            <>
+              <header className="ticket-head">
+                <div className="title">
+                  <h2>Ticket #{ticket.id}</h2>
+                  <span className="ticket-uuid">UUID: {ticket.uuid}</span>
+                </div>
+                <div className="status">
+                  <span className={badgeClass}>{statusLabel}</span>
+                  <span className="league">{leagueName}</span>
+                </div>
+              </header>
+
+              <section className="ticket-summary-grid">
+                <div className="summary-card">
+                  <div className="label">Mise</div>
+                  <div className="value">{summary.mise.toFixed(2)}€</div>
+                </div>
+                <div className="summary-card">
+                  <div className="label">Gain {normalizeStatus(ticket.status) === 'pending' ? 'potentiel' : ''}</div>
+                  <div className={`value ${normalizeStatus(ticket.status) === 'correct' ? 'win' : ''}`}>{summary.gain.toFixed(2)}€</div>
+                </div>
+                <div className="summary-card">
+                  <div className="label">Sélections</div>
+                  <div className="value">{totalChoices}</div>
+                </div>
+              </section>
+
+              <section className="choices-section">
+                <h3>Sélections</h3>
+                <ul className="choices-list">
+                  {ticket.match_choice_summaries.map((mc: MatchChoiceSummary) => (
+                    <ChoiceRow key={mc.id} choice={mc} />
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
+        </div>
+
+        <div className="modal-actions" style={{ marginTop: '1rem' }}>
+          <button className="btn btn-primary" onClick={onClose}>Fermer</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TicketDetailModal;

@@ -3,6 +3,8 @@ import './TicketsSection.css';
 import { useInProgressTickets } from 'hooks/useInProgressTickets';
 import { useFinishedTickets } from 'hooks/useFinishedTickets';
 import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
+import { useNavigate } from 'react-router-dom';
+import TicketDetailModal from './TicketDetailModal';
 
 type TabType = 'current' | 'finished' | 'history' | 'templates';
 
@@ -90,7 +92,8 @@ interface FinishedTicketCardProps {
 
 const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
-  const isWin = ticket.status === 'correct';
+  const normalizedStatus = ticket.status?.toLowerCase();
+  const isWin = normalizedStatus === 'correct';
   const badgeClass = isWin ? 'badge-success' : 'badge-danger';
   const resultLabel = isWin ? 'Gagné' : 'Perdu';
 
@@ -186,8 +189,8 @@ const StatsPanelFinished: React.FC<{ tickets: TicketReadModel[]; lastUpdated: nu
     const total = tickets.length;
     const totalStake = tickets.reduce((sum, t) => sum + (t.mise || 0), 0);
     const totalGain = tickets.reduce((sum, t) => sum + (t.gain || 0), 0);
-    const won = tickets.filter((t) => t.status === 'correct').length;
-    const lost = tickets.filter((t) => t.status === 'wrong').length;
+    const won = tickets.filter((t) => t.status?.toLowerCase() === 'correct').length;
+    const lost = tickets.filter((t) => t.status?.toLowerCase() === 'wrong').length;
     const winRate = total > 0 ? (won / total) * 100 : 0;
     return { total, totalStake, totalGain, won, lost, winRate };
   }, [tickets]);
@@ -248,6 +251,10 @@ const SkeletonCard: React.FC = () => (
 
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
+  const navigate = useNavigate();
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Data for current (in-progress)
   const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
@@ -256,12 +263,19 @@ const TicketsSection: React.FC = memo(() => {
   const { tickets: finishedTickets, loading: loadingFinished, error: errorFinished, refetch: refetchFinished, lastUpdated: lastUpdatedFinished } = useFinishedTickets();
 
   const handleViewTicket = useCallback((id: number) => {
-    // TODO: implement navigation to ticket details when route exists
-    console.log('navigate to ticket', id);
+    setSelectedTicketId(id);
+    setIsDetailOpen(true);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setIsDetailOpen(false);
   }, []);
 
   return (
     <div className="tickets-section">
+      {/* Modale de détail */}
+      <TicketDetailModal isOpen={isDetailOpen} onClose={handleCloseDetail} ticketId={selectedTicketId} />
+
       <div className="section-header">
         <h2>Mes Tickets</h2>
         <div className="header-actions">
