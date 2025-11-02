@@ -5,6 +5,10 @@ import { useFinishedTickets } from 'hooks/useFinishedTickets';
 import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
 import { useNavigate } from 'react-router-dom';
 import TicketDetailModal from './TicketDetailModal';
+import DeleteTicketModal from './DeleteTicketModal';
+import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';
+import { useToast } from 'hooks/useToast';
+import { ToastContainer } from '../ToastContainer';
 
 type TabType = 'current' | 'finished' | 'history' | 'templates';
 
@@ -36,9 +40,10 @@ const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> 
 interface InProgressTicketCardProps {
   ticket: TicketReadModel;
   onView: (id: number) => void;
+  onDelete: (id: number) => void;
 }
 
-const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView }) => {
+const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
   const potentialGain = ticket.gain; // backend returns gain (potential when pending)
 
@@ -76,6 +81,9 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView }
       </div>
 
       <footer className="ticket-actions">
+        <button className="btn btn-outline btn-sm" onClick={() => onDelete(ticket.id)} aria-label={`Supprimer le ticket ${ticket.id}`}>
+          Supprimer
+        </button>
         <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticket.id}`}>
           Voir détail
         </button>
@@ -256,8 +264,18 @@ const TicketsSection: React.FC = memo(() => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteTicketId, setDeleteTicketId] = useState<number | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set());
+  const [deleteSource, setDeleteSource] = useState<'list' | 'detail' | null>(null);
+  const [localUpdatedAt, setLocalUpdatedAt] = useState<number | null>(null);
+
+  const { showSuccess, showError, toasts, removeToast, pauseToast, resumeToast } = useToast();
+
   // Data for current (in-progress)
   const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
+
+  const filteredTickets = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
 
   // Data for finished tickets (manual refresh, pas d’auto-refresh par défaut)
   const { tickets: finishedTickets, loading: loadingFinished, error: errorFinished, refetch: refetchFinished, lastUpdated: lastUpdatedFinished } = useFinishedTickets();
@@ -267,14 +285,70 @@ const TicketsSection: React.FC = memo(() => {
     setIsDetailOpen(true);
   }, []);
 
+  const handleDeleteAskFromList = useCallback((id: number) => {
+    setDeleteSource('list');
+    setDeleteTicketId(id);
+    setIsDeleteOpen(true);
+  }, []);
+
+  const handleDeleteAskFromDetail = useCallback((id: number) => {
+    setDeleteSource('detail');
+    setDeleteTicketId(id);
+    setIsDeleteOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async (id: number) => {
+    try {
+      // Masquage optimiste immédiat + horodatage local
+      setDeletedIds(prev => new Set(prev).add(id));
+      setLocalUpdatedAt(Date.now());
+
+      await apiDeleteTicket(id);
+      showSuccess('Supprimé', `Ticket #${id} supprimé avec succès`);
+
+      // Rafraîchir la liste pour refléter l’état serveur
+      refetch();
+
+      // Fermeture des modales
+      setIsDeleteOpen(false);
+      setDeleteTicketId(null);
+      if (deleteSource === 'detail') {
+        setIsDetailOpen(false);
+        setSelectedTicketId(null);
+      }
+    } catch (e: any) {
+      // Revert en cas d’erreur
+      setDeletedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      showError('Erreur', e?.message || 'Suppression du ticket échouée');
+      throw e; // pour affichage éventuel dans la modale
+    }
+  }, [refetch, showSuccess, showError, deleteSource]);
+
   const handleCloseDetail = useCallback(() => {
     setIsDetailOpen(false);
   }, []);
 
+  const handleCloseDelete = useCallback(() => {
+    setIsDeleteOpen(false);
+  }, []);
+
   return (
     <div className="tickets-section">
-      {/* Modale de détail */}
-      <TicketDetailModal isOpen={isDetailOpen} onClose={handleCloseDetail} ticketId={selectedTicketId} />
+      {/* Toasts locaux */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} pauseToast={pauseToast} resumeToast={resumeToast} />
+
+      {/* Modales */}
+      <TicketDetailModal
+        isOpen={isDetailOpen}
+        onClose={handleCloseDetail}
+        ticketId={selectedTicketId}
+        onAskDelete={handleDeleteAskFromDetail}
+      />
+      <DeleteTicketModal isOpen={isDeleteOpen} onClose={handleCloseDelete} ticketId={deleteTicketId} onConfirm={handleDeleteConfirm} />
 
       <div className="section-header">
         <h2>Mes Tickets</h2>
@@ -285,7 +359,7 @@ const TicketsSection: React.FC = memo(() => {
 
       <div className="tickets-tabs">
         <button className={`tab-button ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>
-          En cours ({tickets.length})
+          En cours ({filteredTickets.length})
         </button>
         <button className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`} onClick={() => setActiveTab('finished')}>
           Terminés ({finishedTickets.length})
@@ -300,7 +374,7 @@ const TicketsSection: React.FC = memo(() => {
 
       {activeTab === 'current' && (
         <>
-          <StatsPanelCurrent tickets={tickets} lastUpdated={lastUpdated} onRefresh={refetch} loading={loading} />
+          <StatsPanelCurrent tickets={filteredTickets} lastUpdated={localUpdatedAt || lastUpdated} onRefresh={refetch} loading={loading} />
 
           {error && (
             <div className="alert alert-danger" role="alert">
@@ -310,14 +384,14 @@ const TicketsSection: React.FC = memo(() => {
           )}
 
           <div className="tickets-grid modern">
-            {loading && tickets.length === 0 && (
+            {loading && filteredTickets.length === 0 && (
               <>
                 <SkeletonCard />
                 <SkeletonCard />
               </>
             )}
 
-            {!loading && tickets.length === 0 && !error && (
+            {!loading && filteredTickets.length === 0 && !error && (
               <div className="empty-state">
                 <span className="empty-icon">🎫</span>
                 <h3>Aucun ticket en cours</h3>
@@ -326,8 +400,8 @@ const TicketsSection: React.FC = memo(() => {
               </div>
             )}
 
-            {tickets.map((t) => (
-              <InProgressTicketCard key={t.id} ticket={t} onView={handleViewTicket} />
+            {filteredTickets.map((t) => (
+              <InProgressTicketCard key={t.id} ticket={t} onView={handleViewTicket} onDelete={handleDeleteAskFromList} />
             ))}
           </div>
         </>
