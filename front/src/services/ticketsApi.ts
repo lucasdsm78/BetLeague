@@ -1,6 +1,6 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
-import type { TicketsInProgressResponse } from '../types/ticket';
+import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from 'types/ticket';
 
 export interface MatchChoiceData {
   match_id: number;
@@ -43,4 +43,50 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
   return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
 }
 
-export default { createTicket, getInProgressTickets };
+export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
+  // 1) Essai plural
+  try {
+    const res: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/tickets/finished');
+    if (res.success) {
+      const data = res.data as TicketsFinishedResponse;
+      return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+    }
+  } catch (e) {
+    // ignore pour tenter le fallback
+  }
+  // 2) Fallback singulier
+  const fallback: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/ticket/finished');
+  if (!fallback.success) {
+    throw new Error(fallback.error || 'Récupération des tickets terminés échouée');
+  }
+  const data = fallback.data as TicketsFinishedResponse;
+  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+}
+
+export async function getTicketDetail(ticketId: number | string): Promise<TicketReadModel> {
+  const tryParse = (data: any): TicketReadModel => {
+    const ticket = data?.ticket ?? data;
+    if (ticket && typeof ticket === 'object' && 'id' in ticket) return ticket as TicketReadModel;
+    throw new Error('Format de réponse invalide pour le ticket');
+  };
+
+  // 1) Essai plural: /tickets/:id
+  try {
+    const resPlural: ApiResponse<any> = await secureApiClient.get(`/tickets/${ticketId}`);
+    if (resPlural.success) {
+      return tryParse(resPlural.data);
+    }
+    // si non succès, on tente le fallback
+  } catch (e) {
+    // ignore et tente le fallback
+  }
+
+  // 2) Fallback singulier: /ticket/:id
+  const resSingular: ApiResponse<any> = await secureApiClient.get(`/ticket/${ticketId}`);
+  if (!resSingular.success) {
+    throw new Error(resSingular.error || 'Récupération du ticket échouée');
+  }
+  return tryParse(resSingular.data);
+}
+
+export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail };

@@ -1,9 +1,12 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
 import './TicketsSection.css';
-import { useInProgressTickets } from '../../hooks/useInProgressTickets';
-import type { TicketReadModel, MatchChoiceSummary } from '../../types/ticket';
+import { useInProgressTickets } from 'hooks/useInProgressTickets';
+import { useFinishedTickets } from 'hooks/useFinishedTickets';
+import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
+import { useNavigate } from 'react-router-dom';
+import TicketDetailModal from './TicketDetailModal';
 
-type TabType = 'current' | 'history' | 'templates';
+type TabType = 'current' | 'finished' | 'history' | 'templates';
 
 type StatusLabel = 'En cours' | 'Gagné' | 'Perdu' | 'Brouillon';
 
@@ -82,6 +85,61 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView }
 });
 InProgressTicketCard.displayName = 'InProgressTicketCard';
 
+interface FinishedTicketCardProps {
+  ticket: TicketReadModel;
+  onView: (id: number) => void;
+}
+
+const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) => {
+  const leagueName = ticket.league_summary?.name || 'Ligues';
+  const normalizedStatus = ticket.status?.toLowerCase();
+  const isWin = normalizedStatus === 'correct';
+  const badgeClass = isWin ? 'badge-success' : 'badge-danger';
+  const resultLabel = isWin ? 'Gagné' : 'Perdu';
+
+  return (
+    <article className="ticket-card-modern" aria-label={`Ticket #${ticket.id}`}>
+      <header className="ticket-card-header">
+        <div className="left">
+          <span className={`badge ${badgeClass}`}>{resultLabel}</span>
+          <span className="ticket-league" title={leagueName}>{leagueName}</span>
+        </div>
+        <div className="right">
+          <span className="ticket-id">#{ticket.id}</span>
+        </div>
+      </header>
+
+      <div className="ticket-choices">
+        {ticket.match_choice_summaries.slice(0, 3).map((mc) => (
+          <ChoiceLabel key={mc.id} choice={mc} />
+        ))}
+        {ticket.match_choice_summaries.length > 3 && (
+          <div className="more-bets">+{ticket.match_choice_summaries.length - 3} sélection(s)</div>
+        )}
+      </div>
+
+      <div className="ticket-stats">
+        <div className="stat">
+          <span className="label">Mise</span>
+          <span className="value">{ticket.mise}€</span>
+        </div>
+        <div className="divider" />
+        <div className="stat primary">
+          <span className="label">Gain</span>
+          <span className="value">{Number(ticket.gain || 0).toFixed(2)}€</span>
+        </div>
+      </div>
+
+      <footer className="ticket-actions">
+        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticket.id}`}>
+          Voir détail
+        </button>
+      </footer>
+    </article>
+  );
+});
+FinishedTicketCard.displayName = 'FinishedTicketCard';
+
 const StatsPanelCurrent: React.FC<{ tickets: TicketReadModel[]; lastUpdated: number | null; onRefresh: () => void; loading: boolean }> = ({ tickets, lastUpdated, onRefresh, loading }) => {
   const stats = useMemo(() => {
     const total = tickets.length;
@@ -126,6 +184,60 @@ const StatsPanelCurrent: React.FC<{ tickets: TicketReadModel[]; lastUpdated: num
   );
 };
 
+const StatsPanelFinished: React.FC<{ tickets: TicketReadModel[]; lastUpdated: number | null; onRefresh: () => void; loading: boolean }> = ({ tickets, lastUpdated, onRefresh, loading }) => {
+  const stats = useMemo(() => {
+    const total = tickets.length;
+    const totalStake = tickets.reduce((sum, t) => sum + (t.mise || 0), 0);
+    const totalGain = tickets.reduce((sum, t) => sum + (t.gain || 0), 0);
+    const won = tickets.filter((t) => t.status?.toLowerCase() === 'correct').length;
+    const lost = tickets.filter((t) => t.status?.toLowerCase() === 'wrong').length;
+    const winRate = total > 0 ? (won / total) * 100 : 0;
+    return { total, totalStake, totalGain, won, lost, winRate };
+  }, [tickets]);
+
+  return (
+    <section className="stats-panel modern">
+      <div className="stats-header">
+        <h3>Tickets terminés</h3>
+        <div className="tools">
+          <button className="btn btn-secondary btn-sm" onClick={onRefresh} disabled={loading}>
+            {loading ? 'Rafraîchissement…' : 'Rafraîchir'}
+          </button>
+          <span className="last-updated" aria-live="polite">
+            {lastUpdated ? `Maj: ${new Date(lastUpdated).toLocaleTimeString('fr-FR')}` : ''}
+          </span>
+        </div>
+      </div>
+      <div className="stats-grid compact">
+        <div className="stat-item">
+          <span className="stat-value">{stats.total}</span>
+          <span className="stat-label">Total</span>
+        </div>
+        <div className="stat-item success">
+          <span className="stat-value">{stats.won}</span>
+          <span className="stat-label">Gagnés</span>
+        </div>
+        <div className="stat-item danger">
+          <span className="stat-value">{stats.lost}</span>
+          <span className="stat-label">Perdus</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-value">{stats.winRate.toFixed(0)}%</span>
+          <span className="stat-label">Win rate</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-value">{stats.totalStake.toFixed(2)}€</span>
+          <span className="stat-label">Mise totale</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-value">{stats.totalGain.toFixed(2)}€</span>
+          <span className="stat-label">Gain total</span>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const SkeletonCard: React.FC = () => (
   <div className="ticket-card-modern skeleton" aria-hidden="true">
     <div className="skeleton-bar header" />
@@ -139,17 +251,31 @@ const SkeletonCard: React.FC = () => (
 
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
+  const navigate = useNavigate();
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Data for current (in-progress)
   const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
 
+  // Data for finished tickets (manual refresh, pas d’auto-refresh par défaut)
+  const { tickets: finishedTickets, loading: loadingFinished, error: errorFinished, refetch: refetchFinished, lastUpdated: lastUpdatedFinished } = useFinishedTickets();
+
   const handleViewTicket = useCallback((id: number) => {
-    // TODO: implement navigation to ticket details when route exists
-    console.log('navigate to ticket', id);
+    setSelectedTicketId(id);
+    setIsDetailOpen(true);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setIsDetailOpen(false);
   }, []);
 
   return (
     <div className="tickets-section">
+      {/* Modale de détail */}
+      <TicketDetailModal isOpen={isDetailOpen} onClose={handleCloseDetail} ticketId={selectedTicketId} />
+
       <div className="section-header">
         <h2>Mes Tickets</h2>
         <div className="header-actions">
@@ -160,6 +286,9 @@ const TicketsSection: React.FC = memo(() => {
       <div className="tickets-tabs">
         <button className={`tab-button ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>
           En cours ({tickets.length})
+        </button>
+        <button className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`} onClick={() => setActiveTab('finished')}>
+          Terminés ({finishedTickets.length})
         </button>
         <button className={`tab-button ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
           Historique
@@ -204,7 +333,41 @@ const TicketsSection: React.FC = memo(() => {
         </>
       )}
 
-      {activeTab !== 'current' && (
+      {activeTab === 'finished' && (
+        <>
+          <StatsPanelFinished tickets={finishedTickets} lastUpdated={lastUpdatedFinished} onRefresh={refetchFinished} loading={loadingFinished} />
+
+          {errorFinished && (
+            <div className="alert alert-danger" role="alert">
+              <span>Impossible de charger les tickets terminés: {errorFinished}</span>
+              <button className="btn btn-outline btn-sm" onClick={refetchFinished}>Réessayer</button>
+            </div>
+          )}
+
+          <div className="tickets-grid modern">
+            {loadingFinished && finishedTickets.length === 0 && (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            )}
+
+            {!loadingFinished && finishedTickets.length === 0 && !errorFinished && (
+              <div className="empty-state subtle">
+                <span className="empty-icon">✅</span>
+                <h3>Aucun ticket terminé</h3>
+                <p>Vous verrez ici vos tickets gagnés et perdus.</p>
+              </div>
+            )}
+
+            {finishedTickets.map((t) => (
+              <FinishedTicketCard key={t.id} ticket={t} onView={handleViewTicket} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeTab !== 'current' && activeTab !== 'finished' && (
         <div className="empty-state subtle">
           <span className="empty-icon">📚</span>
           <h3>Section en construction</h3>
