@@ -17,6 +17,7 @@ const LeaguesSection = React.lazy(() => import('./dashboard/LeaguesSection'));
 const TicketsSection = React.lazy(() => import('./dashboard/TicketsSection'));
 const ProfileSection = React.lazy(() => import('./dashboard/ProfileSection'));
 const TicketDetailSection = React.lazy(() => import('./dashboard/TicketDetailSection'));
+const InvitationsSection = React.lazy(() => import('./dashboard/InvitationsSection'));
 
 const LoadingSpinner = () => (
   <div className="loading-spinner" role="status" aria-label="Chargement en cours">
@@ -204,6 +205,19 @@ const AppRouter: React.FC = () => {
               <DashboardLayout>
                 <Suspense fallback={<LoadingSpinner />}>
                   <LeaguesSection />
+                </Suspense>
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/invitations"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <InvitationsSection />
                 </Suspense>
               </DashboardLayout>
             </ProtectedRoute>
