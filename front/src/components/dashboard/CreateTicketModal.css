@@ -319,6 +319,24 @@
   border-color: var(--primary-color);
 }
 
+.btn-danger {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+.btn-danger:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+}
+
+.btn-danger:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
 /* Amélioration mobile pour les boutons d'action */
 @media (max-width: 640px) {
   .modal-actions {
