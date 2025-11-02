@@ -36,13 +36,6 @@ async def get_matches(
     except Exception as e:
         raise
 
-    # Ne renvoyer 404 que si total == 0 (aucun match en base)
-    if matches.get("total", 0) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=MatchesNotFoundError.message,
-        )
-
     return matches
 
 
