@@ -89,25 +89,20 @@ export async function getTicketDetail(ticketId: number | string): Promise<Ticket
   return tryParse(resSingular.data);
 }
 
-export interface TicketDeleteResponse {
-  message: string;
-}
-
-export async function deleteTicket(ticketId: number): Promise<TicketDeleteResponse> {
-  // Validation de sécurité
-  const id = Math.floor(Number(ticketId));
-  if (!Number.isFinite(id) || id <= 0) {
-    throw new Error('ID de ticket invalide');
+export async function deleteTicket(ticketId: number | string): Promise<{ success: boolean; message?: string }> {
+  // 1) Endpoint documenté: /ticket/:id
+  try {
+    const res: ApiResponse<any> = await secureApiClient.delete(`/ticket/${ticketId}`);
+    if (res.success) return { success: true, message: (res.data as any)?.message };
+  } catch (e) {
+    // ignore et tente le fallback
   }
-
-  // Endpoint: DELETE /api/ticket/{ticket_id}
-  const res: ApiResponse<TicketDeleteResponse> = await secureApiClient.delete(`/ticket/${id}`);
-
-  if (!res.success) {
-    throw new Error(res.error || 'Suppression du ticket échouée');
+  // 2) Fallback éventuel: /tickets/:id
+  const fallback = await secureApiClient.delete(`/tickets/${ticketId}`);
+  if (!fallback.success) {
+    throw new Error(fallback.error || 'Suppression du ticket échouée');
   }
-
-  return res.data as TicketDeleteResponse;
+  return { success: true, message: (fallback.data as any)?.message };
 }
 
 export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail, deleteTicket };

@@ -10,6 +10,7 @@ interface TicketDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticketId: number | string | null;
+  onAskDelete?: (id: number) => void;
 }
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
@@ -53,7 +54,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
   );
 };
 
-const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId }) => {
+const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId, onAskDelete }) => {
   const navigate = useNavigate();
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
 
@@ -105,7 +106,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
         <div className="ticket-detail-section" style={{ paddingTop: 0 }}>
           <div className="section-header" style={{ marginBottom: '.5rem' }}>
             <div className="header-right">
-              <button className="btn btn-secondary btn-sm" onClick={refetch} disabled={loading}>
+              <button className="btn btn-outline btn-sm" onClick={refetch} disabled={loading}>
                 {loading ? 'Rafraîchissement…' : 'Rafraîchir'}
               </button>
               {lastUpdated && (
@@ -174,7 +175,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
         </div>
 
         <div className="modal-actions" style={{ marginTop: '1rem' }}>
-          <button className="btn btn-primary" onClick={onClose}>Fermer</button>
+          <button className="btn btn-outline" onClick={onClose}>Fermer</button>
+          {ticket && onAskDelete && (
+            <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>Supprimer le ticket</button>
+          )}
+          <button className="btn btn-primary" onClick={() => navigate('/tickets')}>Voir tous les tickets</button>
         </div>
       </div>
     </div>
