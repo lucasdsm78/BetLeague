@@ -27,7 +27,24 @@
   transition: var(--transition);
 }
 
-/* Boutons avec style dégradé cyan cohérent */
+/* Generic buttons (scoped) */
+.tickets-section .btn {
+  appearance: none;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.tickets-section .btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
 .tickets-section .btn-primary,
 .tickets-section .header-actions .btn-primary {
   background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
@@ -66,6 +83,26 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
   filter: brightness(1.1);
+}
+
+.tickets-section .btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.tickets-section .btn-secondary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.tickets-section .btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.tickets-section .btn-outline:hover:not(:disabled) {
+  background: var(--bg-secondary);
 }
 
 /* Stats Panel */
@@ -664,6 +701,29 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
+}
+
+/* Empty state */
+.tickets-section .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+}
+
+.tickets-section .empty-state.subtle {
+  background: var(--bg-secondary);
+}
+
+.tickets-section .empty-icon {
+  font-size: 2rem;
+  line-height: 1;
 }
 
 /* Responsive pour mobile */

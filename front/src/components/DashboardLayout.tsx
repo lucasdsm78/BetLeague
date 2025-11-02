@@ -124,13 +124,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     const currentPath = location.pathname;
 
     // Security: Validate path format
-    // Basic path validation
     if (!currentPath || typeof currentPath !== 'string' || !/^\/[a-zA-Z0-9/_-]*$/.test(currentPath)) {
       console.warn('🔒 Invalid path format detected:', currentPath);
       return 'matches';
     }
 
-    const tab = Object.values(TABS).find(tab => tab.path === currentPath);
+    // Match exact or sub-routes (e.g., /tickets or /tickets/123)
+    const tab = Object.values(TABS).find(tab => currentPath === tab.path || currentPath.startsWith(tab.path + '/'));
     return (tab?.id as TabId) || 'matches';
   }, [location.pathname]);
 
