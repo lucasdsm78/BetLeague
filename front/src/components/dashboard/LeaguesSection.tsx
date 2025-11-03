@@ -1,5 +1,5 @@
-import React, { useState, useCallback, memo, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, memo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
@@ -8,16 +8,6 @@ import LeagueRankingModal from '../league/LeagueRankingModal';
 import LeaveLeagueModal from '../league/LeaveLeagueModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
-
-// Types locaux minimum pour l'UI Invitations (la liste des ligues utilise LeagueSummary)
-interface InvitationUI {
-    id: number;
-    leagueName: string;
-    inviterName: string;
-    inviteDate: string;
-    members: number;
-    maxMembers: number;
-}
 
 interface LeagueCardProps {
     league: LeagueSummary;
@@ -149,53 +139,11 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
 
 LeagueCard.displayName = 'LeagueCard';
 
-interface InvitationCardProps {
-    invitation: InvitationUI;
-    onAccept: (invitation: InvitationUI) => void;
-    onDecline: (invitation: InvitationUI) => void;
-}
+type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 
-const InvitationCard = memo<InvitationCardProps>(({ invitation, onAccept, onDecline }) => (
-    <div className="invitation-card">
-        <div className="invitation-info">
-            <h4 className="league-name">{invitation.leagueName}</h4>
-            <p className="invitation-text">
-                <strong>{invitation.inviterName}</strong> vous invite à rejoindre cette ligue
-            </p>
-            <div className="invitation-meta">
-                <span>{invitation.members}/{invitation.maxMembers} participants</span>
-                <span>•</span>
-                <span>{new Date(invitation.inviteDate).toLocaleDateString('fr-FR')}</span>
-            </div>
-        </div>
-        <div className="invitation-actions">
-            <button
-                className="btn btn-primary btn-sm"
-                onClick={() => onAccept(invitation)}
-            >
-                Accepter
-            </button>
-            <button
-                className="btn btn-outline btn-sm"
-                onClick={() => onDecline(invitation)}
-            >
-                Refuser
-            </button>
-        </div>
-    </div>
-));
+interface LeaguesSectionProps {}
 
-InvitationCard.displayName = 'InvitationCard';
-
-
-type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues' | 'invitations';
-
-interface LeaguesSectionProps {
-    user?: { id: string; email: string; pseudo?: string; username?: string };
-}
-
-const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
-    const navigate = useNavigate();
+const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
@@ -209,7 +157,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
     const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
-    const [invitations, setInvitations] = useState<InvitationUI[]>([]);
     const [isLoadingParticipated, setIsLoadingParticipated] = useState<boolean>(false);
     const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
     const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
@@ -271,33 +218,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         }
     }, []);
 
-    const loadInvitations = useCallback(async () => {
-        try {
-            const result = await leagueApiService.getReceivedInvitations();
-            if (result.success && result.data) {
-                // Adapter les nouvelles interfaces vers InvitationUI
-                const mapped: InvitationUI[] = (result.data as any[] || []).map((inv: any) => ({
-                    id: Number(inv.id),
-                    leagueName: String(inv.league?.name || ''),
-                    inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
-                    inviteDate: String(new Date(inv.league?.start_date || Date.now()).toISOString()),
-                    members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
-                    maxMembers: Number(inv.league?.max_players || 0),
-                }));
-                setInvitations(mapped);
-            }
-        } catch (err) {
-            console.error('Failed to load invitations:', err);
-        }
-    }, []);
-
     // Load data on component mount
     useEffect(() => {
         loadParticipatedLeagues();
         loadCreatedLeagues();
         loadAvailableLeagues();
-        loadInvitations();
-    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
+    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues]);
 
     // Handle league creation success
     const handleCreateLeague = useCallback((leagueData: any, message: string) => {
@@ -307,52 +233,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
         loadCreatedLeagues();
         loadAvailableLeagues();
     }, [loadCreatedLeagues, loadAvailableLeagues]);
-
-    const handleJoinLeagueByCode = useCallback(async (leagueCode: string) => {
-        if (!leagueCode || leagueCode.trim() === '') {
-            setError('Code de ligue requis');
-            return;
-        }
-
-        try {
-            const leagueId = parseInt(leagueCode, 10);
-            if (isNaN(leagueId)) {
-                setError('Code de ligue invalide');
-                return;
-            }
-
-            const result = await leagueApiService.joinLeague(leagueId);
-            if (result.success) {
-                setSuccessMessage(result.message || 'Vous avez rejoint la ligue !');
-                setTimeout(() => setSuccessMessage(''), 5000);
-                loadCreatedLeagues();
-                loadAvailableLeagues();
-            } else {
-                setError(result.error || 'Erreur lors de la tentative de rejoindre la ligue');
-            }
-        } catch (err) {
-            setError('Erreur lors de la tentative de rejoindre la ligue');
-            console.error('Join league error:', err);
-        }
-    }, [loadCreatedLeagues, loadAvailableLeagues]);
-
-    const handleAcceptInvitation = useCallback(async (invitation: InvitationUI) => {
-        try {
-            const result = await leagueApiService.updateInvitation(invitation.id, true);
-            if (result.success) {
-                setSuccessMessage(result.message || 'Invitation acceptée');
-                setTimeout(() => setSuccessMessage(''), 5000);
-                loadCreatedLeagues();
-                loadAvailableLeagues();
-                loadInvitations();
-            } else {
-                setError(result.error || 'Erreur lors de l\'acceptation de l\'invitation');
-            }
-        } catch (err) {
-            setError('Erreur lors de l\'acceptation de l\'invitation');
-            console.error('Accept invitation error:', err);
-        }
-    }, [loadCreatedLeagues, loadAvailableLeagues, loadInvitations]);
 
     const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
         if (joiningLeagueId !== null) {
@@ -414,22 +294,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
             setJoiningLeagueId(null);
         }
     }, [joiningLeagueId, loadCreatedLeagues, loadAvailableLeagues]);
-
-    const handleDeclineInvitation = useCallback(async (invitation: InvitationUI) => {
-        try {
-            const result = await leagueApiService.updateInvitation(invitation.id, false);
-            if (result.success) {
-                setSuccessMessage(result.message || 'Invitation refusée');
-                setTimeout(() => setSuccessMessage(''), 3000);
-                loadInvitations();
-            } else {
-                setError(result.error || 'Erreur lors du refus de l\'invitation');
-            }
-        } catch (err) {
-            setError('Erreur lors du refus de l\'invitation');
-            console.error('Decline invitation error:', err);
-        }
-    }, [loadInvitations]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
@@ -604,16 +468,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                         <span className="tab-badge">{availableLeagues.length}</span>
                     </span>
                 </button>
-                <button
-                    className={`tab-button ${activeTab === 'invitations' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('invitations')}
-                    aria-label="Invitations"
-                >
-                    <span className="tab-content-wrapper">
-                        <span className="tab-title">Invitations</span>
-                        <span className="tab-badge">{invitations.length}</span>
-                    </span>
-                </button>
             </div>
 
             <div className="tab-content">
@@ -664,12 +518,9 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                                     >
                                         Voir les ligues disponibles
                                     </button>
-                                    <button
-                                        className="btn btn-outline"
-                                        onClick={() => setActiveTab('invitations')}
-                                    >
+                                    <Link className="btn btn-outline" to="/invitations">
                                         Voir mes invitations
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                         )}
@@ -775,27 +626,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                         )}
                     </div>
                 )}
-
-                {activeTab === 'invitations' && (
-                    <div className="invitations-list">
-                        {invitations.length > 0 ? (
-                            invitations.map(invitation => (
-                                <InvitationCard
-                                    key={invitation.id}
-                                    invitation={invitation}
-                                    onAccept={handleAcceptInvitation}
-                                    onDecline={handleDeclineInvitation}
-                                />
-                            ))
-                        ) : (
-                            <div className="empty-state">
-                                <span className="empty-icon">📨</span>
-                                <h3>Aucune invitation</h3>
-                                <p>Vous n'avez pas d'invitations en attente</p>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
 
             <CreateLeagueForm
@@ -824,7 +654,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(({ user }) => {
                 leagueName={selectedLeagueForInvite?.name}
                 onClose={handleCloseInviteModal}
                 onInviteSent={handleInvitationSent}
-                excludeUserIds={[]} // Could exclude current user and already invited users
+                excludeUserIds={[]}
             />
 
             <LeaveLeagueModal
