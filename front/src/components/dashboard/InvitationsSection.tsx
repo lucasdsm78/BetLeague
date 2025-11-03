@@ -1,5 +1,4 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import './LeaguesSection.css'; // Réutilise la même charte visuelle (onglets, cartes, empty-state)
 import leagueApiService from '../../services/leagueApiService';
 
@@ -43,7 +42,6 @@ const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAccept, o
 );
 
 const InvitationsSection: React.FC = memo(() => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'received'>('received');
   const [invitations, setInvitations] = useState<InvitationUI[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
