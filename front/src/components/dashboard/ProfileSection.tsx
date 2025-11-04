@@ -1,558 +1,371 @@
-import React, { useState, useCallback, memo, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import './ProfileSection.css';
+import { useUserProfile } from 'hooks/useUserProfile';
 
-// Types
-interface User {
-    id: string;
-    email: string;
-    pseudo?: string;
-    username?: string;
+type TabType = 'overview' | 'account' | 'security' | 'preferences';
+
+interface ProfileStatsProps {
+  nbWin: number;
+  nbLose: number;
+  nbBtl: number;
 }
 
-interface NotificationPreferences {
-    email: boolean;
-    push: boolean;
-    sms: boolean;
-}
+const ProfileStats = memo<ProfileStatsProps>(({ nbWin, nbLose, nbBtl }) => {
+  const totalGames = nbWin + nbLose;
+  const winRate = totalGames > 0 ? ((nbWin / totalGames) * 100).toFixed(1) : '0.0';
 
-interface PrivacyPreferences {
-    profilePublic: boolean;
-    statsPublic: boolean;
-    leaguesPublic: boolean;
-}
+  return (
+    <div className="profile-stats-grid">
+      <div className="stat-card balance">
+        <div className="stat-label">Solde BTL</div>
+        <div className="stat-value">{nbBtl.toFixed(2)}</div>
+        <div className="stat-sublabel">BetLeague Coins</div>
+      </div>
 
-interface BettingPreferences {
-    defaultStake: number;
-    maxStake: number;
-    autoAcceptOddsChanges: boolean;
-}
+      <div className="stat-card wins">
+        <div className="stat-label">Victoires</div>
+        <div className="stat-value">{nbWin}</div>
+        <div className="stat-sublabel">Tickets gagnés</div>
+      </div>
 
-interface Preferences {
-    notifications: NotificationPreferences;
-    privacy: PrivacyPreferences;
-    betting: BettingPreferences;
-}
+      <div className="stat-card losses">
+        <div className="stat-label">Défaites</div>
+        <div className="stat-value">{nbLose}</div>
+        <div className="stat-sublabel">Tickets perdus</div>
+      </div>
 
-interface Profile {
-    pseudo: string;
-    email: string;
-    phone?: string;
-    joinDate: string;
-    avatar?: string | null;
-    isVerified: boolean;
-    twoFactorEnabled: boolean;
-    preferences: Preferences;
-}
+      <div className="stat-card ratio">
+        <div className="stat-label">Taux de réussite</div>
+        <div className="stat-value">{winRate}%</div>
+        <div className="stat-sublabel">{totalGames} tickets</div>
+      </div>
+    </div>
+  );
+});
 
-interface AccountFormData {
-    pseudo: string;
-    email: string;
-    phone: string;
-}
-
-const MOCK_PROFILE: Profile = {
-    pseudo: 'SportsBetter2024',
-    email: 'user@example.com',
-    phone: '+33 6 12 34 56 78',
-    joinDate: '2024-01-01',
-    avatar: null,
-    isVerified: true,
-    twoFactorEnabled: false,
-    preferences: {
-        notifications: {
-            email: true,
-            push: true,
-            sms: false
-        },
-        privacy: {
-            profilePublic: true,
-            statsPublic: false,
-            leaguesPublic: true
-        },
-        betting: {
-            defaultStake: 10,
-            maxStake: 100,
-            autoAcceptOddsChanges: false
-        }
-    }
-};
+ProfileStats.displayName = 'ProfileStats';
 
 interface ProfileHeaderProps {
-    profile: Profile;
-    onEditProfile: () => void;
-    onChangeAvatar: () => void;
+  pseudo: string;
+  email: string;
+  onEditProfile: () => void;
 }
 
-const ProfileHeader = memo<ProfileHeaderProps>(({ profile, onEditProfile, onChangeAvatar }) => (
-    <div className="profile-header">
-        <div className="profile-avatar-section">
-            <div className="profile-avatar">
-                {profile.avatar ? (
-                    <img src={profile.avatar} alt="Profile" />
-                ) : (
-                    <span className="avatar-placeholder">
-                        {profile.pseudo.charAt(0).toUpperCase()}
-                    </span>
-                )}
-                <button className="change-avatar-btn" onClick={onChangeAvatar}>
-                    📷
-                </button>
-            </div>
+const ProfileHeader = memo<ProfileHeaderProps>(({ pseudo, email, onEditProfile }) => (
+  <div className="profile-header">
+    <div className="profile-header-content">
+      <div className="profile-avatar-section">
+        <div className="profile-avatar">
+          <span className="avatar-placeholder">
+            {pseudo.charAt(0).toUpperCase()}
+          </span>
+          <button className="change-avatar-btn" title="Changer la photo">
+            📷
+          </button>
         </div>
+      </div>
 
-        <div className="profile-info">
-            <div className="profile-name">
-                <h2>{profile.pseudo}</h2>
-                {profile.isVerified && (
-                    <span className="verified-badge" title="Compte vérifié">✓</span>
-                )}
-            </div>
-            <p className="profile-email">{profile.email}</p>
-            <p className="join-date">
-                Membre depuis {new Date(profile.joinDate).toLocaleDateString('fr-FR', {
-                    month: 'long',
-                    year: 'numeric'
-                })}
-            </p>
+      <div className="profile-info">
+        <div className="profile-name">
+          <h2>{pseudo}</h2>
+          <span className="verified-badge" title="Compte vérifié">✓</span>
         </div>
+        <p className="profile-email">{email}</p>
+        <p className="join-date">Membre actif</p>
+      </div>
 
-        <button className="btn btn-primary" onClick={onEditProfile}>
-            Modifier le profil
-        </button>
+      <button className="btn btn-primary" onClick={onEditProfile}>
+        Modifier le profil
+      </button>
     </div>
+  </div>
 ));
 
 ProfileHeader.displayName = 'ProfileHeader';
 
-interface AccountSettingsProps {
-    profile: Profile;
-    onUpdateProfile: (data: Partial<Profile>) => void;
+interface AccountInfoProps {
+  pseudo: string;
+  email: string;
 }
 
-const AccountSettings = memo<AccountSettingsProps>(({ profile, onUpdateProfile }) => {
-    const [formData, setFormData] = useState<AccountFormData>({
-        pseudo: profile.pseudo,
-        email: profile.email,
-        phone: profile.phone || ''
-    });
+const AccountInfo = memo<AccountInfoProps>(({ pseudo, email }) => (
+  <div className="settings-section">
+    <h3>Informations du compte</h3>
+    <div className="account-info">
+      <div className="info-row">
+        <span className="info-label">Pseudo</span>
+        <span className="info-value">{pseudo}</span>
+      </div>
+      <div className="info-row">
+        <span className="info-label">Email</span>
+        <span className="info-value">{email}</span>
+      </div>
+      <div className="info-row">
+        <span className="info-label">Identifiant</span>
+        <span className="info-value">#{pseudo}</span>
+      </div>
+      <button className="btn btn-secondary">Modifier les informations</button>
+    </div>
+  </div>
+));
 
-    const [isEditing, setIsEditing] = useState<boolean>(false);
-
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        onUpdateProfile(formData);
-        setIsEditing(false);
-    };
-
-    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    return (
-        <div className="settings-section">
-            <h3>Informations du compte</h3>
-
-            {isEditing ? (
-                <form onSubmit={handleSubmit} className="account-form">
-                    <div className="form-group">
-                        <label>Pseudo</label>
-                        <input
-                            type="text"
-                            name="pseudo"
-                            value={formData.pseudo}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Téléphone (optionnel)</label>
-                        <input
-                            type="tel"
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            placeholder="+33 6 12 34 56 78"
-                        />
-                    </div>
-
-                    <div className="form-actions">
-                        <button type="button" className="btn btn-secondary" onClick={() => setIsEditing(false)}>
-                            Annuler
-                        </button>
-                        <button type="submit" className="btn btn-primary">
-                            Enregistrer
-                        </button>
-                    </div>
-                </form>
-            ) : (
-                <div className="account-info">
-                    <div className="info-row">
-                        <span className="info-label">Pseudo:</span>
-                        <span className="info-value">{profile.pseudo}</span>
-                    </div>
-                    <div className="info-row">
-                        <span className="info-label">Email:</span>
-                        <span className="info-value">{profile.email}</span>
-                    </div>
-                    <div className="info-row">
-                        <span className="info-label">Téléphone:</span>
-                        <span className="info-value">{profile.phone || 'Non renseigné'}</span>
-                    </div>
-                    <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>
-                        Modifier
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-});
-
-AccountSettings.displayName = 'AccountSettings';
+AccountInfo.displayName = 'AccountInfo';
 
 interface SecuritySettingsProps {
-    profile: Profile;
-    onToggle2FA: (enabled: boolean) => void;
-    onChangePassword: () => void;
-    onLogout: () => void;
+  onLogout: () => void;
 }
 
-const SecuritySettings = memo<SecuritySettingsProps>(({ profile, onToggle2FA, onChangePassword, onLogout }) => (
-    <div className="settings-section">
-        <h3>Sécurité</h3>
-
-        <div className="security-options">
-            <div className="security-option">
-                <div className="option-info">
-                    <h4>Authentification à deux facteurs</h4>
-                    <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
-                </div>
-                <div className="option-action">
-                    <button
-                        className={`btn ${profile.twoFactorEnabled ? 'btn-outline' : 'btn-primary'}`}
-                        onClick={() => onToggle2FA(!profile.twoFactorEnabled)}
-                    >
-                        {profile.twoFactorEnabled ? 'Désactiver 2FA' : 'Activer 2FA'}
-                    </button>
-                </div>
-            </div>
-
-            <div className="security-option">
-                <div className="option-info">
-                    <h4>Mot de passe</h4>
-                    <p>Modifiez votre mot de passe régulièrement</p>
-                </div>
-                <div className="option-action">
-                    <button className="btn btn-secondary" onClick={onChangePassword}>
-                        Changer le mot de passe
-                    </button>
-                </div>
-            </div>
-
-            <div className="security-option">
-                <div className="option-info">
-                    <h4>Déconnexion</h4>
-                    <p>Se déconnecter de tous les appareils</p>
-                </div>
-                <div className="option-action">
-                    <button className="btn btn-outline danger" onClick={onLogout}>
-                        Se déconnecter
-                    </button>
-                </div>
-            </div>
+const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => (
+  <div className="settings-section">
+    <h3>Sécurité</h3>
+    <div className="security-options">
+      <div className="security-option">
+        <div className="option-info">
+          <h4>Authentification à deux facteurs</h4>
+          <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
         </div>
+        <div className="option-action">
+          <button className="btn btn-primary">Activer 2FA</button>
+        </div>
+      </div>
+
+      <div className="security-option">
+        <div className="option-info">
+          <h4>Mot de passe</h4>
+          <p>Modifiez votre mot de passe régulièrement pour plus de sécurité</p>
+        </div>
+        <div className="option-action">
+          <button className="btn btn-secondary">Changer le mot de passe</button>
+        </div>
+      </div>
+
+      <div className="security-option">
+        <div className="option-info">
+          <h4>Déconnexion</h4>
+          <p>Se déconnecter de tous les appareils</p>
+        </div>
+        <div className="option-action">
+          <button className="btn btn-outline danger" onClick={onLogout}>
+            Se déconnecter
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 ));
 
 SecuritySettings.displayName = 'SecuritySettings';
 
-interface PreferencesSettingsProps {
-    preferences: Preferences;
-    onUpdatePreferences: (preferences: Preferences) => void;
+interface PreferencesProps {
+  onLogout?: () => void;
 }
 
-const PreferencesSettings = memo<PreferencesSettingsProps>(({ preferences, onUpdatePreferences }) => {
-    const [prefs, setPrefs] = useState<Preferences>(preferences);
+const Preferences = memo<PreferencesProps>(() => {
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [pushNotif, setPushNotif] = useState(true);
+  const [defaultStake, setDefaultStake] = useState(10);
 
-    const handleToggle = (section: keyof Preferences, key: string) => {
-        const newPrefs = {
-            ...prefs,
-            [section]: {
-                ...prefs[section],
-                [key]: !prefs[section][key as keyof typeof prefs[typeof section]]
-            }
-        } as Preferences;
-        setPrefs(newPrefs);
-        onUpdatePreferences(newPrefs);
-    };
-
-    const handleChange = (section: keyof Preferences, key: string, value: number) => {
-        const newPrefs = {
-            ...prefs,
-            [section]: {
-                ...prefs[section],
-                [key]: value
-            }
-        } as Preferences;
-        setPrefs(newPrefs);
-        onUpdatePreferences(newPrefs);
-    };
-
-    return (
-        <div className="settings-section">
-            <h3>Préférences</h3>
-
-            <div className="preferences-groups">
-                <div className="preference-group">
-                    <h4>Notifications</h4>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Notifications par email</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.notifications.email}
-                                    onChange={() => handleToggle('notifications', 'email')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Notifications push</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.notifications.push}
-                                    onChange={() => handleToggle('notifications', 'push')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Notifications SMS</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.notifications.sms}
-                                    onChange={() => handleToggle('notifications', 'sms')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-                </div>
-
-                <div className="preference-group">
-                    <h4>Confidentialité</h4>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Profil public</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.privacy.profilePublic}
-                                    onChange={() => handleToggle('privacy', 'profilePublic')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Statistiques publiques</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.privacy.statsPublic}
-                                    onChange={() => handleToggle('privacy', 'statsPublic')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Ligues publiques</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.privacy.leaguesPublic}
-                                    onChange={() => handleToggle('privacy', 'leaguesPublic')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-                </div>
-
-                <div className="preference-group">
-                    <h4>Paris</h4>
-
-                    <div className="preference-option">
-                        <label>
-                            <span>Mise par défaut (€)</span>
-                            <input
-                                type="number"
-                                min="1"
-                                max="1000"
-                                value={prefs.betting.defaultStake}
-                                onChange={(e) => handleChange('betting', 'defaultStake', parseInt(e.target.value) || 1)}
-                                className="number-input"
-                            />
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label>
-                            <span>Mise maximum (€)</span>
-                            <input
-                                type="number"
-                                min="1"
-                                max="10000"
-                                value={prefs.betting.maxStake}
-                                onChange={(e) => handleChange('betting', 'maxStake', parseInt(e.target.value) || 1)}
-                                className="number-input"
-                            />
-                        </label>
-                    </div>
-
-                    <div className="preference-option">
-                        <label className="toggle-label">
-                            <span>Accepter automatiquement les changements de cotes</span>
-                            <label className="toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={prefs.betting.autoAcceptOddsChanges}
-                                    onChange={() => handleToggle('betting', 'autoAcceptOddsChanges')}
-                                />
-                                <span className="slider"></span>
-                            </label>
-                        </label>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="settings-section">
+      <h3>Préférences</h3>
+      <div className="preferences-groups">
+        <div className="preference-group">
+          <h4>Notifications</h4>
+          <div className="preference-option">
+            <label className="toggle-label">
+              <span>Notifications par email</span>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={emailNotif}
+                  onChange={() => setEmailNotif(!emailNotif)}
+                />
+                <span className="slider"></span>
+              </label>
+            </label>
+          </div>
+          <div className="preference-option">
+            <label className="toggle-label">
+              <span>Notifications push</span>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={pushNotif}
+                  onChange={() => setPushNotif(!pushNotif)}
+                />
+                <span className="slider"></span>
+              </label>
+            </label>
+          </div>
         </div>
-    );
+
+        <div className="preference-group">
+          <h4>Paris</h4>
+          <div className="preference-option">
+            <label>
+              <span>Mise par défaut (€)</span>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={defaultStake}
+                onChange={(e) => setDefaultStake(parseInt(e.target.value) || 1)}
+                className="number-input"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 });
 
-PreferencesSettings.displayName = 'PreferencesSettings';
+Preferences.displayName = 'Preferences';
 
-type TabType = 'account' | 'security' | 'preferences';
+const LoadingSkeleton: React.FC = () => (
+  <div className="profile-skeleton">
+    <div className="skeleton skeleton-header" />
+    <div className="skeleton skeleton-stats" />
+    <div className="skeleton skeleton-section" />
+  </div>
+);
 
 interface ProfileSectionProps {
-    user?: User;
-    onLogout?: () => void;
+  onLogout?: () => void;
 }
 
-const ProfileSection = memo<ProfileSectionProps>(({ user, onLogout }) => {
-    const [activeTab, setActiveTab] = useState<TabType>('account');
-    const [profile, setProfile] = useState<Profile>(MOCK_PROFILE);
+const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-    const handleUpdateProfile = useCallback((updatedData: Partial<Profile>) => {
-        setProfile(prev => ({ ...prev, ...updatedData }));
-    }, []);
+  const { profile, loading, error } = useUserProfile();
 
-    const handleUpdatePreferences = useCallback((newPreferences: Preferences) => {
-        setProfile(prev => ({ ...prev, preferences: newPreferences }));
-    }, []);
+  const handleEditProfile = useCallback(() => {
+    setActiveTab('account');
+  }, []);
 
-    const handleToggle2FA = useCallback((enabled: boolean) => {
-        setProfile(prev => ({ ...prev, twoFactorEnabled: enabled }));
-    }, []);
+  const handleLogout = useCallback(() => {
+    if (onLogout) {
+      onLogout();
+    }
+  }, [onLogout]);
 
-    const handleChangePassword = useCallback(() => {
-    }, []);
+  if (loading && !profile) {
+    return <LoadingSkeleton />;
+  }
 
-    const handleChangeAvatar = useCallback(() => {
-    }, []);
-
-    const handleEditProfile = useCallback(() => {
-        setActiveTab('account');
-    }, []);
-
-    const handleLogout = useCallback(() => {
-        if (onLogout) {
-            onLogout();
-        }
-    }, [onLogout]);
-
+  if (error) {
     return (
-        <div className="profile-section">
-            <ProfileHeader
-                profile={profile}
-                onEditProfile={handleEditProfile}
-                onChangeAvatar={handleChangeAvatar}
-            />
-
-            <div className="profile-tabs">
-                <button
-                    className={`tab-button ${activeTab === 'account' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('account')}
-                >
-                    Compte
-                </button>
-                <button
-                    className={`tab-button ${activeTab === 'security' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('security')}
-                >
-                    Sécurité
-                </button>
-                <button
-                    className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('preferences')}
-                >
-                    Préférences
-                </button>
-            </div>
-
-            <div className="tab-content">
-                {activeTab === 'account' && (
-                    <AccountSettings
-                        profile={profile}
-                        onUpdateProfile={handleUpdateProfile}
-                    />
-                )}
-
-                {activeTab === 'security' && (
-                    <SecuritySettings
-                        profile={profile}
-                        onToggle2FA={handleToggle2FA}
-                        onChangePassword={handleChangePassword}
-                        onLogout={handleLogout}
-                    />
-                )}
-
-                {activeTab === 'preferences' && (
-                    <PreferencesSettings
-                        preferences={profile.preferences}
-                        onUpdatePreferences={handleUpdatePreferences}
-                    />
-                )}
-            </div>
+      <div className="profile-section">
+        <div className="settings-section">
+          <h3>Erreur</h3>
+          <p style={{ color: 'var(--danger-color)', textAlign: 'center', padding: '2rem' }}>
+            {error}
+          </p>
         </div>
+      </div>
     );
+  }
+
+  if (!profile) {
+    return (
+      <div className="profile-section">
+        <div className="settings-section">
+          <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+            Profil non disponible
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-section">
+      <ProfileHeader
+        pseudo={profile.pseudo}
+        email={profile.email}
+        onEditProfile={handleEditProfile}
+      />
+
+      {activeTab === 'overview' && (
+        <ProfileStats
+          nbWin={profile.nb_win}
+          nbLose={profile.nb_lose}
+          nbBtl={profile.nb_btl}
+        />
+      )}
+
+      <div className="profile-tabs">
+        <button
+          className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          Vue d'ensemble
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'account' ? 'active' : ''}`}
+          onClick={() => setActiveTab('account')}
+        >
+          Compte
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'security' ? 'active' : ''}`}
+          onClick={() => setActiveTab('security')}
+        >
+          Sécurité
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
+          onClick={() => setActiveTab('preferences')}
+        >
+          Préférences
+        </button>
+      </div>
+
+      <div className="tab-content">
+        {activeTab === 'overview' && (
+          <div className="settings-section">
+            <h3>Statistiques de paris</h3>
+            <div className="account-info">
+              <div className="info-row">
+                <span className="info-label">Total de tickets</span>
+                <span className="info-value">{profile.nb_win + profile.nb_lose}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Tickets gagnés</span>
+                <span className="info-value" style={{ color: 'var(--success-color)' }}>
+                  {profile.nb_win}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Tickets perdus</span>
+                <span className="info-value" style={{ color: 'var(--danger-color)' }}>
+                  {profile.nb_lose}
+                </span>
+              </div>
+              <div className="info-row">
+                <span className="info-label">Solde BTL</span>
+                <span className="info-value" style={{ color: 'var(--primary-color)', fontWeight: '700' }}>
+                  {profile.nb_btl.toFixed(2)} BTL
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'account' && (
+          <AccountInfo pseudo={profile.pseudo} email={profile.email} />
+        )}
+
+        {activeTab === 'security' && (
+          <SecuritySettings onLogout={handleLogout} />
+        )}
+
+        {activeTab === 'preferences' && (
+          <Preferences />
+        )}
+      </div>
+    </div>
+  );
 });
 
 ProfileSection.displayName = 'ProfileSection';
