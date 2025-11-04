@@ -59,19 +59,14 @@ const ProfileHeader = memo<ProfileHeaderProps>(({ pseudo, email, onEditProfile }
           <span className="avatar-placeholder">
             {pseudo.charAt(0).toUpperCase()}
           </span>
-          <button className="change-avatar-btn" title="Changer la photo">
-            📷
-          </button>
         </div>
       </div>
 
       <div className="profile-info">
         <div className="profile-name">
           <h2>{pseudo}</h2>
-          <span className="verified-badge" title="Compte vérifié">✓</span>
         </div>
         <p className="profile-email">{email}</p>
-        <p className="join-date">Membre actif</p>
       </div>
 
       <button className="btn btn-primary" onClick={onEditProfile}>
