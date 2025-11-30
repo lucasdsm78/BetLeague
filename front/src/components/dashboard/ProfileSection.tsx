@@ -3,6 +3,7 @@ import './ProfileSection.css';
 import { useUserProfile } from 'hooks/useUserProfile';
 import twoFactorService from 'services/twoFactorService';
 import { useAuthStore } from 'store/authStore';
+import EditAccountModal from './EditAccountModal';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -83,28 +84,56 @@ ProfileHeader.displayName = 'ProfileHeader';
 interface AccountInfoProps {
   pseudo: string;
   email: string;
+  onRefresh: () => void;
 }
 
-const AccountInfo = memo<AccountInfoProps>(({ pseudo, email }) => (
-  <div className="settings-section">
-    <h3>Informations du compte</h3>
-    <div className="account-info">
-      <div className="info-row">
-        <span className="info-label">Pseudo</span>
-        <span className="info-value">{pseudo}</span>
+const AccountInfo = memo<AccountInfoProps>(({ pseudo, email, onRefresh }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const handleOpenModal = useCallback(() => {
+    setIsEditModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsEditModalOpen(false);
+  }, []);
+
+  const handleSuccess = useCallback(() => {
+    onRefresh();
+  }, [onRefresh]);
+
+  return (
+    <div className="settings-section">
+      <h3>Informations du compte</h3>
+      <div className="account-info">
+        <div className="info-row">
+          <span className="info-label">Pseudo</span>
+          <span className="info-value">{pseudo}</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">Email</span>
+          <span className="info-value">{email}</span>
+        </div>
+        <div className="info-row">
+          <span className="info-label">Identifiant</span>
+          <span className="info-value">#{pseudo}</span>
+        </div>
+        <button className="btn btn-secondary" onClick={handleOpenModal}>
+          Modifier les informations
+        </button>
       </div>
-      <div className="info-row">
-        <span className="info-label">Email</span>
-        <span className="info-value">{email}</span>
-      </div>
-      <div className="info-row">
-        <span className="info-label">Identifiant</span>
-        <span className="info-value">#{pseudo}</span>
-      </div>
-      <button className="btn btn-secondary">Modifier les informations</button>
+
+      {isEditModalOpen && (
+        <EditAccountModal
+          pseudo={pseudo}
+          email={email}
+          onClose={handleCloseModal}
+          onSuccess={handleSuccess}
+        />
+      )}
     </div>
-  </div>
-));
+  );
+});
 
 AccountInfo.displayName = 'AccountInfo';
 
@@ -360,7 +389,7 @@ interface ProfileSectionProps {
 const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
-  const { profile, loading, error } = useUserProfile();
+  const { profile, loading, error, refetch } = useUserProfile();
 
   const handleEditProfile = useCallback(() => {
     setActiveTab('account');
@@ -476,7 +505,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
         )}
 
         {activeTab === 'account' && (
-          <AccountInfo pseudo={profile.pseudo} email={profile.email} />
+          <AccountInfo pseudo={profile.pseudo} email={profile.email} onRefresh={refetch} />
         )}
 
         {activeTab === 'security' && (
