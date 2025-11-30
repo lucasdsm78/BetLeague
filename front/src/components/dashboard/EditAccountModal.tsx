@@ -195,7 +195,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
                 <span className="success-icon" aria-hidden="true">✅</span>
                 <span className="success-text">
                   {emailChanged
-                    ? 'Email mis à jour avec succès ! Votre session reste active.'
+                    ? 'Email mis à jour avec succès !'
                     : 'Profil mis à jour avec succès !'}
                 </span>
               </div>
