@@ -99,7 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   // Hooks with error boundaries
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth();
+  const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
   const { showError, showWarning } = useToast();
 
   // Secure state management

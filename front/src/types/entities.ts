@@ -14,6 +14,8 @@ export interface User {
   readonly updatedAt?: string;
   readonly isActive?: boolean;
   readonly btlBalance?: number;
+  // Indique si la double authentification est activée pour l'utilisateur
+  readonly twoFactorEnabled?: boolean;
 }
 
 export interface UserProfile extends User {
@@ -300,12 +302,14 @@ export interface LoginResponseData {
   readonly token_auth: string;
   readonly uuid: string;
   readonly token_expiration?: string;
+  readonly two_factor_enabled?: boolean; // ajouté
 }
 
 export interface RegisterResponseData {
   readonly token_auth: string;
   readonly uuid: string;
   readonly token_expiration?: string;
+  readonly two_factor_enabled?: boolean; // ajouté (cas futur d'activation automatique)
 }
 
 export type LoginResponse = ApiResponse<LoginResponseData>;
@@ -324,6 +328,13 @@ export interface ApiError {
   readonly status: number;
   readonly code?: string;
   readonly details?: Record<string, unknown>;
+}
+
+export interface TwoFactorSetupResponse {
+  readonly otpauth_url?: string;
+  readonly secret?: string;
+  readonly qr_code?: string; // data URL d'une image QR éventuelle
+  readonly recovery_codes?: readonly string[];
 }
 
 // ============= Form Types =============
@@ -390,11 +401,12 @@ export interface AppState {
 }
 
 export interface AuthState {
-  readonly isAuthenticated: boolean;
-  readonly user: User | null;
-  readonly token: string | null;
-  readonly isLoading: boolean;
-  readonly error: string | null;
+  isAuthenticated: boolean;
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  error: string | null;
+  twoFactorChallenge?: { email: string; password: string } | null;
 }
 
 export interface LeaguesState {

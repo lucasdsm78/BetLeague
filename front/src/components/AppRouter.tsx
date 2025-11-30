@@ -10,6 +10,8 @@ import App from '../App';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import DashboardLayout from './DashboardLayout';
+import DebugAuthPanel from './DebugAuthPanel';
+import TwoFactorPage from './TwoFactorPage';
 
 // Lazy load dashboard components
 const MatchesSection = React.lazy(() => import('./dashboard/MatchesSection'));
@@ -28,24 +30,39 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getSessionTimeRemaining } = useEnhancedAuth();
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage, debugDumpAuth } = useEnhancedAuth({ debugMode: true });
 
-  if (isLoading) {
+  const logSnapshot = () => {
+    const dump = debugDumpAuth?.();
+    console.log('[RouteDebug][Protected] snapshot', dump);
+  };
+  logSnapshot();
+
+  if (!initializationComplete && !isLoading) {
+    // Tentative d’hydratation anticipée
+    const hydrated = attemptHydrateFromAnyStorage?.();
+    if (hydrated) console.log('[RouteDebug][Protected] Hydratation réussie avant init complète');
+  }
+
+  // Attendre la fin de l'initialisation globale, mais si token récupéré, continuer
+  if (!initializationComplete) {
     return <LoadingSpinner />;
   }
 
-  // Enhanced authentication check
+  if (!isAuthenticated && recoverFromStoredToken) {
+    const recovered = recoverFromStoredToken();
+    if (recovered) console.log('[RouteDebug][Protected] recoverFromStoredToken success');
+  }
+
   if (!isAuthenticated) {
-    console.log('🚫 ProtectedRoute: User not authenticated, redirecting to home');
+    console.warn('⛔ ProtectedRoute: not authenticated after recovery attempts');
     return <Navigate to="/" replace />;
   }
 
-  // Double check: verify we have a valid session and user
   const sessionTimeRemaining = getSessionTimeRemaining();
   const hasValidUser = user && user.id;
-
   if (!hasValidUser || sessionTimeRemaining <= 0) {
-    console.log('🚫 ProtectedRoute: Invalid session detected, redirecting to home');
+    console.warn('⛔ ProtectedRoute: invalid session after recovery attempts');
     return <Navigate to="/" replace />;
   }
 
@@ -54,62 +71,71 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, error, user, getSessionTimeRemaining } = useEnhancedAuth();
+  const { isAuthenticated, isLoading, error, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage, debugDumpAuth } = useEnhancedAuth({ debugMode: true });
   const navigate = useNavigate();
   const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
 
-  // Écouter les changements d'authentification et rediriger automatiquement
+  const logSnapshot = () => {
+    const dump = debugDumpAuth?.();
+    console.log('[RouteDebug][Public] snapshot', dump);
+  };
+  logSnapshot();
+
+  // Fallback hydratation si init pas complète mais pas de loading actif
   React.useEffect(() => {
-    // Wait for initial auth check to complete before redirecting
-    if (!isLoading && !initialCheckComplete) {
+    if (!initializationComplete && !isLoading) {
+      const hydrated = attemptHydrateFromAnyStorage?.();
+      if (hydrated) console.log('[RouteDebug][Public] Hydratation legacy réussie');
+    }
+  }, [initializationComplete, isLoading, attemptHydrateFromAnyStorage]);
+
+  // Marquer l'initialisation terminée
+  React.useEffect(() => {
+    if (initializationComplete && !initialCheckComplete) {
       setInitialCheckComplete(true);
     }
-  }, [isLoading, initialCheckComplete]);
+  }, [initializationComplete, initialCheckComplete]);
 
-  // Separate effect for redirection to avoid interference with navigation
+  // Essayer une récupération si authentification manquante
   React.useEffect(() => {
-    if (isAuthenticated && !isLoading && initialCheckComplete) {
-      // Double check: verify we have a valid session and user
+    if (initializationComplete && !isAuthenticated && recoverFromStoredToken) {
+      const recovered = recoverFromStoredToken();
+      if (recovered) console.log('[RouteDebug][Public] recoverFromStoredToken success');
+    }
+  }, [initializationComplete, isAuthenticated, recoverFromStoredToken]);
+
+  // Redirection après authentification valide
+  React.useEffect(() => {
+    if (initializationComplete && isAuthenticated && !isLoading && initialCheckComplete) {
       const sessionTimeRemaining = getSessionTimeRemaining();
       const hasValidUser = user && user.id;
-
       if (hasValidUser && sessionTimeRemaining > 0) {
         console.log('🔄 PublicRoute: Redirecting authenticated user to dashboard');
         navigate('/matches', { replace: true });
-      } else {
-        console.log('🚫 PublicRoute: Invalid session detected, staying on public route');
       }
     }
-  }, [isAuthenticated, isLoading, initialCheckComplete, navigate, user, getSessionTimeRemaining]);
+  }, [isAuthenticated, isLoading, initializationComplete, initialCheckComplete, navigate, user, getSessionTimeRemaining]);
 
-  // Timeout de sécurité pour éviter le loading infini
   React.useEffect(() => {
-    if (isLoading) {
+    if (!initializationComplete || isLoading) {
       const timeout = setTimeout(() => {
-        console.warn('⚠️ Auth loading timeout, proceeding as unauthenticated');
+        console.warn('⚠️ Auth loading timeout (PublicRoute), forcing completion');
         setInitialCheckComplete(true);
-      }, 3000); // Reduced to 3 seconds
-
+      }, 4000);
       return () => clearTimeout(timeout);
     }
-  }, [isLoading]);
+  }, [initializationComplete, isLoading]);
 
-  // Show loading until initial check is complete
-  if (isLoading || !initialCheckComplete) {
+  if (!initializationComplete || isLoading || !initialCheckComplete) {
     return <LoadingSpinner />;
   }
 
-  // Only redirect if user is actually authenticated after initial check
   if (isAuthenticated && initialCheckComplete) {
-    // Double check: verify we have a valid session and user
     const sessionTimeRemaining = getSessionTimeRemaining();
     const hasValidUser = user && user.id;
-
     if (hasValidUser && sessionTimeRemaining > 0) {
       console.log('🔄 PublicRoute: Navigating to matches (authenticated user)');
       return <Navigate to="/matches" replace />;
-    } else {
-      console.log('🚫 PublicRoute: Invalid session detected, showing public content');
     }
   }
 
@@ -155,6 +181,7 @@ const RegisterPage: React.FC = () => {
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
+      <DebugAuthPanel />
       <Routes>
         {/* Public routes */}
         <Route
@@ -180,6 +207,15 @@ const AppRouter: React.FC = () => {
           element={
             <PublicRoute>
               <RegisterPage />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/2fa"
+          element={
+            <PublicRoute>
+              <TwoFactorPage />
             </PublicRoute>
           }
         />

@@ -1,6 +1,8 @@
 import React, { useState, useCallback, memo } from 'react';
 import './ProfileSection.css';
 import { useUserProfile } from 'hooks/useUserProfile';
+import twoFactorService from 'services/twoFactorService';
+import { useAuthStore } from 'store/authStore';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -110,44 +112,170 @@ interface SecuritySettingsProps {
   onLogout: () => void;
 }
 
-const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => (
-  <div className="settings-section">
-    <h3>Sécurité</h3>
-    <div className="security-options">
-      <div className="security-option">
-        <div className="option-info">
-          <h4>Authentification à deux facteurs</h4>
-          <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
-        </div>
-        <div className="option-action">
-          <button className="btn btn-primary">Activer 2FA</button>
-        </div>
-      </div>
+const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => {
+  const { user, updateUser } = useAuthStore();
+  const [enabling, setEnabling] = useState(false);
+  const [enabled, setEnabled] = useState<boolean>(!!user?.twoFactorEnabled);
+  const [setupVisible, setSetupVisible] = useState(false);
+  const [setupData, setSetupData] = useState<{ qr_code?: string; secret?: string; otpauth_url?: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-      <div className="security-option">
-        <div className="option-info">
-          <h4>Mot de passe</h4>
-          <p>Modifiez votre mot de passe régulièrement pour plus de sécurité</p>
-        </div>
-        <div className="option-action">
-          <button className="btn btn-secondary">Changer le mot de passe</button>
-        </div>
-      </div>
+  const startEnable = useCallback(async () => {
+    setError(null);
+    setSuccess(null);
+    setEnabling(true);
+    try {
+      const data = await twoFactorService.enableTwoFactor();
+      setSetupData({ qr_code: data.qr_code, secret: data.secret, otpauth_url: data.otpauth_url });
+      setSetupVisible(true);
+    } catch (e: any) {
+      setError(e?.message || "Impossible d'activer la 2FA pour le moment");
+    } finally {
+      setEnabling(false);
+    }
+  }, []);
 
-      <div className="security-option">
-        <div className="option-info">
-          <h4>Déconnexion</h4>
-          <p>Se déconnecter de tous les appareils</p>
+  const verify = useCallback(async () => {
+    setError(null);
+    setSuccess(null);
+    if (!code || code.trim().length < 4) {
+      setError('Entrez un code valide');
+      return;
+    }
+    setVerifying(true);
+    try {
+      const res = await twoFactorService.verifyTwoFactor(code.trim());
+      if (res.enabled) {
+        setEnabled(true);
+        updateUser({ twoFactorEnabled: true });
+        setSuccess('Authentification à deux facteurs activée avec succès');
+        setSetupVisible(false);
+        setCode('');
+      } else {
+        setError('Vérification échouée');
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Code incorrect');
+    } finally {
+      setVerifying(false);
+    }
+  }, [code, updateUser]);
+
+  return (
+    <div className="settings-section">
+      <h3>Sécurité</h3>
+      <div className="security-options">
+        <div className="security-option">
+          <div className="option-info">
+            <h4>Authentification à deux facteurs</h4>
+            <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
+            {enabled && (
+              <p style={{ color: 'var(--success-color)', fontWeight: 600, marginTop: '0.5rem' }}>2FA activée</p>
+            )}
+          </div>
+          <div className="option-action">
+            {!enabled ? (
+              <button className="btn btn-primary" onClick={startEnable} disabled={enabling}>
+                {enabling ? 'Activation...' : 'Activer 2FA'}
+              </button>
+            ) : (
+              <button className="btn btn-secondary" disabled>
+                Activée
+              </button>
+            )}
+          </div>
         </div>
-        <div className="option-action">
-          <button className="btn btn-outline danger" onClick={onLogout}>
-            Se déconnecter
-          </button>
+
+        {setupVisible && (
+          <div className="twofa-setup">
+            <div className="twofa-setup-header">Configuration 2FA</div>
+            {error && (
+              <div className="error-banner" role="alert" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
+                <div className="error-content">
+                  <span className="error-icon" aria-hidden="true">🚨</span>
+                  <span className="error-text">{error}</span>
+                </div>
+              </div>
+            )}
+            {success && (
+              <div className="success-banner" role="status" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
+                <div className="success-content">
+                  <span className="success-icon" aria-hidden="true">✅</span>
+                  <span className="success-text">{success}</span>
+                </div>
+              </div>
+            )}
+            <div className="twofa-setup-body">
+              {setupData?.qr_code ? (
+                <img src={setupData.qr_code} alt="QR Code 2FA" className="twofa-qr" />
+              ) : setupData?.otpauth_url ? (
+                <a href={setupData.otpauth_url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ marginBottom: '0.75rem' }}>
+                  Ouvrir dans l'application d'authentification
+                </a>
+              ) : null}
+
+              {setupData?.secret && (
+                <div className="twofa-secret">
+                  <div className="secret-label">Clé secrète</div>
+                  <div className="secret-value" style={{ userSelect: 'all' }}>{setupData.secret}</div>
+                </div>
+              )}
+
+              <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                <label className="form-label" htmlFor="twofa-verify">Saisissez le code à 6 chiffres</label>
+                <input
+                  id="twofa-verify"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  className="form-input"
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  maxLength={6}
+                />
+              </div>
+
+              <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+                <button className="btn btn-primary" onClick={verify} disabled={verifying || !code || code.length < 6}>
+                  {verifying ? 'Vérification...' : 'Vérifier et activer'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); }} disabled={verifying}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="security-option">
+          <div className="option-info">
+            <h4>Mot de passe</h4>
+            <p>Modifiez votre mot de passe régulièrement pour plus de sécurité</p>
+          </div>
+          <div className="option-action">
+            <button className="btn btn-secondary">Changer le mot de passe</button>
+          </div>
+        </div>
+
+        <div className="security-option">
+          <div className="option-info">
+            <h4>Déconnexion</h4>
+            <p>Se déconnecter de tous les appareils</p>
+          </div>
+          <div className="option-action">
+            <button className="btn btn-outline danger" onClick={onLogout}>
+              Se déconnecter
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-));
+  );
+});
 
 SecuritySettings.displayName = 'SecuritySettings';
 

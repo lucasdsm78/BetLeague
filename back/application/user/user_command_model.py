@@ -32,19 +32,21 @@ class UserDeleteResponse(BaseModel):
 class UserLoginModel(BaseModel):
     email: str
     password: str
-    code: Optional[str]
+    code: Optional[str] = None
 
 
 class UserLoginResponse(BaseModel):
     token_auth: str
     uuid: str
     token_expiration: str
+    two_factor_enabled: bool = False
 
     def for_login(self):
         return dict(
             token_auth=self.token_auth,
             uuid=self.uuid,
             token_expiration=self.token_expiration,
+            two_factor_enabled=self.two_factor_enabled,
             message="login successful"
         )
 

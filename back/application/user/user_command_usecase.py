@@ -7,14 +7,20 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import datetime
+from datetime import datetime, UTC
 
-from application.user.user_command_model import UserCreateModel, UserLoginResponse, UserLoginModel, \
-    InvalidPasswordError, UserDeleteResponse, UserUpdateModel, UserUpdateResponse, RefreshTokenResponse
+from application.user.user_command_model import (
+    UserCreateModel, UserLoginResponse, UserLoginModel,
+    InvalidPasswordError, UserDeleteResponse, UserUpdateModel,
+    UserUpdateResponse, RefreshTokenResponse
+)
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
-from domain.user.exception.user_exception import UserNotFoundError, UserLoginNotFoundError, UserEmailAlreadyExistsError, \
+from domain.user.exception.user_exception import (
+    UserNotFoundError, UserLoginNotFoundError, UserEmailAlreadyExistsError,
     UserPseudoAlreadyExistsError, FARequiredError, Invalid2FACodeError
+)
 from domain.user.model.email import Email
 from domain.user.model.password import Password
 from domain.user.model.user import User
@@ -22,6 +28,9 @@ from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
+# Helper pour formater un datetime UTC avec suffixe 'Z'
+def _utc_iso_z(dt: datetime) -> str:
+    return dt.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
 
 class UserCommandUseCase(ABC):
 
@@ -109,14 +118,18 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     raise InvalidPasswordError(model.email)
                 if user.is_two_factor_enabled:
                     if not model.code:
-                        raise HTTPException(status_code=400, detail="2FA code required.")
+                        raise FARequiredError()
+                    if not user.two_factor_secret:
+                        raise HTTPException(status_code=500, detail="2FA secret missing for user")
                     secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+                    if len(model.code) != 6 or not model.code.isdigit():
+                        raise Invalid2FACodeError()
                     if not await self.totp_service.verify_code(secret, model.code):
-                        raise HTTPException(status_code=400, detail="Invalid 2FA code.")
+                        raise Invalid2FACodeError()
         token_coro = self.manager_token.generate_token_login(user)
         refresh_coro = self.manager_token.generate_expiration_token_login(user)
         token, refresh = await asyncio.gather(token_coro, refresh_coro)
-        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh)
+        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh, two_factor_enabled=user.is_two_factor_enabled)
 
     async def delete_user(self, user_id: int) -> UserDeleteResponse:
         async with self._session_factory() as session:
@@ -241,12 +254,12 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             refresh_coro = self.manager_token.generate_expiration_token_login(user)
             new_token, new_refresh = await asyncio.gather(token_coro, refresh_coro)
 
-            expiration_time = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            expiration_time = datetime.now(UTC) + datetime.timedelta(hours=1)
 
             return RefreshTokenResponse(
                 token_auth=new_token,
                 refresh_token=new_refresh,
-                token_expiration=expiration_time.isoformat() + "Z",
+                token_expiration=_utc_iso_z(expiration_time),
                 message="Token refreshed successfully"
             )
 
@@ -265,7 +278,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             if success:
                 return {
                     "message": "Déconnexion réussie",
-                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                    "timestamp": _utc_iso_z(datetime.now(UTC)),
                     "user_id": user_id
                 }
             else:

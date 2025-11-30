@@ -45,7 +45,7 @@ const AuthMonitor = memo<AuthMonitorProps>(({
   } = useEnhancedAuth({
     autoRefresh: true,
     activityTracking: true,
-    debugMode: process.env.NODE_ENV === 'development',
+    debugMode: true,
   });
 
   const {
