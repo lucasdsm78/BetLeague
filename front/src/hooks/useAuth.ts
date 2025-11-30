@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import authService, { AuthError } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
-import type { User, LoginForm, RegisterForm, LoginResponse, RegisterResponse } from '../types';
+import type { User, LoginForm, RegisterForm } from '../types';
 
 export interface UseAuthReturn {
   // State
@@ -59,9 +59,6 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     hasPermission,
     hasRole,
   } = useAuthStore();
-
-  // Local state for additional UI states
-  const [lastActivity, setLastActivity] = useState(Date.now());
 
   // Initialize authentication state - Check if user is already authenticated
   useEffect(() => {
@@ -148,24 +145,6 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     return () => clearInterval(sessionInterval);
   }, [isAuthenticated, autoRefresh, redirectOnExpiry, checkSessionExpiry, refreshSession, onError]);
 
-  // Track user activity for session management
-  useEffect(() => {
-    const handleActivity = () => {
-      setLastActivity(Date.now());
-    };
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    events.forEach(event => {
-      document.addEventListener(event, handleActivity, { passive: true });
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleActivity);
-      });
-    };
-  }, []);
-
   // Auth change callback
   useEffect(() => {
     if (onAuthChange) {
@@ -179,17 +158,16 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
       setLoading(true);
       storeClearError();
 
-      const response = await authService.login(credentials);
+      const response /*: LoginResponse*/ = await authService.login(credentials) as any; // legacy shape { success, data }
 
-      if (!response.data?.token_auth || !response.data?.uuid) {
+      if (!response?.data?.token_auth || !response?.data?.uuid) {
         throw new AuthError('Réponse de connexion invalide', 500);
       }
 
-      // Construire l'objet user à partir de la réponse API
       const user: User = {
         id: response.data.uuid,
         email: credentials.email,
-        pseudo: credentials.email.split('@')[0], // Utiliser la partie avant @ comme pseudo temporaire
+        pseudo: credentials.email.split('@')[0],
         username: credentials.email.split('@')[0]
       };
 
@@ -212,13 +190,12 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
       setLoading(true);
       storeClearError();
 
-      const response = await authService.register(credentials);
+      const response /*: RegisterResponse*/ = await authService.register(credentials) as any;
 
-      if (!response.data?.token_auth || !response.data?.uuid) {
+      if (!response?.data?.token_auth || !response?.data?.uuid) {
         throw new AuthError('Réponse d\'inscription invalide', 500);
       }
 
-      // Construire l'objet user à partir de la réponse API
       const user: User = {
         id: response.data.uuid,
         email: credentials.email,

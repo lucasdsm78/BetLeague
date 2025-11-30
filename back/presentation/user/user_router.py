@@ -4,15 +4,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from application.user.user_command_model import UserCreateModel, UserLoginResponse, \
-    UserLoginModel, UserDeleteResponse, UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel
+from application.user.user_command_model import (
+    UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
+    UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel
+)
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
 from application.user.user_query_usecase import UserQueryUseCase
-from domain.user.exception.user_exception import UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError, \
+from domain.user.exception.user_exception import (
+    UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError,
     FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError
-from presentation.user.user_error_message import ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, \
-    ErrorMessageUserNotFound
+)
+from presentation.user.user_error_message import (
+    ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, ErrorMessageUserNotFound
+)
 from dependency_injections import current_user, user_command_usecase, user_query_usecase
 
 router = APIRouter(
@@ -117,6 +122,24 @@ async def login(
     try:
         user = await user_command_usecase.login(user_login_model)
         return user.for_login()
+    except FARequiredError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "2FA code required.",
+                "code": "TWO_FACTOR_REQUIRED",
+                "two_factor_required": True
+            }
+        )
+    except Invalid2FACodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Invalid 2FA code.",
+                "code": "INVALID_2FA_CODE",
+                "two_factor_required": True
+            }
+        )
     except HTTPException as e:
         raise e
     except Exception as e:

@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     private_key: str
     public_key: str
     rabbitmq_url: str
-    rabbitmq_url: str
     stripe_api_key: str
     stripe_webhook_secret: str
     the_odds_api_api_key: str

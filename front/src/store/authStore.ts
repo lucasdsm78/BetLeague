@@ -7,7 +7,7 @@ import React from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { User, AuthState, SecurityContext } from '../types';
+import type { User, SecurityContext, AuthState } from '../types';
 
 interface AuthActions {
   // Auth actions
@@ -17,6 +17,9 @@ interface AuthActions {
   setError: (error: string | null) => void;
   setLoading: (isLoading: boolean) => void;
   clearError: () => void;
+  // Challenge 2FA
+  setTwoFactorChallenge: (email: string, password: string) => void;
+  clearTwoFactorChallenge: () => void;
 
   // Security actions
   updateSecurityContext: (context: Partial<SecurityContext>) => void;
@@ -78,6 +81,7 @@ const initialState: AuthStore = {
   error: null,
   securityContext: null,
   sessionExpiry: null,
+  twoFactorChallenge: null,
 };
 
 // Create auth store with middleware
@@ -88,39 +92,41 @@ export const useAuthStore = create<AuthStoreWithActions>()(
 
       // Auth actions
       login: (user: User, token: string) => {
-        set((state) => {
+        set((prev) => {
           const now = Date.now();
           const expiry = now + SECURITY_CONFIG.SESSION_TIMEOUT;
-
-          state.isAuthenticated = true;
-          state.user = user;
-          state.token = token;
-          state.error = null;
-          state.isLoading = false;
-          state.sessionExpiry = expiry;
-
-          // Initialize security context
-          state.securityContext = {
-            permissions: ['user:read', 'league:read', 'bet:create'] as string[],
-            roles: ['user'] as string[],
-            sessionId: crypto.randomUUID(),
-            lastActivity: new Date().toISOString(),
-            deviceFingerprint: navigator.userAgent,
+          return {
+            ...prev,
+            isAuthenticated: true,
+            user,
+            token,
+            error: null,
+            isLoading: false,
+            sessionExpiry: expiry,
+            twoFactorChallenge: null,
+            securityContext: {
+              permissions: ['user:read', 'league:read', 'bet:create'],
+              roles: ['user'],
+              sessionId: crypto.randomUUID(),
+              lastActivity: new Date().toISOString(),
+              deviceFingerprint: navigator.userAgent,
+            }
           };
         });
       },
 
       logout: () => {
-        set((state) => {
-          // Clear all auth data
-          state.isAuthenticated = false;
-          state.user = null;
-          state.token = null;
-          state.error = null;
-          state.isLoading = false;
-          state.securityContext = null;
-          state.sessionExpiry = null;
-        });
+        set((prev) => ({
+          ...prev,
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          error: null,
+          isLoading: false,
+          securityContext: null,
+          sessionExpiry: null,
+          twoFactorChallenge: null,
+        }));
 
         // Clear token from secure storage
         secureStorage.removeItem('auth-token');
@@ -148,48 +154,43 @@ export const useAuthStore = create<AuthStoreWithActions>()(
       },
 
       updateUser: (updates: Partial<User>) => {
-        set((state) => {
-          if (state.user) {
-            state.user = { ...state.user, ...updates };
-          }
-        });
+        set((prev) => ({
+          ...prev,
+          user: prev.user ? { ...prev.user, ...updates } : prev.user,
+        }));
       },
 
       setError: (error: string | null) => {
-        set((state) => {
-          state.error = error;
-          state.isLoading = false;
-        });
+        set((prev) => ({ ...prev, error, isLoading: false }));
       },
 
       setLoading: (isLoading: boolean) => {
-        set((state) => {
-          state.isLoading = isLoading;
-          if (isLoading) {
-            state.error = null;
-          }
-        });
+        set((prev) => ({ ...prev, isLoading, error: isLoading ? null : prev.error }));
       },
 
       clearError: () => {
-        set((state) => {
-          state.error = null;
-        });
+        set((prev) => ({ ...prev, error: null }));
+      },
+      // Challenge 2FA actions
+      setTwoFactorChallenge: (email: string, password: string) => {
+        set((prev) => ({ ...prev, twoFactorChallenge: { email, password } }));
+      },
+      clearTwoFactorChallenge: () => {
+        set((prev) => ({ ...prev, twoFactorChallenge: null }));
       },
 
       // Security actions
       updateSecurityContext: (context: Partial<SecurityContext>) => {
-        set((state) => {
-          if (state.securityContext) {
-            state.securityContext = {
-              ...state.securityContext,
-              ...context,
-              lastActivity: new Date().toISOString(),
-              permissions: [...(context.permissions || state.securityContext.permissions)],
-              roles: [...(context.roles || state.securityContext.roles)],
-            };
-          }
-        });
+        set((prev) => ({
+          ...prev,
+          securityContext: prev.securityContext ? {
+            ...prev.securityContext,
+            ...context,
+            lastActivity: new Date().toISOString(),
+            permissions: context.permissions ? [...context.permissions] : prev.securityContext.permissions,
+            roles: context.roles ? [...context.roles] : prev.securityContext.roles,
+          } : prev.securityContext
+        }));
       },
 
       refreshSession: async () => {
@@ -209,10 +210,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           if (response.ok) {
             const data = await response.json();
             if (data.token) {
-              set((state) => {
-                state.token = data.token;
-                state.sessionExpiry = Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT;
-              });
+              set((prev) => ({ ...prev, token: data.token, sessionExpiry: Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT }));
             }
           } else {
             throw new Error('Session refresh failed');
@@ -265,7 +263,6 @@ export const useAuthStore = create<AuthStoreWithActions>()(
       name: 'auth-store',
       storage: createJSONStorage(() => secureStorage),
       partialize: (state) => ({
-        // Only persist essential data
         isAuthenticated: state.isAuthenticated,
         user: state.user,
         token: state.token,
@@ -275,6 +272,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           roles: state.securityContext.roles,
           sessionId: state.securityContext.sessionId,
         } : null,
+        // ne PAS persister twoFactorChallenge (contient password clair)
       }),
       onRehydrateStorage: () => (state) => {
         // Check if session is expired on hydration

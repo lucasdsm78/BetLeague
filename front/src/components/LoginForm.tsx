@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { AuthError } from '../services/authService.enhanced';
 import type { User } from '../types';
+import { useAuthStore } from '../store/authStore';
+import useTotpTimer from '../hooks/useTotpTimer';
 
 // Types
 interface LoginFormProps {
@@ -19,6 +21,13 @@ interface LoginFormProps {
 interface FormData {
   email: string;
   password: string;
+}
+
+interface TwoFAState {
+  required: boolean;
+  code: string;
+  verifying: boolean;
+  error?: string;
 }
 
 interface FormErrors {
@@ -156,18 +165,21 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
   const navigate = useNavigate();
   const { login } = useEnhancedAuth({
     autoRefresh: true,
-    activityTracking: true,
+    debugMode: true,
     onAuthChange: (isAuthenticated) => {
       if (isAuthenticated) {
-        console.log('🔐 User authenticated, redirecting to dashboard...');
+        console.log('🔐 User authenticated (enhanced hook), redirecting to dashboard...');
         navigate('/matches', { replace: true });
       }
     }
   });
+  const authStore = useAuthStore();
   const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
+  const [twoFA, setTwoFA] = useState<TwoFAState>({ required: false, code: '', verifying: false });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
+  const totp = useTotpTimer(30);
 
   // Validation helpers
   const validateEmail = useCallback((email: string): string | undefined => {
@@ -221,11 +233,32 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Rate limiting
+    if (twoFA.required) {
+      if (!twoFA.code || twoFA.code.trim().length < 6) {
+        setTwoFA(prev => ({ ...prev, error: 'Code 2FA invalide (6 chiffres requis)' }));
+        return;
+      }
+      try {
+        setTwoFA(prev => ({ ...prev, verifying: true, error: undefined }));
+        const user = await login({
+          email: formData.email,
+          password: formData.password,
+          code: twoFA.code.trim(),
+        });
+        onLogin && onLogin({ user });
+        setAttemptCount(0);
+      } catch (err: any) {
+        const msg = err?.getDisplayMessage?.() || err?.message || 'Code 2FA incorrect';
+        setTwoFA(prev => ({ ...prev, error: msg }));
+        return;
+      } finally {
+        setTwoFA(prev => ({ ...prev, verifying: false }));
+      }
+      return;
+    }
+
     if (attemptCount >= 5) {
-      setErrors({
-        general: 'Trop de tentatives de connexion. Veuillez attendre quelques minutes avant de réessayer.'
-      });
+      setErrors({ general: 'Trop de tentatives de connexion. Veuillez attendre quelques minutes avant de réessayer.' });
       return;
     }
 
@@ -237,48 +270,45 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
     setErrors({});
 
     try {
-      const result = await login({
-        email: formData.email,
-        password: formData.password,
-        code: "string"
-      });
-
+      const result = await login({ email: formData.email, password: formData.password });
       setAttemptCount(0);
-
-      // Call onLogin callback with user data
-      if (result && onLogin) {
-        onLogin({ user: result });
-      }
-
-      // Navigation will be handled by onAuthChange callback
+      if (result && onLogin) onLogin({ user: result });
       console.log('✅ Login successful, user data:', result);
-
     } catch (error) {
-      setAttemptCount(prev => prev + 1);
-
-      let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
-
-      if (error instanceof AuthError) {
-        if (error.isUnauthorized()) {
-          message = 'Email ou mot de passe incorrect. Vérifiez vos informations.';
-        } else if (error.isTooManyRequests()) {
-          message = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
-        } else if (error.isNetworkError()) {
-          message = 'Problème de connexion. Vérifiez votre connexion internet.';
-        } else {
-          message = error.getDisplayMessage() || message;
-        }
+      // Ne pas incrémenter attemptCount si c'est juste le challenge 2FA
+      if (error instanceof AuthError && (error as any).code === 'TWO_FACTOR_REQUIRED') {
+        // Stocker le challenge (email + password) et rediriger vers la page dédiée
+        authStore.setTwoFactorChallenge(formData.email, formData.password);
+        navigate('/2fa', { replace: true });
+        setTwoFA({ required: true, code: '', verifying: false });
+        setErrors({});
+        return;
       }
-
+      if (error instanceof AuthError && (error as any).code === 'INVALID_2FA_CODE' && !twoFA.required) {
+        authStore.setTwoFactorChallenge(formData.email, formData.password);
+        navigate('/2fa', { replace: true });
+        setTwoFA({ required: true, code: '', verifying: false, error: undefined });
+        setErrors({});
+        return;
+      }
+      setAttemptCount(prev => prev + 1);
+      let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
+      if (error instanceof AuthError) {
+        if (error.isUnauthorized()) message = 'Email ou mot de passe incorrect. Vérifiez vos informations.';
+        else if (error.isTooManyRequests()) message = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
+        else if (error.isNetworkError()) message = 'Problème de connexion. Vérifiez votre connexion internet.';
+        else message = error.getDisplayMessage() || message;
+      }
       setErrors({ general: message });
     } finally {
       setIsLoading(false);
     }
-  }, [formData, login, validateForm, attemptCount, onLogin]);
+  }, [formData, login, validateForm, attemptCount, onLogin, twoFA]);
 
   const handleBackClick = useCallback(() => {
     // Reset form state when going back
     setFormData({ email: '', password: '' });
+    setTwoFA({ required: false, code: '', verifying: false });
     setErrors({});
     setAttemptCount(0);
     onBack();
@@ -286,6 +316,22 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
 
   return (
     <div className="auth-form form-container">
+      {/* Étapes visuelles */}
+      <div className="steps-indicator" aria-hidden="false">
+        {!twoFA.required ? (
+          <div className="step-line">
+            <span className="step active">1</span>
+            <span className="step">2</span>
+            <span className="step-label">Étape 1/2 : Identifiants</span>
+          </div>
+        ) : (
+          <div className="step-line">
+            <span className="step done">1</span>
+            <span className="step active">2</span>
+            <span className="step-label">Étape 2/2 : Code 2FA</span>
+          </div>
+        )}
+      </div>
       {/* Back Button */}
       <button
         className="back-button"
@@ -293,15 +339,22 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
         type="button"
         aria-label="Retour à l'accueil"
       ></button>
-
       {/* Form Header */}
       <div className="form-header">
         <h2 className="form-title">Connexion</h2>
         <p className="form-subtitle">
-          Bon retour sur BetLeague ! Connectez-vous pour accéder à vos ligues.
+          {!twoFA.required ? 'Bon retour sur BetLeague ! Connectez-vous pour accéder à vos ligues.' : 'Saisissez votre code 2FA pour finaliser la connexion.'}
         </p>
       </div>
-
+      {/* Bandeau information challenge 2FA */}
+      {twoFA.required && !twoFA.error && (
+        <div className="info-banner" role="status" aria-live="polite">
+          <div className="info-content">
+            <span className="info-icon" aria-hidden="true">🔐</span>
+            <span className="info-text">Un deuxième facteur est requis. Ouvrez votre application d’authentification.</span>
+          </div>
+        </div>
+      )}
       {/* Login Form */}
       <form onSubmit={handleSubmit} noValidate>
         {/* Global Error */}
@@ -314,34 +367,80 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
           </div>
         )}
 
-        {/* Email Field */}
-        <FormInput
-          type="email"
-          name="email"
-          placeholder="Adresse email"
-          value={formData.email}
-          onChange={handleChange}
-          error={errors.email}
-          autoComplete="email"
-          maxLength={254}
-          required
-          disabled={isLoading}
-        />
+        {/* Étape Identifiants */}
+        {!twoFA.required && (
+          <>
+            <FormInput
+              type="email"
+              name="email"
+              placeholder="Adresse email"
+              value={formData.email}
+              onChange={handleChange}
+              error={errors.email}
+              autoComplete="email"
+              maxLength={254}
+              required
+              disabled={isLoading}
+            />
 
-        {/* Password Field */}
-        <FormInput
-          type="password"
-          name="password"
-          placeholder="Mot de passe"
-          value={formData.password}
-          onChange={handleChange}
-          error={errors.password}
-          autoComplete="current-password"
-          maxLength={128}
-          required
-          disabled={isLoading}
-          showPasswordToggle
-        />
+            <FormInput
+              type="password"
+              name="password"
+              placeholder="Mot de passe"
+              value={formData.password}
+              onChange={handleChange}
+              error={errors.password}
+              autoComplete="current-password"
+              maxLength={128}
+              required
+              disabled={isLoading}
+              showPasswordToggle
+            />
+          </>
+        )}
+
+        {/* Étape 2FA */}
+        {twoFA.required && (
+          <div className="form-group">
+            <label className="form-label" htmlFor="twofa-code">
+              Code d'authentification à 2 facteurs
+              <span className="required-asterisk" aria-label="requis">*</span>
+            </label>
+            <div className={`input-wrapper ${twoFA.error ? 'error' : ''}`}>
+              <input
+                id="twofa-code"
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                name="twofa-code"
+                className="form-input"
+                placeholder="000000"
+                value={twoFA.code}
+                onChange={(e) => setTwoFA(prev => ({ ...prev, code: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                autoComplete="one-time-code"
+                maxLength={6}
+                required
+                disabled={twoFA.verifying}
+                aria-invalid={twoFA.error ? 'true' : 'false'}
+                aria-describedby={twoFA.error ? 'twofa-error' : undefined}
+                autoFocus
+              />
+            </div>
+            <div className="totp-progress" aria-hidden="false">
+              <div className="totp-bar" style={{ width: `${totp.percent}%` }} />
+            </div>
+            <div className="helper-text" aria-live="polite">
+              {totp.isExpiring ? 'Code bientôt expiré' : 'Code valide'} — {totp.secondsRemaining}s restants
+            </div>
+            {twoFA.error && (
+              <div className="form-error" id="twofa-error" role="alert">
+                <span className="error-icon">⚠️</span>
+                {twoFA.error}
+              </div>
+            )}
+            <p className="helper-text">Utilisez l’application (Google Authenticator, Authy…) pour récupérer le code.</p>
+          </div>
+        )}
 
         {/* Submit Button */}
         <div className="form-actions">
@@ -349,28 +448,30 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
             type="submit"
             variant="primary"
             fullWidth
-            loading={isLoading}
-            disabled={isLoading || attemptCount >= 5}
+            loading={isLoading || twoFA.verifying}
+            disabled={isLoading || twoFA.verifying || attemptCount >= 5 || (twoFA.required && twoFA.code.length < 6)}
           >
-            {isLoading ? 'Connexion en cours...' : 'Se connecter'}
+            {twoFA.required ? (twoFA.verifying ? 'Vérification...' : 'Vérifier le code') : (isLoading ? 'Connexion...' : 'Se connecter')}
           </FormButton>
         </div>
       </form>
 
       {/* Footer Links */}
-      <div className="form-footer">
-        <p>
-          Pas encore de compte ?{' '}
-          <button
-            type="button"
-            className="form-link"
-            onClick={onSwitchToRegister}
-            disabled={isLoading}
-          >
-            Créer un compte
-          </button>
-        </p>
-      </div>
+      {!twoFA.required && (
+        <div className="form-footer">
+          <p>
+            Pas encore de compte ?{' '}
+            <button
+              type="button"
+              className="form-link"
+              onClick={onSwitchToRegister}
+              disabled={isLoading}
+            >
+              Créer un compte
+            </button>
+          </p>
+        </div>
+      )}
 
       {/* Security Info */}
       <div className="security-info">
