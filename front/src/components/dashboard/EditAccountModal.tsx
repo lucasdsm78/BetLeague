@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import './EditAccountModal.css';
 import userProfileService from 'services/userProfileService';
-import { useUserProfile } from 'hooks/useUserProfile';
 
 interface EditAccountModalProps {
   pseudo: string;
@@ -20,6 +19,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
   const [errors, setErrors] = useState<{ pseudo?: string; email?: string; general?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [emailChanged, setEmailChanged] = useState(false);
   const [touched, setTouched] = useState({ pseudo: false, email: false });
 
   // Validation en temps réel
@@ -92,12 +92,13 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
     try {
       const updateData: { pseudo?: string; email?: string } = {};
+      const hasEmailChanged = formData.email.trim().toLowerCase() !== originalData.email.toLowerCase();
 
       if (formData.pseudo.trim() !== originalData.pseudo) {
         updateData.pseudo = formData.pseudo.trim();
       }
 
-      if (formData.email.trim().toLowerCase() !== originalData.email.toLowerCase()) {
+      if (hasEmailChanged) {
         updateData.email = formData.email.trim().toLowerCase();
       }
 
@@ -105,10 +106,19 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
       if (response.success) {
         setSuccess(true);
+
+        // Marquer si l'email a changé
+        if (hasEmailChanged) {
+          setEmailChanged(true);
+        }
+
+        // Délai pour lire le message (plus long si email changé)
+        const delay = hasEmailChanged ? 2000 : 1500;
+
         setTimeout(() => {
           onSuccess();
           onClose();
-        }, 1500);
+        }, delay);
       } else {
         setErrors({ general: response.error || 'Échec de la mise à jour du profil' });
       }
@@ -183,7 +193,11 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
             <div className="success-banner" role="status" aria-live="polite">
               <div className="success-content">
                 <span className="success-icon" aria-hidden="true">✅</span>
-                <span className="success-text">Profil mis à jour avec succès !</span>
+                <span className="success-text">
+                  {emailChanged
+                    ? 'Email mis à jour avec succès ! Votre session reste active.'
+                    : 'Profil mis à jour avec succès !'}
+                </span>
               </div>
             </div>
           )}
