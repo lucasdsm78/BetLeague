@@ -49,5 +49,9 @@ export const debugAuth = () => {
   };
 };
 
-// Call this function in the browser console after login
-(window as any).debugAuth = debugAuth;
+// Exposer la fonction de debug uniquement en mode debug
+if (process.env.REACT_APP_DEBUG === 'true') {
+  (window as any).debugAuth = debugAuth;
+} else {
+  delete (window as any).debugAuth;
+}

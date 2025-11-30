@@ -10,7 +10,6 @@ import App from 'App';
 import LoginForm from 'components/LoginForm';
 import RegisterForm from 'components/RegisterForm';
 import DashboardLayout from 'components/DashboardLayout';
-import DebugAuthPanel from 'components/DebugAuthPanel';
 import TwoFactorPage from 'components/TwoFactorPage';
 
 // Lazy load dashboard components
@@ -160,7 +159,6 @@ const RegisterPage: React.FC = () => {
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
-      <DebugAuthPanel />
       <Routes>
         {/* Public routes */}
         <Route

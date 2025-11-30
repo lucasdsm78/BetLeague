@@ -9,7 +9,7 @@ import ToastContainer from 'components/ToastContainer';
 
 const TwoFactorPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useEnhancedAuth({ debugMode: true });
+  const { login } = useEnhancedAuth();
   const { twoFactorChallenge, clearTwoFactorChallenge } = useAuthStore();
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
