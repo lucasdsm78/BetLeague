@@ -5,13 +5,13 @@
 
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
-import App from '../App';
-import LoginForm from './LoginForm';
-import RegisterForm from './RegisterForm';
-import DashboardLayout from './DashboardLayout';
-import DebugAuthPanel from './DebugAuthPanel';
-import TwoFactorPage from './TwoFactorPage';
+import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
+import App from 'App';
+import LoginForm from 'components/LoginForm';
+import RegisterForm from 'components/RegisterForm';
+import DashboardLayout from 'components/DashboardLayout';
+import DebugAuthPanel from 'components/DebugAuthPanel';
+import TwoFactorPage from 'components/TwoFactorPage';
 
 // Lazy load dashboard components
 const MatchesSection = React.lazy(() => import('./dashboard/MatchesSection'));
@@ -30,18 +30,12 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage, debugDumpAuth } = useEnhancedAuth({ debugMode: true });
-
-  const logSnapshot = () => {
-    const dump = debugDumpAuth?.();
-    console.log('[RouteDebug][Protected] snapshot', dump);
-  };
-  logSnapshot();
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage } = useEnhancedAuth();
 
   if (!initializationComplete && !isLoading) {
     // Tentative d’hydratation anticipée
     const hydrated = attemptHydrateFromAnyStorage?.();
-    if (hydrated) console.log('[RouteDebug][Protected] Hydratation réussie avant init complète');
+    if (hydrated) {}
   }
 
   // Attendre la fin de l'initialisation globale, mais si token récupéré, continuer
@@ -51,18 +45,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (!isAuthenticated && recoverFromStoredToken) {
     const recovered = recoverFromStoredToken();
-    if (recovered) console.log('[RouteDebug][Protected] recoverFromStoredToken success');
+    if (recovered) {}
   }
 
   if (!isAuthenticated) {
-    console.warn('⛔ ProtectedRoute: not authenticated after recovery attempts');
     return <Navigate to="/" replace />;
   }
 
   const sessionTimeRemaining = getSessionTimeRemaining();
   const hasValidUser = user && user.id;
   if (!hasValidUser || sessionTimeRemaining <= 0) {
-    console.warn('⛔ ProtectedRoute: invalid session after recovery attempts');
     return <Navigate to="/" replace />;
   }
 
@@ -71,21 +63,15 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, error, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage, debugDumpAuth } = useEnhancedAuth({ debugMode: true });
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage } = useEnhancedAuth();
   const navigate = useNavigate();
   const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
-
-  const logSnapshot = () => {
-    const dump = debugDumpAuth?.();
-    console.log('[RouteDebug][Public] snapshot', dump);
-  };
-  logSnapshot();
 
   // Fallback hydratation si init pas complète mais pas de loading actif
   React.useEffect(() => {
     if (!initializationComplete && !isLoading) {
       const hydrated = attemptHydrateFromAnyStorage?.();
-      if (hydrated) console.log('[RouteDebug][Public] Hydratation legacy réussie');
+      if (hydrated) {}
     }
   }, [initializationComplete, isLoading, attemptHydrateFromAnyStorage]);
 
@@ -100,7 +86,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   React.useEffect(() => {
     if (initializationComplete && !isAuthenticated && recoverFromStoredToken) {
       const recovered = recoverFromStoredToken();
-      if (recovered) console.log('[RouteDebug][Public] recoverFromStoredToken success');
+      if (recovered) {}
     }
   }, [initializationComplete, isAuthenticated, recoverFromStoredToken]);
 
@@ -110,7 +96,6 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       const sessionTimeRemaining = getSessionTimeRemaining();
       const hasValidUser = user && user.id;
       if (hasValidUser && sessionTimeRemaining > 0) {
-        console.log('🔄 PublicRoute: Redirecting authenticated user to dashboard');
         navigate('/matches', { replace: true });
       }
     }
@@ -118,10 +103,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   React.useEffect(() => {
     if (!initializationComplete || isLoading) {
-      const timeout = setTimeout(() => {
-        console.warn('⚠️ Auth loading timeout (PublicRoute), forcing completion');
-        setInitialCheckComplete(true);
-      }, 4000);
+      const timeout = setTimeout(() => { setInitialCheckComplete(true); }, 4000);
       return () => clearTimeout(timeout);
     }
   }, [initializationComplete, isLoading]);
@@ -134,12 +116,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const sessionTimeRemaining = getSessionTimeRemaining();
     const hasValidUser = user && user.id;
     if (hasValidUser && sessionTimeRemaining > 0) {
-      console.log('🔄 PublicRoute: Navigating to matches (authenticated user)');
       return <Navigate to="/matches" replace />;
     }
   }
-
-  console.log('🌍 PublicRoute: Showing public content (unauthenticated user)');
 
   return <>{children}</>;
 };

@@ -5,11 +5,11 @@
 
 import React, { useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
-import { AuthError } from '../services/authService.enhanced';
-import type { User } from '../types';
-import { useAuthStore } from '../store/authStore';
-import useTotpTimer from '../hooks/useTotpTimer';
+import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
+import { AuthError } from 'services/authService.enhanced';
+import type { User } from 'types';
+import { useAuthStore } from 'store/authStore';
+import useTotpTimer from 'hooks/useTotpTimer';
 
 // Types
 interface LoginFormProps {
@@ -165,10 +165,8 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
   const navigate = useNavigate();
   const { login } = useEnhancedAuth({
     autoRefresh: true,
-    debugMode: true,
     onAuthChange: (isAuthenticated) => {
       if (isAuthenticated) {
-        console.log('🔐 User authenticated (enhanced hook), redirecting to dashboard...');
         navigate('/matches', { replace: true });
       }
     }

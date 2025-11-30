@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
-import { useAuthStore } from '../store/authStore';
-import { AuthError } from '../services/authService.enhanced';
-import useTotpTimer from '../hooks/useTotpTimer';
-import { useToast } from '../hooks/useToast';
-import ToastContainer from './ToastContainer';
+import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
+import { useAuthStore } from 'store/authStore';
+import { AuthError } from 'services/authService.enhanced';
+import useTotpTimer from 'hooks/useTotpTimer';
+import { useToast } from 'hooks/useToast';
+import ToastContainer from 'components/ToastContainer';
 
 const TwoFactorPage: React.FC = () => {
   const navigate = useNavigate();
