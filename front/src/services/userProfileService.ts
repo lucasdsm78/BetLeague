@@ -4,6 +4,8 @@
  */
 
 import secureApiClient, { ApiResponse } from './secureApiClient';
+import enhancedAuthService from './authService.enhanced';
+import { useAuthStore } from '../store/authStore';
 
 export interface UpdateProfileData {
   pseudo?: string;
@@ -12,6 +14,8 @@ export interface UpdateProfileData {
 
 export interface UpdateProfileResponse {
   message: string;
+  token_auth?: string;
+  refresh_token?: string;
   user?: {
     id: number;
     email: string;
@@ -32,11 +36,63 @@ class UserProfileService {
     // Validation côté client
     this.validateUpdateData(data);
 
+    const emailChanged = !!data.email;
+
     try {
       const response = await secureApiClient.put<UpdateProfileResponse>('/auth/user', data);
 
       if (!response.success) {
         throw new Error(response.error || 'Échec de la mise à jour du profil');
+      }
+
+      // Si l'email a été modifié et que le backend renvoie un nouveau token
+      if (emailChanged && response.data?.token_auth) {
+        console.log('🔄 Mise à jour du token après changement d\'email');
+
+        // Mettre à jour le token dans le store
+        const authStore = useAuthStore.getState();
+        if (authStore.user) {
+          authStore.login(
+            {
+              ...authStore.user,
+              email: data.email || authStore.user.email,
+              pseudo: data.pseudo || authStore.user.pseudo || authStore.user.username || ''
+            },
+            response.data.token_auth
+          );
+        }
+
+        // Stocker le nouveau token dans enhancedAuthService
+        const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24h par défaut
+        const tokenPair = {
+          accessToken: response.data.token_auth,
+          refreshToken: response.data.refresh_token || '__no_refresh__',
+          expiresAt
+        };
+
+        // Mettre à jour le token dans le storage
+        try {
+          localStorage.setItem('auth_access_token', tokenPair.accessToken);
+          if (response.data.refresh_token) {
+            localStorage.setItem('auth_refresh_token', response.data.refresh_token);
+          }
+          localStorage.setItem('auth_token_expiry', expiresAt.toString());
+        } catch (e) {
+          console.warn('Failed to store new token:', e);
+        }
+
+        console.log('✅ Token mis à jour avec succès');
+      } else if (emailChanged) {
+        // Si le backend ne renvoie pas de nouveau token, forcer un refresh
+        console.log('🔄 Refresh du token après changement d\'email');
+        try {
+          const refreshed = await enhancedAuthService.forceRefresh();
+          if (!refreshed) {
+            console.warn('⚠️ Token refresh failed, but update succeeded');
+          }
+        } catch (error) {
+          console.warn('⚠️ Token refresh error:', error);
+        }
       }
 
       return response;

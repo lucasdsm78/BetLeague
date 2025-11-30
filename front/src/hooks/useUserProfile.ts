@@ -20,25 +20,42 @@ export interface UseUserProfileReturn {
 
 // Récupère le profil de l'utilisateur connecté via le token
 async function getCurrentUserProfile(): Promise<UserProfile> {
-  // D'abord valider le token pour obtenir l'email
+  // D'abord valider le token pour obtenir l'ID utilisateur
   const validateRes: ApiResponse<any> = await secureApiClient.get('/auth/validate');
   if (!validateRes.success) {
     throw new Error(validateRes.error || 'Validation échouée');
   }
 
+  // Récupérer l'ID depuis le token (plus stable que l'email)
+  const userId = validateRes.data?.user?.id || validateRes.data?.user?.user_id || validateRes.data?.user?.uuid;
+
+  // Fallback: si pas d'ID, utiliser l'email (pour compatibilité)
   const email = validateRes.data?.user?.email;
-  if (!email) {
-    throw new Error('Email non trouvé dans le token');
+
+  if (!userId && !email) {
+    throw new Error('Impossible d\'identifier l\'utilisateur dans le token');
   }
 
-  // Ensuite chercher l'utilisateur par email pour obtenir son ID
+  // Chercher l'utilisateur dans la liste
   const usersRes: ApiResponse<any> = await secureApiClient.get('/auth/users');
   if (!usersRes.success) {
     throw new Error(usersRes.error || 'Récupération des utilisateurs échouée');
   }
 
   const users = usersRes.data?.users || [];
-  const currentUser = users.find((u: any) => u.email === email);
+
+  // Chercher par ID en priorité, sinon par email
+  let currentUser;
+  if (userId) {
+    currentUser = users.find((u: any) =>
+      u.id === userId || u.user_id === userId || u.uuid === userId
+    );
+  }
+
+  // Fallback sur email si pas trouvé par ID
+  if (!currentUser && email) {
+    currentUser = users.find((u: any) => u.email === email);
+  }
 
   if (!currentUser) {
     throw new Error('Utilisateur non trouvé');
