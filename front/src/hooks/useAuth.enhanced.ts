@@ -4,10 +4,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import enhancedAuthService, { AuthError } from '../services/authService.enhanced';
-import { useAuthStore } from '../store/authStore';
-import useTokenMonitor from './useTokenMonitor';
-import type { User, LoginForm, RegisterForm } from '../types';
+import enhancedAuthService, { AuthError } from 'services/authService.enhanced';
+import { useAuthStore } from 'store/authStore';
+import useTokenMonitor from 'hooks/useTokenMonitor';
+import type { User, LoginForm, RegisterForm } from 'types';
 
 export interface UseAuthReturn {
   // State
@@ -100,35 +100,24 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Initialize authentication state on mount
   useEffect(() => {
     const initAuth = async () => {
-      // Check both local and global initialization
       if (initializationComplete || (window as any).__AUTH_INITIALIZED__) {
-        console.log('🔐 Enhanced Auth - Already initialized globally, skipping...');
         if (!initializationComplete) {
           setInitializationComplete(true);
           setLoading(false);
         }
         return;
       }
-
-      console.log('🔐 Enhanced Auth - Starting initialization...');
       (window as any).__AUTH_INITIALIZED__ = true;
       setLoading(true);
-
       try {
-        // Check if we have a stored token
         const hasToken = enhancedAuthService.isAuthenticated();
-
         if (!hasToken) {
-          console.log('🔐 Enhanced Auth - No token pair found');
-          // Essayer hydratation depuis le store persisté
           const hydrated = hydrateFromPersistedAuthStore();
           if (hydrated) {
-            console.log('🔐 Enhanced Auth - Hydrated from persisted auth-store');
             setLoading(false);
             setInitializationComplete(true);
             return;
           }
-          console.log('🔐 Enhanced Auth - No persisted auth-store usable, ensuring logout state');
           const authStore = useAuthStore.getState();
           if (authStore.isAuthenticated) {
             authStore.logout();
@@ -137,29 +126,18 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
           setInitializationComplete(true);
           return;
         }
-
-        console.log('🔐 Enhanced Auth - Token found, checking validity...');
-
-        // Check if token is expired locally first (faster)
         const timeUntilExpiry = enhancedAuthService.getTimeUntilExpiry();
         if (timeUntilExpiry <= 0) {
-          console.log('🔐 Enhanced Auth - Token expired locally, trying refresh...');
-
           const refreshed = await enhancedAuthService.forceRefresh();
           if (!refreshed) {
-            console.log('🔐 Enhanced Auth - Token refresh failed, clearing session');
             await enhancedAuthService.logout();
             setLoading(false);
             setInitializationComplete(true);
             return;
           }
-          console.log('🔐 Enhanced Auth - Token refreshed successfully');
         }
-
-        // Get user from stored token (instead of server validation)
         const currentToken = enhancedAuthService.getCurrentToken();
         if (currentToken) {
-          // Try to extract user from token payload (JWT decode)
           try {
             const tokenPayload = JSON.parse(atob(currentToken.split('.')[1]));
             const user = {
@@ -168,24 +146,13 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
               username: tokenPayload.username || tokenPayload.pseudo,
               pseudo: tokenPayload.pseudo
             };
-
-            console.log('🔐 Enhanced Auth - User extracted from token:', user);
             storeLogin(user, currentToken);
-          } catch (decodeError) {
-            console.warn('🔐 Enhanced Auth - Could not decode token, will validate later:', decodeError);
-            // Fall back to basic auth state without user data
-            // The user data will be fetched when needed
-          }
+          } catch {}
         }
-
       } catch (error) {
-        console.error('🔐 Enhanced Auth - Initialization failed:', error);
-
         if (error instanceof AuthError && error.isUnauthorized()) {
-          // Token is invalid, clear everything
           await enhancedAuthService.logout();
         } else {
-          // Network or other error, show error message
           setError(error instanceof AuthError ? error.message : 'Erreur d\'initialisation');
           if (onError && error instanceof AuthError) {
             onError(error);
@@ -196,7 +163,6 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
         setInitializationComplete(true);
       }
     };
-
     initAuth();
   }, [initializationComplete, storeLogin, setLoading, setError, onError]);
 
@@ -224,111 +190,52 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Enhanced login function
   const login = useCallback(async (credentials: LoginForm): Promise<User> => {
     try {
-      console.log('🔐 Enhanced Auth - Starting login process...');
       setLoading(true);
       storeClearError();
-
       const { user: loggedInUser, token } = await enhancedAuthService.login(credentials) as any;
-
-      if (debugMode) {
-        console.log('[AuthDebug] Login response received:', {
-          loggedInUser,
-          tokenSnippet: token?.slice(0, 25) + '...',
-          hasTokenInService: !!enhancedAuthService.getCurrentToken()
-        });
-      }
-
-      // Appel explicite pour s'assurer que le routeur voit l'état immédiatement
       if (token) {
-        if (debugMode) console.log('[AuthDebug] Calling storeLogin with token');
         storeLogin(loggedInUser, token);
       } else {
         const currentToken = enhancedAuthService.getCurrentToken();
         if (currentToken) {
-          if (debugMode) console.log('[AuthDebug] Fallback storeLogin using service token');
           storeLogin(loggedInUser, currentToken);
-        } else if (debugMode) {
-          console.warn('[AuthDebug] No token available after login');
         }
       }
-
-      // Marquer l'initialisation terminée après un login réussi
       setInitializationComplete(true);
-      setLoading(false); // Arrêt du loading avant le retour
-
-      if (debugMode) {
-        const state = useAuthStore.getState();
-        console.log('[AuthDebug] Store state after login:', {
-          isAuthenticated: state.isAuthenticated,
-          hasUser: !!state.user,
-          userId: state.user?.id,
-          sessionExpiry: state.sessionExpiry,
-        });
-      }
-
-      console.log('✅ Enhanced Auth - Login successful (store updated immediately):', loggedInUser);
+      setLoading(false);
       return loggedInUser;
-
     } catch (error) {
-      // Gestion spécifique du challenge 2FA
       if (error instanceof AuthError && (error.code === 'TWO_FACTOR_REQUIRED')) {
-        console.log('🟡 Enhanced Auth - 2FA challenge detected (not a failure)');
         setLoading(false);
         throw error;
       }
-
-      console.error('❌ Enhanced Auth - Login failed:', error);
       const authError = error instanceof AuthError ? error : new AuthError('Erreur de connexion');
       setError(authError.message);
       setLoading(false);
       if (onError) onError(authError);
-      if (debugMode) console.log('[AuthDebug] Login error details:', authError);
       throw authError;
     }
-  }, [storeLogin, setLoading, setError, storeClearError, onError, debugMode]);
+  }, [storeLogin, setLoading, setError, storeClearError, onError]);
 
   // Enhanced register function
   const register = useCallback(async (credentials: RegisterForm): Promise<User> => {
     try {
-      console.log('🔐 Enhanced Auth - Starting registration process...');
       setLoading(true);
       storeClearError();
-
       const { user: registeredUser } = await enhancedAuthService.register(credentials);
-
-      console.log('✅ Enhanced Auth - Registration successful:', registeredUser);
       return registeredUser;
-
     } catch (error) {
-      console.error('❌ Enhanced Auth - Registration failed:', error);
-
       const authError = error instanceof AuthError ? error : new AuthError('Erreur d\'inscription');
       setError(authError.message);
-
-      if (onError) {
-        onError(authError);
-      }
-
+      if (onError) { onError(authError); }
       throw authError;
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [storeLogin, setLoading, setError, storeClearError, onError]);
 
   // Enhanced logout function
   const logout = useCallback(async (): Promise<void> => {
-    try {
-      console.log('🔐 Enhanced Auth - Starting logout process...');
-      setLoading(true);
-
-      await enhancedAuthService.logout();
-
-      console.log('✅ Enhanced Auth - Logout successful');
-    } catch (error) {
-      console.warn('⚠️ Enhanced Auth - Logout error (continuing anyway):', error);
-    } finally {
-      setLoading(false);
-    }
+    try { setLoading(true); await enhancedAuthService.logout(); }
+    catch {} finally { setLoading(false); }
   }, [setLoading]);
 
   // Refresh session function

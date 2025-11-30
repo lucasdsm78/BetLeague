@@ -363,18 +363,7 @@ export interface LeagueCreateForm {
   readonly endDate?: string;
 }
 
-export interface BetForm {
-  readonly matchId: number;
-  readonly prediction: BetPrediction;
-  readonly amount: number;
-}
-
 // ============= UI State Types =============
-export interface LoadingState {
-  readonly isLoading: boolean;
-  readonly error?: string | null;
-}
-
 export interface PaginationState {
   readonly currentPage: number;
   readonly pageSize: number;
@@ -391,15 +380,6 @@ export interface FilterState {
 }
 
 // ============= Store Types =============
-export interface AppState {
-  readonly auth: AuthState;
-  readonly leagues: LeaguesState;
-  readonly matches: MatchesState;
-  readonly bets: BetsState;
-  readonly notifications: NotificationsState;
-  readonly ui: UIState;
-}
-
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
