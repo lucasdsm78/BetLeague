@@ -399,13 +399,13 @@ async def update_invitation(
     summary="Update league",
 )
 async def update_league(
-        league_id: int,
+        id: int,
         update_league_model: LeagueUpdateModel,
         league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        update_league_result = await league_command_usecase.update_league(update_league_model, league_id, current_user.get('email'))
+        update_league_result = await league_command_usecase.update_league(update_league_model, id, current_user.get('email'))
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
