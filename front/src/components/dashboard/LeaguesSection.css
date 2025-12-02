@@ -1061,3 +1061,31 @@
   border-color: var(--color-secondary-600);
   box-shadow: 0 4px 16px rgba(251, 191, 36, 0.3);
 }
+/* Edit Button Styles */
+.btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition);
+}
+
+.edit-icon {
+  font-size: 1.125rem;
+  transition: transform 0.2s ease;
+}
+
+.btn-edit:hover:not(:disabled) .edit-icon {
+  transform: scale(1.1) rotate(-5deg);
+}
+
+.btn-edit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.btn-edit:disabled .edit-icon {
+  transform: none;
+}

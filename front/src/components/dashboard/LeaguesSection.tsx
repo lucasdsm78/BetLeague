@@ -1,11 +1,13 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
+import secureApiClient from '../../services/secureApiClient';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
 import LeagueRankingModal from '../league/LeagueRankingModal';
 import LeaveLeagueModal from '../league/LeaveLeagueModal';
+import EditLeagueModal from '../league/EditLeagueModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -16,14 +18,16 @@ interface LeagueCardProps {
     onInvite?: (league: LeagueSummary) => void;
     onViewRanking?: (league: LeagueSummary) => void;
     onLeave?: (league: LeagueSummary) => void;
+    onEdit?: (league: LeagueSummary) => void;
     isJoining?: boolean;
     showJoinButton?: boolean;
     showInviteButton?: boolean;
     showRankingButton?: boolean;
     showLeaveButton?: boolean;
+    showEditButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, onViewRanking, onLeave, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
@@ -132,6 +136,18 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
                         Quitter
                     </button>
                 )}
+                {showEditButton && onEdit && (
+                    <button
+                        className="btn btn-outline btn-edit"
+                        onClick={() => onEdit(league)}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
+                        aria-label={`Modifier la ligue ${league.name}`}
+                    >
+                        <span className="edit-icon">✏️</span>
+                        Modifier
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -150,10 +166,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
     const [isRankingModalOpen, setIsRankingModalOpen] = useState<boolean>(false);
     const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForLeave, setSelectedLeagueForLeave] = useState<LeagueSummary | null>(null);
+    const [selectedLeagueForEdit, setSelectedLeagueForEdit] = useState<any | null>(null);
+    const [isLoadingLeagueDetails, setIsLoadingLeagueDetails] = useState<boolean>(false);
     const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
@@ -366,6 +385,62 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         // Could refresh league data here if needed
     }, []);
 
+    const handleEditLeague = useCallback(async (league: LeagueSummary) => {
+        setIsLoadingLeagueDetails(true);
+        try {
+            const result = await leagueApiService.getLeagueDetails(league.id);
+            if (result.success && result.data) {
+                // Convertir start_date : si en millisecondes (13 chiffres), convertir en secondes (10 chiffres)
+                const startDate = result.data.start_date > 9999999999
+                    ? Math.floor(result.data.start_date / 1000)  // Millisecondes → Secondes
+                    : Math.floor(result.data.start_date);        // Déjà en secondes
+
+                setSelectedLeagueForEdit({
+                    id: result.data.id,
+                    name: result.data.name,
+                    isStarted: result.data.is_started,
+                    maxPlayers: result.data.max_players,
+                    isFree: result.data.is_free,
+                    nbBtl: result.data.nb_btl,
+                    startDate: startDate
+                });
+                setIsEditModalOpen(true);
+            } else {
+                setError('Impossible de charger les détails de la ligue');
+            }
+        } catch (err) {
+            console.error('Failed to load league details:', err);
+            setError('Erreur lors du chargement des détails de la ligue');
+        } finally {
+            setIsLoadingLeagueDetails(false);
+        }
+    }, []);
+
+    // Handle close edit modal
+    const handleCloseEditModal = useCallback(() => {
+        setIsEditModalOpen(false);
+        setSelectedLeagueForEdit(null);
+    }, []);
+
+    // Handle edit success
+    const handleEditSuccess = useCallback(() => {
+        setSuccessMessage('🎉 Ligue modifiée avec succès !');
+        setTimeout(() => setSuccessMessage(''), 5000);
+
+        // Fermer le modal d'abord
+        handleCloseEditModal();
+
+        // Rafraîchir tous les onglets après un court délai
+        setTimeout(() => {
+            console.log('🗑️ Clearing API cache to force fresh data...');
+            secureApiClient.clearCache();
+            console.log('🔄 Refreshing all leagues after edit...');
+            loadCreatedLeagues();
+            loadParticipatedLeagues();
+            loadAvailableLeagues();
+        }, 100);
+    }, [handleCloseEditModal, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues]);
+
     return (
         <div className="leagues-section">
             {/* Success Message */}
@@ -556,9 +631,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     onView={handleViewLeague}
                                     onInvite={handleInviteUser}
                                     onViewRanking={handleViewRanking}
+                                    onEdit={handleEditLeague}
                                     showJoinButton={false}
                                     showInviteButton={true}
                                     showRankingButton={true}
+                                    showEditButton={true}
                                 />
                             ))
                         ) : (
@@ -664,6 +741,14 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 onClose={handleCloseLeaveModal}
                 onLeaveSuccess={handleLeaveSuccess}
             />
+
+            {isEditModalOpen && selectedLeagueForEdit && (
+                <EditLeagueModal
+                    league={selectedLeagueForEdit}
+                    onClose={handleCloseEditModal}
+                    onSuccess={handleEditSuccess}
+                />
+            )}
         </div>
     );
 });
