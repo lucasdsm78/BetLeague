@@ -106,6 +106,11 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if data.is_free is False and (data.nb_btl is None or data.nb_btl <= 0):
                     raise LeagueMustHaveNbBtlError
 
+                # Vérifier que le créateur a assez de BTL pour une ligue payante
+                if not data.is_free and data.nb_btl is not None:
+                    if user.nb_btl < data.nb_btl:
+                        raise LeagueNbBtlIsNotEnoughError
+
                 now_ms = int(datetime.utcnow().timestamp() * 1000)
                 uuid = shortuuid.uuid()
                 league = League(
@@ -128,6 +133,10 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 await league_repo.create(league)
                 league = await league_repo.find_by_uuid(uuid)
+
+                if not data.is_free and data.nb_btl is not None:
+                    user.nb_btl -= data.nb_btl
+                    await user_repo.update(user)
 
                 await players_repo.join_league(
                     LeaguePlayers(user_id=user.id, league_id=league.id)

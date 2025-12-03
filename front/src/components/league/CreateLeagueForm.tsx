@@ -5,6 +5,8 @@
 
 import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
 import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
+import { useUserProfile } from '../../hooks/useUserProfile';
+import secureApiClient from '../../services/secureApiClient';
 import leagueApiService, {
   LeagueCreateFormData,
   ValidationResult
@@ -265,6 +267,11 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
   className = ''
 }) => {
   const { user } = useEnhancedAuth();
+  const { profile, refetch: refetchProfile } = useUserProfile();
+
+  // Get user's BTL balance from profile (most accurate source)
+  // Fallback to user.btlBalance if profile not loaded yet, then to 0
+  const userBtlBalance = profile?.nb_btl ?? user?.btlBalance ?? 0;
 
   // Form state with optimized initial values
   const [formData, setFormData] = useState<LeagueCreateFormData>({
@@ -315,8 +322,12 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
     if (value > VALIDATION_PATTERNS.ENTRY_FEE_MAX) {
       return `Maximum ${VALIDATION_PATTERNS.ENTRY_FEE_MAX} BTL autorisés`;
     }
+    // Check if user has enough BTL for paid league creation
+    if (value > 0 && value > userBtlBalance) {
+      return `Solde insuffisant (vous avez ${userBtlBalance} BTL)`;
+    }
     return undefined;
-  }, []);
+  }, [userBtlBalance]);
 
   const validateDescription = useCallback((description: string): string | undefined => {
     if (description && description.length > VALIDATION_PATTERNS.DESCRIPTION_MAX_LENGTH) {
@@ -447,6 +458,21 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
       if (result.success) {
         console.log('✅ League created successfully:', result);
 
+        // Pour les ligues payantes: rafraîchir le cache et le profil
+        if (formData.entryFee > 0) {
+          console.log(`💳 League created with entry fee: ${formData.entryFee} BTL`);
+          console.log('🗑️ Clearing API cache to ensure fresh data...');
+
+          // Vider le cache pour forcer le rechargement des données
+          secureApiClient.clearCache();
+
+          // Rafraîchir le profil utilisateur pour mettre à jour le solde BTL
+          console.log(`💳 Refreshing user profile to update BTL balance (debited ${formData.entryFee} BTL)...`);
+          refetchProfile().catch(err => {
+            console.warn('Failed to refresh profile after league creation:', err);
+          });
+        }
+
         // Reset form state
         setFormData({
           name: '',
@@ -458,22 +484,49 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
         setShowPreview(false);
         setErrors({});
 
-        // Close modal and notify parent
+        // Close modal and notify parent with appropriate message
+        const successMessage = formData.entryFee > 0
+          ? `Ligue créée avec succès ! ${formData.entryFee} BTL ont été débités de votre compte.`
+          : 'Ligue créée avec succès !';
+
         onClose();
-        onSuccess(result.data, result.message || 'Ligue créée avec succès !');
+        onSuccess(result.data, result.message || successMessage);
       } else {
         console.error('❌ League creation failed:', result.error);
-        setErrors({ general: result.error || 'Erreur lors de la création de la ligue' });
+
+        // Enhanced error handling for BTL-related errors
+        let errorMessage = result.error || 'Erreur lors de la création de la ligue';
+
+        // Check for BTL-related errors from backend
+        if (errorMessage.toLowerCase().includes('btl') ||
+            errorMessage.toLowerCase().includes('insufficient') ||
+            errorMessage.toLowerCase().includes('solde')) {
+          errorMessage = `💳 Solde BTL insuffisant. Vous avez ${userBtlBalance} BTL mais la création de cette ligue nécessite ${formData.entryFee} BTL.`;
+          setErrors({ entryFee: errorMessage });
+        } else {
+          setErrors({ general: errorMessage });
+        }
       }
     } catch (error: any) {
       console.error('❌ Unexpected error during league creation:', error);
-      setErrors({
-        general: 'Une erreur inattendue s\'est produite. Veuillez réessayer.'
-      });
+
+      // Check if it's a BTL-related error
+      const errorMessage = error?.message || error?.toString() || '';
+      if (errorMessage.toLowerCase().includes('btl') ||
+          errorMessage.toLowerCase().includes('insufficient') ||
+          errorMessage.toLowerCase().includes('solde')) {
+        setErrors({
+          entryFee: `💳 Solde BTL insuffisant. Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${formData.entryFee} BTL.`
+        });
+      } else {
+        setErrors({
+          general: 'Une erreur inattendue s\'est produite. Veuillez réessayer.'
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, onClose, onSuccess]);
+  }, [formData, validateForm, onClose, onSuccess, userBtlBalance, refetchProfile]);
 
   // Enhanced keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -608,7 +661,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             />
           </div>
 
-          {/* Entry Fee */}
+          {/* Entry Fee with BTL Balance Display */}
           <SecureFormInput
             type="number"
             name="entryFee"
@@ -621,12 +674,38 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             max={VALIDATION_PATTERNS.ENTRY_FEE_MAX}
             step={1}
             disabled={isSubmitting}
-            aria-describedby="entry-fee-help"
+            aria-describedby="entry-fee-help btl-balance-display"
           />
+
+          {/* BTL Balance and Status */}
+          <div className="btl-balance-section">
+            <div id="btl-balance-display" className="btl-balance-display">
+              <span className="btl-balance-label">💳 Votre solde:</span>
+              <span className="btl-balance-value">{userBtlBalance.toLocaleString()} BTL</span>
+            </div>
+            {formData.entryFee > 0 && (
+              <div className={`btl-status ${formData.entryFee <= userBtlBalance ? 'sufficient' : 'insufficient'}`}>
+                {formData.entryFee <= userBtlBalance ? (
+                  <>
+                    <span className="status-icon">✓</span>
+                    <span className="status-text">Solde suffisant</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="status-icon">⚠️</span>
+                    <span className="status-text">
+                      Solde insuffisant (il manque {(formData.entryFee - userBtlBalance).toLocaleString()} BTL)
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <div id="entry-fee-help" className="form-help">
             {formData.entryFee === 0
-              ? '💡 Ligue gratuite - aucune mise d\'entrée'
-              : '💰 Mise d\'entrée en BTL (BetLeague Tokens)'
+              ? '💡 Ligue gratuite - aucune mise d\'entrée requise'
+              : '💰 Les participants devront payer cette mise pour rejoindre la ligue'
             }
           </div>
 
