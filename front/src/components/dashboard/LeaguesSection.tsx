@@ -2,6 +2,7 @@ import React, { useState, useCallback, memo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
+import { useUserProfile } from '../../hooks/useUserProfile';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
@@ -69,10 +70,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
                     <span className="stat-value">{statusLabel}</span>
                     <span className="stat-label">Statut</span>
                 </div>
-                <div className="stat">
-                    <span className="stat-value">#{league.id}</span>
-                    <span className="stat-label">ID</span>
-                </div>
+                {league.isFree === false && league.nbBtl && league.nbBtl > 0 ? (
+                    <div className="stat stat-btl">
+                        <span className="stat-value stat-value-btl">{league.nbBtl}</span>
+                        <span className="stat-label">BTL requis</span>
+                    </div>
+                ) : (
+                    <div className="stat stat-free">
+                        <span className="stat-value stat-value-free">Gratuit</span>
+                        <span className="stat-label">Mise d'entrée</span>
+                    </div>
+                )}
             </div>
 
             <div className="league-actions">
@@ -160,6 +168,9 @@ type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 interface LeaguesSectionProps {}
 
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
+    const { profile, refetch: refetchProfile } = useUserProfile();
+    const userBtlBalance = profile?.nb_btl ?? 0;
+
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
@@ -258,29 +269,48 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
             return; // Prevent multiple simultaneous join requests
         }
 
-        // Validation before joining
         if (league.isStarted) {
             setError('Cette ligue a déjà commencé, impossible de la rejoindre.');
             return;
+        }
+
+        if (league.isFree === false && league.nbBtl && league.nbBtl > 0) {
+            if (userBtlBalance < league.nbBtl) {
+                setError(`💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${league.nbBtl} BTL. Il manque ${league.nbBtl - userBtlBalance} BTL.`);
+                return;
+            }
         }
 
         setJoiningLeagueId(league.id);
         setError('');
 
         try {
-            console.log(`🔄 Joining league ${league.id}: ${league.name}`);
+            const isPaidLeague = league.isFree === false && league.nbBtl && league.nbBtl > 0;
+            console.log(`🔄 Joining league ${league.id}: ${league.name}${isPaidLeague ? ` (${league.nbBtl} BTL)` : ''}`);
 
             const result = await leagueApiService.joinLeague(league.id);
 
             if (result.success) {
-                // Enhanced success message with league info
-                const successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
+                if (isPaidLeague) {
+                    console.log('💳 Paid league joined - refreshing balance and cache...');
+                    secureApiClient.clearCache();
+                    refetchProfile().catch(err => {
+                        console.warn('Failed to refresh profile after joining league:', err);
+                    });
+                }
+
+                let successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
+                if (isPaidLeague) {
+                    successMsg += ` ${league.nbBtl} BTL ont été débités de votre compte.`;
+                }
+
                 setSuccessMessage(successMsg);
                 setTimeout(() => setSuccessMessage(''), 6000);
 
                 // Refresh both lists to reflect the changes
                 await Promise.all([
                     loadCreatedLeagues(),
+                    loadParticipatedLeagues(),
                     loadAvailableLeagues()
                 ]);
 
@@ -298,8 +328,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                     errorMsg = 'Cette ligue a déjà commencé.';
                 } else if (errorMsg.includes('private')) {
                     errorMsg = 'Cette ligue est privée et nécessite une invitation.';
-                } else if (errorMsg.includes('btl') || errorMsg.includes('insufficient')) {
-                    errorMsg = 'Vous n\'avez pas assez de BTL pour rejoindre cette ligue.';
+                } else if (errorMsg.includes('btl') || errorMsg.includes('insufficient') || errorMsg.includes('solde')) {
+                    const required = league.nbBtl || 0;
+                    const missing = Math.max(0, required - userBtlBalance);
+                    errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL. Il manque ${missing} BTL.`;
                 }
 
                 setError(errorMsg);
@@ -312,7 +344,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         } finally {
             setJoiningLeagueId(null);
         }
-    }, [joiningLeagueId, loadCreatedLeagues, loadAvailableLeagues]);
+    }, [joiningLeagueId, userBtlBalance, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues, refetchProfile]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
@@ -390,7 +422,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         try {
             const result = await leagueApiService.getLeagueDetails(league.id);
             if (result.success && result.data) {
-                // Convertir start_date : si en millisecondes (13 chiffres), convertir en secondes (10 chiffres)
                 const startDate = result.data.start_date > 9999999999
                     ? Math.floor(result.data.start_date / 1000)  // Millisecondes → Secondes
                     : Math.floor(result.data.start_date);        // Déjà en secondes
@@ -430,7 +461,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         // Fermer le modal d'abord
         handleCloseEditModal();
 
-        // Rafraîchir tous les onglets après un court délai
         setTimeout(() => {
             console.log('🗑️ Clearing API cache to force fresh data...');
             secureApiClient.clearCache();
@@ -443,7 +473,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
     return (
         <div className="leagues-section">
-            {/* Success Message */}
             {successMessage && (
                 <div style={{
                     background: 'var(--success-color)',
@@ -471,7 +500,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 </div>
             )}
 
-            {/* Error Message */}
             {error && (
                 <div style={{
                     background: 'var(--danger-color)',

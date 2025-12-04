@@ -316,6 +316,8 @@ class LeagueApiService {
               startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
               isStarted: Boolean(l.is_started ?? false),
               playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
+              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
             } as LeagueSummary;
           })
         : [];
@@ -359,6 +361,8 @@ class LeagueApiService {
               startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
               isStarted: Boolean(l.is_started ?? false),
               playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
+              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
             } as LeagueSummary;
           })
         : [];
@@ -734,6 +738,8 @@ class LeagueApiService {
               startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
               isStarted: Boolean(l.is_started ?? false),
               playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
+              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
+              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
             } as LeagueSummary;
           })
         : [];
