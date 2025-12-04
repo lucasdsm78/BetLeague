@@ -197,6 +197,33 @@
   font-weight: 500;
 }
 
+/* BTL Stats Styling */
+.stat-btl {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 12px;
+  padding: 0.75rem !important;
+}
+
+.stat-value-btl {
+  color: #92400e !important;
+  font-weight: 700 !important;
+  font-size: 1.375rem !important;
+}
+
+.stat-free {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #6ee7b7;
+  border-radius: 12px;
+  padding: 0.75rem !important;
+}
+
+.stat-value-free {
+  color: #065f46 !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+}
+
 .league-rank {
   display: flex;
   flex-direction: column;

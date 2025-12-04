@@ -32,6 +32,7 @@ class LeagueReadModel(BaseModel):
 
     id: int
     is_free: Optional[bool] = None
+    nb_btl: Optional[float] = None
     uuid: Optional[str] = None
     start_date: int
     max_players: Optional[int] = None
@@ -50,6 +51,7 @@ class LeagueReadModel(BaseModel):
             id=league.id,
             uuid=league.uuid,
             is_free=league.is_free,
+            nb_btl=league.nb_btl,
             start_date=league.start_date,
             max_players=league.max_players,
             name=league.name,
@@ -66,6 +68,8 @@ class LeagueReadModel(BaseModel):
             start_date=league.start_date,
             nb_players_remaining=league.nb_players_remaining,
             name=league.name,
+            is_free=league.is_free,
+            nb_btl=league.nb_btl,
         )
 
 

@@ -3,7 +3,6 @@
  * Architecture sécurisée et optimisée pour React
  */
 
-// ============= User Entity =============
 export interface User {
   readonly id?: string; // UUID from API
   readonly email: string;
@@ -14,7 +13,6 @@ export interface User {
   readonly updatedAt?: string;
   readonly isActive?: boolean;
   readonly btlBalance?: number;
-  // Indique si la double authentification est activée pour l'utilisateur
   readonly twoFactorEnabled?: boolean;
 }
 
@@ -56,7 +54,6 @@ export interface UserStatistics {
   readonly bestStreak: number;
 }
 
-// ============= League Entity =============
 export interface League {
   readonly id: number;
   readonly name: string;
@@ -90,13 +87,14 @@ export interface LeagueDetails extends League {
   readonly leaderboard: LeaderboardEntry[];
 }
 
-// Ajout: résumé léger des ligues renvoyé par /api/leagues
 export interface LeagueSummary {
   readonly id: number;
   readonly name: string;
-  readonly startDate: string; // ISO string
+  readonly startDate: string;
   readonly isStarted?: boolean;
-  readonly playersRemaining?: number; // nb_players_remaining
+  readonly playersRemaining?: number;
+  readonly isFree?: boolean;
+  readonly nbBtl?: number;
 }
 
 export interface LeagueRules {
@@ -134,7 +132,7 @@ export interface LeaderboardEntry {
   readonly trend: 'up' | 'down' | 'stable';
 }
 
-// ============= Match Entity =============
+
 export interface Match {
   readonly id: number;
   readonly homeTeam: Team;
@@ -213,7 +211,7 @@ export interface MatchStatistics {
   };
 }
 
-// ============= Bet Entity =============
+
 export interface Bet {
   readonly id: number;
   readonly userId: number;
@@ -243,7 +241,7 @@ export interface BetDetails extends Bet {
   readonly league: Pick<League, 'name'>;
 }
 
-// ============= Invitation Entity =============
+
 export interface Invitation {
   readonly id: number;
   readonly leagueId: number;
@@ -266,7 +264,7 @@ export type InvitationStatus =
   | 'expired'
   | 'cancelled';
 
-// ============= Notification Entity =============
+
 export interface Notification {
   readonly id: number;
   readonly userId: number;
@@ -289,7 +287,6 @@ export type NotificationType =
   | 'system_announcement'
   | 'account_update';
 
-// ============= API Response Types =============
 export interface ApiResponse<T = unknown> {
   readonly success: boolean;
   readonly data?: T;
@@ -337,7 +334,7 @@ export interface TwoFactorSetupResponse {
   readonly recovery_codes?: readonly string[];
 }
 
-// ============= Form Types =============
+
 export interface LoginForm {
   readonly email: string;
   readonly password: string;
@@ -363,7 +360,7 @@ export interface LeagueCreateForm {
   readonly endDate?: string;
 }
 
-// ============= UI State Types =============
+
 export interface PaginationState {
   readonly currentPage: number;
   readonly pageSize: number;
@@ -379,7 +376,7 @@ export interface FilterState {
   readonly sortOrder: 'asc' | 'desc';
 }
 
-// ============= Store Types =============
+
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
@@ -441,7 +438,7 @@ export interface ToastAction {
   readonly variant?: 'primary' | 'secondary';
 }
 
-// ============= Validation Types =============
+
 export interface ValidationRule<T = unknown> {
   readonly required?: boolean;
   readonly min?: number;
@@ -459,7 +456,7 @@ export interface ValidationResult {
   readonly errors: Record<string, string>;
 }
 
-// ============= Security Types =============
+
 export interface SecurityConfig {
   readonly maxLoginAttempts: number;
   readonly lockoutDuration: number;
