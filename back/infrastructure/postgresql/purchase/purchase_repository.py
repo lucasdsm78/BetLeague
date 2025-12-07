@@ -74,7 +74,7 @@ class PurchaseRepositoryImpl(PurchaseRepository):
         if db_purchase is None:
             raise PurchaseNotFoundError
 
-        updated = DBPurchase.from_entity(purchase, db_purchase)
+        DBPurchase.from_entity(purchase, db_purchase)
 
     async def begin(self):
         await self.session.begin()

@@ -93,20 +93,43 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
 
     async def handle_webhook(self, payload: bytes, sig_header: str) -> None:
         event = self.stripe_service.verify_webhook(payload, sig_header)
-        intent = event["data"]["object"]
-        uuid = intent["metadata"]["purchase_uuid"]
-        purchase = await self.purchase_repository.find_by_uuid(uuid)
+        event_type = event["type"]
 
-        if not purchase:
-            raise PurchaseNotFoundError
+        if event_type == "charge.updated":
+            charge = event["data"]["object"]
+            charge_status = charge.get("status")
 
-        async with self._session_factory() as session:    # même factory
+            if charge_status != "succeeded":
+                return
+
+            uuid = charge.get("metadata", {}).get("purchase_uuid")
+            is_payment_successful = charge.get("paid", False)
+
+        elif event_type == "payment_intent.succeeded":
+            payment_intent = event["data"]["object"]
+            uuid = payment_intent.get("metadata", {}).get("purchase_uuid")
+            is_payment_successful = payment_intent.get("status") == "succeeded"
+
+        else:
+            return
+
+        if not uuid:
+            raise ValueError("No purchase UUID found in webhook event")
+
+        async with self._session_factory() as session:
             async with session.begin(), self._lock:
-                is_payment_successful = event["type"] == "payment_intent.succeeded"
-                purchase.status = PurchaseStatus.succeeded if is_payment_successful else PurchaseStatus.failed
-
                 purchase_repo = PurchaseRepositoryImpl(session)
                 user_repo = UserRepositoryImpl(session)
+
+                purchase = await purchase_repo.find_by_uuid(uuid)
+
+                if not purchase:
+                    raise PurchaseNotFoundError
+
+                if purchase.status.value == PurchaseStatus.succeeded.value:
+                    return
+
+                purchase.status = PurchaseStatus.succeeded if is_payment_successful else PurchaseStatus.failed
 
                 await purchase_repo.update(purchase)
 
