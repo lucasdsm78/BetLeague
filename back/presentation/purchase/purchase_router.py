@@ -21,10 +21,12 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
 )
 async def get_all_packs(
-        purchase_query_usecase: PurchaseQueryUseCase = Depends(purchase_query_usecase)
+        purchase_query_usecase: PurchaseQueryUseCase = Depends(purchase_query_usecase),
+        current_user: dict = Depends(current_user)
 ):
     try:
-        packs = await purchase_query_usecase.get_all_packs()
+        packs = await purchase_query_usecase.get_all_packs(current_user.get('email', ''))
+
         return PacksListResponse(
             packs=[
                 PackResponse(
