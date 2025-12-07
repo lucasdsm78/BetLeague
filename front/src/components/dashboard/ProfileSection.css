@@ -6,6 +6,106 @@
   padding: 0;
 }
 
+/* Payment Success Modal */
+.payment-success-modal {
+  max-width: 500px;
+  text-align: center;
+}
+
+.payment-success-modal .modal-header {
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.success-icon-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: bold;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+  animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.payment-success-modal h2 {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  margin: 0;
+}
+
+.payment-success-modal .modal-body {
+  padding: 2rem 1.5rem;
+}
+
+.success-message {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.payment-success-info {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.info-badge {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.badge-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.payment-success-modal .modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.payment-success-modal .modal-footer .btn {
+  min-width: 150px;
+}
+
 /* BTL Purchase Button Styles */
 .buy-btl-btn {
   margin-top: 0.75rem;
