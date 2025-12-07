@@ -1,4 +1,5 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import './ProfileSection.css';
 import { useUserProfile } from 'hooks/useUserProfile';
 import twoFactorService from 'services/twoFactorService';
@@ -401,8 +402,29 @@ interface ProfileSectionProps {
 const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const { profile, loading, error, refetch } = useUserProfile();
+
+  // Detect payment success/cancelled from URL params
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+
+    if (paymentStatus === 'success') {
+      setShowPaymentSuccessModal(true);
+      // Refresh profile to get updated BTL balance
+      refetch();
+      // Clean URL by removing the payment parameter
+      searchParams.delete('payment');
+      setSearchParams(searchParams, { replace: true });
+    } else if (paymentStatus === 'cancelled') {
+      // Clean URL
+      searchParams.delete('payment');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, refetch]);
 
   const handleEditProfile = useCallback(() => {
     setActiveTab('account');
@@ -558,6 +580,45 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
           onClose={handleCloseBTLPurchase}
           onPurchaseComplete={handlePurchaseComplete}
         />
+      )}
+
+      {showPaymentSuccessModal && (
+        <div className="modal-overlay" onClick={() => setShowPaymentSuccessModal(false)}>
+          <div className="modal-content payment-success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="success-icon-large">✓</div>
+              <h2>Paiement réussi !</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowPaymentSuccessModal(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p className="success-message">
+                Votre paiement a bien été pris en compte. Vos BTL ont été crédités sur votre compte.
+              </p>
+              <div className="payment-success-info">
+                <div className="info-badge">
+                  <span className="badge-label">Nouveau solde</span>
+                  <span className="badge-value">{profile?.nb_btl.toFixed(2)} BTL</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowPaymentSuccessModal(false)}
+              >
+                Continuer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
