@@ -8,4 +8,5 @@ class PurchaseCreateModel(BaseModel):
 
 
 class PurchaseCreateResponse(BaseModel):
-    message: str = "The purchase is well created"
+    url: str
+    session_id: str

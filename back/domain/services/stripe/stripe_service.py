@@ -7,7 +7,7 @@ from domain.tournament_subscription.model.tournament_subscription import Tournam
 class StripeService(ABC):
 
     @abstractmethod
-    async def create_payment_intent(self, purchase: Purchase):
+    async def create_payment_intent(self, purchase: Purchase) -> stripe.checkout.Session:
         raise NotImplementedError
 
     @abstractmethod

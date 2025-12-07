@@ -75,13 +75,13 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
             await self.purchase_repository.create(purchase)
             await self.purchase_repository.commit()
 
-            session_id = await self.stripe_service.create_payment_intent(
+            session = await self.stripe_service.create_payment_intent(
                 purchase
             )
 
             new_purchase = await self.purchase_repository.find_by_uuid(uuid)
 
-            new_purchase.stripe_session_id = session_id
+            new_purchase.stripe_session_id = session.id
             await self.purchase_repository.update(new_purchase)
             await self.purchase_repository.commit()
 
@@ -89,7 +89,7 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
             await self.purchase_repository.rollback()
             raise
 
-        return PurchaseCreateResponse()
+        return PurchaseCreateResponse(url=session.url, session_id=session.id)
 
     async def handle_webhook(self, payload: bytes, sig_header: str) -> None:
         event = self.stripe_service.verify_webhook(payload, sig_header)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import select
 
 from sqlalchemy.exc import NoResultFound
@@ -29,3 +29,14 @@ class PackRepositoryImpl(PackRepository):
             raise
 
         return pack_db.to_entity()
+
+    async def find_all(self) -> List[Pack]:
+        try:
+            result = await self.session.execute(
+                select(DBPack).order_by(DBPack.price_cents.asc())
+            )
+            packs_db = result.scalars().all()
+            return [pack.to_entity() for pack in packs_db]
+
+        except Exception as e:
+            raise

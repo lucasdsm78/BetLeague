@@ -3,6 +3,7 @@ from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQu
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
 from application.match.match_query_usecase import MatchQueryUseCase, MatchQueryUseCaseImpl
 from application.purchase.purchase_command_usecase import PurchaseCommandUseCase, PurchaseCommandUseCaseImpl
+from application.purchase.purchase_query_usecase import PurchaseQueryUseCase, PurchaseQueryUseCaseImpl
 from application.ticket.ticket_command_usecase import TicketCommandUseCase, TicketCommandUseCaseImpl
 from application.ticket.ticket_query_usecase import TicketQueryUseCaseImpl, TicketQueryUseCase
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
@@ -372,6 +373,14 @@ def purchase_command_usecase(
         session_factory=session_factory,
         user_repository=user_repository,
         stripe_service=stripe_service_dependency,
+    )
+
+
+def purchase_query_usecase(
+        pack_repository: PackRepository = Depends(pack_repository_dependency),
+) -> PurchaseQueryUseCase:
+    return PurchaseQueryUseCaseImpl(
+        pack_repository=pack_repository
     )
 
 def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:

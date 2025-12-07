@@ -11,6 +11,7 @@ import leagueApiService, {
   LeagueCreateFormData,
   ValidationResult
 } from '../../services/leagueApiService';
+import InsufficientBTLModal from '../InsufficientBTLModal';
 import './CreateLeagueForm.css';
 
 // Types for enhanced type safety
@@ -285,6 +286,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [isInsufficientBTLModalOpen, setIsInsufficientBTLModalOpen] = useState(false);
 
   // Refs for accessibility and performance
   const formRef = useRef<HTMLFormElement>(null);
@@ -437,6 +439,12 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
 
     if (!validateForm()) {
       console.warn('Form validation failed');
+      return;
+    }
+
+    // Vérifier le solde BTL avant de soumettre pour les ligues payantes
+    if (formData.entryFee > 0 && formData.entryFee > userBtlBalance) {
+      setIsInsufficientBTLModalOpen(true);
       return;
     }
 
@@ -778,6 +786,15 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
           </div>
         </form>
       </div>
+
+      {isInsufficientBTLModalOpen && (
+        <InsufficientBTLModal
+          currentBalance={userBtlBalance}
+          requiredAmount={formData.entryFee}
+          action="créer cette ligue"
+          onClose={() => setIsInsufficientBTLModalOpen(false)}
+        />
+      )}
     </div>
   );
 });
