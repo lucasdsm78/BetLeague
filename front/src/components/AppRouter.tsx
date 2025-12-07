@@ -6,6 +6,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
+import { useAuthStore } from 'store/authStore';
 import App from 'App';
 import LoginForm from 'components/LoginForm';
 import RegisterForm from 'components/RegisterForm';
@@ -16,6 +17,7 @@ import TwoFactorPage from 'components/TwoFactorPage';
 const MatchesSection = React.lazy(() => import('./dashboard/MatchesSection'));
 const LeaguesSection = React.lazy(() => import('./dashboard/LeaguesSection'));
 const TicketsSection = React.lazy(() => import('./dashboard/TicketsSection'));
+const ShopSection = React.lazy(() => import('./dashboard/ShopSection'));
 const ProfileSection = React.lazy(() => import('./dashboard/ProfileSection'));
 const TicketDetailSection = React.lazy(() => import('./dashboard/TicketDetailSection'));
 const InvitationsSection = React.lazy(() => import('./dashboard/InvitationsSection'));
@@ -31,20 +33,22 @@ const LoadingSpinner = () => (
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage } = useEnhancedAuth();
 
-  if (!initializationComplete && !isLoading) {
-    // Tentative d’hydratation anticipée
-    const hydrated = attemptHydrateFromAnyStorage?.();
-    if (hydrated) {}
-  }
+  // Déplacer les tentatives d'hydratation dans useEffect pour éviter setState pendant le rendu
+  React.useEffect(() => {
+    if (!initializationComplete && !isLoading && attemptHydrateFromAnyStorage) {
+      attemptHydrateFromAnyStorage();
+    }
+  }, [initializationComplete, isLoading, attemptHydrateFromAnyStorage]);
 
-  // Attendre la fin de l'initialisation globale, mais si token récupéré, continuer
+  React.useEffect(() => {
+    if (initializationComplete && !isAuthenticated && recoverFromStoredToken) {
+      recoverFromStoredToken();
+    }
+  }, [initializationComplete, isAuthenticated, recoverFromStoredToken]);
+
+  // Attendre la fin de l'initialisation globale
   if (!initializationComplete) {
     return <LoadingSpinner />;
-  }
-
-  if (!isAuthenticated && recoverFromStoredToken) {
-    const recovered = recoverFromStoredToken();
-    if (recovered) {}
   }
 
   if (!isAuthenticated) {
@@ -62,56 +66,31 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Route (redirect to dashboard if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage } = useEnhancedAuth();
-  const navigate = useNavigate();
-  const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete } = useEnhancedAuth();
+  const [checkedSession, setCheckedSession] = React.useState(false);
 
-  // Fallback hydratation si init pas complète mais pas de loading actif
+  // Vérifier et nettoyer les sessions expirées au montage
   React.useEffect(() => {
-    if (!initializationComplete && !isLoading) {
-      const hydrated = attemptHydrateFromAnyStorage?.();
-      if (hydrated) {}
-    }
-  }, [initializationComplete, isLoading, attemptHydrateFromAnyStorage]);
-
-  // Marquer l'initialisation terminée
-  React.useEffect(() => {
-    if (initializationComplete && !initialCheckComplete) {
-      setInitialCheckComplete(true);
-    }
-  }, [initializationComplete, initialCheckComplete]);
-
-  // Essayer une récupération si authentification manquante
-  React.useEffect(() => {
-    if (initializationComplete && !isAuthenticated && recoverFromStoredToken) {
-      const recovered = recoverFromStoredToken();
-      if (recovered) {}
-    }
-  }, [initializationComplete, isAuthenticated, recoverFromStoredToken]);
-
-  // Redirection après authentification valide
-  React.useEffect(() => {
-    if (initializationComplete && isAuthenticated && !isLoading && initialCheckComplete) {
+    if (initializationComplete && !checkedSession) {
       const sessionTimeRemaining = getSessionTimeRemaining();
-      const hasValidUser = user && user.id;
-      if (hasValidUser && sessionTimeRemaining > 0) {
-        navigate('/matches', { replace: true });
+
+      // Si token expiré, forcer le logout via le store
+      if (isAuthenticated && sessionTimeRemaining <= 0) {
+        const authStore = useAuthStore.getState();
+        authStore.logout();
       }
-    }
-  }, [isAuthenticated, isLoading, initializationComplete, initialCheckComplete, navigate, user, getSessionTimeRemaining]);
 
-  React.useEffect(() => {
-    if (!initializationComplete || isLoading) {
-      const timeout = setTimeout(() => { setInitialCheckComplete(true); }, 4000);
-      return () => clearTimeout(timeout);
+      setCheckedSession(true);
     }
-  }, [initializationComplete, isLoading]);
+  }, [initializationComplete, checkedSession, isAuthenticated, getSessionTimeRemaining]);
 
-  if (!initializationComplete || isLoading || !initialCheckComplete) {
+  // Attendre la fin de l'initialisation et de la vérification
+  if (!initializationComplete || isLoading || !checkedSession) {
     return <LoadingSpinner />;
   }
 
-  if (isAuthenticated && initialCheckComplete) {
+  // Si authentifié avec session valide, rediriger vers le dashboard
+  if (isAuthenticated) {
     const sessionTimeRemaining = getSessionTimeRemaining();
     const hasValidUser = user && user.id;
     if (hasValidUser && sessionTimeRemaining > 0) {
@@ -257,6 +236,19 @@ const AppRouter: React.FC = () => {
               <DashboardLayout>
                 <Suspense fallback={<LoadingSpinner />}>
                   <TicketDetailSection />
+                </Suspense>
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/shop"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ShopSection />
                 </Suspense>
               </DashboardLayout>
             </ProtectedRoute>

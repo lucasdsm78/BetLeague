@@ -19,7 +19,7 @@ class StripeServiceImpl(StripeService):
         self.settings: Settings = settings
         stripe.api_key = settings.stripe_api_key
 
-    async def create_payment_intent(self, purchase: Purchase) -> str:
+    async def create_payment_intent(self, purchase: Purchase) -> stripe.checkout.Session:
         def _create():
             return stripe.checkout.Session.create(
                 mode="payment",
@@ -46,13 +46,13 @@ class StripeServiceImpl(StripeService):
                         "user_id": str(purchase.user.id),
                     }
                 },
-                success_url="http://localhost:8001/docs",
-                cancel_url="http://localhost:8002/docs",
+                success_url="http://localhost:3000/profile?payment=success",
+                cancel_url="http://localhost:3000/profile?payment=cancelled",
                 idempotency_key=f"checkout_{purchase.uuid}",
                 expand=["payment_intent"]
             )
         session = await asyncio.get_running_loop().run_in_executor(_executor, _create)
-        return session.id
+        return session
 
     async def create_subscription_session(
             self,

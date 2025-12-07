@@ -1,0 +1,244 @@
+/* Modal Overlay */
+.modal-overlay {
+  z-index: 2000;
+}
+
+.insufficient-btl-modal {
+  max-width: 550px;
+  width: 95%;
+}
+
+.modal-header.insufficient {
+  position: relative;
+  padding: 2rem 1.5rem 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  text-align: center;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(220, 38, 38, 0.05) 100%);
+}
+
+.icon-warning {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.modal-header.insufficient h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--danger-color, #dc2626);
+}
+
+.insufficient-btl-modal .modal-body {
+  padding: 2rem 1.5rem;
+}
+
+.balance-info {
+  background: var(--background-tertiary, #f9fafb);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.balance-row:last-child {
+  border-bottom: none;
+}
+
+.balance-row.highlight {
+  background: rgba(239, 68, 68, 0.05);
+  margin: 0.5rem -1.5rem 0 -1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 12px 12px;
+  border-top: 2px solid var(--danger-color, #dc2626);
+  border-bottom: none;
+}
+
+.balance-label {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #6b7280);
+  font-weight: 500;
+}
+
+.balance-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.balance-value.current {
+  color: var(--text-primary, #1a1a1a);
+}
+
+.balance-value.required {
+  color: var(--primary-color, #2563eb);
+}
+
+.balance-value.missing {
+  color: var(--danger-color, #dc2626);
+  font-size: 1.25rem;
+}
+
+.info-message {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(37, 99, 235, 0.05);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.info-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.info-message p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary, #6b7280);
+  line-height: 1.6;
+}
+
+.cta-section {
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
+  border-radius: 12px;
+  border: 2px dashed var(--primary-color, #2563eb);
+}
+
+.cta-section .cta-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cta-section h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.cta-section .cta-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+.insufficient-btl-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.insufficient-btl-modal .btn-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding-bottom: 0;
+    align-items: flex-end;
+  }
+
+  .insufficient-btl-modal {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: calc(100vh - 70px);
+    margin-bottom: 70px; /* Hauteur du menu de navigation */
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-header.insufficient {
+    padding: 1.5rem 1rem 1rem 1rem;
+  }
+
+  .icon-warning {
+    font-size: 2.5rem;
+  }
+
+  .modal-header.insufficient h2 {
+    font-size: 1.25rem;
+  }
+
+  .insufficient-btl-modal .modal-body {
+    padding: 1.5rem 1rem;
+  }
+
+  .balance-info {
+    padding: 1rem;
+  }
+
+  .balance-row.highlight {
+    margin: 0.5rem -1rem 0 -1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .cta-section {
+    padding: 1.25rem;
+  }
+
+  .cta-section .cta-icon {
+    font-size: 2rem;
+  }
+
+  .cta-section h3 {
+    font-size: 1.125rem;
+  }
+
+  .insufficient-btl-modal .modal-footer {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .insufficient-btl-modal .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .balance-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .balance-value {
+    font-size: 1rem;
+  }
+
+  .balance-value.missing {
+    font-size: 1.125rem;
+  }
+}

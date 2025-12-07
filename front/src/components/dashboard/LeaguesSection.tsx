@@ -9,6 +9,7 @@ import InviteUserModal from '../league/InviteUserModal';
 import LeagueRankingModal from '../league/LeagueRankingModal';
 import LeaveLeagueModal from '../league/LeaveLeagueModal';
 import EditLeagueModal from '../league/EditLeagueModal';
+import InsufficientBTLModal from '../InsufficientBTLModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 
@@ -178,6 +179,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [isRankingModalOpen, setIsRankingModalOpen] = useState<boolean>(false);
     const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+    const [isInsufficientBTLModalOpen, setIsInsufficientBTLModalOpen] = useState<boolean>(false);
+    const [insufficientBTLData, setInsufficientBTLData] = useState<{ required: number; action: string } | null>(null);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
@@ -276,7 +279,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
         if (league.isFree === false && league.nbBtl && league.nbBtl > 0) {
             if (userBtlBalance < league.nbBtl) {
-                setError(`💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${league.nbBtl} BTL. Il manque ${league.nbBtl - userBtlBalance} BTL.`);
+                // Afficher le modal d'insuffisance BTL
+                setInsufficientBTLData({
+                    required: league.nbBtl,
+                    action: `rejoindre "${league.name}"`
+                });
+                setIsInsufficientBTLModalOpen(true);
                 return;
             }
         }
@@ -775,6 +783,15 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                     league={selectedLeagueForEdit}
                     onClose={handleCloseEditModal}
                     onSuccess={handleEditSuccess}
+                />
+            )}
+
+            {isInsufficientBTLModalOpen && insufficientBTLData && (
+                <InsufficientBTLModal
+                    currentBalance={userBtlBalance}
+                    requiredAmount={insufficientBTLData.required}
+                    action={insufficientBTLData.action}
+                    onClose={() => setIsInsufficientBTLModalOpen(false)}
                 />
             )}
         </div>

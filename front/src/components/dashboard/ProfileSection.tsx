@@ -4,6 +4,7 @@ import { useUserProfile } from 'hooks/useUserProfile';
 import twoFactorService from 'services/twoFactorService';
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
+import BTLPurchaseModal from './BTLPurchaseModal';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -13,7 +14,11 @@ interface ProfileStatsProps {
   nbBtl: number;
 }
 
-const ProfileStats = memo<ProfileStatsProps>(({ nbWin, nbLose, nbBtl }) => {
+interface ProfileStatsPropsExtended extends ProfileStatsProps {
+  onBuyBTL: () => void;
+}
+
+const ProfileStats = memo<ProfileStatsPropsExtended>(({ nbWin, nbLose, nbBtl, onBuyBTL }) => {
   const totalGames = nbWin + nbLose;
   const winRate = totalGames > 0 ? ((nbWin / totalGames) * 100).toFixed(1) : '0.0';
 
@@ -23,6 +28,13 @@ const ProfileStats = memo<ProfileStatsProps>(({ nbWin, nbLose, nbBtl }) => {
         <div className="stat-label">Solde BTL</div>
         <div className="stat-value">{nbBtl.toFixed(2)}</div>
         <div className="stat-sublabel">BetLeague Coins</div>
+        <button
+          className="btn btn-sm btn-primary buy-btl-btn"
+          onClick={onBuyBTL}
+          aria-label="Acheter des BTL"
+        >
+          + Acheter BTL
+        </button>
       </div>
 
       <div className="stat-card wins">
@@ -388,6 +400,7 @@ interface ProfileSectionProps {
 
 const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
 
   const { profile, loading, error, refetch } = useUserProfile();
 
@@ -400,6 +413,19 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
       onLogout();
     }
   }, [onLogout]);
+
+  const handleOpenBTLPurchase = useCallback(() => {
+    setIsBTLPurchaseModalOpen(true);
+  }, []);
+
+  const handleCloseBTLPurchase = useCallback(() => {
+    setIsBTLPurchaseModalOpen(false);
+  }, []);
+
+  const handlePurchaseComplete = useCallback(() => {
+    setIsBTLPurchaseModalOpen(false);
+    refetch();
+  }, [refetch]);
 
   if (loading && !profile) {
     return <LoadingSkeleton />;
@@ -443,6 +469,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
           nbWin={profile.nb_win}
           nbLose={profile.nb_lose}
           nbBtl={profile.nb_btl}
+          onBuyBTL={handleOpenBTLPurchase}
         />
       )}
 
@@ -496,9 +523,18 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
               </div>
               <div className="info-row">
                 <span className="info-label">Solde BTL</span>
-                <span className="info-value" style={{ color: 'var(--primary-color)', fontWeight: '700' }}>
-                  {profile.nb_btl.toFixed(2)} BTL
-                </span>
+                <div className="info-value-with-action">
+                  <span className="info-value" style={{ color: 'var(--primary-color)', fontWeight: '700' }}>
+                    {profile.nb_btl.toFixed(2)} BTL
+                  </span>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={handleOpenBTLPurchase}
+                    style={{ marginLeft: '0.75rem' }}
+                  >
+                    Acheter BTL
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -516,6 +552,13 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
           <Preferences />
         )}
       </div>
+
+      {isBTLPurchaseModalOpen && (
+        <BTLPurchaseModal
+          onClose={handleCloseBTLPurchase}
+          onPurchaseComplete={handlePurchaseComplete}
+        />
+      )}
     </div>
   );
 });

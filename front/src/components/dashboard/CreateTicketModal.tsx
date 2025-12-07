@@ -5,6 +5,7 @@ import type { MatchChoiceData, TicketCreatePayload } from '../../services/ticket
 import { getParticipatedLeagues, getLeagueBalance, LeagueSummaryApi } from '../../services/leaguesApi';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { useNavigate } from 'react-router-dom';
+import InsufficientBTLModal from '../InsufficientBTLModal';
 
 export type BetType = 'home' | 'draw' | 'away';
 
@@ -35,6 +36,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ticketId: number; message: string } | null>(null);
+  const [isInsufficientBTLModalOpen, setIsInsufficientBTLModalOpen] = useState(false);
 
   // Charger les ligues participées à l'ouverture
   useEffect(() => {
@@ -105,7 +107,16 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
   const formatBetType = (b: BetType): MatchChoiceData['choice'] => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit || !selectedLeagueId) return;
+    if (!selectedLeagueId) return;
+
+    // Vérifier le solde BTL avant de soumettre
+    if (balance != null && stakeNumber > balance) {
+      setIsInsufficientBTLModalOpen(true);
+      return;
+    }
+
+    if (!canSubmit) return;
+
     try {
       setIsSubmitting(true);
       setError(null);
@@ -245,6 +256,15 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
           </>
         )}
       </div>
+
+      {isInsufficientBTLModalOpen && balance != null && (
+        <InsufficientBTLModal
+          currentBalance={balance}
+          requiredAmount={stakeNumber}
+          action="placer ce pari"
+          onClose={() => setIsInsufficientBTLModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
