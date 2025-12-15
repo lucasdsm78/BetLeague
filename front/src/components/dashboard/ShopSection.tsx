@@ -210,87 +210,89 @@ const ShopSection: React.FC = memo(() => {
             </div>
 
             <div className="tournament-explanation">
-              <h3 className="tournament-explanation-title">🏆 Tournois BetLeague - Votre chance de briller !</h3>
+              <div className="tournament-hero">
+                <div className="tournament-hero-badge">🏆</div>
+                <h3 className="tournament-hero-title">Tournois BetLeague</h3>
+                <p className="tournament-hero-subtitle">Votre chance de briller !</p>
+              </div>
 
-              <div className="tournament-how-it-works">
-                <h4>Comment ça marche ?</h4>
-                <p>
-                  Imaginez un tournoi de football, mais avec vos paris ! Vous allez affronter 15 autres joueurs
-                  dans une <strong>compétition à élimination directe</strong> qui dure seulement <strong>7 jours</strong>.
+              <div className="tournament-intro-box">
+                <div className="tournament-intro-highlight">
+                  <span className="highlight-number">16</span>
+                  <span className="highlight-text">joueurs entrent</span>
+                </div>
+                <div className="tournament-intro-arrow">→</div>
+                <div className="tournament-intro-highlight">
+                  <span className="highlight-number">1</span>
+                  <span className="highlight-text">seul remporte tout</span>
+                </div>
+              </div>
+
+              <div className="tournament-compact-section">
+                <p className="tournament-pitch">
+                  Affrontez 15 autres joueurs dans une <strong>compétition à élimination directe</strong> de <strong>7 jours</strong>.
+                  À chaque tour, vous affrontez 1 adversaire. Celui qui a le plus de BTL passe au suivant, l'autre est éliminé !
                 </p>
               </div>
 
-              <div className="tournament-format">
-                <h4>📊 Le format du tournoi</h4>
-                <p className="tournament-format-headline"><strong>16 joueurs entrent, 1 seul remporte tout !</strong></p>
-                <p>Le tournoi suit un système de <strong>bracket classique</strong> :</p>
-                <ul className="tournament-stages">
-                  <li><strong>8èmes de finale</strong> : 16 joueurs → 8 qualifiés (2 jours)</li>
-                  <li><strong>Quarts de finale</strong> : 8 joueurs → 4 qualifiés (2 jours)</li>
-                  <li><strong>Demi-finales</strong> : 4 joueurs → 2 finalistes (2 jours)</li>
-                  <li><strong>FINALE</strong> : 2 joueurs → 1 champion (1 jour)</li>
-                </ul>
+              <div className="tournament-stages-visual">
+                <div className="stage-item">
+                  <div className="stage-badge">1/8</div>
+                  <div className="stage-name">8èmes</div>
+                  <div className="stage-players">16 → 8</div>
+                  <div className="stage-duration">2 jours</div>
+                </div>
+                <div className="stage-arrow">→</div>
+                <div className="stage-item">
+                  <div className="stage-badge">1/4</div>
+                  <div className="stage-name">Quarts</div>
+                  <div className="stage-players">8 → 4</div>
+                  <div className="stage-duration">2 jours</div>
+                </div>
+                <div className="stage-arrow">→</div>
+                <div className="stage-item">
+                  <div className="stage-badge">1/2</div>
+                  <div className="stage-name">Demi</div>
+                  <div className="stage-players">4 → 2</div>
+                  <div className="stage-duration">2 jours</div>
+                </div>
+                <div className="stage-arrow">→</div>
+                <div className="stage-item stage-item-final">
+                  <div className="stage-badge">🏆</div>
+                  <div className="stage-name">Finale</div>
+                  <div className="stage-players">2 → 1</div>
+                  <div className="stage-duration">1 jour</div>
+                </div>
               </div>
 
-              <div className="tournament-how-to-win">
-                <h4>💪 Comment gagner ?</h4>
-                <p>
-                  C'est simple : <strong>à chaque tour, vous affrontez 1 adversaire</strong>. Vous pariez vos BTL
-                  sur les matchs disponibles pendant 2 jours (1 jour en finale).
-                </p>
-                <p className="tournament-win-rule">
-                  <strong>Celui qui a le plus de BTL à la fin du tour passe au suivant, l'autre est éliminé !</strong>
-                </p>
-                <p>Pas besoin d'être chanceux - il faut être <strong>stratégique</strong> :</p>
-                <ul className="tournament-strategy">
-                  <li>Quand parier gros ?</li>
-                  <li>Quand jouer la sécurité ?</li>
-                  <li>Sur quels matchs miser ?</li>
-                </ul>
-              </div>
-
-              <div className="tournament-benefits">
-                <h4>⚡ Les avantages exclusifs</h4>
-                <div className="benefits-grid">
-                  <div className="benefit-item">
-                    <span className="benefit-emoji">⚡</span>
-                    <div>
-                      <strong>Action rapide</strong>
-                      <p>7 jours seulement, pas de temps mort</p>
-                    </div>
+              <div className="tournament-key-features">
+                <div className="key-feature">
+                  <div className="key-feature-icon">⚡</div>
+                  <div className="key-feature-content">
+                    <strong>Action rapide</strong>
+                    <span>Seulement 7 jours</span>
                   </div>
-                  <div className="benefit-item">
-                    <span className="benefit-emoji">🎯</span>
-                    <div>
-                      <strong>Chaque tour compte</strong>
-                      <p>Un mauvais choix et vous êtes OUT</p>
-                    </div>
+                </div>
+                <div className="key-feature">
+                  <div className="key-feature-icon">🎯</div>
+                  <div className="key-feature-content">
+                    <strong>Stratégie payante</strong>
+                    <span>Chaque décision compte</span>
                   </div>
-                  <div className="benefit-item">
-                    <span className="benefit-emoji">📈</span>
-                    <div>
-                      <strong>Montée d'adrénaline</strong>
-                      <p>Plus vous avancez, plus la pression monte</p>
-                    </div>
-                  </div>
-                  <div className="benefit-item">
-                    <span className="benefit-emoji">🏅</span>
-                    <div>
-                      <strong>Récompenses exclusives</strong>
-                      <p>BTL, badges, gloire éternelle</p>
-                    </div>
+                </div>
+                <div className="key-feature">
+                  <div className="key-feature-icon">🏅</div>
+                  <div className="key-feature-content">
+                    <strong>Récompenses exclusives</strong>
+                    <span>BTL et badges uniques</span>
                   </div>
                 </div>
               </div>
 
-              <div className="tournament-why-participate">
-                <h4>🎯 Pourquoi vous devez participer ?</h4>
-                <p>
-                  Contrairement aux ligues classiques où tout le monde joue jusqu'à la fin,
-                  ici <strong>c'est une élimination directe</strong> ! Chaque duel compte, chaque décision peut vous faire sortir.
-                </p>
-                <p className="tournament-final-pitch">
-                  <strong>Pas de deuxième chance</strong> - Vous perdez, vous sortez. Vous gagnez, vous continuez l'aventure vers le titre de champion !
+              <div className="tournament-cta-box">
+                <p className="tournament-cta-text">
+                  <strong>Élimination directe</strong> - Pas de deuxième chance. Vous perdez, vous sortez.
+                  Vous gagnez, vous continuez vers le titre de champion !
                 </p>
               </div>
             </div>
