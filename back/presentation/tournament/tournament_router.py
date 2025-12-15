@@ -25,7 +25,7 @@ from domain.tournament.exception.tournament_exception import TournamentAlreadySt
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 
-router = APIRouter(tags=["tournament"])
+router = APIRouter(prefix="/api", tags=["tournament"])
 
 
 @router.post(
