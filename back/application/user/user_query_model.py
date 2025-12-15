@@ -14,6 +14,7 @@ class UserReadModel(BaseModel):
     nb_win: int
     nb_lose: int
     nb_btl: float
+    is_tournament_subscriber: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -26,7 +27,8 @@ class UserReadModel(BaseModel):
             pseudo=user.pseudo,
             nb_win=user.nb_win,
             nb_lose=user.nb_lose,
-            nb_btl=user.nb_btl
+            nb_btl=user.nb_btl,
+            is_tournament_subscriber=user.is_tournament_subscriber
         )
 
 class UserSummaryReadModel(BaseModel):

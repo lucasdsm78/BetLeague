@@ -7,7 +7,9 @@
 import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
+import { useAuthStore } from '../store/authStore';
 import { useToast } from '../hooks/useToast';
+import { useUserProfile } from '../hooks/useUserProfile';
 import LogoutModal from './auth/LogoutModal';
 import type { User } from '../types';
 import './Dashboard.css';
@@ -29,10 +31,11 @@ interface TabConfig {
   readonly icon: string;
   readonly path: string;
   readonly requiresPermission?: string;
+  readonly requiresSubscription?: boolean;
   readonly securityLevel?: 'low' | 'medium' | 'high';
 }
 
-type TabId = 'matches' | 'leagues' | 'invitations' | 'tickets' | 'shop' | 'profile';
+type TabId = 'matches' | 'leagues' | 'invitations' | 'tournaments' | 'tickets' | 'shop' | 'profile';
 
 // Immutable tabs configuration for security
 const TABS: Readonly<Record<TabId, TabConfig>> = {
@@ -55,6 +58,14 @@ const TABS: Readonly<Record<TabId, TabConfig>> = {
     label: 'Invitations',
     icon: '📨',
     path: '/invitations',
+    securityLevel: 'medium'
+  },
+  tournaments: {
+    id: 'tournaments',
+    label: 'Tournois',
+    icon: '🏆',
+    path: '/tournaments',
+    requiresSubscription: true,
     securityLevel: 'medium'
   },
   tickets: {
@@ -107,7 +118,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
+  const { updateUser } = useAuthStore();
   const { showError, showWarning } = useToast();
+  const { profile } = useUserProfile();
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -125,6 +138,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
            typeof user === 'object' &&
            (user.email || user.username || user.pseudo) &&
            user.id;
+  }, [user]);
+
+  // Get visible tabs based on user subscription
+  const visibleTabs = useMemo(() => {
+    return Object.values(TABS).filter(tab => {
+      // If tab requires subscription, check if user is subscribed
+      if (tab.requiresSubscription) {
+        return user?.isTournamentSubscriber === true;
+      }
+      return true;
+    });
   }, [user]);
 
   const sanitizedUserName = useMemo(() => {
@@ -149,6 +173,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }, [location.pathname]);
 
   const activeTab = getActiveTab();
+
+  // Sync user subscription status from profile
+  useEffect(() => {
+    if (profile && user && user.isTournamentSubscriber !== profile.is_tournament_subscriber) {
+      updateUser({
+        isTournamentSubscriber: profile.is_tournament_subscriber
+      });
+    }
+  }, [profile?.is_tournament_subscriber, user?.isTournamentSubscriber, updateUser]);
 
   // Security: Monitor navigation attempts
   useEffect(() => {
@@ -361,7 +394,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         {/* Desktop Navigation */}
         <nav className="desktop-nav" role="navigation" aria-label="Navigation principale">
           <div className="nav-items">
-            {Object.values(TABS).map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
@@ -413,7 +446,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
 
           <div className="menu-items">
-            {Object.values(TABS).map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`menu-item ${activeTab === tab.id ? 'active' : ''}`}
@@ -440,7 +473,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
       {/* Bottom Navigation for Mobile */}
       <nav className="bottom-nav" role="navigation" aria-label="Navigation rapide">
-        {Object.values(TABS).map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             className={`bottom-nav-item ${activeTab === tab.id ? 'active' : ''}`}

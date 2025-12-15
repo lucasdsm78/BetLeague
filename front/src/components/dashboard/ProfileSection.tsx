@@ -411,6 +411,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   // Detect payment success/cancelled from URL params
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
+    const subscriptionStatus = searchParams.get('subscription');
 
     if (paymentStatus === 'success') {
       setShowPaymentSuccessModal(true);
@@ -424,7 +425,18 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
       searchParams.delete('payment');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams, refetch]);
+
+    // Handle subscription success/cancelled
+    if (subscriptionStatus === 'success') {
+      // Refresh profile to get updated subscription status
+      refetch();
+      // Redirect to shop to show success modal
+      navigate('/shop?subscription=success', { replace: true });
+    } else if (subscriptionStatus === 'cancelled') {
+      // Redirect to shop
+      navigate('/shop', { replace: true });
+    }
+  }, [searchParams, setSearchParams, refetch, navigate]);
 
   const handleEditProfile = useCallback(() => {
     setActiveTab('account');

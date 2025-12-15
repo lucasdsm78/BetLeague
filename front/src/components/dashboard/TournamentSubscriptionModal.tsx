@@ -32,8 +32,8 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
 
       const response = await createSubscriptionIntent({
         subscription_plan: 'monthly',
-        success_url: `${window.location.origin}/profile?subscription=success`,
-        cancel_url: `${window.location.origin}/profile?subscription=cancelled`
+        success_url: `${window.location.origin}/shop?subscription=success`,
+        cancel_url: `${window.location.origin}/shop?subscription=cancelled`
       });
 
       // Redirect to Stripe Checkout
