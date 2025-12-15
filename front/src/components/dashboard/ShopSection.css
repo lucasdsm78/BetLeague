@@ -450,3 +450,444 @@
     padding: 0.875rem 1.5rem;
   }
 }
+
+/* Tournament Subscription Styles */
+.subscription-status-banner {
+  margin-bottom: 2rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.status-active {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--success-color);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.status-inactive {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+.status-icon {
+  font-size: 1.25rem;
+}
+
+.status-text {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.subscription-card.tournament {
+  background: linear-gradient(135deg, #fff 0%, #fef3c7 100%);
+  border: 2px solid #f59e0b;
+}
+
+.subscription-badge-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.badge-icon {
+  font-size: 1rem;
+}
+
+.tournament-subscribe-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+}
+
+.tournament-subscribe-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+.check-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.subscription-benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.benefit-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.benefit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.benefit-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.benefit-card h4 {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.benefit-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.info-box.tournament-info {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+/* Subscription Success Modal */
+.subscription-success-modal {
+  max-width: 500px;
+}
+
+.success-icon-large.tournament {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.subscription-success-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+}
+
+.success-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.success-feature-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .subscription-benefits-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-status-banner {
+    padding: 0.75rem 1rem;
+  }
+
+  .benefit-card {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .benefit-icon {
+    font-size: 2rem;
+  }
+
+  .benefit-card h4 {
+    font-size: 1rem;
+  }
+
+  .benefit-card p {
+    font-size: 0.875rem;
+  }
+}
+
+/* Tournament Explanation Section */
+.tournament-explanation {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(217, 119, 6, 0.03) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.15);
+  border-radius: 20px;
+  padding: 2.5rem;
+  margin-top: 2rem;
+}
+
+.tournament-explanation-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 2rem 0;
+  text-align: center;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tournament-explanation h4 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tournament-explanation p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+.tournament-explanation strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tournament-how-it-works,
+.tournament-format,
+.tournament-how-to-win,
+.tournament-benefits,
+.tournament-why-participate {
+  background: white;
+  border-radius: 16px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+.tournament-format-headline {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f59e0b;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.tournament-stages,
+.tournament-strategy {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.tournament-stages li,
+.tournament-strategy li {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.tournament-stages li:hover,
+.tournament-strategy li:hover {
+  transform: translateX(5px);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+}
+
+.tournament-stages li strong {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.tournament-win-rule {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin: 1.5rem 0;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  text-align: center;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(217, 119, 6, 0.03) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.1);
+  transition: all 0.2s ease;
+}
+
+.benefit-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.benefit-emoji {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.benefit-item strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.benefit-item p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tournament-final-pitch {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+  border-left: 4px solid #f59e0b;
+  text-align: center;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .tournament-explanation {
+    padding: 1.5rem;
+  }
+
+  .tournament-explanation-title {
+    font-size: 1.5rem;
+  }
+
+  .tournament-how-it-works,
+  .tournament-format,
+  .tournament-how-to-win,
+  .tournament-benefits,
+  .tournament-why-participate {
+    padding: 1.25rem;
+  }
+
+  .benefits-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tournament-explanation h4 {
+    font-size: 1.1rem;
+  }
+
+  .tournament-explanation p {
+    font-size: 0.95rem;
+  }
+
+  .benefit-emoji {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tournament-explanation {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .tournament-explanation-title {
+    font-size: 1.25rem;
+  }
+
+  .tournament-how-it-works,
+  .tournament-format,
+  .tournament-how-to-win,
+  .tournament-benefits,
+  .tournament-why-participate {
+    padding: 1rem;
+  }
+
+  .tournament-stages li,
+  .tournament-strategy li {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .tournament-win-rule {
+    font-size: 1rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .tournament-final-pitch {
+    font-size: 1rem;
+    padding: 1rem;
+  }
+
+  .benefit-item {
+    padding: 0.875rem;
+  }
+
+  .benefit-item strong {
+    font-size: 0.95rem;
+  }
+
+  .benefit-item p {
+    font-size: 0.8rem;
+  }
+}

@@ -1,14 +1,38 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import './ShopSection.css';
 import BTLPurchaseModal from './BTLPurchaseModal';
+import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useUserProfile } from 'hooks/useUserProfile';
+import { useAuthStore } from 'store/authStore';
+import { getSubscriptionPlan } from 'services/subscriptionApi';
 
 type ShopTabType = 'packs' | 'subscription';
 
 const ShopSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<ShopTabType>('packs');
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
+  const [isTournamentSubscriptionModalOpen, setIsTournamentSubscriptionModalOpen] = useState(false);
+  const [showSubscriptionSuccessModal, setShowSubscriptionSuccessModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, refetch } = useUserProfile();
+  const { user } = useAuthStore();
+  const subscriptionPlan = getSubscriptionPlan();
+
+  // Detect subscription success from URL
+  useEffect(() => {
+    const subscriptionStatus = searchParams.get('subscription');
+
+    if (subscriptionStatus === 'success') {
+      setShowSubscriptionSuccessModal(true);
+      refetch();
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    } else if (subscriptionStatus === 'cancelled') {
+      searchParams.delete('subscription');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, refetch]);
 
   const handleOpenBTLPurchase = useCallback(() => {
     setIsBTLPurchaseModalOpen(true);
@@ -23,12 +47,25 @@ const ShopSection: React.FC = memo(() => {
     refetch();
   }, [refetch]);
 
+  const handleOpenTournamentSubscription = useCallback(() => {
+    setIsTournamentSubscriptionModalOpen(true);
+  }, []);
+
+  const handleCloseTournamentSubscription = useCallback(() => {
+    setIsTournamentSubscriptionModalOpen(false);
+  }, []);
+
+  const handleSubscriptionComplete = useCallback(() => {
+    setIsTournamentSubscriptionModalOpen(false);
+    refetch();
+  }, [refetch]);
+
   return (
     <div className="shop-section">
       <div className="shop-header">
         <div className="shop-title-section">
           <h1 className="shop-title">Boutique BetLeague</h1>
-          <p className="shop-subtitle">Achetez des BTL ou souscrivez à un abonnement premium</p>
+          <p className="shop-subtitle">Achetez des BTL ou accédez aux tournois avec un abonnement</p>
         </div>
 
         {profile && (
@@ -51,8 +88,8 @@ const ShopSection: React.FC = memo(() => {
           className={`shop-tab ${activeTab === 'subscription' ? 'active' : ''}`}
           onClick={() => setActiveTab('subscription')}
         >
-          <span className="tab-icon">⭐</span>
-          <span className="tab-label">Abonnement Premium</span>
+          <span className="tab-icon">🏆</span>
+          <span className="tab-label">Abonnement tournois</span>
         </button>
       </div>
 
@@ -119,53 +156,141 @@ const ShopSection: React.FC = memo(() => {
         ) : (
           <div className="subscription-section">
             <div className="section-header">
-              <h2>Abonnement Premium</h2>
-              <p>Accédez aux tournois exclusifs et aux fonctionnalités avancées</p>
+              <h2>Abonnement tournois</h2>
+              <p>Participez aux tournois exclusifs et gagnez des récompenses</p>
             </div>
 
-            <div className="subscription-card premium">
-              <div className="subscription-badge">Bientôt disponible</div>
-              <h3>Premium</h3>
+            <div className="subscription-status-banner">
+              {user?.isTournamentSubscriber ? (
+                <div className="status-active">
+                  <span className="status-icon">✓</span>
+                  <span className="status-text">Votre abonnement est actif</span>
+                </div>
+              ) : (
+                <div className="status-inactive">
+                  <span className="status-icon">ℹ️</span>
+                  <span className="status-text">Abonnez-vous pour accéder aux tournois</span>
+                </div>
+              )}
+            </div>
+
+            <div className="subscription-card tournament">
+              <div className="subscription-badge-new">
+                <span className="badge-icon">🏆</span>
+                Populaire
+              </div>
+              <h3>{subscriptionPlan.name}</h3>
               <div className="subscription-price">
-                <span className="price">9,99€</span>
+                <span className="price">{(subscriptionPlan.price / 100).toFixed(2)}€</span>
                 <span className="period">/mois</span>
               </div>
 
               <ul className="subscription-features">
-                <li>
-                  <span className="feature-check">✓</span>
-                  Accès aux tournois exclusifs
-                </li>
-                <li>
-                  <span className="feature-check">✓</span>
-                  Statistiques avancées
-                </li>
-                <li>
-                  <span className="feature-check">✓</span>
-                  Bonus BTL mensuel
-                </li>
-                <li>
-                  <span className="feature-check">✓</span>
-                  Support prioritaire
-                </li>
-                <li>
-                  <span className="feature-check">✓</span>
-                  Badge premium
-                </li>
+                {subscriptionPlan.features.map((feature, index) => (
+                  <li key={index}>
+                    <span className="feature-check">✓</span>
+                    {feature}
+                  </li>
+                ))}
               </ul>
 
-              <button className="btn btn-secondary btn-lg" disabled>
-                Bientôt disponible
-              </button>
+              {user?.isTournamentSubscriber ? (
+                <button className="btn btn-secondary btn-lg" disabled>
+                  <span className="check-icon">✓</span>
+                  Déjà abonné
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary btn-lg tournament-subscribe-btn"
+                  onClick={handleOpenTournamentSubscription}
+                >
+                  S'abonner maintenant
+                </button>
+              )}
             </div>
 
-            <div className="info-box">
-              <div className="info-icon">ℹ️</div>
-              <div className="info-content">
-                <h4>Abonnement Premium</h4>
+            <div className="tournament-explanation">
+              <h3 className="tournament-explanation-title">🏆 Tournois BetLeague - Votre chance de briller !</h3>
+
+              <div className="tournament-how-it-works">
+                <h4>Comment ça marche ?</h4>
                 <p>
-                  L'abonnement premium sera bientôt disponible. Inscrivez-vous à notre newsletter
-                  pour être informé du lancement et bénéficier d'une offre exclusive.
+                  Imaginez un tournoi de football, mais avec vos paris ! Vous allez affronter 15 autres joueurs
+                  dans une <strong>compétition à élimination directe</strong> qui dure seulement <strong>7 jours</strong>.
+                </p>
+              </div>
+
+              <div className="tournament-format">
+                <h4>📊 Le format du tournoi</h4>
+                <p className="tournament-format-headline"><strong>16 joueurs entrent, 1 seul remporte tout !</strong></p>
+                <p>Le tournoi suit un système de <strong>bracket classique</strong> :</p>
+                <ul className="tournament-stages">
+                  <li><strong>8èmes de finale</strong> : 16 joueurs → 8 qualifiés (2 jours)</li>
+                  <li><strong>Quarts de finale</strong> : 8 joueurs → 4 qualifiés (2 jours)</li>
+                  <li><strong>Demi-finales</strong> : 4 joueurs → 2 finalistes (2 jours)</li>
+                  <li><strong>FINALE</strong> : 2 joueurs → 1 champion (1 jour)</li>
+                </ul>
+              </div>
+
+              <div className="tournament-how-to-win">
+                <h4>💪 Comment gagner ?</h4>
+                <p>
+                  C'est simple : <strong>à chaque tour, vous affrontez 1 adversaire</strong>. Vous pariez vos BTL
+                  sur les matchs disponibles pendant 2 jours (1 jour en finale).
+                </p>
+                <p className="tournament-win-rule">
+                  <strong>Celui qui a le plus de BTL à la fin du tour passe au suivant, l'autre est éliminé !</strong>
+                </p>
+                <p>Pas besoin d'être chanceux - il faut être <strong>stratégique</strong> :</p>
+                <ul className="tournament-strategy">
+                  <li>Quand parier gros ?</li>
+                  <li>Quand jouer la sécurité ?</li>
+                  <li>Sur quels matchs miser ?</li>
+                </ul>
+              </div>
+
+              <div className="tournament-benefits">
+                <h4>⚡ Les avantages exclusifs</h4>
+                <div className="benefits-grid">
+                  <div className="benefit-item">
+                    <span className="benefit-emoji">⚡</span>
+                    <div>
+                      <strong>Action rapide</strong>
+                      <p>7 jours seulement, pas de temps mort</p>
+                    </div>
+                  </div>
+                  <div className="benefit-item">
+                    <span className="benefit-emoji">🎯</span>
+                    <div>
+                      <strong>Chaque tour compte</strong>
+                      <p>Un mauvais choix et vous êtes OUT</p>
+                    </div>
+                  </div>
+                  <div className="benefit-item">
+                    <span className="benefit-emoji">📈</span>
+                    <div>
+                      <strong>Montée d'adrénaline</strong>
+                      <p>Plus vous avancez, plus la pression monte</p>
+                    </div>
+                  </div>
+                  <div className="benefit-item">
+                    <span className="benefit-emoji">🏅</span>
+                    <div>
+                      <strong>Récompenses exclusives</strong>
+                      <p>BTL, badges, gloire éternelle</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="tournament-why-participate">
+                <h4>🎯 Pourquoi vous devez participer ?</h4>
+                <p>
+                  Contrairement aux ligues classiques où tout le monde joue jusqu'à la fin,
+                  ici <strong>c'est une élimination directe</strong> ! Chaque duel compte, chaque décision peut vous faire sortir.
+                </p>
+                <p className="tournament-final-pitch">
+                  <strong>Pas de deuxième chance</strong> - Vous perdez, vous sortez. Vous gagnez, vous continuez l'aventure vers le titre de champion !
                 </p>
               </div>
             </div>
@@ -178,6 +303,61 @@ const ShopSection: React.FC = memo(() => {
           onClose={handleCloseBTLPurchase}
           onPurchaseComplete={handlePurchaseComplete}
         />
+      )}
+
+      {isTournamentSubscriptionModalOpen && (
+        <TournamentSubscriptionModal
+          onClose={handleCloseTournamentSubscription}
+          onSubscriptionComplete={handleSubscriptionComplete}
+        />
+      )}
+
+      {showSubscriptionSuccessModal && (
+        <div className="modal-overlay" onClick={() => setShowSubscriptionSuccessModal(false)}>
+          <div className="modal-content subscription-success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="success-icon-large tournament">🏆</div>
+              <h2>Abonnement activé !</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowSubscriptionSuccessModal(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p className="success-message">
+                Félicitations ! Votre abonnement aux tournois est maintenant actif.
+                Vous pouvez dès maintenant participer à tous les tournois disponibles.
+              </p>
+              <div className="subscription-success-features">
+                <div className="success-feature">
+                  <span className="success-feature-icon">✓</span>
+                  <span>Accès illimité aux tournois</span>
+                </div>
+                <div className="success-feature">
+                  <span className="success-feature-icon">✓</span>
+                  <span>Création de tournois privés</span>
+                </div>
+                <div className="success-feature">
+                  <span className="success-feature-icon">✓</span>
+                  <span>Statistiques avancées</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowSubscriptionSuccessModal(false)}
+              >
+                Commencer à jouer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

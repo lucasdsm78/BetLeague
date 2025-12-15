@@ -14,6 +14,7 @@ export interface User {
   readonly isActive?: boolean;
   readonly btlBalance?: number;
   readonly twoFactorEnabled?: boolean;
+  readonly isTournamentSubscriber?: boolean;
 }
 
 export interface UserProfile extends User {
