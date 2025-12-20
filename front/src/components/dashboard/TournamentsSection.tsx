@@ -15,15 +15,6 @@ const TournamentsSection: React.FC = memo(() => {
           Participez aux tournois exclusifs et devenez champion !
         </p>
       </div>
-
-      <div className="tournaments-coming-soon">
-        <div className="coming-soon-icon">🚧</div>
-        <h3>Bientôt disponible</h3>
-        <p>
-          Les tournois seront bientôt disponibles. Restez connecté pour être parmi
-          les premiers à participer aux compétitions !
-        </p>
-      </div>
     </div>
   );
 });
