@@ -124,6 +124,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [logoutTriggerReason, setLogoutTriggerReason] = useState<'manual' | 'inactivity' | 'security' | 'session_expired'>('manual');
   const [securityState, setSecurityState] = useState<SecurityState>({
@@ -150,6 +151,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       return true;
     });
   }, [user]);
+
+  // Get tabs for bottom navigation (exclude shop and profile on mobile)
+  const bottomNavTabs = useMemo(() => {
+    return visibleTabs.filter(tab => tab.id !== 'shop' && tab.id !== 'profile');
+  }, [visibleTabs]);
 
   const sanitizedUserName = useMemo(() => {
     if (!user) return 'Utilisateur';
@@ -286,22 +292,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     setIsLogoutModalOpen(true);
   }, []);
 
-  // Security: Handle mobile menu clicks outside
+  // Handle user menu toggle
+  const handleUserMenuToggle = useCallback(() => {
+    setIsUserMenuOpen(prev => !prev);
+  }, []);
+
+  const handleGoToProfile = useCallback(() => {
+    setIsUserMenuOpen(false);
+    navigate('/profile');
+  }, [navigate]);
+
+  const handleGoToShop = useCallback(() => {
+    navigate('/shop');
+  }, [navigate]);
+
+  // Security: Handle clicks outside to close menus
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
+
+      // Close mobile menu
       if (isMobileMenuOpen &&
           !target.closest('.mobile-nav') &&
           !target.closest('.mobile-menu-toggle')) {
         setIsMobileMenuOpen(false);
       }
+
+      // Close user dropdown menu
+      if (isUserMenuOpen &&
+          !target.closest('.mobile-user-menu') &&
+          !target.closest('.mobile-user-avatar')) {
+        setIsUserMenuOpen(false);
+      }
     };
 
-    if (isMobileMenuOpen) {
+    if (isMobileMenuOpen || isUserMenuOpen) {
       document.addEventListener('click', handleClickOutside, { passive: true });
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [isMobileMenuOpen]);
+  }, [isMobileMenuOpen, isUserMenuOpen]);
 
   // Security: Auto-logout on inactivity
   useEffect(() => {
@@ -351,7 +380,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
 
           <div className="header-right">
-            <div className="user-info">
+            {/* Desktop User Info */}
+            <div className="user-info desktop-only">
               <span className="user-name" title={sanitizedUserName}>
                 {sanitizedUserName}
               </span>
@@ -376,6 +406,52 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               <span className="logout-text">Déconnexion</span>
             </button>
 
+            {/* Mobile Header Actions */}
+            <div className="mobile-header-actions">
+              {/* Shop Button */}
+              <button
+                className="mobile-shop-btn"
+                onClick={handleGoToShop}
+                aria-label="Boutique"
+              >
+                <span className="shop-icon">🛒</span>
+              </button>
+
+              {/* User Avatar with Dropdown */}
+              <div className="mobile-user-container">
+                <button
+                  className="mobile-user-avatar"
+                  onClick={handleUserMenuToggle}
+                  aria-label="Menu utilisateur"
+                  aria-expanded={isUserMenuOpen}
+                >
+                  {sanitizedUserName.charAt(0).toUpperCase()}
+                </button>
+
+                {/* User Dropdown Menu */}
+                {isUserMenuOpen && (
+                  <div className="mobile-user-menu">
+                    <button
+                      className="mobile-user-menu-item"
+                      onClick={handleGoToProfile}
+                    >
+                      <span className="menu-item-icon">👤</span>
+                      <span className="menu-item-text">Mon profil</span>
+                    </button>
+                    <div className="menu-divider-thin" />
+                    <button
+                      className="mobile-user-menu-item logout"
+                      onClick={handleLogout}
+                    >
+                      <span className="menu-item-icon">🚪</span>
+                      <span className="menu-item-text">Déconnexion</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Hamburger Menu Toggle (for side menu) */}
             <button
               className="menu-toggle"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -473,7 +549,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
       {/* Bottom Navigation for Mobile */}
       <nav className="bottom-nav" role="navigation" aria-label="Navigation rapide">
-        {visibleTabs.map((tab) => (
+        {bottomNavTabs.map((tab) => (
           <button
             key={tab.id}
             className={`bottom-nav-item ${activeTab === tab.id ? 'active' : ''}`}
