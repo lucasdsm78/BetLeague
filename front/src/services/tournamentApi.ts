@@ -17,14 +17,20 @@ export interface TournamentCreateResponse {
 
 export interface Tournament {
   id: number;
+  uuid: string;
   name: string;
   is_private: boolean;
   max_players: number;
   current_players: number;
-  start_date?: number;
-  end_date?: number;
-  status: 'pending' | 'active' | 'completed';
-  creator_email: string;
+  start_date: number;
+  end_date: number;
+}
+
+export interface TournamentsResponse {
+  tournaments: Tournament[];
+  total_count: number;
+  page: number;
+  page_size: number;
 }
 
 /**
@@ -43,14 +49,19 @@ export const createTournament = async (
 };
 
 /**
- * Get all tournaments
- * @returns List of tournaments
+ * Get available public tournaments with pagination
+ * @param page Page number (starts at 1)
+ * @param pageSize Number of items per page
+ * @returns Tournaments response with pagination
  */
-export const getTournaments = async (): Promise<Tournament[]> => {
-  const response = await apiClient.get<{ tournaments: Tournament[] }>(
-    '/tournament/list'
+export const getTournaments = async (
+  page: number = 1,
+  pageSize: number = 10
+): Promise<TournamentsResponse> => {
+  const response = await apiClient.get<TournamentsResponse>(
+    `/tournaments?page=${page}&page_size=${pageSize}`
   );
-  return (response.data as { tournaments: Tournament[] }).tournaments;
+  return response.data as TournamentsResponse;
 };
 
 /**
