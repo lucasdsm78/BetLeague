@@ -128,6 +128,7 @@ class TournamentRepositoryImpl(TournamentRepository):
 
     async def find_available_tournaments_public(
             self,
+            user_id: int,
             limit: int,
             offset: int
     ) -> Tuple[List[Tournament], int]:
@@ -140,6 +141,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament.is_private == False,
                 DBTournament.current_players < DBTournament.max_players,
                 DBTournament.status == TournamentStatus.PENDING.value,
+                DBTournament.user_id != user_id
             )
             .order_by(DBTournament.created_at.desc())
             .limit(limit)

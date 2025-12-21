@@ -32,6 +32,7 @@ class TournamentRepository(ABC):
     @abstractmethod
     async def find_available_tournaments_public(
             self,
+            user_id: int,
             limit: int,
             offset: int
     ) -> Tuple[List[Tournament], int]:

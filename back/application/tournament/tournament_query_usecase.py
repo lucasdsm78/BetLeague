@@ -187,7 +187,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                 offset = (page - 1) * page_size
 
                 tournaments, total_count = await self.tournament_repository.find_available_tournaments_public(
-                    page_size, offset
+                    user.id, page_size, offset
                 )
 
                 response = TournamentsAvailablePublicResponse(
