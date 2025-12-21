@@ -3,12 +3,12 @@
  * Centralized API communication with comprehensive error handling
  */
 
-import type { 
-  ApiResponse, 
-  ApiError, 
-  RequestConfig, 
+import type {
+  ApiResponse,
+  ApiError,
+  RequestConfig,
   HttpMethod,
-  SecurityContext 
+  SecurityContext
 } from '../types';
 
 // API Configuration
@@ -137,7 +137,7 @@ class RateLimiter {
   canMakeRequest(): boolean {
     const now = Date.now();
     this.requests = this.requests.filter(time => now - time < this.windowMs);
-    
+
     if (this.requests.length >= this.limit) {
       return false;
     }
@@ -184,6 +184,14 @@ export class ApiClient {
   // Get stored token securely
   private getStoredToken(): string | null {
     try {
+      const authStore = localStorage.getItem('auth-store');
+      if (authStore) {
+        const parsed = JSON.parse(authStore);
+        if (parsed?.state?.token) {
+          return parsed.state.token;
+        }
+      }
+
       return localStorage.getItem('authToken');
     } catch {
       return null;
@@ -194,7 +202,7 @@ export class ApiClient {
   private buildUrl(endpoint: string): string {
     // Remove leading slash if present
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    
+
     // Validate endpoint format
     if (!/^[a-zA-Z0-9\/_-]+(\?[a-zA-Z0-9&=_-]*)?$/.test(cleanEndpoint)) {
       throw new ApiClientError('Invalid endpoint format', 400);
@@ -225,7 +233,7 @@ export class ApiClient {
 
     const url = this.buildUrl(endpoint);
     const method = config.method || 'GET';
-    
+
     // Prepare request configuration
     this.abortController = new AbortController();
     const timeoutId = setTimeout(
@@ -257,19 +265,19 @@ export class ApiClient {
         if (!response.ok) {
           const errorData = await this.safeParseJson(response);
           const error = ApiClientError.fromResponse(response, errorData);
-          
+
           // Don't retry client errors (4xx) except 429
           if (response.status < 500 && response.status !== 429) {
             throw error;
           }
-          
+
           lastError = error;
-          
+
           // Don't retry on last attempt
           if (attempt === maxRetries) {
             throw error;
           }
-          
+
           // Wait before retry with exponential backoff
           const delay = this.config.retryDelay * Math.pow(2, attempt);
           await this.sleep(delay);
@@ -278,7 +286,7 @@ export class ApiClient {
 
         // Parse successful response
         const data = await this.safeParseJson<T>(response);
-        
+
         return {
           success: true,
           data: data as T,
@@ -318,7 +326,7 @@ export class ApiClient {
   // Safely parse JSON response
   private async safeParseJson<T>(response: Response): Promise<T | any> {
     const text = await response.text();
-    
+
     if (!text.trim()) {
       return null;
     }
@@ -333,7 +341,7 @@ export class ApiClient {
 
   // Public HTTP methods
   async get<T>(endpoint: string, config?: Omit<RequestConfig, 'method' | 'body'>): Promise<ApiResponse<T>> {
-    return this.requestQueue.add(() => 
+    return this.requestQueue.add(() =>
       this.makeRequest<T>(endpoint, { ...config, method: 'GET' })
     );
   }
