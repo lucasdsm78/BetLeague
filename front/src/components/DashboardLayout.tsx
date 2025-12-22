@@ -214,7 +214,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         suspiciousActivity
       };
     });
-  }, [location.pathname, showWarning]);
+  }, [location.pathname]); // Removed showWarning - it's stable and doesn't need to trigger re-runs
 
   // Secure navigation handler with validation
   const handleTabClick = useCallback((tabId: string) => {
@@ -254,7 +254,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       console.error('🔒 Navigation error:', error);
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
-  }, [navigate, user, securityState.lastActivity, showError]);
+  }, [navigate, user, securityState.lastActivity]); // Removed showError - it's stable and doesn't need to trigger re-creation
 
   // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {

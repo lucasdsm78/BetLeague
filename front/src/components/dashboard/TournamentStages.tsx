@@ -59,7 +59,7 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
     } finally {
       setIsLoading(false);
     }
-  }, [tournamentId, showError]);
+  }, [tournamentId]); // Removed showError from deps - it's stable and doesn't need to trigger re-fetches
 
   useEffect(() => {
     fetchStages();

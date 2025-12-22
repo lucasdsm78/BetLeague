@@ -36,7 +36,7 @@ const MyTournaments: React.FC = memo(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, showError]);
+  }, [page, pageSize]); // Removed showError from deps - it's stable and doesn't need to trigger re-fetches
 
   useEffect(() => {
     fetchMyTournaments();
