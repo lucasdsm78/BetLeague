@@ -77,7 +77,7 @@ const TournamentsSection: React.FC = memo(() => {
   const handleTournamentCreated = useCallback(() => {
     showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
     setRefreshCounter(prev => prev + 1);
-  }, [showInfo]);
+  }, []); // Removed showInfo - it's stable and doesn't need to trigger re-creation
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
@@ -95,7 +95,7 @@ const TournamentsSection: React.FC = memo(() => {
       showError('Erreur', errorMessage);
       throw err;
     }
-  }, [tournaments, showError]);
+  }, [tournaments]); // Removed showError - it's stable and doesn't need to trigger re-creation
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {

@@ -62,7 +62,7 @@ const TwoFactorPage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  }, [code, twoFactorChallenge, login, clearTwoFactorChallenge, navigate, showSuccess]);
+  }, [code, twoFactorChallenge, login, clearTwoFactorChallenge, navigate]); // Removed showSuccess - it's stable and doesn't need to trigger re-creation
 
   return (
     <div className="auth-form form-container">
