@@ -64,10 +64,13 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                     user.is_tournament_subscriber = True
                     await user_repository.update(user)
 
+                period_start = first_item.get("current_period_start")
+                period_end = first_item.get("current_period_end")
+
                 subscription.update_status_from_stripe(
                     status=subscription_data["status"],
-                    period_start=first_item.get("current_period_start"),
-                    period_end=first_item.get("current_period_end")
+                    period_start=period_start * 1000 if period_start else None,
+                    period_end=period_end * 1000 if period_end else None
                 )
 
                 subscription.update_stripe_subscription_id_from_stripe(stripe_subscription_id)
@@ -83,10 +86,13 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 if not subscription:
                     return
 
+                period_start = subscription_data.get("period_start")
+                period_end = subscription_data.get("period_end")
+
                 subscription.update_status_from_stripe(
                     status=subscription_data["status"],
-                    period_start=subscription_data["period_start"],
-                    period_end=subscription_data["period_end"]
+                    period_start=period_start * 1000 if period_start else None,
+                    period_end=period_end * 1000 if period_end else None
                 )
 
                 await tournament_subscription_repository.update(subscription)
@@ -114,59 +120,63 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             async with session.begin():
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
 
-            subscription_id = None
+                subscription_id = None
 
-            parent = invoice_data.get("parent", {})
-            if parent.get("type") == "subscription_details":
-                subscription_details = parent.get("subscription_details", {})
-                subscription_id = subscription_details.get("subscription")
+                parent = invoice_data.get("parent", {})
+                if parent.get("type") == "subscription_details":
+                    subscription_details = parent.get("subscription_details", {})
+                    subscription_id = subscription_details.get("subscription")
 
-            if not subscription_id:
+                if not subscription_id:
+                    lines = invoice_data.get("lines", {})
+                    lines_data = lines.get("data", [])
+                    if lines_data:
+                        first_line = lines_data[0]
+                        line_parent = first_line.get("parent", {})
+                        if line_parent.get("type") == "subscription_item_details":
+                            sub_item_details = line_parent.get("subscription_item_details", {})
+                            subscription_id = sub_item_details.get("subscription")
+
+                if not subscription_id:
+                    return
+
+                period_start = None
+                period_end = None
+
                 lines = invoice_data.get("lines", {})
                 lines_data = lines.get("data", [])
-                if lines_data:
+
+                if lines_data and len(lines_data) > 0:
                     first_line = lines_data[0]
-                    line_parent = first_line.get("parent", {})
-                    if line_parent.get("type") == "subscription_item_details":
-                        sub_item_details = line_parent.get("subscription_item_details", {})
-                        subscription_id = sub_item_details.get("subscription")
+                    period = first_line.get("period", {})
 
-            if not subscription_id:
-                return
+                    period_start = period.get("start")
+                    period_end = period.get("end")
 
-            period_start = None
-            period_end = None
+                subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(subscription_id)
 
-            lines = invoice_data.get("lines", {})
-            lines_data = lines.get("data", [])
+                if not subscription:
+                    return
 
-            if lines_data and len(lines_data) > 0:
-                first_line = lines_data[0]
-                period = first_line.get("period", {})
+                # Convert Stripe timestamps (seconds) to milliseconds
+                period_start_ms = period_start * 1000 if period_start else None
+                period_end_ms = period_end * 1000 if period_end else None
 
-                period_start = period.get("start")
-                period_end = period.get("end")
+                try:
+                    subscription.update_status_from_stripe(
+                        status="active",
+                        period_start=period_start_ms,
+                        period_end=period_end_ms
+                    )
 
-            subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(subscription_id)
+                except Exception:
+                    subscription.update_status_from_stripe(
+                        status=TournamentSubscriptionStatus.ACTIVE.value,
+                        period_start=period_start_ms,
+                        period_end=period_end_ms
+                    )
 
-            if not subscription:
-                return
-
-            try:
-                subscription.update_status_from_stripe(
-                    status="active",
-                    period_start=period_start,
-                    period_end=period_end
-                )
-
-            except Exception:
-                subscription.update_status_from_stripe(
-                    status=TournamentSubscriptionStatus.ACTIVE.value,
-                    period_start=period_start,
-                    period_end=period_end
-                )
-
-            await tournament_subscription_repository.update(subscription)
+                await tournament_subscription_repository.update(subscription)
 
 
     async def _handle_payment_failed(self, invoice_data: dict) -> None:

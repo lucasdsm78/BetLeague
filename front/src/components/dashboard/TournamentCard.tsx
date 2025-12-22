@@ -2,16 +2,17 @@
  * TournamentCard - Premium card component for displaying tournament
  */
 
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import type { Tournament } from '../../services/tournamentApi';
 import './TournamentCard.css';
 
 interface TournamentCardProps {
   tournament: Tournament;
-  onJoin: (tournamentId: number) => void;
+  onJoin: (tournamentId: number) => Promise<void>;
 }
 
 const TournamentCard: React.FC<TournamentCardProps> = memo(({ tournament, onJoin }) => {
+  const [isJoining, setIsJoining] = useState(false);
   // Calculate progress percentage
   const progressPercentage = useMemo(() => {
     return Math.round((tournament.current_players / tournament.max_players) * 100);
@@ -40,9 +41,16 @@ const TournamentCard: React.FC<TournamentCardProps> = memo(({ tournament, onJoin
   // Check if started
   const hasStarted = Date.now() >= tournament.start_date;
 
-  const handleJoinClick = () => {
-    if (!isFull && !hasStarted) {
-      onJoin(tournament.id);
+  const handleJoinClick = async () => {
+    if (!isFull && !isJoining) {
+      setIsJoining(true);
+      try {
+        await onJoin(tournament.id);
+      } catch (error) {
+        console.error('Failed to join tournament:', error);
+      } finally {
+        setIsJoining(false);
+      }
     }
   };
 
@@ -127,13 +135,14 @@ const TournamentCard: React.FC<TournamentCardProps> = memo(({ tournament, onJoin
 
       {/* Action Button */}
       <button
-        className={`tournament-join-btn ${isFull || hasStarted ? 'btn-disabled' : ''}`}
+        className={`tournament-join-btn ${isFull || isJoining ? 'btn-disabled' : ''} ${isJoining ? 'btn-loading' : ''}`}
         onClick={handleJoinClick}
-        disabled={isFull || hasStarted}
+        disabled={isFull || isJoining}
       >
-        {hasStarted ? (
+        {isJoining ? (
           <>
-            Déjà commencé
+            <span className="btn-spinner" />
+            Inscription en cours...
           </>
         ) : isFull ? (
           <>

@@ -132,6 +132,16 @@ class TournamentRepositoryImpl(TournamentRepository):
             limit: int,
             offset: int
     ) -> Tuple[List[Tournament], int]:
+        participant_exists = (
+            select(1)
+            .select_from(DBTournamentPlayer)
+            .where(
+                DBTournamentPlayer.tournament_id == DBTournament.id,
+                DBTournamentPlayer.user_id == user_id
+            )
+            .exists()
+        )
+
         stmt = (
             select(
                 DBTournament,
@@ -141,7 +151,8 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament.is_private == False,
                 DBTournament.current_players < DBTournament.max_players,
                 DBTournament.status == TournamentStatus.PENDING.value,
-                DBTournament.user_id != user_id
+                DBTournament.user_id != user_id,  # Not the creator
+                ~participant_exists  # Not a participant
             )
             .order_by(DBTournament.created_at.desc())
             .limit(limit)
