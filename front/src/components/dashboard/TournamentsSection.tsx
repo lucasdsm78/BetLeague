@@ -6,6 +6,7 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
+import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
 import { useToast } from '../../hooks/useToast';
 import { getTournaments, joinTournament, type Tournament } from '../../services/tournamentApi';
 import './TournamentsSection.css';
@@ -19,6 +20,7 @@ const TournamentsSection: React.FC = memo(() => {
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [joinedTournament, setJoinedTournament] = useState<Tournament | null>(null);
   const { showInfo, showError, showSuccess } = useToast();
 
   // Load tournaments on mount, when page changes, or when refresh is triggered
@@ -68,16 +70,23 @@ const TournamentsSection: React.FC = memo(() => {
     setRefreshCounter(prev => prev + 1);
   }, [showInfo]);
 
-  const handleJoinTournament = useCallback(async (tournamentId: number) => {
+  const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
       await joinTournament(tournamentId);
-      showSuccess('Succès', 'Vous avez rejoint le tournoi !');
+
+      const tournament = tournaments.find(t => t.id === tournamentId);
+      if (tournament) {
+        setJoinedTournament(tournament);
+      }
+
       setRefreshCounter(prev => prev + 1);
     } catch (err: any) {
       console.error('Error joining tournament:', err);
-      showError('Erreur', err.message || 'Impossible de rejoindre le tournoi');
+      const errorMessage = err.response?.data?.detail || err.message || 'Impossible de rejoindre le tournoi';
+      showError('Erreur', errorMessage);
+      throw err;
     }
-  }, [showSuccess, showError]);
+  }, [tournaments, showError]);
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {
@@ -196,6 +205,14 @@ const TournamentsSection: React.FC = memo(() => {
         <CreateTournamentModal
           onClose={handleCloseCreateModal}
           onTournamentCreated={handleTournamentCreated}
+        />
+      )}
+
+      {/* Join Success Modal */}
+      {joinedTournament && (
+        <TournamentJoinSuccessModal
+          tournament={joinedTournament}
+          onClose={() => setJoinedTournament(null)}
         />
       )}
     </div>

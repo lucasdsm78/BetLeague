@@ -1,0 +1,569 @@
+/* ============================================
+   TOURNAMENT JOIN SUCCESS MODAL - Premium Design
+   ============================================ */
+
+/* Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 1rem;
+}
+
+.modal-overlay-visible {
+  opacity: 1;
+}
+
+/* Modal Content */
+.modal-content {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 24px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  position: relative;
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-content-visible {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Close Button */
+.modal-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.modal-close-btn:hover {
+  background: rgba(107, 114, 128, 0.2);
+  transform: rotate(90deg);
+}
+
+/* Success Icon */
+.modal-icon-container {
+  padding: 3rem 2rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.success-checkmark {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.check-icon {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  border-radius: 50%;
+  box-sizing: content-box;
+  border: 6px solid #10b981;
+}
+
+.icon-circle {
+  width: 120px;
+  height: 120px;
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  z-index: 10;
+  border-radius: 50%;
+  border: 6px solid #10b981;
+}
+
+.icon-line {
+  height: 8px;
+  background-color: #10b981;
+  display: block;
+  border-radius: 4px;
+  position: absolute;
+  z-index: 10;
+}
+
+.line-tip {
+  top: 56px;
+  left: 24px;
+  width: 35px;
+  transform: rotate(45deg);
+  animation: icon-line-tip 0.75s;
+}
+
+.line-long {
+  top: 48px;
+  right: 16px;
+  width: 64px;
+  transform: rotate(-45deg);
+  animation: icon-line-long 0.75s;
+}
+
+.icon-fix {
+  top: 12px;
+  width: 8px;
+  left: 34px;
+  z-index: 1;
+  height: 112px;
+  position: absolute;
+  transform: rotate(-45deg);
+  background-color: #ffffff;
+}
+
+@keyframes icon-line-tip {
+  0% {
+    width: 0;
+    left: 2px;
+    top: 28px;
+  }
+  54% {
+    width: 0;
+    left: 2px;
+    top: 28px;
+  }
+  70% {
+    width: 50px;
+    left: -8px;
+    top: 56px;
+  }
+  84% {
+    width: 24px;
+    left: 28px;
+    top: 64px;
+  }
+  100% {
+    width: 35px;
+    left: 24px;
+    top: 56px;
+  }
+}
+
+@keyframes icon-line-long {
+  0% {
+    width: 0;
+    right: 62px;
+    top: 82px;
+  }
+  65% {
+    width: 0;
+    right: 62px;
+    top: 82px;
+  }
+  84% {
+    width: 80px;
+    right: 0;
+    top: 38px;
+  }
+  100% {
+    width: 64px;
+    right: 16px;
+    top: 48px;
+  }
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 0 2rem 2rem;
+}
+
+.modal-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1f2937;
+  text-align: center;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.modal-subtitle {
+  font-size: 1.125rem;
+  color: #6b7280;
+  text-align: center;
+  margin: 0 0 2rem 0;
+  font-weight: 500;
+}
+
+/* Tournament Info Card */
+.tournament-info-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(245, 158, 11, 0.1);
+}
+
+.tournament-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+}
+
+.badge-private-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.info-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+}
+
+.info-item.highlight {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.info-icon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 0.9375rem;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+/* Next Steps */
+.next-steps {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.next-steps-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.75rem 0;
+}
+
+.next-steps-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.next-steps-list li {
+  position: relative;
+  font-size: 0.9375rem;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.next-steps-list li::before {
+  content: '✓';
+  position: absolute;
+  left: -1.25rem;
+  color: #10b981;
+  font-weight: 700;
+}
+
+.next-steps-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Action Buttons */
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-primary-modal {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary-modal::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary-modal:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary-modal:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+}
+
+.btn-primary-modal:active {
+  transform: translateY(-1px);
+}
+
+.btn-primary-modal .btn-icon {
+  font-size: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Confetti Animation */
+.confetti-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 10000;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: -10px;
+  animation: confetti-fall 3s linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotateZ(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotateZ(720deg);
+    opacity: 0;
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .modal-content {
+    max-width: calc(100% - 2rem);
+    border-radius: 20px;
+  }
+
+  .modal-icon-container {
+    padding: 2rem 1.5rem 0.5rem;
+  }
+
+  .success-checkmark,
+  .check-icon,
+  .icon-circle {
+    width: 100px;
+    height: 100px;
+  }
+
+  .icon-circle {
+    top: -6px;
+    left: -6px;
+  }
+
+  .line-tip {
+    top: 46px;
+    left: 20px;
+    width: 30px;
+  }
+
+  .line-long {
+    top: 40px;
+    right: 14px;
+    width: 54px;
+  }
+
+  .icon-fix {
+    top: 10px;
+    left: 28px;
+    height: 94px;
+  }
+
+  .modal-body {
+    padding: 0 1.5rem 1.5rem;
+  }
+
+  .modal-title {
+    font-size: 1.75rem;
+  }
+
+  .modal-subtitle {
+    font-size: 1rem;
+  }
+
+  .tournament-info-card {
+    padding: 1.25rem;
+  }
+
+  .tournament-name {
+    font-size: 1.125rem;
+  }
+
+  .info-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-content,
+  .confetti,
+  .icon-line,
+  .btn-primary-modal::before {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .modal-content {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  }
+
+  .modal-title,
+  .tournament-name,
+  .info-value,
+  .next-steps-title {
+    color: #f9fafb;
+  }
+
+  .modal-subtitle,
+  .info-label,
+  .next-steps-list li {
+    color: #d1d5db;
+  }
+
+  .info-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .modal-close-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #d1d5db;
+  }
+
+  .modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
