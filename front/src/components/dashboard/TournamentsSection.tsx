@@ -3,7 +3,7 @@
  * Displays tournaments for subscribed users with creation capability
  */
 
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
@@ -14,9 +14,14 @@ import './TournamentsSection.css';
 
 type TournamentTab = 'available' | 'my-tournaments';
 
-const TournamentsSection: React.FC = memo(() => {
+const TournamentsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TournamentTab>('available');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Debug log to track state changes
+  useEffect(() => {
+    console.log('📊 isCreateModalOpen changed:', isCreateModalOpen);
+  }, [isCreateModalOpen]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,11 +71,17 @@ const TournamentsSection: React.FC = memo(() => {
     };
   }, [activeTab, page, pageSize, refreshCounter]); // showError intentionally omitted to prevent infinite loop
 
-  const handleOpenCreateModal = useCallback(() => {
+  const handleOpenCreateModal = useCallback((e?: React.MouseEvent) => {
+    console.log('🟢 handleOpenCreateModal called');
+    e?.stopPropagation();
+    e?.preventDefault();
     setIsCreateModalOpen(true);
+    console.log('🟢 isCreateModalOpen set to TRUE');
   }, []);
 
   const handleCloseCreateModal = useCallback(() => {
+    console.log('🔴 handleCloseCreateModal called');
+    console.trace('Close modal stack trace');
     setIsCreateModalOpen(false);
   }, []);
 
@@ -123,6 +134,7 @@ const TournamentsSection: React.FC = memo(() => {
             </p>
           </div>
           <button
+            type="button"
             className="btn-create-tournament-header"
             onClick={handleOpenCreateModal}
           >
@@ -180,7 +192,7 @@ const TournamentsSection: React.FC = memo(() => {
                 <span className="empty-icon">🏆</span>
                 <h3>Aucun tournoi disponible</h3>
                 <p>Soyez le premier à créer un tournoi !</p>
-                <button className="btn-create-tournament-cta" onClick={handleOpenCreateModal}>
+                <button type="button" className="btn-create-tournament-cta" onClick={handleOpenCreateModal}>
                   <span className="btn-icon">➕</span>
                   Créer un tournoi
                 </button>
@@ -254,7 +266,7 @@ const TournamentsSection: React.FC = memo(() => {
       )}
     </div>
   );
-});
+};
 
 TournamentsSection.displayName = 'TournamentsSection';
 
