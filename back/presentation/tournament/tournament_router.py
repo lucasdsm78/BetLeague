@@ -198,9 +198,7 @@ async def get_tournaments_registered(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.get_user_tournaments_in_progress(current_user.get("email", ""), page, page_size)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+        return await tournament_usecase.get_user_tournaments_in_progress(current_user.get("id"), page, page_size)
     except TournamentNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:
@@ -222,9 +220,7 @@ async def get_tournaments_finished(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.get_tournaments_finished(current_user.get("email", ""), page, page_size)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+        return await tournament_usecase.get_tournaments_finished(current_user.get("id"), page, page_size)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -245,9 +241,7 @@ async def get_tournaments_created(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.get_tournaments_created(current_user.get("email", ""), page, page_size)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+        return await tournament_usecase.get_tournaments_created(current_user.get("id"), page, page_size)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -267,9 +261,7 @@ async def get_available_public_tournaments(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.get_available_tournaments_public(current_user.get("email", ""), page, page_size)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+        return await tournament_usecase.get_available_tournaments_public(current_user.get("id"), page, page_size)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

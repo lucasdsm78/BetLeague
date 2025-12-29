@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float, Index
 from sqlalchemy.orm import relationship
 
 from domain.tournament.model.tournament import Tournament
@@ -18,6 +18,9 @@ def unixtimestamp() -> int:
 
 class DBTournament(Base):
     __tablename__ = "tournament"
+    __table_args__ = (
+        Index('idx_tournament_user_created', 'user_id', 'end_date'),
+    )
 
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
@@ -79,6 +82,5 @@ class DBTournament(Base):
         tournament_db.prize_pool=tournament.prize_pool
         tournament_db.current_players=tournament.current_players
         tournament_db.user_id = tournament.user.id
-        # Preserve original creation time when updating
         tournament_db.created_at = tournament_db.created_at if db_tournament is not None else now
         return tournament_db
