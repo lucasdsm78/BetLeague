@@ -190,3 +190,35 @@ export const getStageMatches = async (
   );
   return response.data as StageMatchesResponse;
 };
+
+export interface TournamentUpdateRequest {
+  name?: string;
+  is_private?: boolean;
+  start_date?: number; // timestamp in milliseconds
+  end_date?: number; // timestamp in milliseconds
+}
+
+export interface TournamentUpdateResponse {
+  message: string;
+}
+
+/**
+ * Update a tournament
+ * @param tournamentId Tournament ID
+ * @param data Tournament update data
+ * @returns Update response
+ * @throws 404 if user or tournament not found
+ * @throws 409 if tournament name already exists
+ * @throws 401 if user is not the owner or tournament already started
+ * @throws 500 for internal server errors
+ */
+export const updateTournament = async (
+  tournamentId: number,
+  data: TournamentUpdateRequest
+): Promise<TournamentUpdateResponse> => {
+  const response = await apiClient.put<TournamentUpdateResponse>(
+    `/tournament/${tournamentId}`,
+    data
+  );
+  return response.data as TournamentUpdateResponse;
+};

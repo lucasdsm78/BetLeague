@@ -327,6 +327,49 @@
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
+/* Tournament Actions Container */
+.tournament-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Edit Tournament Button */
+.btn-edit-tournament {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.3);
+  white-space: nowrap;
+}
+
+.btn-edit-tournament:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.btn-edit-tournament:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-edit-tournament:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* View Stages Button */
 .btn-view-stages {
   display: inline-flex;
   align-items: center;
@@ -547,6 +590,12 @@
     font-size: 1.375rem;
   }
 
+  .tournament-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .btn-edit-tournament,
   .btn-view-stages {
     width: 100%;
     justify-content: center;
@@ -609,6 +658,7 @@
     padding: 0.35rem 0.75rem;
   }
 
+  .btn-edit-tournament,
   .btn-view-stages {
     padding: 0.675rem 1rem;
     font-size: 0.875rem;
@@ -735,6 +785,7 @@
 
   .my-tournament-card,
   .pagination-btn,
+  .btn-edit-tournament,
   .btn-view-stages,
   .stat-item {
     transition: none;
@@ -799,6 +850,7 @@
 @media print {
   .my-tournament-card::before,
   .my-tournaments-header::before,
+  .btn-edit-tournament,
   .btn-view-stages,
   .my-tournaments-pagination {
     display: none;

@@ -4,7 +4,7 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getMyTournaments, getTournamentStages, type MyTournament } from '../../services/tournamentApi';
+import { getMyTournaments, type MyTournament } from '../../services/tournamentApi';
 import TournamentStages from './TournamentStages';
 import { useToast } from '../../hooks/useToast';
 import './MyTournaments.css';

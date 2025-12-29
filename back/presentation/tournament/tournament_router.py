@@ -114,6 +114,29 @@ async def start_tournament(
         )
 
 @router.get(
+    "/tournament/{id}",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère les détails d'un tournoi",
+)
+async def get_tournament_details(
+        id: int,
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
+):
+    try:
+        return await tournament_usecase.get_tournament_details(id, current_user.get("email", ""))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération du tournoi: {str(e)}"
+        )
+
+@router.get(
     "/tournament/{id}/stages",
     status_code=status.HTTP_200_OK,
     summary="Récupère les étapes d'un tournoi",
@@ -206,6 +229,29 @@ async def get_tournaments_finished(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des tournois terminés de l'utilisateur: {str(e)}"
+        )
+
+
+@router.get(
+    "/tournaments/my/created",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère les tournois créés par l'utilisateur",
+)
+async def get_tournaments_created(
+        page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
+        page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
+):
+    try:
+        return await tournament_usecase.get_tournaments_created(current_user.get("email", ""), page, page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des tournois créés par l'utilisateur: {str(e)}"
         )
 
 @router.get(

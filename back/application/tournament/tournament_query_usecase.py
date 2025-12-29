@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
-    TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel
+    TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel, \
+    TournamentCreatedResponse, TournamentCreatedReadModel
 from application.user.user_query_model import UserSummaryReadModel
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentStageNotFoundError
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
@@ -26,6 +27,10 @@ class TournamentQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_tournament_details(self, tournament_id: int, email: str) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
         raise NotImplementedError
 
@@ -35,6 +40,10 @@ class TournamentQueryUseCase(ABC):
 
     @abstractmethod
     async def get_tournaments_finished(self, email: str, page: int = 1, page_size: int = 10) -> TournamentFinishedResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_tournaments_created(self, email: str, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
         raise NotImplementedError
 
 
@@ -147,6 +156,28 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
         return result
 
+    async def get_tournament_details(self, tournament_id: int, email: str) -> dict:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                tournament = await self.tournament_repository.find_by_id(tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                return {
+                    "id": tournament.id,
+                    "uuid": tournament.uuid,
+                    "name": tournament.name,
+                    "is_private": tournament.is_private,
+                    "max_players": tournament.max_players,
+                    "current_players": tournament.current_players,
+                    "start_date": tournament.start_date,
+                    "end_date": tournament.end_date,
+                }
+
     async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
@@ -221,6 +252,32 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     total_count=total_count,
                     page=page,
                     tournaments=[TournamentFinishedReadModel.from_entity(t) for t in tournaments]
+                )
+
+                return response
+
+    async def get_tournaments_created(self, email: str, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
+        page = max(1, page)
+        page_size = min(max(1, page_size), 100)
+
+        async with self._session_factory() as session:
+            async with session.begin():
+
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                offset = (page - 1) * page_size
+
+                tournaments, total_count = await self.tournament_repository.find_created_tournaments(
+                    user.id, page_size, offset
+                )
+
+                response = TournamentCreatedResponse(
+                    page_size=page_size,
+                    total_count=total_count,
+                    page=page,
+                    tournaments=[TournamentCreatedReadModel.from_entity(t) for t in tournaments]
                 )
 
                 return response
