@@ -83,7 +83,6 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
     setSuccessMessage('');
 
     try {
-      console.log(`🔄 Sending invitation to user ${selectedUser.id} for league ${leagueId}`);
 
       const result = await leagueApiService.inviteUserToLeague(leagueId, selectedUser.id);
 
@@ -101,7 +100,6 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
           onClose();
         }, 2000);
 
-        console.log(`✅ Invitation sent successfully to: ${selectedUser.pseudo}`);
       } else {
         // Enhanced error handling with specific messages
         let errorMsg = result.error || 'Erreur lors de l\'envoi de l\'invitation';

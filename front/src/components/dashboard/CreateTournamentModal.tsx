@@ -25,17 +25,12 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   const { showSuccess, showError } = useToast();
   const canCloseRef = useRef(false);
 
-  // Prevent immediate closing after mount (protects against event bubbling from open button)
   useEffect(() => {
-    console.log('✨ CreateTournamentModal mounted');
-    // Augmentation du délai à 300ms pour éviter tout problème de timing
     const timer = setTimeout(() => {
       canCloseRef.current = true;
-      console.log('✅ Modal can now be closed');
     }, 300);
 
     return () => {
-      console.log('💀 CreateTournamentModal unmounted');
       clearTimeout(timer);
     };
   }, []);
@@ -104,13 +99,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   }, [formData, validateForm, showSuccess, showError, onTournamentCreated, onClose]);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    console.log('🖱️ Overlay clicked', {
-      isTargetCurrentTarget: e.target === e.currentTarget,
-      isSubmitting,
-      canClose: canCloseRef.current
-    });
     if (e.target === e.currentTarget && !isSubmitting && canCloseRef.current) {
-      console.log('🔴 Closing modal from overlay click');
       onClose();
     }
   }, [isSubmitting, onClose]);
@@ -275,9 +264,6 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     </div>
   );
 
-  console.log('🚪 Rendering modal (NO PORTAL - TEST)');
-
-  // TEMPORAIRE: Test sans portal
   return modalContent;
 };
 

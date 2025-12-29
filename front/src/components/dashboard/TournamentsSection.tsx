@@ -20,7 +20,6 @@ const TournamentsSection: React.FC = () => {
 
   // Debug log to track state changes
   useEffect(() => {
-    console.log('📊 isCreateModalOpen changed:', isCreateModalOpen);
   }, [isCreateModalOpen]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,15 +71,12 @@ const TournamentsSection: React.FC = () => {
   }, [activeTab, page, pageSize, refreshCounter]); // showError intentionally omitted to prevent infinite loop
 
   const handleOpenCreateModal = useCallback((e?: React.MouseEvent) => {
-    console.log('🟢 handleOpenCreateModal called');
     e?.stopPropagation();
     e?.preventDefault();
     setIsCreateModalOpen(true);
-    console.log('🟢 isCreateModalOpen set to TRUE');
   }, []);
 
   const handleCloseCreateModal = useCallback(() => {
-    console.log('🔴 handleCloseCreateModal called');
     console.trace('Close modal stack trace');
     setIsCreateModalOpen(false);
   }, []);

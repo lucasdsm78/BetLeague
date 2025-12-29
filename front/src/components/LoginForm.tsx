@@ -271,7 +271,6 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
       const result = await login({ email: formData.email, password: formData.password });
       setAttemptCount(0);
       if (result && onLogin) onLogin({ user: result });
-      console.log('✅ Login successful, user data:', result);
     } catch (error) {
       // Ne pas incrémenter attemptCount si c'est juste le challenge 2FA
       if (error instanceof AuthError && (error as any).code === 'TWO_FACTOR_REQUIRED') {

@@ -59,7 +59,6 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
         window.location.href = response.url;
       } else if (response.session_id) {
         // Alternative: use Stripe.js
-        console.log('Session ID:', response.session_id);
       }
 
       if (onPurchaseComplete) {

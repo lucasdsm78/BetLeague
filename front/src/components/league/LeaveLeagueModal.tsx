@@ -71,12 +71,10 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
     setError('');
 
     try {
-      console.log(`🚪 Attempting to leave league ${leagueId}`);
 
       const result = await leagueApiService.leaveLeague(leagueId);
 
       if (result.success) {
-        console.log(`✅ Successfully left league ${leagueId}`);
 
         // Call success callback
         if (onLeaveSuccess) {

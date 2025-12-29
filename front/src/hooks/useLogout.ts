@@ -127,21 +127,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
     data?: Record<string, any>
   ) => {
     if (!enableAnalytics) return;
-
-    try {
-      console.log(`🔐 Logout Analytics: ${event}`, {
-        option,
-        trigger,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        ...data,
-      });
-
-      // In a real app, you might send this to your analytics service
-      // analytics.track(event, { option, trigger, ...data });
-    } catch (error) {
-      console.warn('📊 Analytics logging failed:', error);
-    }
   }, [enableAnalytics]);
 
   // Clear any ongoing logout process
@@ -176,7 +161,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
     }
 
     const optionConfig = LOGOUT_OPTIONS[option];
-    console.log(`🔐 Starting logout process: ${option} (${trigger})`);
 
     // Setup abort controller for cancellation
     cleanupLogoutProcess();
@@ -232,7 +216,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
           timeout: trigger === 'security' ? 2000 : 5000, // Shorter timeout for security logouts
         });
 
-        console.log(`✅ Server logout successful for ${option}:`, response.data?.message || 'Success');
 
         logAnalyticsEvent('server_logout_success', option, trigger, {
           responseTime: Date.now(),
@@ -272,7 +255,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
         });
 
         // Force complete logout by reloading the page
-        console.log('🔐 Forcing page reload to ensure clean logout');
         window.location.href = fallbackUrl;
       }
 
@@ -376,7 +358,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
 
   // Emergency logout - immediate force logout with minimal delays
   const emergencyLogout = useCallback(async (): Promise<boolean> => {
-    console.log('🚨 Emergency logout initiated');
     return logout('current', 'security', true);
   }, [logout]);
 

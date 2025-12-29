@@ -195,7 +195,6 @@ const LogoutModal = memo<LogoutModalProps>(({
     const success = await logout(optionId, triggerReason, force);
 
     if (success) {
-      console.log(`✅ Logout completed successfully for ${optionId}`);
     } else {
       console.error(`❌ Logout failed for ${optionId}`);
     }
@@ -205,7 +204,6 @@ const LogoutModal = memo<LogoutModalProps>(({
   const handleQuickLogout = useCallback(async () => {
     const success = await quickLogout();
     if (success) {
-      console.log('✅ Quick logout completed successfully');
     }
   }, [quickLogout]);
 

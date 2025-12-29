@@ -150,7 +150,6 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           sessionStorage.removeItem(key);
         });
 
-        console.log('🔒 Zustand auth store cleared completely');
       },
 
       updateUser: (updates: Partial<User>) => {
@@ -277,7 +276,6 @@ export const useAuthStore = create<AuthStoreWithActions>()(
       onRehydrateStorage: () => (state) => {
         // Check if session is expired on hydration
         if (state && state.checkSessionExpiry()) {
-          console.info('Session expired, logging out');
         }
       },
     }
