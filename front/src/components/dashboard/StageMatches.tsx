@@ -1,6 +1,6 @@
 /**
  * StageMatches - Premium component for displaying matches of a tournament stage
- * Shows all matches in a specific stage with betting odds and match details
+ * Shows all player matchups in a specific tournament stage
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
@@ -46,27 +46,27 @@ const StageMatches: React.FC<StageMatchesProps> = memo(({
     fetchMatches();
   }, [fetchMatches]);
 
-  // Format date and time
-  const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const dateStr = date.toLocaleDateString('fr-FR', {
+  // Format date from timestamp
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('fr-FR', {
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
-    return { date: dateStr, time: timeStr };
   };
 
-  // Check if match is live (within 2 hours of start time)
-  const isMatchLive = (isoString: string): boolean => {
-    const matchTime = new Date(isoString).getTime();
+  // Check if match is ongoing
+  const isMatchOngoing = (startDate: number, endDate: number): boolean => {
     const now = Date.now();
-    const twoHours = 2 * 60 * 60 * 1000;
-    return matchTime <= now && now <= matchTime + twoHours;
+    return now >= startDate && now <= endDate;
+  };
+
+  // Check if match is completed
+  const isMatchCompleted = (winnerId: number | null): boolean => {
+    return winnerId !== null;
   };
 
   return (
@@ -74,8 +74,8 @@ const StageMatches: React.FC<StageMatchesProps> = memo(({
       {/* Header */}
       <div className="stage-matches-header">
         <h4 className="stage-matches-title">
-          <span className="matches-icon">⚽</span>
-          Matchs - {stageName}
+          <span className="matches-icon">⚔️</span>
+          {stageName}
         </h4>
       </div>
 
@@ -112,62 +112,67 @@ const StageMatches: React.FC<StageMatchesProps> = memo(({
       {!isLoading && !error && matches.length > 0 && (
         <div className="stage-matches-grid">
           {matches.map((match) => {
-            const { date, time } = formatDateTime(match.time);
-            const isLive = isMatchLive(match.time);
+            const isOngoing = isMatchOngoing(match.start_date, match.end_date);
+            const isCompleted = isMatchCompleted(match.winner_id);
+            const player1IsWinner = match.winner_id === match.player1_summary.id;
+            const player2IsWinner = match.winner_id === match.player2_summary.id;
 
             return (
               <div
                 key={match.id}
-                className={`stage-match-card ${isLive ? 'live' : ''}`}
+                className={`stage-match-card ${isOngoing ? 'ongoing' : ''} ${isCompleted ? 'completed' : ''}`}
               >
-                {/* Live Badge */}
-                {isLive && (
-                  <div className="match-live-badge">
-                    <span className="live-dot" />
-                    EN DIRECT
+                {/* Status Badge */}
+                {isOngoing && !isCompleted && (
+                  <div className="match-status-badge ongoing-badge">
+                    <span className="status-dot" />
+                    EN COURS
+                  </div>
+                )}
+                {isCompleted && (
+                  <div className="match-status-badge completed-badge">
+                    ✓ TERMINÉ
                   </div>
                 )}
 
-                {/* Match Time */}
-                <div className="match-datetime">
-                  <span className="match-date">{date}</span>
-                  <span className="match-time">{time}</span>
-                </div>
-
-                {/* Teams */}
-                <div className="match-teams">
-                  <div className="match-team match-home">
-                    <span className="team-name">{match.home_team}</span>
+                {/* Match Dates */}
+                <div className="match-period">
+                  <div className="match-period-item">
+                    <span className="period-label">Début</span>
+                    <span className="period-value">{formatDate(match.start_date)}</span>
                   </div>
-
-                  <div className="match-vs">vs</div>
-
-                  <div className="match-team match-away">
-                    <span className="team-name">{match.away_team}</span>
+                  <div className="match-period-item">
+                    <span className="period-label">Fin</span>
+                    <span className="period-value">{formatDate(match.end_date)}</span>
                   </div>
                 </div>
 
-                {/* Odds */}
-                <div className="match-odds">
-                  <div className="odd-item odd-home">
-                    <span className="odd-label">1</span>
-                    <span className="odd-value">
-                      {match.cote_home != null ? match.cote_home.toFixed(2) : '-'}
-                    </span>
+                {/* Players Matchup */}
+                <div className="players-matchup">
+                  <div className={`player-card ${player1IsWinner ? 'winner' : ''} ${match.loser_id === match.player1_summary.id ? 'loser' : ''}`}>
+                    <div className="player-info">
+                      <div className="player-avatar">{match.player1_summary.pseudo.charAt(0).toUpperCase()}</div>
+                      <div className="player-details">
+                        <span className="player-name">{match.player1_summary.pseudo}</span>
+                        <span className="player-email">{match.player1_summary.email}</span>
+                      </div>
+                    </div>
+                    {player1IsWinner && <div className="winner-crown">👑</div>}
                   </div>
 
-                  <div className="odd-item odd-draw">
-                    <span className="odd-label">N</span>
-                    <span className="odd-value">
-                      {match.cote_draw != null ? match.cote_draw.toFixed(2) : '-'}
-                    </span>
+                  <div className="vs-divider">
+                    <span className="vs-text">VS</span>
                   </div>
 
-                  <div className="odd-item odd-away">
-                    <span className="odd-label">2</span>
-                    <span className="odd-value">
-                      {match.cote_away != null ? match.cote_away.toFixed(2) : '-'}
-                    </span>
+                  <div className={`player-card ${player2IsWinner ? 'winner' : ''} ${match.loser_id === match.player2_summary.id ? 'loser' : ''}`}>
+                    <div className="player-info">
+                      <div className="player-avatar">{match.player2_summary.pseudo.charAt(0).toUpperCase()}</div>
+                      <div className="player-details">
+                        <span className="player-name">{match.player2_summary.pseudo}</span>
+                        <span className="player-email">{match.player2_summary.email}</span>
+                      </div>
+                    </div>
+                    {player2IsWinner && <div className="winner-crown">👑</div>}
                   </div>
                 </div>
               </div>

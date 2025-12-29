@@ -70,17 +70,22 @@ export interface MyTournamentsResponse {
   page_size: number;
 }
 
+export interface PlayerSummary {
+  id: number;
+  email: string;
+  pseudo: string;
+}
+
 export interface StageMatch {
   id: number;
-  uuid: string;
-  home_team: string;
-  away_team: string;
-  cote_home?: number | null;
-  cote_draw?: number | null;
-  cote_away?: number | null;
-  time: string; // ISO datetime string
-  created_at: number;
-  updated_at: number;
+  tournament_id: number;
+  stage: string;
+  player1_summary: PlayerSummary;
+  player2_summary: PlayerSummary;
+  start_date: number; // timestamp in milliseconds
+  end_date: number; // timestamp in milliseconds
+  winner_id: number | null;
+  loser_id: number | null;
 }
 
 export interface StageMatchesResponse {
