@@ -153,12 +153,6 @@ const CreatedTournaments: React.FC = memo(() => {
               Gérez et suivez tous les tournois que vous avez créés
             </p>
           </div>
-          {!isLoading && !error && totalCount > 0 && (
-            <div className="tournaments-stats-badge">
-              <span className="stats-number">{totalCount}</span>
-              <span className="stats-label">Tournoi{totalCount > 1 ? 's' : ''}</span>
-            </div>
-          )}
         </div>
       </div>
 

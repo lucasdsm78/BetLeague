@@ -290,13 +290,6 @@ const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
               )}
             </div>
 
-            {/* Tournament Info */}
-            <div className="tournament-info-box">
-              <div className="info-item">
-                <span className="info-icon">🚫</span>
-                <span className="info-text">Impossible de modifier après le démarrage</span>
-              </div>
-            </div>
           </div>
 
           {/* Footer Actions */}
