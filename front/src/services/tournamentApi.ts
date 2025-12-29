@@ -33,6 +33,65 @@ export interface TournamentsResponse {
   page_size: number;
 }
 
+export interface UserSummary {
+  id: number;
+  username: string;
+  email: string;
+}
+
+export interface TournamentStage {
+  id: number;
+  tournament_id: number;
+  type: string;
+  user_summary: UserSummary;
+  is_active: boolean;
+  is_completed: boolean;
+  created_at?: number;
+  start_date?: number;
+  end_date?: number;
+}
+
+export interface TournamentStagesResponse {
+  stages: TournamentStage[];
+}
+
+export interface MyTournament {
+  id: number;
+  uuid: string;
+  name: string;
+  is_private: boolean;
+  max_players: number;
+}
+
+export interface MyTournamentsResponse {
+  tournaments: MyTournament[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
+
+export interface PlayerSummary {
+  id: number;
+  email: string;
+  pseudo: string;
+}
+
+export interface StageMatch {
+  id: number;
+  tournament_id: number;
+  stage: string;
+  player1_summary: PlayerSummary;
+  player2_summary: PlayerSummary;
+  start_date: number; // timestamp in milliseconds
+  end_date: number; // timestamp in milliseconds
+  winner_id: number | null;
+  loser_id: number | null;
+}
+
+export interface StageMatchesResponse {
+  matches: StageMatch[];
+}
+
 /**
  * Create a new tournament
  * @param data Tournament creation data
@@ -86,4 +145,48 @@ export const getTournamentDetails = async (tournamentId: number): Promise<Tourna
     `/tournament/${tournamentId}`
   );
   return response.data as Tournament;
+};
+
+/**
+ * Get tournament stages
+ * @param tournamentId Tournament ID
+ * @returns Tournament stages with bracket information
+ */
+export const getTournamentStages = async (tournamentId: number): Promise<TournamentStagesResponse> => {
+  const response = await apiClient.get<TournamentStagesResponse>(
+    `/tournament/${tournamentId}/stages`
+  );
+  return response.data as TournamentStagesResponse;
+};
+
+/**
+ * Get my tournaments (tournaments user is registered in)
+ * @param page Page number (starts at 1)
+ * @param pageSize Number of items per page
+ * @returns My tournaments response with pagination
+ */
+export const getMyTournaments = async (
+  page: number = 1,
+  pageSize: number = 10
+): Promise<MyTournamentsResponse> => {
+  const response = await apiClient.get<MyTournamentsResponse>(
+    `/tournaments/my?page=${page}&page_size=${pageSize}`
+  );
+  return response.data as MyTournamentsResponse;
+};
+
+/**
+ * Get matches for a specific tournament stage
+ * @param tournamentId Tournament ID
+ * @param stageType Stage type (e.g., 'eighth_final', 'quarter_final', 'semi_final', 'final')
+ * @returns Stage matches response
+ */
+export const getStageMatches = async (
+  tournamentId: number,
+  stageType: string
+): Promise<StageMatchesResponse> => {
+  const response = await apiClient.get<StageMatchesResponse>(
+    `/tournament/${tournamentId}/stage/${stageType}/matches`
+  );
+  return response.data as StageMatchesResponse;
 };

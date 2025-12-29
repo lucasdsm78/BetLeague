@@ -3,16 +3,25 @@
  * Displays tournaments for subscribed users with creation capability
  */
 
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
+import MyTournaments from './MyTournaments';
 import { useToast } from '../../hooks/useToast';
 import { getTournaments, joinTournament, type Tournament } from '../../services/tournamentApi';
 import './TournamentsSection.css';
 
-const TournamentsSection: React.FC = memo(() => {
+type TournamentTab = 'available' | 'my-tournaments';
+
+const TournamentsSection: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TournamentTab>('available');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Debug log to track state changes
+  useEffect(() => {
+    console.log('📊 isCreateModalOpen changed:', isCreateModalOpen);
+  }, [isCreateModalOpen]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +34,11 @@ const TournamentsSection: React.FC = memo(() => {
 
   // Load tournaments on mount, when page changes, or when refresh is triggered
   useEffect(() => {
+    // Only fetch available tournaments when on the "available" tab
+    if (activeTab !== 'available') {
+      return;
+    }
+
     let isMounted = true;
 
     const fetchTournaments = async () => {
@@ -55,20 +69,26 @@ const TournamentsSection: React.FC = memo(() => {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize, refreshCounter]); // showError intentionally omitted to prevent infinite loop
+  }, [activeTab, page, pageSize, refreshCounter]); // showError intentionally omitted to prevent infinite loop
 
-  const handleOpenCreateModal = useCallback(() => {
+  const handleOpenCreateModal = useCallback((e?: React.MouseEvent) => {
+    console.log('🟢 handleOpenCreateModal called');
+    e?.stopPropagation();
+    e?.preventDefault();
     setIsCreateModalOpen(true);
+    console.log('🟢 isCreateModalOpen set to TRUE');
   }, []);
 
   const handleCloseCreateModal = useCallback(() => {
+    console.log('🔴 handleCloseCreateModal called');
+    console.trace('Close modal stack trace');
     setIsCreateModalOpen(false);
   }, []);
 
   const handleTournamentCreated = useCallback(() => {
     showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
     setRefreshCounter(prev => prev + 1);
-  }, [showInfo]);
+  }, []); // Removed showInfo - it's stable and doesn't need to trigger re-creation
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
@@ -86,7 +106,7 @@ const TournamentsSection: React.FC = memo(() => {
       showError('Erreur', errorMessage);
       throw err;
     }
-  }, [tournaments, showError]);
+  }, [tournaments]); // Removed showError - it's stable and doesn't need to trigger re-creation
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {
@@ -114,6 +134,7 @@ const TournamentsSection: React.FC = memo(() => {
             </p>
           </div>
           <button
+            type="button"
             className="btn-create-tournament-header"
             onClick={handleOpenCreateModal}
           >
@@ -123,80 +144,108 @@ const TournamentsSection: React.FC = memo(() => {
         </div>
       </div>
 
+      {/* Tabs Navigation */}
+      <div className="tournaments-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'available' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('available')}
+        >
+          <span className="tab-icon">🎯</span>
+          Tournois disponibles
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'my-tournaments' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('my-tournaments')}
+        >
+          <span className="tab-icon">🏅</span>
+          Mes tournois
+        </button>
+      </div>
+
       <div className="tournaments-content">
-        {/* Loading State */}
-        {isLoading && (
-          <div className="tournaments-loading">
-            <div className="loading-spinner" />
-            <p className="loading-text">Chargement des tournois...</p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && !isLoading && (
-          <div className="tournaments-error">
-            <span className="error-icon">⚠️</span>
-            <h3>Erreur de chargement</h3>
-            <p>{error}</p>
-            <button className="btn-retry" onClick={() => setRefreshCounter(prev => prev + 1)}>
-              🔄 Réessayer
-            </button>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && !error && tournaments.length === 0 && (
-          <div className="tournaments-empty">
-            <span className="empty-icon">🏆</span>
-            <h3>Aucun tournoi disponible</h3>
-            <p>Soyez le premier à créer un tournoi !</p>
-            <button className="btn-create-tournament-cta" onClick={handleOpenCreateModal}>
-              <span className="btn-icon">➕</span>
-              Créer un tournoi
-            </button>
-          </div>
-        )}
-
-        {/* Tournaments Grid */}
-        {!isLoading && !error && tournaments.length > 0 && (
+        {/* Available Tournaments Tab */}
+        {activeTab === 'available' && (
           <>
-            <div className="tournaments-grid">
-              {tournaments.map(tournament => (
-                <TournamentCard
-                  key={tournament.id}
-                  tournament={tournament}
-                  onJoin={handleJoinTournament}
-                />
-              ))}
-            </div>
+            {/* Loading State */}
+            {isLoading && (
+              <div className="tournaments-loading">
+                <div className="loading-spinner" />
+                <p className="loading-text">Chargement des tournois...</p>
+              </div>
+            )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="tournaments-pagination">
-                <button
-                  className="pagination-btn"
-                  onClick={handlePreviousPage}
-                  disabled={page === 1}
-                >
-                  <span className="pagination-icon">←</span>
-                  Précédent
-                </button>
-
-                <div className="pagination-info">
-                  Page <strong>{page}</strong> sur <strong>{totalPages}</strong>
-                </div>
-
-                <button
-                  className="pagination-btn"
-                  onClick={handleNextPage}
-                  disabled={page === totalPages}
-                >
-                  Suivant
-                  <span className="pagination-icon">→</span>
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className="tournaments-error">
+                <span className="error-icon">⚠️</span>
+                <h3>Erreur de chargement</h3>
+                <p>{error}</p>
+                <button className="btn-retry" onClick={() => setRefreshCounter(prev => prev + 1)}>
+                  🔄 Réessayer
                 </button>
               </div>
             )}
+
+            {/* Empty State */}
+            {!isLoading && !error && tournaments.length === 0 && (
+              <div className="tournaments-empty">
+                <span className="empty-icon">🏆</span>
+                <h3>Aucun tournoi disponible</h3>
+                <p>Soyez le premier à créer un tournoi !</p>
+                <button type="button" className="btn-create-tournament-cta" onClick={handleOpenCreateModal}>
+                  <span className="btn-icon">➕</span>
+                  Créer un tournoi
+                </button>
+              </div>
+            )}
+
+            {/* Tournaments Grid */}
+            {!isLoading && !error && tournaments.length > 0 && (
+              <>
+                <div className="tournaments-grid">
+                  {tournaments.map(tournament => (
+                    <TournamentCard
+                      key={tournament.id}
+                      tournament={tournament}
+                      onJoin={handleJoinTournament}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="tournaments-pagination">
+                    <button
+                      className="pagination-btn"
+                      onClick={handlePreviousPage}
+                      disabled={page === 1}
+                    >
+                      <span className="pagination-icon">←</span>
+                      Précédent
+                    </button>
+
+                    <div className="pagination-info">
+                      Page <strong>{page}</strong> sur <strong>{totalPages}</strong>
+                    </div>
+
+                    <button
+                      className="pagination-btn"
+                      onClick={handleNextPage}
+                      disabled={page === totalPages}
+                    >
+                      Suivant
+                      <span className="pagination-icon">→</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </>
+        )}
+
+        {/* My Tournaments Tab */}
+        {activeTab === 'my-tournaments' && (
+          <MyTournaments />
         )}
       </div>
 
@@ -217,7 +266,7 @@ const TournamentsSection: React.FC = memo(() => {
       )}
     </div>
   );
-});
+};
 
 TournamentsSection.displayName = 'TournamentsSection';
 
