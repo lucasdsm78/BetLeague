@@ -345,6 +345,47 @@
   font-size: 1.125rem;
 }
 
+/* View Matches Button */
+.btn-view-matches {
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-view-matches:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.btn-view-matches:active {
+  transform: translateY(0);
+}
+
+.btn-view-matches span {
+  font-size: 0.875rem;
+  transition: transform 0.3s ease;
+}
+
+.btn-view-matches:hover span {
+  transform: scale(1.1);
+}
+
 /* Stage Connector */
 .stage-connector {
   display: flex;

@@ -70,6 +70,23 @@ export interface MyTournamentsResponse {
   page_size: number;
 }
 
+export interface StageMatch {
+  id: number;
+  uuid: string;
+  home_team: string;
+  away_team: string;
+  cote_home?: number | null;
+  cote_draw?: number | null;
+  cote_away?: number | null;
+  time: string; // ISO datetime string
+  created_at: number;
+  updated_at: number;
+}
+
+export interface StageMatchesResponse {
+  matches: StageMatch[];
+}
+
 /**
  * Create a new tournament
  * @param data Tournament creation data
@@ -151,4 +168,20 @@ export const getMyTournaments = async (
     `/tournaments/my?page=${page}&page_size=${pageSize}`
   );
   return response.data as MyTournamentsResponse;
+};
+
+/**
+ * Get matches for a specific tournament stage
+ * @param tournamentId Tournament ID
+ * @param stageType Stage type (e.g., 'eighth_final', 'quarter_final', 'semi_final', 'final')
+ * @returns Stage matches response
+ */
+export const getStageMatches = async (
+  tournamentId: number,
+  stageType: string
+): Promise<StageMatchesResponse> => {
+  const response = await apiClient.get<StageMatchesResponse>(
+    `/tournament/${tournamentId}/stage/${stageType}/matches`
+  );
+  return response.data as StageMatchesResponse;
 };
