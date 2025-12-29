@@ -15,23 +15,23 @@ interface TournamentStagesProps {
 
 // Stage type mapping for display
 const STAGE_LABELS: Record<string, string> = {
-  'FINAL': 'Finale',
-  'SEMI_FINAL': 'Demi-finales',
-  'QUARTER_FINAL': 'Quarts de finale',
-  'EIGHTH_FINAL': 'Huitièmes de finale',
-  'ROUND_16': '1/16ème de finale',
-  'GROUP': 'Phase de groupes',
-  'QUALIFYING': 'Qualifications',
+  'final': 'Finale',
+  'semi_final': 'Demi-finales',
+  'quarter_final': 'Quarts de finale',
+  'eighth_final': 'Huitièmes de finale',
+  'round_16': '1/16ème de finale',
+  'group': 'Phase de groupes',
+  'qualifying': 'Qualifications',
 };
 
 const STAGE_ICONS: Record<string, string> = {
-  'FINAL': '🏆',
-  'SEMI_FINAL': '⭐',
-  'QUARTER_FINAL': '🥇',
-  'EIGHTH_FINAL': '🥈',
-  'ROUND_16': '🥉',
-  'GROUP': '📊',
-  'QUALIFYING': '🎯',
+  'final': '🏆',
+  'semi_final': '⭐',
+  'quarter_final': '🥇',
+  'eighth_final': '🥈',
+  'round_16': '🥉',
+  'group': '📊',
+  'qualifying': '🎯',
 };
 
 const TournamentStages: React.FC<TournamentStagesProps> = memo(({
@@ -86,9 +86,9 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
     return STAGE_ICONS[type] || '🎮';
   };
 
-  // Sort stages by type (FINAL first, then descending)
+  // Sort stages by type (chronological order: eighth_final to final)
   const sortedStages = [...stages].sort((a, b) => {
-    const order = ['FINAL', 'SEMI_FINAL', 'QUARTER_FINAL', 'EIGHTH_FINAL', 'ROUND_16', 'GROUP', 'QUALIFYING'];
+    const order = ['eighth_final', 'quarter_final', 'semi_final', 'final', 'round_16', 'group', 'qualifying'];
     return order.indexOf(a.type) - order.indexOf(b.type);
   });
 
