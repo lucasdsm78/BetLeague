@@ -69,7 +69,7 @@ const MyTournaments: React.FC = memo(() => {
           <div className="my-tournaments-header-text">
             <h2 className="my-tournaments-title">
               <span className="title-icon">🏅</span>
-              Mes Tournois
+              Mes tournois
             </h2>
             <p className="my-tournaments-subtitle">
               Tous les tournois auxquels vous participez

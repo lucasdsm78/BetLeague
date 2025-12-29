@@ -158,7 +158,7 @@ const TournamentsSection: React.FC = () => {
           onClick={() => setActiveTab('my-tournaments')}
         >
           <span className="tab-icon">🏅</span>
-          Mes Tournois
+          Mes tournois
         </button>
       </div>
 

@@ -6,6 +6,7 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import { getTournamentStages, type TournamentStage } from '../../services/tournamentApi';
 import { useToast } from '../../hooks/useToast';
+import StageMatches from './StageMatches';
 import './TournamentStages.css';
 
 interface TournamentStagesProps {
@@ -41,6 +42,7 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
   const [stages, setStages] = useState<TournamentStage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
   const { showError } = useToast();
 
   // Fetch stages on mount
@@ -196,7 +198,32 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
                     </span>
                   </div>
                 </div>
+
+                {/* View Matches Button */}
+                <button
+                  className="btn-view-matches"
+                  onClick={() => setSelectedStageId(selectedStageId === stage.id ? null : stage.id)}
+                >
+                  {selectedStageId === stage.id ? (
+                    <>
+                      <span>▲</span> Masquer les matchs
+                    </>
+                  ) : (
+                    <>
+                      <span>▼</span> Voir les matchs
+                    </>
+                  )}
+                </button>
               </div>
+
+              {/* Stage Matches - Displayed when stage is selected */}
+              {selectedStageId === stage.id && (
+                <StageMatches
+                  tournamentId={tournamentId}
+                  stageType={stage.type}
+                  stageName={getStageLabel(stage.type)}
+                />
+              )}
 
               {/* Connector to next stage */}
               {index < sortedStages.length - 1 && (
