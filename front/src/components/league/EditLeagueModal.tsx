@@ -164,11 +164,6 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
           start_date: startDate, // Timestamp Unix en secondes (entier)
         };
 
-        console.log('📤 Sending update request:', {
-          leagueId: league.id,
-          updateData: updateData
-        });
-
         const response = await leagueUpdateService.updateLeague(league.id, updateData);
 
         if (response.success) {

@@ -50,12 +50,10 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         setError('');
 
         try {
-            console.log(`🔄 Loading league details for ID: ${leagueId}`);
             const result = await leagueApiService.getLeagueDetails(leagueId);
 
             if (result.success && result.data) {
                 setLeagueData(result.data);
-                console.log('✅ League details loaded:', result.data);
             } else {
                 setError(result.error || 'Erreur lors du chargement des détails de la ligue');
                 console.error('❌ Failed to load league details:', result.error);

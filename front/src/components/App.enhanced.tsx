@@ -24,7 +24,6 @@ const EnhancedApp: React.FC = () => {
     activityTracking: true,
     debugMode: process.env.NODE_ENV === 'development',
     onAuthChange: (isAuthenticated) => {
-      console.log(`🔐 Auth state changed: ${isAuthenticated ? 'authenticated' : 'not authenticated'}`);
     },
     onError: (error) => {
       console.error('🔐 Auth error:', error.message);

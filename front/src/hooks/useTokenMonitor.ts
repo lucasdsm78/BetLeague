@@ -60,11 +60,7 @@ export const useTokenMonitor = (config: Partial<TokenMonitorConfig> = {}) => {
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Log debug information
   const debug = useCallback((message: string, ...args: any[]) => {
-    if (fullConfig.debugMode) {
-      console.log(`[TokenMonitor] ${message}`, ...args);
-    }
   }, [fullConfig.debugMode]);
 
   // Update activity level based on last activity

@@ -38,10 +38,8 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
     setError('');
 
     try {
-      console.log(`🔍 Searching for users with query: "${searchQuery}"`);
       const response = await leagueApiService.searchUsers(searchQuery);
 
-      console.log('📥 Search response:', response);
 
       if (response.success && response.data) {
         // Filter out excluded users
@@ -53,7 +51,6 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
         setIsOpen(true); // Always show dropdown to display results or "no results"
         setSelectedIndex(-1);
 
-        console.log(`✅ Found ${filteredResults.length} users after filtering`);
       } else {
         console.warn('⚠️ Search failed:', response);
         setError(response.error || 'Erreur lors de la recherche');

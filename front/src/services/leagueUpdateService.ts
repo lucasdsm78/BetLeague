@@ -38,28 +38,24 @@ class LeagueUpdateService {
     this.validateUpdateData(data);
 
     try {
-      console.log('🔄 Updating league:', { leagueId, data });
 
       const response = await secureApiClient.put<UpdateLeagueResponse>(
         `/league/${leagueId}`,
         data
       );
 
-      console.log('📥 League update response:', response);
 
       if (!response.success) {
         // Gérer les différents formats d'erreur
         let errorMessage = 'Échec de la mise à jour de la ligue';
 
         if (response.error) {
-          console.log('🔍 Error details:', response.error);
 
           if (typeof response.error === 'string') {
             errorMessage = response.error;
           } else if (Array.isArray(response.error)) {
             // Si c'est un tableau d'erreurs (validation backend)
             const errors = response.error as any[];
-            console.log('🔍 Validation errors:', errors);
 
             errorMessage = errors.map((err: any) => {
               if (typeof err === 'string') return err;

@@ -191,13 +191,6 @@ class SecureApiClient {
       const token = enhancedAuthService.getCurrentToken();
       const isAuthenticated = enhancedAuthService.isAuthenticated();
 
-      console.log('🔐 SecureApiClient auth check:', {
-        hasToken: !!token,
-        tokenPreview: token ? token.substring(0, 30) + '...' : 'None',
-        isAuthenticated,
-        skipAuth: config.skipAuth
-      });
-
       if (token) {
         headers['X-Authentication'] = `Bearer ${token}`;
         // Also keep Authorization header for compatibility
@@ -478,10 +471,7 @@ class SecureApiClient {
     if (!this.config.enableRequestLogging) return;
 
     console.group(`🔄 API Request [${id}]`);
-    console.log(`Method: ${method}`);
-    console.log(`URL: ${url}`);
     if (config.body) {
-      console.log('Body:', config.body);
     }
     console.groupEnd();
   }
@@ -494,7 +484,6 @@ class SecureApiClient {
     if (!this.config.enableRequestLogging) return;
 
     const statusIcon = status < 400 ? '✅' : '❌';
-    console.log(`${statusIcon} API Response [${id}]: ${status}`);
   }
 
   private logError(id: string, error: any): void {

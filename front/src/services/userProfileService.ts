@@ -47,7 +47,6 @@ class UserProfileService {
 
       // Si l'email a été modifié et que le backend renvoie un nouveau token
       if (emailChanged && response.data?.token_auth) {
-        console.log('🔄 Mise à jour du token après changement d\'email');
 
         // Mettre à jour le token dans le store
         const authStore = useAuthStore.getState();
@@ -81,10 +80,8 @@ class UserProfileService {
           console.warn('Failed to store new token:', e);
         }
 
-        console.log('✅ Token mis à jour avec succès');
       } else if (emailChanged) {
         // Si le backend ne renvoie pas de nouveau token, forcer un refresh
-        console.log('🔄 Refresh du token après changement d\'email');
         try {
           const refreshed = await enhancedAuthService.forceRefresh();
           if (!refreshed) {

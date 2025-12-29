@@ -221,7 +221,6 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
     activityTracking: true,
     onAuthChange: (isAuthenticated) => {
       if (isAuthenticated) {
-        console.log('🔐 User registered and authenticated, redirecting to dashboard...');
         navigate('/matches', { replace: true });
       }
     }
@@ -371,7 +370,6 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
       }
 
       // Navigation will be handled by onAuthChange callback
-      console.log('✅ Registration successful, user data:', result);
     } catch (error) {
       let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
 
