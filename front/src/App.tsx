@@ -96,7 +96,7 @@ function App(): React.JSX.Element {
     };
 
     initializeApp();
-  }, [showError]);
+  }, []); // Removed showError - it's stable and doesn't need to trigger re-initialization
 
   // Loading initial de l'application
   if (!isInitialized) {

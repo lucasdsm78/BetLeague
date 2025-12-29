@@ -3,7 +3,8 @@
  * Premium design with validation and security
  */
 
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { createTournament, TournamentCreateRequest } from '../../services/tournamentApi';
 import { useToast } from '../../hooks/useToast';
 import './CreateTournamentModal.css';
@@ -13,7 +14,7 @@ interface CreateTournamentModalProps {
   onTournamentCreated: () => void;
 }
 
-const CreateTournamentModal: React.FC<CreateTournamentModalProps> = memo(({ onClose, onTournamentCreated }) => {
+const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, onTournamentCreated }) => {
   const [formData, setFormData] = useState<TournamentCreateRequest>({
     name: '',
     is_private: false,
@@ -22,6 +23,22 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = memo(({ onCl
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof TournamentCreateRequest, string>>>({});
   const { showSuccess, showError } = useToast();
+  const canCloseRef = useRef(false);
+
+  // Prevent immediate closing after mount (protects against event bubbling from open button)
+  useEffect(() => {
+    console.log('✨ CreateTournamentModal mounted');
+    // Augmentation du délai à 300ms pour éviter tout problème de timing
+    const timer = setTimeout(() => {
+      canCloseRef.current = true;
+      console.log('✅ Modal can now be closed');
+    }, 300);
+
+    return () => {
+      console.log('💀 CreateTournamentModal unmounted');
+      clearTimeout(timer);
+    };
+  }, []);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof TournamentCreateRequest, string>> = {};
@@ -87,12 +104,18 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = memo(({ onCl
   }, [formData, validateForm, showSuccess, showError, onTournamentCreated, onClose]);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isSubmitting) {
+    console.log('🖱️ Overlay clicked', {
+      isTargetCurrentTarget: e.target === e.currentTarget,
+      isSubmitting,
+      canClose: canCloseRef.current
+    });
+    if (e.target === e.currentTarget && !isSubmitting && canCloseRef.current) {
+      console.log('🔴 Closing modal from overlay click');
       onClose();
     }
   }, [isSubmitting, onClose]);
 
-  return (
+  const modalContent = (
     <div className="modal-overlay create-tournament-modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content create-tournament-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -251,7 +274,12 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = memo(({ onCl
       </div>
     </div>
   );
-});
+
+  console.log('🚪 Rendering modal (NO PORTAL - TEST)');
+
+  // TEMPORAIRE: Test sans portal
+  return modalContent;
+};
 
 CreateTournamentModal.displayName = 'CreateTournamentModal';
 
