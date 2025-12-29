@@ -40,7 +40,7 @@ async def create_tournament(
     _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.create_tournament(tournament_model, current_user.get("email", ""))
+        return await tournament_usecase.create_tournament(tournament_model, current_user.get("id"))
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:
@@ -62,8 +62,8 @@ async def join_tournament(
     _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.join_tournament(id, current_user.get("email", ""))
-    except UserNotFoundError as e:
+        return await tournament_usecase.join_tournament(id, current_user.get("id"))
+    except TournamentNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -89,13 +89,7 @@ async def start_tournament(
     try:
         return await tournament_usecase.start_tournament(
             tournament_id=id,
-            email=current_user.get('email', '')
-        )
-
-    except UserNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Utilisateur non trouvé"
+            user_id=current_user.get('id')
         )
     except TournamentNotFoundError as e:
         raise HTTPException(
@@ -106,6 +100,11 @@ async def start_tournament(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
         )
     except Exception as e:
         raise HTTPException(
@@ -282,12 +281,7 @@ async def update_tournament(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('email'))
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
+        update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('id'))
     except TournamentNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

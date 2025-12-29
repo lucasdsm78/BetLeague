@@ -19,7 +19,43 @@ const MyTournaments: React.FC = memo(() => {
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
   const { showError } = useToast();
 
-  // Fetch my tournaments
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTournaments = async () => {
+      if (!isMounted) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await getMyTournaments(page, pageSize);
+        if (isMounted) {
+          setTournaments(response.tournaments);
+          setTotalCount(response.total_count);
+        }
+      } catch (err: any) {
+        console.error('Error fetching my tournaments:', err);
+
+        if (!isMounted) return;
+
+        const errorMessage = err.response?.data?.detail || err.message || 'Impossible de charger vos tournois';
+        setError(errorMessage);
+        showError('Erreur', errorMessage);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTournaments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page, pageSize]);
+
   const fetchMyTournaments = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -36,11 +72,7 @@ const MyTournaments: React.FC = memo(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize]); // Removed showError from deps - it's stable and doesn't need to trigger re-fetches
-
-  useEffect(() => {
-    fetchMyTournaments();
-  }, [fetchMyTournaments]);
+  }, [page, pageSize]);
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {

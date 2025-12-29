@@ -8,11 +8,12 @@ import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
 import MyTournaments from './MyTournaments';
+import CreatedTournaments from './CreatedTournaments';
 import { useToast } from '../../hooks/useToast';
 import { getTournaments, joinTournament, type Tournament } from '../../services/tournamentApi';
 import './TournamentsSection.css';
 
-type TournamentTab = 'available' | 'my-tournaments';
+type TournamentTab = 'available' | 'my-tournaments' | 'created';
 
 const TournamentsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TournamentTab>('available');
@@ -156,6 +157,13 @@ const TournamentsSection: React.FC = () => {
           <span className="tab-icon">🏅</span>
           Mes tournois
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'created' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('created')}
+        >
+          <span className="tab-icon">👑</span>
+          Mes tournois créés
+        </button>
       </div>
 
       <div className="tournaments-content">
@@ -242,6 +250,11 @@ const TournamentsSection: React.FC = () => {
         {/* My Tournaments Tab */}
         {activeTab === 'my-tournaments' && (
           <MyTournaments />
+        )}
+
+        {/* Created Tournaments Tab */}
+        {activeTab === 'created' && (
+          <CreatedTournaments />
         )}
       </div>
 

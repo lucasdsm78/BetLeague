@@ -222,3 +222,34 @@ export const updateTournament = async (
   );
   return response.data as TournamentUpdateResponse;
 };
+
+export interface TournamentCreated {
+  id: number;
+  uuid: string;
+  name: string;
+  is_private: boolean;
+  start_date: number; // timestamp in milliseconds
+  end_date: number; // timestamp in milliseconds
+}
+
+export interface TournamentsCreatedResponse {
+  tournaments: TournamentCreated[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
+
+/**
+ * Get tournaments created by the current user
+ * @param page - Page number (starts at 1)
+ * @param pageSize - Number of tournaments per page (1-100)
+ */
+export const getCreatedTournaments = async (
+  page: number = 1,
+  pageSize: number = 10
+): Promise<TournamentsCreatedResponse> => {
+  const response = await apiClient.get<TournamentsCreatedResponse>(
+    `/tournaments/my/created?page=${page}&page_size=${pageSize}`
+  );
+  return response.data as TournamentsCreatedResponse;
+};

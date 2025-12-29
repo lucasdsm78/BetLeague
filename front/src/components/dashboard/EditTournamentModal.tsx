@@ -190,7 +190,7 @@ const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
         <form onSubmit={handleSubmit} className="tournament-form">
           <div className="form-section">
             <p className="form-description">
-              Modifiez les informations de votre tournoi. Seul le propriétaire peut modifier un tournoi avant son démarrage.
+              Modifiez les informations de votre tournoi.
             </p>
 
             {/* Tournament Name */}
@@ -292,10 +292,6 @@ const EditTournamentModal: React.FC<EditTournamentModalProps> = ({
 
             {/* Tournament Info */}
             <div className="tournament-info-box">
-              <div className="info-item">
-                <span className="info-icon">⚠️</span>
-                <span className="info-text">Seul le propriétaire peut modifier le tournoi</span>
-              </div>
               <div className="info-item">
                 <span className="info-icon">🚫</span>
                 <span className="info-text">Impossible de modifier après le démarrage</span>
