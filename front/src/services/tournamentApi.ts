@@ -92,6 +92,22 @@ export interface StageMatchesResponse {
   matches: StageMatch[];
 }
 
+export interface TournamentFinished {
+  id: number;
+  uuid: string;
+  name: string;
+  is_private: boolean;
+  start_date: number; // timestamp in milliseconds
+  end_date: number; // timestamp in milliseconds
+}
+
+export interface TournamentsFinishedResponse {
+  tournaments: TournamentFinished[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
+
 /**
  * Create a new tournament
  * @param data Tournament creation data
@@ -189,4 +205,20 @@ export const getStageMatches = async (
     `/tournament/${tournamentId}/stage/${stageType}/matches`
   );
   return response.data as StageMatchesResponse;
+};
+
+/**
+ * Get finished tournaments for the current user
+ * @param page - Page number (starts at 1)
+ * @param pageSize - Number of tournaments per page (1-100)
+ * @returns Finished tournaments response with pagination
+ */
+export const getFinishedTournaments = async (
+  page: number = 1,
+  pageSize: number = 10
+): Promise<TournamentsFinishedResponse> => {
+  const response = await apiClient.get<TournamentsFinishedResponse>(
+    `/tournaments/my/finished?page=${page}&page_size=${pageSize}`
+  );
+  return response.data as TournamentsFinishedResponse;
 };

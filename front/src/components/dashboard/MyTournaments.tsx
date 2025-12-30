@@ -106,7 +106,7 @@ const MyTournaments: React.FC = memo(() => {
             <span className="empty-icon">🎯</span>
             <h3>Aucun tournoi en cours</h3>
             <p>Vous n'êtes inscrit à aucun tournoi pour le moment.</p>
-            <p className="empty-hint">Rejoignez un tournoi pour commencer à jouer !</p>
+            <p className="empty-hint">Rejoignez ou créez un tournoi pour commencer à jouer !</p>
           </div>
         )}
 
