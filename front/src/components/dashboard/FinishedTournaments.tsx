@@ -107,7 +107,7 @@ const FinishedTournaments: React.FC = memo(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize]); // showError intentionally omitted - it's stable and doesn't need to trigger re-creation
+  }, [page, pageSize]);
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {
