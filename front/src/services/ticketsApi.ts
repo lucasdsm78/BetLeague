@@ -105,4 +105,31 @@ export async function deleteTicket(ticketId: number | string): Promise<{ success
   return { success: true, message: (fallback.data as any)?.message };
 }
 
-export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail, deleteTicket };
+/**
+ * Create a bet on a tournament match
+ * @param tournamentId Tournament ID
+ * @param matchId Tournament match ID
+ * @param payload Ticket creation payload
+ * @returns Ticket creation response
+ *
+ * Backend error cases:
+ * - 404: User not found, Tournament not found, Match not found
+ * - 400: Mise superior to balance, Tournament already started, User not in tournament
+ * - 500: Internal server error
+ */
+export async function createTournamentBet(
+  tournamentId: number,
+  matchId: number,
+  payload: TicketCreatePayload
+): Promise<TicketCreateResponse> {
+  const res: ApiResponse<TicketCreateResponse> = await secureApiClient.post(
+    `/tournament/${tournamentId}/match/${matchId}/bet`,
+    payload
+  );
+  if (!res.success) {
+    throw new Error(res.error || 'Création du pari de tournoi échouée');
+  }
+  return res.data as TicketCreateResponse;
+}
+
+export default { createTicket, getInProgressTickets, getFinishedTickets, getTicketDetail, deleteTicket, createTournamentBet };

@@ -234,6 +234,38 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 if await match_repo.exists_match_started_for_ticket(choice_data_list):
                     raise MatchAlreadyStartedError
 
+                mise_to_refund = ticket.mise
+
+                if ticket.league_id is not None:
+                    players_repo = LeaguePlayersRepositoryImpl(session)
+                    league_player = await players_repo.find_by_league_id_and_user_id(
+                        ticket.league_id,
+                        ticket.user.id
+                    )
+                    if league_player is None:
+                        raise ValueError(f"LeaguePlayer not found for league_id={ticket.league_id}, user_id={ticket.user.id}")
+
+                    league_player.nb_btl += mise_to_refund
+                    await players_repo.update(league_player)
+
+                if ticket.tournament_match_id is not None:
+                    tournament_players_repo = TournamentPlayerRepositoryImpl(session)
+                    tournament_match_repo = TournamentMatchRepositoryImpl(session)
+
+                    tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                    if tournament_match is None:
+                        raise ValueError(f"TournamentMatch not found for id={ticket.tournament_match_id}")
+
+                    tournament_player = await tournament_players_repo.find_by_tournament_id_and_user_id(
+                        tournament_match.tournament_id,
+                        ticket.user.id
+                    )
+                    if tournament_player is None:
+                        raise ValueError(f"TournamentPlayer not found for tournament_id={tournament_match.tournament_id}, user_id={ticket.user.id}")
+
+                    tournament_player.nb_btl += mise_to_refund
+                    await tournament_players_repo.update(tournament_player)
+
                 await match_choices_repo.delete_by_ticket_id(ticket.id)
                 await ticket_repo.delete(ticket.id)
 
