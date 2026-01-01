@@ -24,6 +24,72 @@
   margin: 0;
 }
 
+/* Betting Mode Toggle */
+.betting-mode-toggle {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mode-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.mode-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-icon {
+  font-size: 1.125rem;
+}
+
+/* Tournament Info Badge */
+.tournament-info-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border-left: 3px solid var(--primary-color);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 1rem;
+}
+
+.tournament-icon {
+  font-size: 1.125rem;
+}
+
+.tournament-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* Filter Bar */
 .filter-bar {
   display: flex;

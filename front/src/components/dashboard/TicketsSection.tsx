@@ -304,9 +304,9 @@ const TicketsSection: React.FC = memo(() => {
       setLocalUpdatedAt(Date.now());
 
       await apiDeleteTicket(id);
-      showSuccess('Supprimé', `Ticket #${id} supprimé avec succès`);
+      showSuccess('Ticket supprimé', `Ticket #${id} supprimé avec succès. Votre mise a été recréditée.`);
 
-      // Rafraîchir la liste pour refléter l’état serveur
+      // Rafraîchir la liste pour refléter l'état serveur
       refetch();
 
       // Fermeture des modales
