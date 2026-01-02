@@ -152,12 +152,13 @@ AccountInfo.displayName = 'AccountInfo';
 
 interface SecuritySettingsProps {
   onLogout: () => void;
+  isTwoFactorEnabled?: boolean;
 }
 
-const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => {
+const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEnabled }) => {
   const { user, updateUser } = useAuthStore();
   const [enabling, setEnabling] = useState(false);
-  const [enabled, setEnabled] = useState<boolean>(!!user?.twoFactorEnabled);
+  const [enabled, setEnabled] = useState<boolean>(isTwoFactorEnabled || !!user?.twoFactorEnabled);
   const [setupVisible, setSetupVisible] = useState(false);
   const [setupData, setSetupData] = useState<{ qr_code?: string; secret?: string; otpauth_url?: string } | null>(null);
   const [code, setCode] = useState('');
@@ -210,13 +211,26 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => {
     <div className="settings-section">
       <h3>Sécurité</h3>
       <div className="security-options">
-        <div className="security-option">
+        <div className={`security-option ${enabled ? 'security-option-active' : ''}`}>
           <div className="option-info">
-            <h4>Authentification à deux facteurs</h4>
-            <p>Ajoutez une couche de sécurité supplémentaire à votre compte</p>
-            {enabled && (
-              <p style={{ color: 'var(--success-color)', fontWeight: 600, marginTop: '0.5rem' }}>2FA activée</p>
-            )}
+            <div className="option-header">
+              <h4>Authentification à deux facteurs</h4>
+              {enabled && (
+                <div className="status-badge status-active">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M9 12l2 2 4-4"/>
+                  </svg>
+                  <span>Activée</span>
+                </div>
+              )}
+            </div>
+            <p>
+              {enabled
+                ? 'Votre compte est protégé par l\'authentification à deux facteurs'
+                : 'Ajoutez une couche de sécurité supplémentaire à votre compte'
+              }
+            </p>
           </div>
           <div className="option-action">
             {!enabled ? (
@@ -224,7 +238,10 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout }) => {
                 {enabling ? 'Activation...' : 'Activer 2FA'}
               </button>
             ) : (
-              <button className="btn btn-secondary" disabled>
+              <button className="btn btn-success" disabled style={{ cursor: 'not-allowed', opacity: 0.7 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.5rem' }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
                 Activée
               </button>
             )}
@@ -579,7 +596,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
         )}
 
         {activeTab === 'security' && (
-          <SecuritySettings onLogout={handleLogout} />
+          <SecuritySettings onLogout={handleLogout} isTwoFactorEnabled={profile.is_two_factor_enabled} />
         )}
 
         {activeTab === 'preferences' && (

@@ -9,6 +9,7 @@ export interface UserProfile {
   nb_lose: number;
   nb_btl: number;
   is_tournament_subscriber?: boolean;
+  is_two_factor_enabled?: boolean;
 }
 
 export interface UseUserProfileReturn {
@@ -69,7 +70,8 @@ async function getCurrentUserProfile(): Promise<UserProfile> {
     nb_win: currentUser.nb_win || 0,
     nb_lose: currentUser.nb_lose || 0,
     nb_btl: currentUser.nb_btl || 0,
-    is_tournament_subscriber: currentUser.is_tournament_subscriber || false
+    is_tournament_subscriber: currentUser.is_tournament_subscriber || false,
+    is_two_factor_enabled: currentUser.is_two_factor_enabled || false
   };
 }
 
