@@ -48,8 +48,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       newErrors.name = 'Le nom contient des caractères invalides';
     }
 
-    if (![4, 8, 16].includes(formData.max_players)) {
-      newErrors.max_players = 'Le nombre de joueurs doit être 4, 8 ou 16';
+    if (formData.max_players !== 16) {
+      newErrors.max_players = 'Le nombre de joueurs doit être 16';
     }
 
     setErrors(newErrors);
@@ -154,30 +154,19 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
               </span>
             </div>
 
-            {/* Max Players */}
+            {/* Max Players - Fixed at 16 */}
             <div className="form-group">
               <label className="form-label">
                 <span className="label-icon">👥</span>
                 Nombre de joueurs
-                <span className="label-required">*</span>
               </label>
-              <div className="player-count-options">
-                {[4, 8, 16].map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    className={`player-count-btn ${formData.max_players === count ? 'active' : ''}`}
-                    onClick={() => handleInputChange('max_players', count)}
-                    disabled={isSubmitting}
-                  >
-                    <span className="count-number">{count}</span>
-                    <span className="count-label">joueurs</span>
-                  </button>
-                ))}
+              <div className="player-count-fixed">
+                <div className="player-count-display">
+                  <span className="count-number">16</span>
+                  <span className="count-label">joueurs maximum</span>
+                </div>
+                <span className="count-description">Format tournoi à élimination directe</span>
               </div>
-              {errors.max_players && (
-                <span className="form-error">{errors.max_players}</span>
-              )}
             </div>
 
             {/* Privacy Toggle */}
