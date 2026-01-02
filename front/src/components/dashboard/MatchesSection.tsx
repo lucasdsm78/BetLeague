@@ -2,9 +2,10 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import './MatchesSection.css';
 import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
-import { createTicket } from '../../services/ticketsApi';
+import { createTicket, createTournamentBet } from '../../services/ticketsApi';
 import { getParticipatedLeagues, getLeagueBalance } from '../../services/leaguesApi';
 import { useCurrentLeague } from '../../store/leagueStore';
+import { getUserTournamentMatches, getTournamentPlayerBalance, type TournamentMatchOption } from '../../services/tournamentApi';
 
 // Types
 interface MatchOdds {
@@ -255,6 +256,10 @@ interface DesktopBetSidebarProps {
     isSubmitting: boolean;
     error: string | null;
     isValid: boolean;
+    tournamentMatches: TournamentMatchOption[];
+    selectedTournamentMatchId: string;
+    onTournamentMatchChange: (matchId: string) => void;
+    tournamentBalance: number | null;
 }
 
 const DesktopBetSidebar = memo<DesktopBetSidebarProps>(({
@@ -270,7 +275,11 @@ const DesktopBetSidebar = memo<DesktopBetSidebarProps>(({
     onCreateTicket,
     isSubmitting,
     error,
-    isValid
+    isValid,
+    tournamentMatches,
+    selectedTournamentMatchId,
+    onTournamentMatchChange,
+    tournamentBalance
 }) => {
     const totalOdds = useMemo(() => {
         if (selectedBets.length === 0) return 0;
@@ -348,25 +357,48 @@ const DesktopBetSidebar = memo<DesktopBetSidebarProps>(({
                                 className="form-select"
                                 value={selectedLeagueId ?? ''}
                                 onChange={(e) => onLeagueChange(e.target.value ? Number(e.target.value) : null)}
-                                disabled={leagues.length === 0}
+                                disabled={leagues.length === 0 || selectedTournamentMatchId !== ''}
                             >
-                                {leagues.length === 0 ? (
-                                    <option value="">Aucune ligue disponible</option>
-                                ) : (
-                                    leagues.map((league: any) => (
-                                        <option key={league.id} value={league.id}>
-                                            {league.name}
-                                        </option>
-                                    ))
-                                )}
+                                <option value="">-- Sélectionnez une ligue --</option>
+                                {leagues.map((league: any) => (
+                                    <option key={league.id} value={league.id}>
+                                        {league.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Sélection de tournoi */}
+                        <div className="form-group">
+                            <label htmlFor="desktop-tournament-select" className="form-label">
+                                Tournoi
+                            </label>
+                            <select
+                                id="desktop-tournament-select"
+                                className="form-select"
+                                value={selectedTournamentMatchId}
+                                onChange={(e) => onTournamentMatchChange(e.target.value)}
+                                disabled={tournamentMatches.length === 0 || selectedLeagueId !== null}
+                            >
+                                <option value="">-- Sélectionnez un tournoi --</option>
+                                {tournamentMatches.map((tm) => (
+                                    <option key={`${tm.tournament_id}-${tm.id}`} value={`${tm.tournament_id}-${tm.id}`}>
+                                        {tm.display_label}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
                         {/* Solde */}
                         <div className="balance-display">
-                            <span className="balance-label">Solde disponible</span>
+                            <span className="balance-label">
+                                {selectedTournamentMatchId !== '' ? 'Solde tournoi' : 'Solde disponible'}
+                            </span>
                             <span className="balance-value">
-                                {balance !== null ? `${balance} BTL` : '-'}
+                                {selectedTournamentMatchId !== ''
+                                    ? (tournamentBalance !== null ? `${tournamentBalance} BTL` : '-')
+                                    : (balance !== null ? `${balance} BTL` : '-')
+                                }
                             </span>
                         </div>
 
@@ -478,6 +510,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [drawerError, setDrawerError] = useState<string | null>(null);
     const [isSubmittingDrawer, setIsSubmittingDrawer] = useState<boolean>(false);
 
+    const [drawerTournamentMatches, setDrawerTournamentMatches] = useState<TournamentMatchOption[]>([]);
+    const [drawerSelectedTournamentMatchId, setDrawerSelectedTournamentMatchId] = useState<string>('');
+    const [drawerTournamentBalance, setDrawerTournamentBalance] = useState<number | null>(null);
+
     // États pour le sidebar desktop (partage la logique avec le drawer mobile)
     const [desktopStake, setDesktopStake] = useState<string>('');
     const [desktopLeagues, setDesktopLeagues] = useState<any[]>([]);
@@ -485,6 +521,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [desktopBalance, setDesktopBalance] = useState<number | null>(null);
     const [desktopError, setDesktopError] = useState<string | null>(null);
     const [isSubmittingDesktop, setIsSubmittingDesktop] = useState<boolean>(false);
+
+    const [desktopTournamentMatches, setDesktopTournamentMatches] = useState<TournamentMatchOption[]>([]);
+    const [desktopSelectedTournamentMatchId, setDesktopSelectedTournamentMatchId] = useState<string>(''); // Format: "tournamentId-matchId"
+    const [desktopTournamentBalance, setDesktopTournamentBalance] = useState<number | null>(null);
 
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
@@ -658,6 +698,65 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         return () => { mounted = false; };
     }, [desktopSelectedLeagueId]);
 
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const tournamentMatchOptions = await getUserTournamentMatches();
+                if (!mounted) return;
+                setDesktopTournamentMatches(tournamentMatchOptions);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading tournament matches for sidebar:', e);
+                setDesktopTournamentMatches([]);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!desktopSelectedTournamentMatchId) {
+                setDesktopTournamentBalance(null);
+                return;
+            }
+
+            const [tournamentIdStr] = desktopSelectedTournamentMatchId.split('-');
+            const tournamentId = Number(tournamentIdStr);
+
+            if (!tournamentId) {
+                setDesktopTournamentBalance(null);
+                return;
+            }
+
+            try {
+                const balance = await getTournamentPlayerBalance(tournamentId);
+                if (!mounted) return;
+                setDesktopTournamentBalance(balance);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading tournament balance:', e);
+                setDesktopTournamentBalance(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [desktopSelectedTournamentMatchId]);
+
+    const handleLeagueChange = useCallback((leagueId: number | null) => {
+        setDesktopSelectedLeagueId(leagueId);
+        if (leagueId !== null) {
+            setDesktopSelectedTournamentMatchId('');
+        }
+    }, []);
+
+    const handleTournamentMatchChange = useCallback((tournamentMatchId: string) => {
+        setDesktopSelectedTournamentMatchId(tournamentMatchId);
+        if (tournamentMatchId !== '') {
+            setDesktopSelectedLeagueId(null);
+        }
+    }, []);
+
     // Calculs pour le sidebar desktop
     const desktopStakeNumber = useMemo(() => Number(desktopStake || '0'), [desktopStake]);
 
@@ -670,38 +769,103 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     }, [desktopStakeNumber, desktopBalance]);
 
     const canSubmitDesktop = useMemo(() => {
-        return !isSubmittingDesktop && desktopError == null && isValidDesktopStake && !!desktopSelectedLeagueId && selectedBets.length > 0;
-    }, [isSubmittingDesktop, desktopError, isValidDesktopStake, desktopSelectedLeagueId, selectedBets]);
+        const hasLeagueOrTournament = !!desktopSelectedLeagueId || desktopSelectedTournamentMatchId !== '';
+        return !isSubmittingDesktop && desktopError == null && isValidDesktopStake && hasLeagueOrTournament && selectedBets.length > 0;
+    }, [isSubmittingDesktop, desktopError, isValidDesktopStake, desktopSelectedLeagueId, desktopSelectedTournamentMatchId, selectedBets]);
 
     const handleDesktopCreateTicket = useCallback(async () => {
-        if (!canSubmitDesktop || !desktopSelectedLeagueId) return;
+        const isTournamentMode = desktopSelectedTournamentMatchId !== '';
+
+        if (selectedBets.length === 0 || desktopStakeNumber <= 0) return;
+        if (!isTournamentMode && !desktopSelectedLeagueId) return;
+        if (isTournamentMode && !desktopSelectedTournamentMatchId) return;
+
         try {
             setIsSubmittingDesktop(true);
             setDesktopError(null);
 
             const formatBetType = (b: 'home' | 'draw' | 'away'): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
-            const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
-            const payload = {
-                match_choices,
-                mise: desktopStakeNumber,
-                gain: null,
-            };
 
-            const res = await createTicket(desktopSelectedLeagueId, payload);
+            if (isTournamentMode) {
+                if (selectedBets.length !== 1) {
+                    setDesktopError('Vous ne pouvez parier que sur un seul match de tournoi à la fois');
+                    return;
+                }
 
-            // Succès : nettoyer
-            setSelectedBets([]);
-            setDesktopStake('');
+                const [tournamentIdStr, matchIdStr] = desktopSelectedTournamentMatchId.split('-');
+                const tournamentId = Number(tournamentIdStr);
+                const matchId = Number(matchIdStr);
 
-            // Notification de succès (on pourrait utiliser un toast ici)
-            alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+                if (!tournamentId || !matchId) {
+                    setDesktopError('Tournoi invalide sélectionné');
+                    return;
+                }
+
+                const bet = selectedBets[0];
+                const payload = {
+                    match_choices: [{
+                        match_id: bet.matchId,
+                        choice: formatBetType(bet.betType)
+                    }],
+                    mise: desktopStakeNumber,
+                    gain: null,
+                };
+
+                const res = await createTournamentBet(tournamentId, matchId, payload);
+
+                setSelectedBets([]);
+                setDesktopStake('');
+                setDesktopSelectedTournamentMatchId('');
+
+                alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
+            } else {
+                if (!desktopSelectedLeagueId) return;
+
+                const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+                const payload = {
+                    match_choices,
+                    mise: desktopStakeNumber,
+                    gain: null,
+                };
+
+                const res = await createTicket(desktopSelectedLeagueId, payload);
+
+                // Succès : nettoyer
+                setSelectedBets([]);
+                setDesktopStake('');
+
+                alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+            }
         } catch (e: any) {
-            const msg = e?.message || 'Erreur lors de la création du ticket';
-            setDesktopError(msg);
+            const errorMsg = e?.message?.toLowerCase() || '';
+
+            if (errorMsg.includes('not found') || errorMsg.includes('introuvable')) {
+                if (errorMsg.includes('user') || errorMsg.includes('utilisateur')) {
+                    setDesktopError('Utilisateur non trouvé. Veuillez vous reconnecter.');
+                } else if (errorMsg.includes('tournament') || errorMsg.includes('tournoi')) {
+                    setDesktopError('Tournoi non trouvé ou vous n\'y participez plus.');
+                } else if (errorMsg.includes('match')) {
+                    setDesktopError('Match non trouvé ou invalide.');
+                } else {
+                    setDesktopError('Ressource non trouvée.');
+                }
+            } else if (errorMsg.includes('mise') || errorMsg.includes('solde') || errorMsg.includes('balance')) {
+                setDesktopError('Mise supérieure au solde disponible.');
+            } else if (errorMsg.includes('started') || errorMsg.includes('commencé') || errorMsg.includes('démarré')) {
+                setDesktopError('Le tournoi n\'est pas encore commencé ou est déjà terminé.');
+            } else if (errorMsg.includes('not in tournament') || errorMsg.includes('pas inscrit')) {
+                setDesktopError('Vous devez être inscrit au tournoi pour parier.');
+            } else if (errorMsg.includes('eliminated') || errorMsg.includes('éliminé')) {
+                setDesktopError('Vous avez été éliminé de ce tournoi.');
+            } else if (errorMsg.includes('btl') && errorMsg.includes('0')) {
+                setDesktopError('Votre solde est à 0. Impossible de parier.');
+            } else {
+                setDesktopError(e?.message || 'Erreur lors de la création du pari');
+            }
         } finally {
             setIsSubmittingDesktop(false);
         }
-    }, [canSubmitDesktop, desktopSelectedLeagueId, selectedBets, desktopStakeNumber]);
+    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId]);
 
     // Charger les ligues quand le drawer s'ouvre
     useEffect(() => {
@@ -747,6 +911,66 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         return () => { mounted = false; };
     }, [isTicketDrawerOpen, drawerSelectedLeagueId]);
 
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!isTicketDrawerOpen) return;
+            try {
+                const tournamentMatchOptions = await getUserTournamentMatches();
+                if (!mounted) return;
+                setDrawerTournamentMatches(tournamentMatchOptions);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading tournament matches for drawer:', e);
+                setDrawerTournamentMatches([]);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [isTicketDrawerOpen]);
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            if (!isTicketDrawerOpen || !drawerSelectedTournamentMatchId) {
+                setDrawerTournamentBalance(null);
+                return;
+            }
+
+            const [tournamentIdStr] = drawerSelectedTournamentMatchId.split('-');
+            const tournamentId = Number(tournamentIdStr);
+
+            if (!tournamentId) {
+                setDrawerTournamentBalance(null);
+                return;
+            }
+
+            try {
+                const balance = await getTournamentPlayerBalance(tournamentId);
+                if (!mounted) return;
+                setDrawerTournamentBalance(balance);
+            } catch (e: any) {
+                if (!mounted) return;
+                console.error('Error loading tournament balance for drawer:', e);
+                setDrawerTournamentBalance(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [isTicketDrawerOpen, drawerSelectedTournamentMatchId]);
+
+    const handleDrawerLeagueChange = useCallback((leagueId: number | null) => {
+        setDrawerSelectedLeagueId(leagueId);
+        if (leagueId !== null) {
+            setDrawerSelectedTournamentMatchId('');
+        }
+    }, []);
+
+    const handleDrawerTournamentMatchChange = useCallback((tournamentMatchId: string) => {
+        setDrawerSelectedTournamentMatchId(tournamentMatchId);
+        if (tournamentMatchId !== '') {
+            setDrawerSelectedLeagueId(null);
+        }
+    }, []);
+
     // Calculs pour le drawer
     const drawerTotalOdds = useMemo(() => {
         if (!selectedBets || selectedBets.length === 0) return 0;
@@ -769,39 +993,104 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     }, [drawerStakeNumber, drawerBalance]);
 
     const canSubmitDrawer = useMemo(() => {
-        return isTicketDrawerOpen && !isSubmittingDrawer && drawerError == null && isValidDrawerStake && !!drawerSelectedLeagueId && selectedBets.length > 0;
-    }, [isTicketDrawerOpen, isSubmittingDrawer, drawerError, isValidDrawerStake, drawerSelectedLeagueId, selectedBets]);
+        const hasLeagueOrTournament = !!drawerSelectedLeagueId || drawerSelectedTournamentMatchId !== '';
+        return isTicketDrawerOpen && !isSubmittingDrawer && drawerError == null && isValidDrawerStake && hasLeagueOrTournament && selectedBets.length > 0;
+    }, [isTicketDrawerOpen, isSubmittingDrawer, drawerError, isValidDrawerStake, drawerSelectedLeagueId, drawerSelectedTournamentMatchId, selectedBets]);
 
     const handleDrawerCreateTicket = useCallback(async () => {
-        if (!canSubmitDrawer || !drawerSelectedLeagueId) return;
+        const isTournamentMode = drawerSelectedTournamentMatchId !== '';
+
+        if (selectedBets.length === 0 || drawerStakeNumber <= 0) return;
+        if (!isTournamentMode && !drawerSelectedLeagueId) return;
+        if (isTournamentMode && !drawerSelectedTournamentMatchId) return;
+
         try {
             setIsSubmittingDrawer(true);
             setDrawerError(null);
 
             const formatBetType = (b: 'home' | 'draw' | 'away'): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
-            const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
-            const payload = {
-                match_choices,
-                mise: drawerStakeNumber,
-                gain: null,
-            };
 
-            const res = await createTicket(drawerSelectedLeagueId, payload);
+            if (isTournamentMode) {
+                if (selectedBets.length !== 1) {
+                    setDrawerError('Vous ne pouvez parier que sur un seul match de tournoi à la fois');
+                    return;
+                }
 
-            // Succès : nettoyer et fermer
-            setSelectedBets([]);
-            setDrawerStake('');
-            setIsTicketDrawerOpen(false);
+                const [tournamentIdStr, matchIdStr] = drawerSelectedTournamentMatchId.split('-');
+                const tournamentId = Number(tournamentIdStr);
+                const matchId = Number(matchIdStr);
 
-            // Optionnel : afficher une notification de succès
-            alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+                if (!tournamentId || !matchId) {
+                    setDrawerError('Tournoi invalide sélectionné');
+                    return;
+                }
+
+                const bet = selectedBets[0];
+                const payload = {
+                    match_choices: [{
+                        match_id: bet.matchId,
+                        choice: formatBetType(bet.betType)
+                    }],
+                    mise: drawerStakeNumber,
+                    gain: null,
+                };
+
+                const res = await createTournamentBet(tournamentId, matchId, payload);
+
+                setSelectedBets([]);
+                setDrawerStake('');
+                setDrawerSelectedTournamentMatchId('');
+                setIsTicketDrawerOpen(false);
+
+                alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
+            } else {
+                if (!drawerSelectedLeagueId) return;
+
+                const match_choices = selectedBets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+                const payload = {
+                    match_choices,
+                    mise: drawerStakeNumber,
+                    gain: null,
+                };
+
+                const res = await createTicket(drawerSelectedLeagueId, payload);
+
+                setSelectedBets([]);
+                setDrawerStake('');
+                setIsTicketDrawerOpen(false);
+
+                alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+            }
         } catch (e: any) {
-            const msg = e?.message || 'Erreur lors de la création du ticket';
-            setDrawerError(msg);
+            const errorMsg = e?.message?.toLowerCase() || '';
+
+            if (errorMsg.includes('not found') || errorMsg.includes('introuvable')) {
+                if (errorMsg.includes('user') || errorMsg.includes('utilisateur')) {
+                    setDrawerError('Utilisateur non trouvé. Veuillez vous reconnecter.');
+                } else if (errorMsg.includes('tournament') || errorMsg.includes('tournoi')) {
+                    setDrawerError('Tournoi non trouvé ou vous n\'y participez plus.');
+                } else if (errorMsg.includes('match')) {
+                    setDrawerError('Match non trouvé ou invalide.');
+                } else {
+                    setDrawerError('Ressource non trouvée.');
+                }
+            } else if (errorMsg.includes('mise') || errorMsg.includes('solde') || errorMsg.includes('balance')) {
+                setDrawerError('Mise supérieure au solde disponible.');
+            } else if (errorMsg.includes('started') || errorMsg.includes('commencé') || errorMsg.includes('démarré')) {
+                setDrawerError('Le tournoi n\'est pas encore commencé ou est déjà terminé.');
+            } else if (errorMsg.includes('not in tournament') || errorMsg.includes('pas inscrit')) {
+                setDrawerError('Vous devez être inscrit au tournoi pour parier.');
+            } else if (errorMsg.includes('eliminated') || errorMsg.includes('éliminé')) {
+                setDrawerError('Vous avez été éliminé de ce tournoi.');
+            } else if (errorMsg.includes('btl') && errorMsg.includes('0')) {
+                setDrawerError('Votre solde est à 0. Impossible de parier.');
+            } else {
+                setDrawerError(e?.message || 'Erreur lors de la création du pari');
+            }
         } finally {
             setIsSubmittingDrawer(false);
         }
-    }, [canSubmitDrawer, drawerSelectedLeagueId, selectedBets, drawerStakeNumber]);
+    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId]);
 
     const handleTicketCreated = useCallback(() => {
         // Nettoyer les paris sélectionnés mais garder la modale ouverte pour afficher le succès
@@ -875,7 +1164,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 onClearAll={handleClearAllBets}
                 leagues={desktopLeagues}
                 selectedLeagueId={desktopSelectedLeagueId}
-                onLeagueChange={setDesktopSelectedLeagueId}
+                onLeagueChange={handleLeagueChange}
                 balance={desktopBalance}
                 stake={desktopStake}
                 onStakeChange={setDesktopStake}
@@ -883,6 +1172,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 isSubmitting={isSubmittingDesktop}
                 error={desktopError}
                 isValid={canSubmitDesktop}
+                tournamentMatches={desktopTournamentMatches}
+                selectedTournamentMatchId={desktopSelectedTournamentMatchId}
+                onTournamentMatchChange={handleTournamentMatchChange}
+                tournamentBalance={desktopTournamentBalance}
             />
 
             {/* Bouton flottant mobile pour ouvrir le tiroir du ticket */}
@@ -938,8 +1231,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                                     id="drawer-league"
                                     className="drawer-select"
                                     value={drawerSelectedLeagueId ?? ''}
-                                    onChange={(e) => setDrawerSelectedLeagueId(e.target.value ? Number(e.target.value) : null)}
+                                    onChange={(e) => handleDrawerLeagueChange(e.target.value ? Number(e.target.value) : null)}
+                                    disabled={drawerLeagues.length === 0 || drawerSelectedTournamentMatchId !== ''}
                                 >
+                                    <option value="">-- Sélectionnez une ligue --</option>
                                     {drawerLeagues.map((l: any) => (
                                         <option key={l.id} value={l.id}>{l.name}</option>
                                     ))}
@@ -951,10 +1246,34 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                                 )}
                             </div>
 
+                            {/* Sélection de tournoi */}
+                            <div className="drawer-league-select">
+                                <label htmlFor="drawer-tournament">Tournoi</label>
+                                <select
+                                    id="drawer-tournament"
+                                    className="drawer-select"
+                                    value={drawerSelectedTournamentMatchId}
+                                    onChange={(e) => handleDrawerTournamentMatchChange(e.target.value)}
+                                    disabled={drawerTournamentMatches.length === 0 || drawerSelectedLeagueId !== null}
+                                >
+                                    <option value="">-- Sélectionnez un tournoi --</option>
+                                    {drawerTournamentMatches.map((tm) => (
+                                        <option key={`${tm.tournament_id}-${tm.id}`} value={`${tm.tournament_id}-${tm.id}`}>
+                                            {tm.display_label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             {/* Solde */}
                             <div className="drawer-balance">
-                                <span>Solde disponible</span>
-                                <strong>{drawerBalance != null ? `${drawerBalance} BTL` : '-'}</strong>
+                                <span>{drawerSelectedTournamentMatchId !== '' ? 'Solde tournoi' : 'Solde disponible'}</span>
+                                <strong>
+                                    {drawerSelectedTournamentMatchId !== ''
+                                        ? (drawerTournamentBalance !== null ? `${drawerTournamentBalance} BTL` : '-')
+                                        : (drawerBalance !== null ? `${drawerBalance} BTL` : '-')
+                                    }
+                                </strong>
                             </div>
 
                             {/* Mise */}

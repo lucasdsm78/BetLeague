@@ -25,7 +25,7 @@ from domain.ticket.repository.match_choice_repository import MatchChoiceReposito
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.token.token_exception import TokenInvalidError
 from domain.tournament import TournamentPlayersRepository, TournamentRepository
-from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNotStartedError
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNotStartedError, TournamentMatchNotFoundError, TournamentPlayerNotFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
@@ -38,6 +38,8 @@ from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryI
 from infrastructure.postgresql.tournament import TournamentPlayersRepositoryImpl, TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+
+from domain.league.exception.league_exception import LeagueParticipantFoundError
 
 
 class TicketCommandUseCase(ABC):
@@ -233,6 +235,40 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 if await match_repo.exists_match_started_for_ticket(choice_data_list):
                     raise MatchAlreadyStartedError
+
+                mise_to_refund = ticket.mise
+
+                if ticket.league_id is not None:
+                    players_repo = LeaguePlayersRepositoryImpl(session)
+                    league_player = await players_repo.get_participation(
+                        ticket.league_id,
+                        ticket.user.id
+                    )
+
+                    if league_player is None:
+                        raise LeagueParticipantFoundError
+
+                    league_player.nb_btl += mise_to_refund
+                    await players_repo.update(league_player)
+
+                if ticket.tournament_match_id is not None:
+                    tournament_players_repo = TournamentPlayersRepositoryImpl(session)
+                    tournament_match_repo = TournamentMatchRepositoryImpl(session)
+
+                    tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                    if tournament_match is None:
+                        raise TournamentMatchNotFoundError
+
+                    tournament_player = await tournament_players_repo.get_player(
+                        tournament_match.tournament_id,
+                        ticket.user.id
+                    )
+
+                    if tournament_player is None:
+                        raise TournamentPlayerNotFoundError
+
+                    tournament_player.nb_btl += mise_to_refund
+                    await tournament_players_repo.update(tournament_player)
 
                 await match_choices_repo.delete_by_ticket_id(ticket.id)
                 await ticket_repo.delete(ticket.id)
