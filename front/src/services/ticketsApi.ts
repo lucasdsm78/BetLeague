@@ -90,19 +90,11 @@ export async function getTicketDetail(ticketId: number | string): Promise<Ticket
 }
 
 export async function deleteTicket(ticketId: number | string): Promise<{ success: boolean; message?: string }> {
-  // 1) Endpoint documenté: /ticket/:id
-  try {
-    const res: ApiResponse<any> = await secureApiClient.delete(`/ticket/${ticketId}`);
-    if (res.success) return { success: true, message: (res.data as any)?.message };
-  } catch (e) {
-    // ignore et tente le fallback
+  const res: ApiResponse<any> = await secureApiClient.delete(`/ticket/${ticketId}`);
+  if (!res.success) {
+    throw new Error(res.error || 'Suppression du ticket échouée');
   }
-  // 2) Fallback éventuel: /tickets/:id
-  const fallback = await secureApiClient.delete(`/tickets/${ticketId}`);
-  if (!fallback.success) {
-    throw new Error(fallback.error || 'Suppression du ticket échouée');
-  }
-  return { success: true, message: (fallback.data as any)?.message };
+  return { success: true, message: (res.data as any)?.message };
 }
 
 /**

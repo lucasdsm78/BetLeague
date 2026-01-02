@@ -12,6 +12,13 @@ class TournamentMatchNotFoundError(Exception):
         return TournamentMatchNotFoundError.message
 
 
+class TournamentPlayerNotFoundError(Exception):
+    message = "Le player du tournoi n'existe pas"
+
+    def __str__(self):
+        return TournamentPlayerNotFoundError.message
+
+
 class TournamentFullError(Exception):
     message = "Le tournoi est complet"
 
