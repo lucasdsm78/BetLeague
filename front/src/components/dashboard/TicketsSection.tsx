@@ -352,9 +352,6 @@ const TicketsSection: React.FC = memo(() => {
 
       <div className="section-header">
         <h2>Mes Tickets</h2>
-        <div className="header-actions">
-          <button className="btn btn-primary">Nouveau ticket</button>
-        </div>
       </div>
 
       <div className="tickets-tabs">
@@ -396,7 +393,6 @@ const TicketsSection: React.FC = memo(() => {
                 <span className="empty-icon">🎫</span>
                 <h3>Aucun ticket en cours</h3>
                 <p>Créez un ticket pour commencer à parier dans vos ligues.</p>
-                <button className="btn btn-primary">Créer un ticket</button>
               </div>
             )}
 

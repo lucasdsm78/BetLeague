@@ -20,13 +20,6 @@
   margin: 0;
 }
 
-.tickets-section .header-actions .btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius-sm);
-  font-weight: 600;
-  transition: var(--transition);
-}
-
 /* Generic buttons (scoped) */
 .tickets-section .btn {
   appearance: none;
@@ -45,24 +38,21 @@
   font-size: 0.85rem;
 }
 
-.tickets-section .btn-primary,
-.tickets-section .header-actions .btn-primary {
+.tickets-section .btn-primary {
   background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
   color: white;
   border: none;
   box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
 }
 
-.tickets-section .btn-primary:hover:not(:disabled),
-.tickets-section .header-actions .btn-primary:hover:not(:disabled) {
+.tickets-section .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 210, 255, 0.4);
   background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
   filter: brightness(1.1);
 }
 
-.tickets-section .btn-primary:active:not(:disabled),
-.tickets-section .header-actions .btn-primary:active:not(:disabled) {
+.tickets-section .btn-primary:active:not(:disabled) {
   transform: translateY(0);
 }
 
