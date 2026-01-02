@@ -222,3 +222,116 @@ export const getFinishedTournaments = async (
   );
   return response.data as TournamentsFinishedResponse;
 };
+
+/**
+ * Tournament match option for dropdown (simplified)
+ */
+export interface TournamentMatchOption {
+  id: number;
+  tournament_id: number;
+  tournament_name: string;
+  stage_label: string;
+  player1_name: string;
+  player2_name: string;
+  start_date: number;
+  end_date: number;
+  display_label: string; // For dropdown display
+}
+
+/**
+ * Get all tournament matches for the current user (simplified for dropdown)
+ * Returns only necessary data for match selection
+ * @returns Array of tournament match options
+ */
+export const getUserTournamentMatches = async (): Promise<TournamentMatchOption[]> => {
+  try {
+    const myTournamentsResponse = await getMyTournaments(1, 100);
+    const tournaments = myTournamentsResponse.tournaments;
+
+    if (!tournaments || tournaments.length === 0) {
+      return [];
+    }
+
+    const allMatches: TournamentMatchOption[] = [];
+
+    for (const tournament of tournaments) {
+      try {
+        const stagesResponse = await getTournamentStages(tournament.id);
+        const stages = stagesResponse.stages || [];
+
+        for (const stage of stages) {
+          try {
+            const matchesResponse = await getStageMatches(tournament.id, stage.type);
+            const matches = matchesResponse.matches || [];
+
+            const matchOptions: TournamentMatchOption[] = matches.map(match => ({
+              id: match.id,
+              tournament_id: tournament.id,
+              tournament_name: tournament.name,
+              stage_label: getStageLabelFromType(stage.type),
+              player1_name: match.player1_summary.pseudo,
+              player2_name: match.player2_summary.pseudo,
+              start_date: match.start_date,
+              end_date: match.end_date,
+              display_label: `${tournament.name} - ${getStageLabelFromType(stage.type)} - ${match.player1_summary.pseudo} vs ${match.player2_summary.pseudo}`
+            }));
+
+            allMatches.push(...matchOptions);
+          } catch (err) {
+            console.error(`Error fetching matches for tournament ${tournament.id}, stage ${stage.type}:`, err);
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching stages for tournament ${tournament.id}:`, err);
+      }
+    }
+
+    return allMatches.sort((a, b) => a.start_date - b.start_date);
+  } catch (err) {
+    console.error('Error fetching user tournament matches:', err);
+    throw err;
+  }
+};
+
+const getStageLabelFromType = (type: string): string => {
+  const labels: Record<string, string> = {
+    'final': 'Finale',
+    'semi_final': 'Demi-finale',
+    'quarter_final': 'Quart de finale',
+    'eighth_final': 'Huitième de finale',
+    'round_16': '1/16ème',
+    'group': 'Groupes',
+    'qualifying': 'Qualifications',
+  };
+  return labels[type] || type;
+};
+
+export interface TournamentPlayerBalance {
+  tournament_id: number;
+  nb_btl: number;
+}
+
+/**
+ * Get tournament player balance for a specific tournament
+ * @param tournamentId Tournament ID
+ * @returns Tournament player balance
+ * @note This is a temporary implementation. A dedicated backend endpoint may be needed.
+ */
+export const getTournamentPlayerBalance = async (tournamentId: number): Promise<number> => {
+  try {
+    // TODO: Replace with actual backend endpoint when available
+    // For now, we'll fetch tournament details and check if there's balance info
+    // Or this could be extended to call a dedicated /tournament/{id}/player/balance endpoint
+
+    // Temporary: Return a default balance
+    // In production, this should call a backend endpoint like:
+    // const response = await apiClient.get<TournamentPlayerBalance>(`/tournament/${tournamentId}/player/balance`);
+    // return response.data.nb_btl;
+
+    console.warn(`getTournamentPlayerBalance(${tournamentId}): Using temporary implementation. Backend endpoint needed.`);
+    return 1000; // Temporary default balance
+  } catch (err) {
+    console.error('Error fetching tournament player balance:', err);
+    throw err;
+  }
+};
