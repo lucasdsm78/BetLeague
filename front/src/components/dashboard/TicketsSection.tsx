@@ -355,17 +355,43 @@ const TicketsSection: React.FC = memo(() => {
       </div>
 
       <div className="tickets-tabs">
-        <button className={`tab-button ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>
-          En cours ({filteredTickets.length})
+        <button
+          className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
+          onClick={() => setActiveTab('current')}
+          aria-label="Tickets en cours"
+        >
+          <span className="tab-content-wrapper">
+            <span className="tab-title">En cours</span>
+            <span className="tab-badge">{filteredTickets.length}</span>
+          </span>
         </button>
-        <button className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`} onClick={() => setActiveTab('finished')}>
-          Terminés ({finishedTickets.length})
+        <button
+          className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`}
+          onClick={() => setActiveTab('finished')}
+          aria-label="Tickets terminés"
+        >
+          <span className="tab-content-wrapper">
+            <span className="tab-title">Terminés</span>
+            <span className="tab-badge">{finishedTickets.length}</span>
+          </span>
         </button>
-        <button className={`tab-button ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
-          Historique
+        <button
+          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+          aria-label="Historique"
+        >
+          <span className="tab-content-wrapper">
+            <span className="tab-title">Historique</span>
+          </span>
         </button>
-        <button className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')}>
-          Templates
+        <button
+          className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+          aria-label="Templates"
+        >
+          <span className="tab-content-wrapper">
+            <span className="tab-title">Templates</span>
+          </span>
         </button>
       </div>
 
