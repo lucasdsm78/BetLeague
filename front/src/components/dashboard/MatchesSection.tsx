@@ -664,10 +664,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 const list = await getParticipatedLeagues();
                 if (!mounted) return;
                 setDesktopLeagues(list);
-                const preferred = currentLeague?.id && list.some((l: any) => l.id === currentLeague.id)
-                    ? currentLeague.id
-                    : (list[0]?.id ?? null);
-                setDesktopSelectedLeagueId(preferred);
+                // Ne pas pré-sélectionner automatiquement - laisser l'utilisateur choisir
+                setDesktopSelectedLeagueId(null);
             } catch (e: any) {
                 if (!mounted) return;
                 console.error('Error loading leagues for desktop sidebar:', e);
@@ -877,10 +875,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 const list = await getParticipatedLeagues();
                 if (!mounted) return;
                 setDrawerLeagues(list);
-                const preferred = currentLeague?.id && list.some((l: any) => l.id === currentLeague.id)
-                    ? currentLeague.id
-                    : (list[0]?.id ?? null);
-                setDrawerSelectedLeagueId(preferred);
+                // Ne pas pré-sélectionner automatiquement - laisser l'utilisateur choisir
+                setDrawerSelectedLeagueId(null);
             } catch (e: any) {
                 if (!mounted) return;
                 setDrawerError(e?.message || 'Impossible de charger les ligues.');
