@@ -179,7 +179,6 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           {ticket && onAskDelete && (
             <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>Supprimer le ticket</button>
           )}
-          <button className="btn btn-primary" onClick={() => navigate('/tickets')}>Voir tous les tickets</button>
         </div>
       </div>
     </div>
