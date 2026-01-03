@@ -7,7 +7,7 @@ import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
 
-type TabType = 'overview' | 'account' | 'security' | 'preferences';
+type TabType = 'overview' | 'account' | 'security';
 
 interface ProfileStatsProps {
   nbWin: number;
@@ -338,72 +338,6 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
 
 SecuritySettings.displayName = 'SecuritySettings';
 
-interface PreferencesProps {
-  onLogout?: () => void;
-}
-
-const Preferences = memo<PreferencesProps>(() => {
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [pushNotif, setPushNotif] = useState(true);
-  const [defaultStake, setDefaultStake] = useState(10);
-
-  return (
-    <div className="settings-section">
-      <h3>Préférences</h3>
-      <div className="preferences-groups">
-        <div className="preference-group">
-          <h4>Notifications</h4>
-          <div className="preference-option">
-            <label className="toggle-label">
-              <span>Notifications par email</span>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={emailNotif}
-                  onChange={() => setEmailNotif(!emailNotif)}
-                />
-                <span className="slider"></span>
-              </label>
-            </label>
-          </div>
-          <div className="preference-option">
-            <label className="toggle-label">
-              <span>Notifications push</span>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={pushNotif}
-                  onChange={() => setPushNotif(!pushNotif)}
-                />
-                <span className="slider"></span>
-              </label>
-            </label>
-          </div>
-        </div>
-
-        <div className="preference-group">
-          <h4>Paris</h4>
-          <div className="preference-option">
-            <label>
-              <span>Mise par défaut (€)</span>
-              <input
-                type="number"
-                min="1"
-                max="1000"
-                value={defaultStake}
-                onChange={(e) => setDefaultStake(parseInt(e.target.value) || 1)}
-                className="number-input"
-              />
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-Preferences.displayName = 'Preferences';
-
 const LoadingSkeleton: React.FC = () => (
   <div className="profile-skeleton">
     <div className="skeleton skeleton-header" />
@@ -543,12 +477,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
         >
           Sécurité
         </button>
-        <button
-          className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preferences')}
-        >
-          Préférences
-        </button>
+
       </div>
 
       <div className="tab-content">
@@ -597,10 +526,6 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
 
         {activeTab === 'security' && (
           <SecuritySettings onLogout={handleLogout} isTwoFactorEnabled={profile.is_two_factor_enabled} />
-        )}
-
-        {activeTab === 'preferences' && (
-          <Preferences />
         )}
       </div>
 
