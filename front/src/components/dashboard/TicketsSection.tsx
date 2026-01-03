@@ -3,14 +3,13 @@ import './TicketsSection.css';
 import { useInProgressTickets } from 'hooks/useInProgressTickets';
 import { useFinishedTickets } from 'hooks/useFinishedTickets';
 import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
-import { useNavigate } from 'react-router-dom';
 import TicketDetailModal from './TicketDetailModal';
 import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';
 import { useToast } from 'hooks/useToast';
 import { ToastContainer } from '../ToastContainer';
 
-type TabType = 'current' | 'finished' | 'history' | 'templates';
+type TabType = 'current' | 'finished';
 
 type StatusLabel = 'En cours' | 'Gagné' | 'Perdu' | 'Brouillon';
 
@@ -259,7 +258,6 @@ const SkeletonCard: React.FC = () => (
 
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
-  const navigate = useNavigate();
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
@@ -354,11 +352,14 @@ const TicketsSection: React.FC = memo(() => {
         <h2>Mes Tickets</h2>
       </div>
 
-      <div className="tickets-tabs">
+      <div className="tickets-tabs" role="tablist" aria-label="Filtres tickets">
         <button
+          type="button"
           className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
           onClick={() => setActiveTab('current')}
           aria-label="Tickets en cours"
+          aria-selected={activeTab === 'current'}
+          role="tab"
         >
           <span className="tab-content-wrapper">
             <span className="tab-title">En cours</span>
@@ -366,31 +367,16 @@ const TicketsSection: React.FC = memo(() => {
           </span>
         </button>
         <button
+          type="button"
           className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`}
           onClick={() => setActiveTab('finished')}
           aria-label="Tickets terminés"
+          aria-selected={activeTab === 'finished'}
+          role="tab"
         >
           <span className="tab-content-wrapper">
             <span className="tab-title">Terminés</span>
             <span className="tab-badge">{finishedTickets.length}</span>
-          </span>
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-          aria-label="Historique"
-        >
-          <span className="tab-content-wrapper">
-            <span className="tab-title">Historique</span>
-          </span>
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-          aria-label="Templates"
-        >
-          <span className="tab-content-wrapper">
-            <span className="tab-title">Templates</span>
           </span>
         </button>
       </div>
@@ -461,14 +447,6 @@ const TicketsSection: React.FC = memo(() => {
             ))}
           </div>
         </>
-      )}
-
-      {activeTab !== 'current' && activeTab !== 'finished' && (
-        <div className="empty-state subtle">
-          <span className="empty-icon">📚</span>
-          <h3>Section en construction</h3>
-          <p>Nous nous concentrons sur l’onglet « En cours ». L’historique et les templates arrivent bientôt.</p>
-        </div>
       )}
     </div>
   );
