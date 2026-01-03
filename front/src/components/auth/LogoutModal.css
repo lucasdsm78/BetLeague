@@ -210,109 +210,6 @@
   margin: 0;
 }
 
-/* Logout Options */
-.logout-modal__options {
-  margin-bottom: 1.5rem;
-}
-
-.options-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 0.75rem;
-}
-
-.options-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.option-item {
-  display: flex;
-  align-items: center;
-  padding: 0.875rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #ffffff;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: left;
-  width: 100%;
-}
-
-.option-item:hover {
-  border-color: #3b82f6;
-  background: #f8faff;
-}
-
-.option-item.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.option-item[data-security-level="high"] {
-  border-color: #f59e0b;
-}
-
-.option-item[data-security-level="high"]:hover,
-.option-item[data-security-level="high"].selected {
-  border-color: #d97706;
-  background: #fffbeb;
-}
-
-.option-icon {
-  font-size: 1.25rem;
-  margin-right: 0.75rem;
-  flex-shrink: 0;
-}
-
-.option-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.option-label {
-  font-weight: 600;
-  color: #111827;
-  font-size: 0.9rem;
-  margin-bottom: 0.125rem;
-}
-
-.option-description {
-  color: #6b7280;
-  font-size: 0.8rem;
-  line-height: 1.3;
-}
-
-.option-radio {
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 2px solid #d1d5db;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.radio-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: transparent;
-  transition: background 0.15s ease;
-}
-
-.radio-dot.checked {
-  background: #3b82f6;
-}
-
-.option-item.selected .option-radio {
-  border-color: #3b82f6;
-}
-
 /* Confirmation */
 .logout-modal__confirmation {
   margin-bottom: 1.5rem;
@@ -452,16 +349,6 @@
   color: #374151;
 }
 
-.btn-quick {
-  background: #10b981;
-  color: white;
-  border: 1px solid #059669;
-}
-
-.btn-quick:hover:not(:disabled) {
-  background: #059669;
-}
-
 /* Mobile Menu Integration */
 .user-avatar-large {
   width: 3.5rem;
@@ -507,10 +394,6 @@
     flex: none;
   }
 
-  .option-item {
-    padding: 0.75rem;
-  }
-
   .user-avatar {
     width: 2.5rem;
     height: 2.5rem;
@@ -548,28 +431,12 @@
   .logout-modal__title {
     font-size: 1.125rem;
   }
-
-  .option-item {
-    padding: 0.625rem;
-  }
-
-  .option-label {
-    font-size: 0.85rem;
-  }
-
-  .option-description {
-    font-size: 0.75rem;
-  }
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .logout-modal {
     border: 2px solid #000000;
-  }
-
-  .option-item {
-    border-width: 2px;
   }
 
   .btn {
@@ -581,7 +448,6 @@
 @media (prefers-reduced-motion: reduce) {
   .logout-modal-overlay,
   .logout-modal,
-  .option-item,
   .btn,
   .progress-fill,
   .countdown-circle,
@@ -603,36 +469,18 @@
   }
 
   .logout-modal__title,
-  .user-name,
-  .option-label,
-  .options-title {
+  .user-name {
     color: #f9fafb;
   }
 
   .logout-modal__message,
   .user-email,
-  .option-description,
   .progress-text {
     color: #d1d5db;
   }
 
   .logout-modal__user-info {
     background: #374151;
-  }
-
-  .option-item {
-    background: #374151;
-    border-color: #4b5563;
-  }
-
-  .option-item:hover {
-    background: #4b5563;
-    border-color: #3b82f6;
-  }
-
-  .option-item.selected {
-    background: #1e3a8a;
-    border-color: #3b82f6;
   }
 
   .btn-secondary {
@@ -730,11 +578,6 @@
 
 /* Enhanced Mobile Touch Targets */
 @media (max-width: 768px) {
-  .option-item {
-    min-height: 3.5rem;
-    touch-action: manipulation;
-  }
-
   .btn {
     min-height: 3rem;
     touch-action: manipulation;
@@ -755,7 +598,6 @@
 
 /* Enhanced focus indicators for mobile */
 @media (max-width: 768px) {
-  .option-item:focus,
   .btn:focus,
   .logout-modal__close:focus {
     outline: 3px solid #3b82f6;
@@ -765,7 +607,6 @@
 
 /* Haptic feedback simulation for mobile */
 @media (max-width: 768px) {
-  .option-item:active,
   .btn:active {
     transform: scale(0.98);
     transition: transform 0.1s ease;
@@ -815,11 +656,6 @@
 
   .logout-modal__title {
     font-size: 1rem;
-  }
-
-  .option-item {
-    padding: 0.75rem;
-    min-height: 3.25rem;
   }
 
   .user-avatar {

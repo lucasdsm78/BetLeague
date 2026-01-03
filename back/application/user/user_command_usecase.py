@@ -64,9 +64,6 @@ class UserCommandUseCase(ABC):
 
     @abstractmethod
     async def logout(self, user_id: str, token: str) -> dict:
-        """
-        Logout current device - invalidate current token
-        """
         raise NotImplementedError
 
 class UserCommandUseCaseImpl(UserCommandUseCase):

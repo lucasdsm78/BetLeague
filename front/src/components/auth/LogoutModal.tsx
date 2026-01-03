@@ -290,33 +290,6 @@ const LogoutModal = memo<LogoutModalProps>(({
             </div>
           )}
 
-          {/* Logout options (only for manual logouts) */}
-          {triggerReason === 'manual' && showDeviceOptions && !isLoggingOut && (
-            <div className="logout-modal__options">
-              <h3 className="options-title">Options de déconnexion</h3>
-              <div className="options-list">
-                {LOGOUT_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    className={`option-item ${selectedOption === option.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedOption(option.id)}
-                    data-logout-option={option.id}
-                    data-security-level={option.securityLevel}
-                  >
-                    <div className="option-icon">{option.icon}</div>
-                    <div className="option-content">
-                      <div className="option-label">{option.label}</div>
-                      <div className="option-description">{option.description}</div>
-                    </div>
-                    <div className="option-radio">
-                      <div className={`radio-dot ${selectedOption === option.id ? 'checked' : ''}`} />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Confirmation step */}
           {showConfirmation && !isLoggingOut && (
             <div className="logout-modal__confirmation">
@@ -364,15 +337,6 @@ const LogoutModal = memo<LogoutModalProps>(({
 
         {/* Actions */}
         <div className="logout-modal__actions">
-          {enableQuickLogout && triggerReason === 'manual' && !isLoggingOut && (
-            <button
-              className="btn btn-outline btn-quick"
-              onClick={handleQuickLogout}
-            >
-              Déconnexion rapide
-            </button>
-          )}
-
           {triggerReason === 'manual' && !isLoggingOut && (
             <button
               className="btn btn-secondary"
