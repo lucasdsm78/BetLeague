@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
 import { useUserProfile } from '../../hooks/useUserProfile';
@@ -186,7 +186,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForLeave, setSelectedLeagueForLeave] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForEdit, setSelectedLeagueForEdit] = useState<any | null>(null);
-    const [isLoadingLeagueDetails, setIsLoadingLeagueDetails] = useState<boolean>(false);
     const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
@@ -196,6 +195,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [error, setError] = useState<string>('');
+    const location = useLocation();
+    const navigate = useNavigate();
 
     // Load participated leagues (leagues where user is participant but not creator)
     const loadParticipatedLeagues = useCallback(async () => {
@@ -358,13 +359,41 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const handleViewLeague = useCallback((league: LeagueSummary) => {
         setSelectedLeagueId(league.id);
         setIsDetailsModalOpen(true);
-    }, []);
+
+        // Keep URL shareable + recoverable (open modal on paste)
+        // We store the leagueId in query string only (no sensitive data)
+        const params = new URLSearchParams(location.search);
+        params.set('leagueId', String(league.id));
+        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }, [location.pathname, location.search, navigate]);
 
     // Handle close details modal
     const handleCloseDetailsModal = useCallback(() => {
         setIsDetailsModalOpen(false);
         setSelectedLeagueId(null);
-    }, []);
+
+        // Clean URL after closing modal for better UX
+        const params = new URLSearchParams(location.search);
+        if (params.has('leagueId')) {
+            params.delete('leagueId');
+            const nextSearch = params.toString();
+            navigate({ pathname: location.pathname, search: nextSearch ? nextSearch : '' }, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
+
+    // Open details modal if a shareable link contains ?leagueId=
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const leagueIdFromUrl = params.get('leagueId');
+        if (!leagueIdFromUrl) return;
+
+        const parsed = Number(leagueIdFromUrl);
+        if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+        // Avoid re-setting state if already open with the same league
+        setSelectedLeagueId(prev => (prev === parsed ? prev : parsed));
+        setIsDetailsModalOpen(true);
+    }, [location.search]);
 
     // Handle league joined from modal
     const handleLeagueJoined = useCallback(() => {
@@ -426,7 +455,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     }, []);
 
     const handleEditLeague = useCallback(async (league: LeagueSummary) => {
-        setIsLoadingLeagueDetails(true);
         try {
             const result = await leagueApiService.getLeagueDetails(league.id);
             if (result.success && result.data) {
@@ -450,8 +478,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         } catch (err) {
             console.error('Failed to load league details:', err);
             setError('Erreur lors du chargement des détails de la ligue');
-        } finally {
-            setIsLoadingLeagueDetails(false);
         }
     }, []);
 
@@ -751,7 +777,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 isOpen={isDetailsModalOpen}
                 leagueId={selectedLeagueId}
                 onClose={handleCloseDetailsModal}
-                onJoined={handleLeagueJoined}
             />
 
             <LeagueRankingModal

@@ -23,14 +23,14 @@ interface LeagueDetailsModalProps {
   isOpen: boolean;
   leagueId: number | null;
   onClose: () => void;
-  onJoined?: () => void;
 }
 
-const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, leagueId, onClose, onJoined }) => {
+const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, leagueId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<LeagueDetailData | null>(null);
   const [joining, setJoining] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -111,6 +111,57 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) {
+      setCopyStatus('idle');
+    }
+  }, [isOpen]);
+
+  const buildShareUrl = useCallback((): string => {
+    // Share only a league identifier, never user data.
+    const url = new URL(window.location.href);
+    if (leagueId) {
+      url.searchParams.set('leagueId', String(leagueId));
+    }
+    return url.toString();
+  }, [leagueId]);
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    // Prefer modern, secure Clipboard API when available.
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    // Fallback for older browsers / non-secure contexts.
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    if (!ok) {
+      throw new Error('copy_failed');
+    }
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      const url = buildShareUrl();
+      await copyToClipboard(url);
+      setCopyStatus('success');
+      window.setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch (e) {
+      console.warn('Failed to copy league link:', e);
+      setCopyStatus('error');
+      window.setTimeout(() => setCopyStatus('idle'), 2500);
+    }
+  }, [buildShareUrl, copyToClipboard]);
+
   if (!isOpen) return null;
 
   const formatDate = (timestamp: number) => {
@@ -182,6 +233,18 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
               </div>
               <button className="modal-close-btn" onClick={onClose} aria-label="Fermer">
                 ✕
+              </button>
+            </div>
+
+            {/* Share Actions */}
+            <div className="league-modal-share">
+              <button
+                type="button"
+                className={`btn btn-outline btn-copy-link ${copyStatus === 'success' ? 'copy-success' : ''} ${copyStatus === 'error' ? 'copy-error' : ''}`}
+                onClick={handleCopyLink}
+                aria-label="Copier le lien de la ligue"
+              >
+                {copyStatus === 'success' ? '✅ Lien copié' : copyStatus === 'error' ? '⚠️ Copie impossible' : '🔗 Copier le lien'}
               </button>
             </div>
 
