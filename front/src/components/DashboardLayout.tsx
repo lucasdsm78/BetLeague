@@ -16,11 +16,10 @@ import './Dashboard.css';
 
 // Simple sanitization function
 const sanitizeInput = (input: string): string => {
-  if (typeof input !== 'string') return '';
   return input
     .trim()
-    .replace(/[<>'\"&]/g, '')
-    .replace(/[^\w\s\-_\.\@]/g, '')
+    .replace(/[<>'"&]/g, '')
+    .replace(/[^\w\s\-_.@]/g, '')
     .substring(0, 50);
 };
 
@@ -133,6 +132,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     lastActivity: Date.now()
   });
 
+  /**
+   * Mobile UX choice:
+   * - On mobile, we already have a full user section inside the hamburger menu (avatar + identity + logout).
+   * - Rendering a second avatar in the header creates a duplicated "user logo".
+   *
+   * Keep the header clean + faster to scan on small screens.
+   * If later you want a header dropdown again, switch this flag to true (or wire to a feature flag).
+   */
+  const enableMobileUserDropdown = false;
+
   // Memoized security validations for performance
   const isValidUser = useMemo(() => {
     return user &&
@@ -168,7 +177,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     const currentPath = location.pathname;
 
     // Security: Validate path format
-    if (!currentPath || typeof currentPath !== 'string' || !/^\/[a-zA-Z0-9/_-]*$/.test(currentPath)) {
+    if (!currentPath || !/^\/[a-zA-Z0-9/_-]*$/.test(currentPath)) {
       console.warn('🔒 Invalid path format detected:', currentPath);
       return 'matches';
     }
@@ -287,10 +296,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }, []);
 
   // Handle security logout
-  const handleSecurityLogout = useCallback(() => {
-    setLogoutTriggerReason('security');
-    setIsLogoutModalOpen(true);
-  }, []);
+  // (reserved for future policy-based actions)
+  // const handleSecurityLogout = useCallback(() => {
+  //   setLogoutTriggerReason('security');
+  //   setIsLogoutModalOpen(true);
+  // }, []);
 
   // Handle user menu toggle
   const handleUserMenuToggle = useCallback(() => {
@@ -338,15 +348,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
     const checkInactivity = () => {
       const now = Date.now();
-      const currentState = securityState;
-      if (now - currentState.lastActivity > INACTIVITY_TIMEOUT) {
+      if (now - securityState.lastActivity > INACTIVITY_TIMEOUT) {
         handleInactivityLogout();
       }
     };
 
     const interval = setInterval(checkInactivity, 60000); // Check every minute
     return () => clearInterval(interval);
-  }, [handleInactivityLogout]); // Updated dependency
+  }, [handleInactivityLogout, securityState.lastActivity]);
 
   // Security: Validate user session - but wait for auth initialization
 
@@ -417,43 +426,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 <span className="shop-icon">🛒</span>
               </button>
 
-              {/* User Avatar with Dropdown */}
-              <div className="mobile-user-container">
-                <button
-                  className="mobile-user-avatar"
-                  onClick={handleUserMenuToggle}
-                  aria-label="Menu utilisateur"
-                  aria-expanded={isUserMenuOpen}
-                >
-                  {sanitizedUserName.charAt(0).toUpperCase()}
-                </button>
+              {/* User Avatar with Dropdown (optional on mobile to avoid duplication) */}
+              {enableMobileUserDropdown && (
+                <div className="mobile-user-container">
+                  <button
+                    className="mobile-user-avatar"
+                    onClick={handleUserMenuToggle}
+                    aria-label="Menu utilisateur"
+                    aria-expanded={isUserMenuOpen}
+                  >
+                    {sanitizedUserName.charAt(0).toUpperCase()}
+                  </button>
 
-                {/* User Dropdown Menu */}
-                {isUserMenuOpen && (
-                  <div className="mobile-user-menu">
-                    <button
-                      className="mobile-user-menu-item"
-                      onClick={handleGoToProfile}
-                    >
-                      <span className="menu-item-icon">👤</span>
-                      <span className="menu-item-text">Mon profil</span>
-                    </button>
-                    <div className="menu-divider-thin" />
-                    <button
-                      className="mobile-user-menu-item logout"
-                      onClick={handleLogout}
-                    >
-                      <span className="menu-item-icon">🚪</span>
-                      <span className="menu-item-text">Déconnexion</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+                  {/* User Dropdown Menu */}
+                  {isUserMenuOpen && (
+                    <div className="mobile-user-menu">
+                      <button
+                        className="mobile-user-menu-item"
+                        onClick={handleGoToProfile}
+                      >
+                        <span className="menu-item-icon">👤</span>
+                        <span className="menu-item-text">Mon profil</span>
+                      </button>
+                      <div className="menu-divider-thin" />
+                      <button
+                        className="mobile-user-menu-item logout"
+                        onClick={handleLogout}
+                      >
+                        <span className="menu-item-icon">🚪</span>
+                        <span className="menu-item-text">Déconnexion</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Hamburger Menu Toggle (for side menu) */}
             <button
-              className="menu-toggle"
+              className="menu-toggle mobile-menu-toggle"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               aria-expanded={isMobileMenuOpen}
