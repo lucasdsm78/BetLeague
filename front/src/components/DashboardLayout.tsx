@@ -484,7 +484,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
             {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
-                className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                className={`nav-item ${tab.id === 'tournaments' ? 'nav-item--tournaments' : ''} ${activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => handleTabClick(tab.id)}
                 aria-current={activeTab === tab.id ? 'page' : undefined}
                 aria-label={`Aller à ${tab.label}`}
