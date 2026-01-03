@@ -30,7 +30,7 @@ const TournamentsSection: React.FC = () => {
   const [pageSize] = useState(10);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [joinedTournament, setJoinedTournament] = useState<Tournament | null>(null);
-  const { showInfo, showError, showSuccess } = useToast();
+  const { showInfo, showError } = useToast();
 
   // Load tournaments on mount, when page changes, or when refresh is triggered
   useEffect(() => {
@@ -142,27 +142,36 @@ const TournamentsSection: React.FC = () => {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="tournaments-tabs">
+      <div className="tournaments-tabs" role="tablist" aria-label="Navigation tournois">
         <button
+          type="button"
           className={`tab-btn ${activeTab === 'available' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('available')}
+          role="tab"
+          aria-selected={activeTab === 'available'}
         >
-          <span className="tab-icon">🎯</span>
-          Tournois disponibles
+          <span className="tab-icon" aria-hidden="true">🎯</span>
+          <span className="tab-label">Tournois disponibles</span>
         </button>
         <button
+          type="button"
           className={`tab-btn ${activeTab === 'my-tournaments' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('my-tournaments')}
+          role="tab"
+          aria-selected={activeTab === 'my-tournaments'}
         >
-          <span className="tab-icon">🏅</span>
-          Mes tournois
+          <span className="tab-icon" aria-hidden="true">🏅</span>
+          <span className="tab-label">Mes tournois</span>
         </button>
         <button
+          type="button"
           className={`tab-btn ${activeTab === 'finished-tournaments' ? 'tab-active' : ''}`}
           onClick={() => setActiveTab('finished-tournaments')}
+          role="tab"
+          aria-selected={activeTab === 'finished-tournaments'}
         >
-          <span className="tab-icon">🏆</span>
-          Mes tournois terminés
+          <span className="tab-icon" aria-hidden="true">🏆</span>
+          <span className="tab-label">Mes tournois terminés</span>
         </button>
       </div>
 
