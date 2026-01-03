@@ -275,6 +275,31 @@
   flex: 1;
 }
 
+/* Gold accent for 'Tournois' in the desktop vertical menu */
+.nav-item.nav-item--tournaments {
+  color: #b45309; /* amber-700 */
+}
+
+.nav-item.nav-item--tournaments:hover {
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e; /* amber-800 */
+}
+
+.nav-item.nav-item--tournaments .nav-icon {
+  filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.25));
+}
+
+.nav-item.nav-item--tournaments.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(217, 119, 6, 0.95));
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.24);
+}
+
+/* Keep icon readable on the gold active pill */
+.nav-item.nav-item--tournaments.active .nav-icon {
+  filter: none;
+}
+
 /* Main Content */
 .dashboard-content {
   flex: 1;
