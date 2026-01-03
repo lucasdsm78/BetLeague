@@ -99,7 +99,13 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  white-space: nowrap;
+  /* Create a local stacking context so z-index behaves predictably */
+  z-index: 0;
+}
+
+/* Ensure the label/icon always paint above the background layer */
+.tab-btn {
+  color: #6b7280;
 }
 
 .tab-btn::before {
@@ -113,6 +119,25 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   border-radius: 10px;
+  z-index: 0;
+}
+
+.tab-btn .tab-icon,
+.tab-btn .tab-label {
+  position: relative;
+  z-index: 1;
+}
+
+/* Active tab: force readable label color */
+.tab-btn.tab-active .tab-label,
+.tab-btn.tab-active .tab-icon {
+  color: #ffffff;
+}
+
+/* Keep the existing span rule but increase specificity for safety */
+.tab-btn > span {
+  position: relative;
+  z-index: 2;
 }
 
 .tab-btn:hover:not(.tab-active) {
@@ -127,7 +152,7 @@
 
 .tab-active {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  color: #ffffff;
   border-color: transparent;
   box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
 }
@@ -145,6 +170,33 @@
 .tab-btn span {
   position: relative;
   z-index: 1;
+}
+
+/* Mobile: allow tabs to scroll instead of shrinking text until it disappears */
+@media (max-width: 640px) {
+  .tournaments-section {
+    padding: 1rem;
+  }
+
+  .tournaments-tabs {
+    gap: 0.5rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+
+  .tournaments-tabs::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    scroll-snap-align: start;
+  }
 }
 
 /* Tournaments Content */
