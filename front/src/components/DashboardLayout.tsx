@@ -397,11 +397,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               <div className="user-avatar" aria-label="Avatar utilisateur">
                 {sanitizedUserName.charAt(0).toUpperCase()}
               </div>
-              {securityState.suspiciousActivity && (
-                <span className="security-indicator" title="Activité suspecte détectée">
-                  ⚠️
-                </span>
-              )}
+              {/* Intentionally no visual ⚠️ indicator: keep UX clean, rely on rate-limit + toasts */}
             </div>
 
             {/* Desktop Logout Button */}
