@@ -763,8 +763,8 @@
     display: none;
   }
 
-  /* Show hamburger menu on desktop */
+  /* Hide hamburger menu on desktop */
   .menu-toggle {
-    display: flex;
+    display: none;
   }
 }
