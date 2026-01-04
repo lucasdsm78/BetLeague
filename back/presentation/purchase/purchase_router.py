@@ -6,7 +6,7 @@ from application.purchase.purchase_query_model import PacksListResponse, PackRes
 from application.purchase.purchase_query_usecase import PurchaseQueryUseCase
 from dependency_injections import purchase_command_usecase, purchase_query_usecase, current_user
 from domain.purchase.exception.pack_exception import PackNotFoundError
-from domain.purchase.exception.purchase_exception import PurchaseNotFoundError
+from domain.purchase.exception.purchase_exception import PurchaseNotFoundError, InvalidWebhookError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -84,16 +84,24 @@ async def verify_purchase_google(
 )
 async def handle_purchase_webhook(
         request: Request,
-        stripe_signature: str = Header(..., alias="Stripe-Signature"),
+        stripe_signature: str = Header(None, alias="Stripe-Signature"),
         purchase_command_usecase: PurchaseCommandUseCase = Depends(purchase_command_usecase),
 ):
     try:
+        if not stripe_signature:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Signature Stripe manquante")
         payload = await request.body()
         await purchase_command_usecase.handle_webhook(payload, stripe_signature)
 
     except PurchaseNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+
+    except InvalidWebhookError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message
         )
 

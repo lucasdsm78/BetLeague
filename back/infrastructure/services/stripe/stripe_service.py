@@ -38,6 +38,8 @@ class StripeServiceImpl(StripeService):
                 customer_email=purchase.user.email.value,
                 metadata={
                     "purchase_uuid": purchase.uuid,
+                    "pack_id": str(purchase.pack.id),
+                    "user_id": str(purchase.user.id),
                 },
                 payment_intent_data={
                     "metadata": {
