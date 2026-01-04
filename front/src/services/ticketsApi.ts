@@ -1,6 +1,6 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
-import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from 'types/ticket';
+import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../types/ticket';
 
 export interface MatchChoiceData {
   match_id: number;
@@ -28,19 +28,24 @@ export async function createTicket(leagueId: number, payload: TicketCreatePayloa
 }
 
 export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
-  // 1) Essaye l’endpoint documenté côté backend (/tickets/in-progress)
-  let res: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/tickets/in-progress');
-  if (!res.success) {
-    // 2) Fallback: certaines docs mentionnent /ticket/in-progress
-    const fallback: ApiResponse<TicketsInProgressResponse> = await secureApiClient.get('/ticket/in-progress');
-    if (!fallback.success) {
-      throw new Error(fallback.error || res.error || 'Récupération des tickets en cours échouée');
+  const normalize = (data: any): TicketsInProgressResponse => {
+    const payload = data?.tickets ?? data?.ticket ?? data;
+    return { tickets: Array.isArray(payload) ? payload : [] };
+  };
+
+  // Endpoints possibles selon versions du backend
+  const endpoints = ['/tickets/in-progress', '/ticket/in-progress', '/tickets/in_progress', '/ticket/in_progress'];
+
+  let lastError: string | undefined;
+  for (const endpoint of endpoints) {
+    const res: ApiResponse<any> = await secureApiClient.get(endpoint);
+    if (res.success) {
+      return normalize(res.data);
     }
-    const data = fallback.data as TicketsInProgressResponse;
-    return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+    lastError = res.error;
   }
-  const data = res.data as TicketsInProgressResponse;
-  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+
+  throw new Error(lastError || 'Récupération des tickets en cours échouée');
 }
 
 export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
