@@ -22,64 +22,29 @@ export interface UseUserProfileReturn {
 
 // Récupère le profil de l'utilisateur connecté via le token
 async function getCurrentUserProfile(): Promise<UserProfile> {
-  // D'abord valider le token pour obtenir l'ID utilisateur
+  // ✅ Preferred secure path: backend endpoint returns only current user
+  const meRes: ApiResponse<any> = await secureApiClient.get('/auth/me');
+  if (meRes.success && meRes.data) {
+    const currentUser = meRes.data;
+    return {
+      id: Number(currentUser.id),
+      email: String(currentUser.email || ''),
+      pseudo: String(currentUser.pseudo || ''),
+      nb_win: Number(currentUser.nb_win || 0),
+      nb_lose: Number(currentUser.nb_lose || 0),
+      nb_btl: Number(currentUser.nb_btl || 0),
+      is_tournament_subscriber: Boolean(currentUser.is_tournament_subscriber || false),
+      is_two_factor_enabled: Boolean(currentUser.is_two_factor_enabled || false),
+    };
+  }
+
+  // Hard fail with a clear message (no more /auth/users usage)
+  // Optionally call /auth/validate to produce a better error for the user.
   const validateRes: ApiResponse<any> = await secureApiClient.get('/auth/validate');
   if (!validateRes.success) {
-    throw new Error(validateRes.error || 'Validation échouée');
+    throw new Error(validateRes.error || 'Session invalide. Veuillez vous reconnecter.');
   }
-
-  // Récupérer l'ID depuis le token (plus stable que l'email)
-  const userId = validateRes.data?.user?.id || validateRes.data?.user?.user_id || validateRes.data?.user?.uuid;
-
-  // Fallback: si pas d'ID, utiliser l'email (pour compatibilité)
-  const email = validateRes.data?.user?.email;
-
-  if (!userId && !email) {
-    throw new Error('Impossible d\'identifier l\'utilisateur dans le token');
-  }
-
-  // Chercher l'utilisateur dans la liste
-  const usersRes: ApiResponse<any> = await secureApiClient.get('/auth/users');
-  if (!usersRes.success) {
-    throw new Error(usersRes.error || 'Récupération des utilisateurs échouée');
-  }
-
-  const users = usersRes.data?.users || [];
-
-  // Chercher par ID en priorité, sinon par email
-  let currentUser;
-  if (userId) {
-    currentUser = users.find((u: any) =>
-      u.id === userId || u.user_id === userId || u.uuid === userId
-    );
-  }
-
-  // Fallback sur email si pas trouvé par ID
-  if (!currentUser && email) {
-    currentUser = users.find((u: any) => u.email === email);
-  }
-
-  if (!currentUser) {
-    throw new Error('Utilisateur non trouvé');
-  }
-
-  return {
-    id: currentUser.id,
-    email: currentUser.email,
-    pseudo: currentUser.pseudo,
-    nb_win: currentUser.nb_win || 0,
-    nb_lose: currentUser.nb_lose || 0,
-    nb_btl: currentUser.nb_btl || 0,
-    is_tournament_subscriber: currentUser.is_tournament_subscriber || false,
-    is_two_factor_enabled: Boolean(
-      currentUser.is_two_factor_enabled ??
-      currentUser.two_factor_enabled ??
-      currentUser.twoFactorEnabled ??
-      currentUser.isTwoFactorEnabled ??
-      currentUser.has_two_factor ??
-      currentUser.hasTwoFactor
-    )
-  };
+  throw new Error('Impossible de charger votre profil (endpoint /auth/me indisponible).');
 }
 
 export function useUserProfile(): UseUserProfileReturn {

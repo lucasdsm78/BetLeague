@@ -82,33 +82,6 @@ async def logout_current_device(
             detail="Erreur lors de la déconnexion"
         )
 
-@router.get(
-    "/users",
-    response_model=dict,
-    status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_404_NOT_FOUND: {
-            "model": ErrorMessageUsersNotFound,
-        }
-    }
-)
-async def get_users(
-        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
-):
-    try:
-        users = await user_query_usecase.fetch_users()
-
-    except Exception as e:
-        raise
-
-    if not len(users.get("users")):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=UsersNotFoundError.message,
-        )
-
-    return users
-
 
 @router.post(
     "/login",
@@ -349,38 +322,6 @@ async def update_user(
 
 
 @router.get(
-    "/user/{user_id}",
-    response_model=UserReadModel,
-    status_code=status.HTTP_200_OK,
-    summary="Get détails user connected"
-)
-async def get_user_by_id(
-        user_id: int,
-        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
-        current_user: dict = Depends(current_user)
-):
-    try:
-        user = await user_query_usecase.fetch_user_by_id(user_id, current_user.get('email'))
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except UserNotOwnerError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.message
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération du user."
-        )
-
-    return user
-
-
-@router.get(
     "/users/search",
     response_model=UserSearchResponse,
     status_code=status.HTTP_200_OK,
@@ -393,24 +334,17 @@ async def search_users(
         user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
         current_user: dict = Depends(current_user),
 ) -> UserSearchResponse:
-    """
-    Search users by pseudo or email using DDD architecture.
-    All business logic is handled by the Use Case layer.
-    """
     try:
-        # Create domain query object
         search_query = UserSearchQuery(
             query=q,
             limit=min(limit or 10, 20)  # Cap limit for security
         )
 
-        # Delegate to Use Case (Domain layer handles validation and logic)
         result = await user_query_usecase.search_users(search_query)
 
         return result
 
     except ValueError as ve:
-        # Domain validation errors
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(ve)
@@ -420,4 +354,37 @@ async def search_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la recherche d'utilisateurs"
+        )
+
+
+@router.get(
+    "/me",
+    response_model=UserReadModel,
+    status_code=status.HTTP_200_OK,
+    summary="Get current authenticated user profile",
+)
+async def get_me(
+        user_query_usecase: UserQueryUseCase = Depends(user_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        user_id = current_user.get("id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Utilisateur non authentifié"
+            )
+
+        return await user_query_usecase.fetch_user_by_id(user_id, current_user.get('email'))
+
+    except HTTPException as e:
+        raise e
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotOwnerError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération du profil"
         )
