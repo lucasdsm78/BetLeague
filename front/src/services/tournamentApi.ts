@@ -13,6 +13,9 @@ export interface TournamentCreateRequest {
 
 export interface TournamentCreateResponse {
   message: string;
+  tournament_id?: number;
+  tournament_uuid?: string;
+  name?: string;
 }
 
 export interface Tournament {
@@ -116,11 +119,32 @@ export interface TournamentsFinishedResponse {
 export const createTournament = async (
   data: TournamentCreateRequest
 ): Promise<TournamentCreateResponse> => {
-  const response = await apiClient.post<TournamentCreateResponse>(
-    '/tournament/create',
-    data
-  );
-  return response.data as TournamentCreateResponse;
+  const payload: TournamentCreateRequest = {
+    name: String(data.name ?? '').trim(),
+    is_private: Boolean(data.is_private),
+    max_players: 16,
+  };
+
+  try {
+    const response = await apiClient.post<TournamentCreateResponse>(
+      '/tournament/create',
+      payload
+    );
+    return response.data as TournamentCreateResponse;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 402) {
+      throw new Error(detail || "Vous devez être abonné à l'option tournoi pour créer un tournoi.");
+    }
+    if (status === 409) {
+      throw new Error(detail || 'Ce nom de tournoi est déjà utilisé.');
+    }
+    if (status === 400 || status === 422) {
+      throw new Error(detail || 'Données invalides.');
+    }
+    throw err;
+  }
 };
 
 /**

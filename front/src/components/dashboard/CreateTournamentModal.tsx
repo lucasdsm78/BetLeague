@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom';
 import { createTournament, TournamentCreateRequest } from '../../services/tournamentApi';
 import { useToast } from '../../hooks/useToast';
 import './CreateTournamentModal.css';
@@ -75,7 +74,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       await createTournament({
         name: formData.name.trim(),
         is_private: formData.is_private,
-        max_players: formData.max_players
+        max_players: 16
       });
 
       showSuccess(
@@ -86,11 +85,9 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       onTournamentCreated();
       onClose();
     } catch (error: any) {
-      console.error('Error creating tournament:', error);
-
-      const errorMessage = error.response?.data?.detail ||
-                          error.message ||
-                          'Une erreur est survenue lors de la création du tournoi';
+      const errorMessage =
+        error?.message ||
+        'Une erreur est survenue lors de la création du tournoi';
 
       showError('Erreur de création', errorMessage);
     } finally {
@@ -104,7 +101,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     }
   }, [isSubmitting, onClose]);
 
-  const modalContent = (
+  return (
     <div className="modal-overlay create-tournament-modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content create-tournament-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -252,8 +249,6 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       </div>
     </div>
   );
-
-  return modalContent;
 };
 
 CreateTournamentModal.displayName = 'CreateTournamentModal';

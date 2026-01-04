@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 import shortuuid
@@ -64,24 +64,39 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 if not user:
                     raise UserNotFoundError
 
+                existing = await tournament_repo.find_by_name(data.name)
+                if existing is not None:
+                    raise TournamentNameAlreadyExistsError
+
                 uuid = shortuuid.uuid()
-                now_ms = int(datetime.utcnow().timestamp() * 1000)
+                now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+                max_players = 16
                 tournament = Tournament(
                     uuid=uuid,
                     name=data.name,
                     is_private=data.is_private,
+                    max_players=max_players,
+                    current_players=0,
+                    prize_pool=0,
+                    entry_fee=5.0,
+                    status=TournamentStatus.PENDING,
                     start_date=now_ms,
-                    end_date=int((datetime.utcnow() + timedelta(days=7)).timestamp() * 1000),
+                    end_date=int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp() * 1000),
                     user=UserSummary(id=user.id, email=user.email, pseudo=user.pseudo),
                 )
 
                 await tournament_repo.create(tournament)
 
-                # created_tournament = await tournament_repo.find_by_uuid(uuid)
+                created_tournament = await tournament_repo.find_by_uuid(uuid)
 
         # await self.join_tournament(created_tournament.id, email)
 
-        return TournamentCreateResponse()
+        return TournamentCreateResponse(
+            tournament_id=created_tournament.id,
+            tournament_uuid=created_tournament.uuid,
+            name=created_tournament.name,
+        )
 
     async def join_tournament(self, tournament_id: int, email: str) -> TournamentJoinResponse:
         async with self._session_factory() as session:
@@ -275,6 +290,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 async with session.begin():
                     ticket_repo = TicketRepositoryImpl(session)
                     tournament_repo = TournamentRepositoryImpl(session)
+                    tournament_player_repo = TournamentPlayersRepositoryImpl(session)
 
                     ticket = await ticket_repo.find_by_id(ticket_id)
                     if not ticket or ticket.status != TicketStatus.correct:
@@ -296,7 +312,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                                 player.btl_score += btl_gained
 
                                 # Sauvegarder
-                                await self.tournament_repository.update_participant(player)
+                                await tournament_player_repo.update_participant(player)
 
 
     async def update(
