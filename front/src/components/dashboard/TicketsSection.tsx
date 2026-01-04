@@ -14,8 +14,10 @@ type TabType = 'current' | 'finished';
 
 type StatusLabel = 'En cours' | 'Gagné' | 'Perdu' | 'Brouillon';
 
+const normalizeStatus = (status?: string | null): string => (status || '').toLowerCase();
+
 const statusToLabel = (status: string): StatusLabel => {
-  switch (status) {
+  switch (normalizeStatus(status)) {
     case 'pending':
       return 'En cours';
     case 'correct':
@@ -45,7 +47,7 @@ interface InProgressTicketCardProps {
 
 const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
-  const potentialGain = ticket.gain; // backend returns gain (potential when pending)
+  const potentialGain = Number(ticket.gain ?? 0); // backend returns gain (potential when pending)
 
   return (
     <article className="ticket-card-modern" aria-label={`Ticket #${ticket.id}`}>
@@ -100,7 +102,7 @@ interface FinishedTicketCardProps {
 
 const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
-  const normalizedStatus = ticket.status?.toLowerCase();
+  const normalizedStatus = normalizeStatus(ticket.status);
   const isWin = normalizedStatus === 'correct';
   const badgeClass = isWin ? 'badge-success' : 'badge-danger';
   const resultLabel = isWin ? 'Gagné' : 'Perdu';
@@ -197,8 +199,8 @@ const StatsPanelFinished: React.FC<{ tickets: TicketReadModel[]; lastUpdated: nu
     const total = tickets.length;
     const totalStake = tickets.reduce((sum, t) => sum + (t.mise || 0), 0);
     const totalGain = tickets.reduce((sum, t) => sum + (t.gain || 0), 0);
-    const won = tickets.filter((t) => t.status?.toLowerCase() === 'correct').length;
-    const lost = tickets.filter((t) => t.status?.toLowerCase() === 'wrong').length;
+    const won = tickets.filter((t) => normalizeStatus(t.status) === 'correct').length;
+    const lost = tickets.filter((t) => normalizeStatus(t.status) === 'wrong').length;
     const winRate = total > 0 ? (won / total) * 100 : 0;
     return { total, totalStake, totalGain, won, lost, winRate };
   }, [tickets]);
