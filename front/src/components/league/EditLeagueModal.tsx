@@ -55,9 +55,9 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
         const nameValue = String(value).trim();
         if (!nameValue) return 'Le nom de la ligue ne peut pas être vide';
         if (nameValue.length < 3) return 'Le nom doit contenir au moins 3 caractères';
-        if (nameValue.length > 100) return 'Le nom ne peut pas dépasser 100 caractères';
-        if (!/^[a-zA-Z0-9\s\-_À-ÿ]+$/.test(nameValue)) {
-          return 'Caractères autorisés: lettres, chiffres, espaces, tirets, underscores';
+        if (nameValue.length > 50) return 'Le nom ne peut pas dépasser 50 caractères';
+        if (!/^[A-Za-z0-9\s\-_.]+$/.test(nameValue)) {
+          return 'Caractères autorisés: lettres, chiffres, espaces, tirets, underscores et points';
         }
       }
 
@@ -108,10 +108,6 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
     [formData, validateField]
   );
 
-  const handleToggleFree = useCallback(() => {
-    setFormData((prev) => ({ ...prev, isFree: !prev.isFree }));
-  }, []);
-
   const hasChanges = useCallback(() => {
     // Seuls name et maxPlayers peuvent être modifiés
     return (
@@ -149,19 +145,18 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
 
       try {
         // Le backend attend TOUS les champs obligatoires (name, max_players, start_date)
-        // S'assurer que start_date est un entier en SECONDES (pas millisecondes)
-        let startDate = league.startDate || Math.floor(Date.now() / 1000);
-
-        // Si le timestamp est en millisecondes (13 chiffres), convertir en secondes (10 chiffres)
-        if (startDate > 9999999999) {
-          startDate = Math.floor(startDate / 1000);
+        // start_date est en MILLISECONDES (aligné avec create_league)
+        let startDate = league.startDate ?? Date.now();
+        if (startDate < 1_000_000_000_000) {
+          // Si pour une raison quelconque le front a des secondes, convertir en ms
+          startDate = startDate * 1000;
         }
 
         // Le backend n'accepte QUE ces 3 champs pour la mise à jour
         const updateData: any = {
           name: formData.name.trim(),
           max_players: formData.maxPlayers,
-          start_date: startDate, // Timestamp Unix en secondes (entier)
+          start_date: startDate, // Timestamp Unix en millisecondes
         };
 
         const response = await leagueUpdateService.updateLeague(league.id, updateData);
@@ -321,7 +316,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
               onBlur={() => handleBlur('name')}
               disabled={isSubmitting || success}
               placeholder="Nom de la ligue"
-              maxLength={100}
+              maxLength={50}
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'name-error' : undefined}
             />

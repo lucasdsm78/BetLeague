@@ -433,17 +433,17 @@ async def update_league(
         )
     except LeagueMaxPlayersError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message
         )
     except UserNotOwnerLeaguedError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message
         )
     except LeagueAlreadyStartedError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message
         )
     except Exception as e:
