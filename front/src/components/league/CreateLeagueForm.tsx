@@ -59,6 +59,7 @@ const SecureFormInput = memo<{
   disabled?: boolean;
   autoComplete?: string;
   pattern?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
   'aria-describedby'?: string;
 }>(({
   type,
@@ -77,6 +78,7 @@ const SecureFormInput = memo<{
   disabled = false,
   autoComplete = 'off',
   pattern,
+  inputMode,
   'aria-describedby': ariaDescribedBy,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +113,7 @@ const SecureFormInput = memo<{
           disabled={disabled}
           autoComplete={autoComplete}
           pattern={pattern}
+          inputMode={inputMode}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${name}-error` : ariaDescribedBy}
           spellCheck={type === 'text' ? 'false' : undefined}
@@ -123,7 +126,6 @@ const SecureFormInput = memo<{
           role="alert"
           aria-live="polite"
         >
-          <span className="error-icon" aria-hidden="true">⚠️</span>
           {error}
         </div>
       )}
@@ -181,7 +183,6 @@ const SecureFormSelect = memo<{
           role="alert"
           aria-live="polite"
         >
-          <span className="error-icon" aria-hidden="true">⚠️</span>
           {error}
         </div>
       )}
@@ -250,7 +251,6 @@ const SecureFormTextarea = memo<{
           role="alert"
           aria-live="polite"
         >
-          <span className="error-icon" aria-hidden="true">⚠️</span>
           {error}
         </div>
       )}
@@ -622,11 +622,12 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             onChange={handleInputChange}
             onBlur={() => handleFieldBlur('name')}
             error={errors.name}
-            placeholder="Ex: Ligue des Champions 2024"
+            placeholder="Ex: Ligue Premier League"
             maxLength={VALIDATION_PATTERNS.NAME_MAX_LENGTH}
             required
             disabled={isSubmitting}
             autoComplete="off"
+            pattern="[A-Za-z0-9\s\-_\.]+"
           />
 
           {/* Type and Max Members Row */}
@@ -656,16 +657,17 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             <SecureFormInput
               type="number"
               name="maxMembers"
-              label="Participants max"
+              label="Nombre maximum de participants"
               value={formData.maxMembers}
               onChange={handleInputChange}
               onBlur={() => handleFieldBlur('maxMembers')}
               error={errors.maxMembers}
               min={VALIDATION_PATTERNS.MAX_MEMBERS_MIN}
               max={VALIDATION_PATTERNS.MAX_MEMBERS_MAX}
-              step={1}
               required
               disabled={isSubmitting}
+              inputMode="numeric"
+              pattern="[0-9]*"
             />
           </div>
 
@@ -680,9 +682,11 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             error={errors.entryFee}
             min={VALIDATION_PATTERNS.ENTRY_FEE_MIN}
             max={VALIDATION_PATTERNS.ENTRY_FEE_MAX}
-            step={1}
+            required
             disabled={isSubmitting}
-            aria-describedby="entry-fee-help btl-balance-display"
+            step={1}
+            inputMode="numeric"
+            pattern="[0-9]*"
           />
 
           {/* BTL Balance and Status */}
@@ -700,7 +704,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
                   </>
                 ) : (
                   <>
-                    <span className="status-icon">⚠️</span>
+                    <span className="status-icon" aria-hidden="true">✕</span>
                     <span className="status-text">
                       Solde insuffisant (il manque {(formData.entryFee - userBtlBalance).toLocaleString()} BTL)
                     </span>

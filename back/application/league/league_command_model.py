@@ -1,14 +1,34 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class LeagueCreateModel(BaseModel):
-    name: str
-    max_players: int
+    name: str = Field(..., min_length=3, max_length=50)
+    max_players: int = Field(..., ge=2, le=200)
     is_private: bool
-    is_free: Optional[bool]
-    nb_btl: Optional[int]
+    is_free: bool = True
+    nb_btl: Optional[int] = None
+
+    @field_validator('name')
+    @classmethod
+    def _normalize_name(cls, v: str) -> str:
+        n = (v or '').strip()
+        n = ' '.join(n.split())
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9\s\-_.]+", n):
+            raise ValueError('Nom invalide (caractères non autorisés)')
+        return n
+
+    @model_validator(mode='after')
+    def _validate_paid_rules(self):
+        if self.is_free is False:
+            if self.nb_btl is None or self.nb_btl <= 0:
+                raise ValueError('nb_btl requis et > 0 pour une ligue payante')
+        else:
+            if self.nb_btl is not None and self.nb_btl != 0:
+                raise ValueError('nb_btl doit être null/0 pour une ligue gratuite')
+        return self
 
 
 class LeagueUpdateModel(BaseModel):

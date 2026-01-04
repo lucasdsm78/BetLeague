@@ -10,7 +10,7 @@ from dependency_injections import current_user, league_command_usecase, league_q
 from domain.invitation.exception.invitation_exception import InvitationFoundError
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
-    LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError
+    LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
@@ -33,8 +33,42 @@ async def create_league(
     try:
         league = await league_command_usecase.create_league(league_create_model, current_user.get('email', ''))
 
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueNameAlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except LeagueMaxPlayersError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+    except LeagueMustHaveNbBtlError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message,
+        )
+
+    except LeagueNbBtlIsNotEnoughError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message,
+        )
+
     except Exception as e:
-        raise
+        print(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la création de la ligue."
+        )
 
     return league
 
@@ -439,7 +473,7 @@ async def update_league(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la modification de la league"
+            detail="Erreur interne lors de la modification de la ligue"
         )
 
     return update_league_result
