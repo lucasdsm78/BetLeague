@@ -16,7 +16,7 @@ from domain.match.repository.match_repository import MatchRepository
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.ticket.event.match_choice_status_updated_event import MatchChoiceStatusUpdatedEvent
 from domain.ticket.exception.ticket_exception import GainNotEqualsError, TicketNotFoundError, NotTicketOwnerError, \
-    MatchAlreadyStartedError, MiseSuperiorToNbBtlError
+     MatchAlreadyStartedError, MiseSuperiorToNbBtlError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
@@ -223,9 +223,18 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 match_repo          = MatchRepositoryImpl(session)
                 match_choices_repo  = MatchChoicesRepositoryImpl(session)
 
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
                 ticket = await ticket_repo.find_by_id(ticket_id)
-                if ticket.user.id != (await user_repo.find_by_email(email)).id:
+
+                if ticket.user.id != user.id:
                     raise NotTicketOwnerError
+
+                mise_to_refund = int(ticket.mise or 0)
+                if mise_to_refund <= 0:
+                    mise_to_refund = 0
 
                 choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
                 choice_data_list = [
@@ -235,8 +244,6 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 if await match_repo.exists_match_started_for_ticket(choice_data_list):
                     raise MatchAlreadyStartedError
-
-                mise_to_refund = ticket.mise
 
                 if ticket.league_id is not None:
                     players_repo = LeaguePlayersRepositoryImpl(session)
@@ -248,7 +255,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     if league_player is None:
                         raise LeagueParticipantFoundError
 
-                    league_player.nb_btl += mise_to_refund
+                    if mise_to_refund > 0:
+                        league_player.nb_btl += mise_to_refund
                     await players_repo.update(league_player)
 
                 if ticket.tournament_match_id is not None:
@@ -267,7 +275,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                     if tournament_player is None:
                         raise TournamentPlayerNotFoundError
 
-                    tournament_player.nb_btl += mise_to_refund
+                    if mise_to_refund > 0:
+                        tournament_player.nb_btl += mise_to_refund
                     await tournament_players_repo.update(tournament_player)
 
                 await match_choices_repo.delete_by_ticket_id(ticket.id)

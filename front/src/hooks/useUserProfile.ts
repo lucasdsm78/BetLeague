@@ -71,7 +71,14 @@ async function getCurrentUserProfile(): Promise<UserProfile> {
     nb_lose: currentUser.nb_lose || 0,
     nb_btl: currentUser.nb_btl || 0,
     is_tournament_subscriber: currentUser.is_tournament_subscriber || false,
-    is_two_factor_enabled: currentUser.is_two_factor_enabled || false
+    is_two_factor_enabled: Boolean(
+      currentUser.is_two_factor_enabled ??
+      currentUser.two_factor_enabled ??
+      currentUser.twoFactorEnabled ??
+      currentUser.isTwoFactorEnabled ??
+      currentUser.has_two_factor ??
+      currentUser.hasTwoFactor
+    )
   };
 }
 
