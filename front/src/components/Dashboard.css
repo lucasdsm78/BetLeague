@@ -480,33 +480,27 @@
   color: var(--primary-dark);
 }
 
-.bottom-nav-label {
-  font-size: 0.7rem;
+/* Gold accent for 'Tournois' on mobile menus */
+.menu-item[data-tab="tournaments"] {
+  color: #b45309; /* amber-700 */
 }
 
-/* Loading Components */
-.section-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
-  gap: 1rem;
-  color: var(--text-secondary);
+.menu-item[data-tab="tournaments"]:hover {
+  background: rgba(245, 158, 11, 0.10);
+  color: #92400e; /* amber-800 */
 }
 
-.spinner-small {
-  width: 2rem;
-  height: 2rem;
-  border: 2px solid var(--border-color);
-  border-top: 2px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.menu-item[data-tab="tournaments"].active {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.bottom-nav-item[data-tab="tournaments"] {
+  color: #b45309;
+}
+
+.bottom-nav-item[data-tab="tournaments"].active {
+  color: #92400e;
 }
 
 /* Responsive Design */
@@ -867,8 +861,27 @@
   color: var(--primary-dark);
 }
 
-.bottom-nav-label {
-  font-size: 0.7rem;
+/* Gold accent for 'Tournois' on mobile menus */
+.menu-item[data-tab="tournaments"] {
+  color: #b45309; /* amber-700 */
+}
+
+.menu-item[data-tab="tournaments"]:hover {
+  background: rgba(245, 158, 11, 0.10);
+  color: #92400e; /* amber-800 */
+}
+
+.menu-item[data-tab="tournaments"].active {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+
+.bottom-nav-item[data-tab="tournaments"] {
+  color: #b45309;
+}
+
+.bottom-nav-item[data-tab="tournaments"].active {
+  color: #92400e;
 }
 
 /* Responsive switches */

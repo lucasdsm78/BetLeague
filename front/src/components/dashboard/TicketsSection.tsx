@@ -8,6 +8,7 @@ import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';
 import { useToast } from 'hooks/useToast';
 import { ToastContainer } from '../ToastContainer';
+import { useUserProfile } from 'hooks/useUserProfile';
 
 type TabType = 'current' | 'finished';
 
@@ -269,6 +270,7 @@ const TicketsSection: React.FC = memo(() => {
   const [localUpdatedAt, setLocalUpdatedAt] = useState<number | null>(null);
 
   const { showSuccess, showError, toasts, removeToast, pauseToast, resumeToast } = useToast();
+  const { refetch: refetchProfile } = useUserProfile();
 
   // Data for current (in-progress)
   const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
@@ -306,6 +308,8 @@ const TicketsSection: React.FC = memo(() => {
 
       // Rafraîchir la liste pour refléter l'état serveur
       refetch();
+      // Rafraîchir le profil pour refléter le recrédit BTL dans l'UI
+      refetchProfile();
 
       // Fermeture des modales
       setIsDeleteOpen(false);
@@ -324,7 +328,7 @@ const TicketsSection: React.FC = memo(() => {
       showError('Erreur', e?.message || 'Suppression du ticket échouée');
       throw e; // pour affichage éventuel dans la modale
     }
-  }, [refetch, showSuccess, showError, deleteSource]);
+  }, [refetch, refetchProfile, showSuccess, showError, deleteSource]);
 
   const handleCloseDetail = useCallback(() => {
     setIsDetailOpen(false);

@@ -118,7 +118,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const location = useLocation();
   const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
   const { updateUser } = useAuthStore();
-  const { showError, showWarning } = useToast();
+  const { showError } = useToast();
   const { profile } = useUserProfile();
 
   // Secure state management
@@ -210,12 +210,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       }
 
       const newAttemptedPaths = [...prev.attemptedPaths, currentPath].slice(-10); // Keep last 10
-      const suspiciousActivity = newAttemptedPaths.length > 8; // Too many rapid navigations
-
-      if (suspiciousActivity && !prev.suspiciousActivity) {
-        console.warn('🔒 Suspicious navigation activity detected');
-        showWarning('Activité de navigation inhabituelle détectée');
-      }
+      // Track suspicious activity (too many rapid navigations) but keep UX silent.
+      // We already guard via rate limiting in handleTabClick.
+      const suspiciousActivity = newAttemptedPaths.length > 8;
 
       return {
         ...prev,
@@ -223,7 +220,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         suspiciousActivity
       };
     });
-  }, [location.pathname]); // Removed showWarning - it's stable and doesn't need to trigger re-runs
+  }, [location.pathname]);
 
   // Secure navigation handler with validation
   const handleTabClick = useCallback((tabId: string) => {
@@ -246,8 +243,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     // Security: Rate limiting check
     const now = Date.now();
     if (now - securityState.lastActivity < 100) { // Prevent rapid clicking
-      console.warn('🔒 Rate limit exceeded for navigation');
-      return;
+      // Silent rate limit: avoids noisy UX on mobile while still blocking spam clicks.
+       return;
     }
 
     try {
@@ -263,7 +260,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       console.error('🔒 Navigation error:', error);
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
-  }, [navigate, user, securityState.lastActivity]); // Removed showError - it's stable and doesn't need to trigger re-creation
+  }, [navigate, user, securityState.lastActivity]);
 
   // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {
@@ -535,6 +532,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 className={`menu-item ${activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => handleTabClick(tab.id)}
                 aria-current={activeTab === tab.id ? 'page' : undefined}
+                data-tab={tab.id}
               >
                 <span className="menu-icon">{tab.icon}</span>
                 <span className="menu-label">{tab.label}</span>
@@ -563,6 +561,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
             onClick={() => handleTabClick(tab.id)}
             aria-label={tab.label}
             aria-current={activeTab === tab.id ? 'page' : undefined}
+            data-tab={tab.id}
           >
             <span className="bottom-nav-icon">{tab.icon}</span>
             <span className="bottom-nav-label">{tab.label}</span>
