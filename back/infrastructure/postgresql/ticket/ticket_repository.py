@@ -139,7 +139,7 @@ class TicketRepositoryImpl(TicketRepository):
             select(DBTicket)
             .where(
                 DBTicket.user_id == user_id,
-                DBTicket.status == TicketStatus.correct.value
+                DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value])
             )
             .options(
                 # Charger la ligue associée à chaque ticket
