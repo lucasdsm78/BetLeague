@@ -768,17 +768,20 @@ class LeagueApiService {
     }
   }
 
-  /**
-   * Get league ranking with enhanced security and validation
-   */
-  public async getLeagueRanking(leagueId: number): Promise<ApiResponse<any[]>> {
+
+  public async getLeagueRanking(
+    leagueId: number
+  ): Promise<ApiResponse<Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      const response = await this.makeRequest<any[]>(`/league/${leagueId}/rank`);
+      const response = await this.makeRequest<
+        Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>
+      >(`/league/${leagueId}/rank`, { method: 'GET' });
 
+      // Validation minimale (le hook fera une validation plus stricte)
       if (!Array.isArray(response)) {
         throw new Error('Format de réponse invalide');
       }
@@ -786,16 +789,12 @@ class LeagueApiService {
       return {
         success: true,
         data: response,
-        message: 'Classement récupéré avec succès',
       };
     } catch (error: any) {
-      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        return { success: false, error: 'Ligue ou classement introuvable' };
-      }
-      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
-        return { success: false, error: 'Vous devez être membre de cette ligue pour voir le classement' };
-      }
-      return { success: false, error: error.message || 'Erreur lors du chargement du classement' };
+      return {
+        success: false,
+        error: error?.message || 'Erreur lors du chargement du classement',
+      };
     }
   }
 
