@@ -226,7 +226,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         } finally {
             setIsLoadingParticipated(false);
         }
-    }, []);
+    }, [pageSize]);
 
     // Load created leagues
     const loadCreatedLeagues = useCallback(async () => {
@@ -247,7 +247,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         } finally {
             setIsLoadingCreated(false);
         }
-    }, []);
+    }, [pageSize]);
 
     // Load available leagues
     const loadAvailableLeagues = useCallback(async () => {
@@ -268,7 +268,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         } finally {
             setIsLoadingAvailable(false);
         }
-    }, []);
+    }, [pageSize]);
 
     const loadMoreParticipated = useCallback(async () => {
         if (isLoadingParticipated) return;
@@ -362,15 +362,18 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                  // ignore: we'll still attempt join and rely on backend 403
              }
 
-             if (freshBalance < requiredBtl) {
-                setInsufficientBTLData({
-                    required: requiredBtl,
-                    action: `rejoindre "${league.name}"`
-                });
-                setIsInsufficientBTLModalOpen(true);
-                return;
-             }
-        }
+             // After refetch, use the latest known balance if available
+             freshBalance = (profile?.nb_btl ?? freshBalance);
+
+              if (freshBalance < requiredBtl) {
+                 setInsufficientBTLData({
+                     required: requiredBtl,
+                     action: `rejoindre "${league.name}"`
+                 });
+                 setIsInsufficientBTLModalOpen(true);
+                 return;
+              }
+         }
 
         setJoiningLeagueId(league.id);
         setError('');
@@ -421,12 +424,11 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                      errorMsg = 'Cette ligue est privée et nécessite une invitation.';
                 } else if (errorMsg.toLowerCase().includes('btl') || errorMsg.toLowerCase().includes('insufficient') || errorMsg.toLowerCase().includes('solde') || errorMsg.includes('403')) {
                     const required = requiredBtl;
-                    const missing = Math.max(0, required - userBtlBalance);
-                    // Montrer directement le modal d’insuffisance pour une conversion clean
-                    setInsufficientBTLData({ required, action: `rejoindre "${league.name}"` });
-                    setIsInsufficientBTLModalOpen(true);
-                    errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL.`;
-                 }
+                     // Montrer directement le modal d’insuffisance pour une conversion clean
+                     setInsufficientBTLData({ required, action: `rejoindre "${league.name}"` });
+                     setIsInsufficientBTLModalOpen(true);
+                     errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL.`;
+                  }
 
                  setError(errorMsg);
                  console.error('❌ Failed to join league:', result.error);
