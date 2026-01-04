@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 
 from domain.tournament.model.tournament import Tournament
@@ -13,15 +13,20 @@ from infrastructure.postgresql.database import Base
 
 def unixtimestamp() -> int:
     # Always use UTC to avoid timezone-dependent shifts
-    return int(datetime.utcnow().timestamp() * 1000)
+    return int(datetime.now(timezone.utc).timestamp() * 1000)
 
 
 class DBTournament(Base):
     __tablename__ = "tournament"
 
+    __table_args__ = (
+        UniqueConstraint('name', name='uq_tournament_name'),
+        Index('ix_tournament_name_unique', 'name', unique=True),
+    )
+
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
-    name: Union[str, Column] = Column(String, nullable=False)
+    name: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
     max_players = Column(Integer, default=16)
     min_players = Column(Integer, default=3)
@@ -44,6 +49,17 @@ class DBTournament(Base):
     )
 
     def to_entity(self) -> Tournament:
+        # En async, on doit éviter tout lazy-load implicite ici.
+        # On attend donc que la relation `user` soit préchargée (joinedload/selectinload) par le repository.
+        if self.user is None:
+            raise ValueError('Relation user non chargée pour le tournoi (préchargement requis).')
+
+        user_summary = UserSummary(
+            id=self.user_id,
+            email=Email(self.user.email),
+            pseudo=self.user.pseudo
+        )
+
         return Tournament(
             id=self.id,
             uuid=self.uuid,
@@ -57,7 +73,7 @@ class DBTournament(Base):
             prize_pool=self.prize_pool,
             start_date=self.start_date,
             end_date=self.end_date,
-            user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
+            user=user_summary,
             winner_id=self.winner_id,
             created_at=self.created_at
         )

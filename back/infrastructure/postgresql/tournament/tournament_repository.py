@@ -1,9 +1,10 @@
 from typing import Optional, List, Tuple
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
-from domain.tournament.exception.tournament_exception import TournamentNotFoundError
+from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNameAlreadyExistsError
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_status import TournamentStatus
 from domain.tournament.repository.tournament_repository import TournamentRepository
@@ -19,8 +20,9 @@ class TournamentRepositoryImpl(TournamentRepository):
         db_tournament = DBTournament.from_entity(tournament)
         try:
             self.session.add(db_tournament)
-        except:
-            raise
+            await self.session.flush()
+        except IntegrityError as e:
+             raise TournamentNameAlreadyExistsError from e
 
     async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
         result = await self.session.execute(
@@ -48,6 +50,7 @@ class TournamentRepositoryImpl(TournamentRepository):
         result = await self.session.execute(
             select(DBTournament)
             .options(
+                joinedload(DBTournament.user),
                 selectinload(DBTournament.stages),
                 selectinload(DBTournament.players).selectinload(DBTournamentPlayer.user)
             )
