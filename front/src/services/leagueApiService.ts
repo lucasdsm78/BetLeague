@@ -810,12 +810,10 @@ class LeagueApiService {
 
       console.log(`🚪 Leaving league ${leagueId}`);
 
-      // Backend endpoint: /api/league/[id]/player/delete where [id] is the league ID
+      // Backend: endpoint unique conservé côté back
       const response = await this.makeRequest<{ message: string }>(
         `/league/${leagueId}/player/delete`,
-        {
-          method: 'DELETE',
-        }
+        { method: 'DELETE' }
       );
 
       console.log(`✅ Successfully left league ${leagueId}`);
@@ -832,21 +830,21 @@ class LeagueApiService {
       if (error.message?.includes('404') || error.message?.includes('Not Found')) {
         return {
           success: false,
-          error: 'Ligue introuvable ou vous n\'êtes pas membre de cette ligue.',
+          error: 'Ligue introuvable.',
         };
       }
 
       if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
         return {
           success: false,
-          error: 'Vous n\'avez pas l\'autorisation de quitter cette ligue.',
+          error: 'Vous ne participez pas à cette ligue.',
         };
       }
 
-      if (error.message?.includes('400') || error.message?.includes('Bad Request')) {
+      if (error.message?.includes('409') || error.message?.includes('Conflict')) {
         return {
           success: false,
-          error: 'Impossible de quitter cette ligue. Elle a peut-être déjà commencé.',
+          error: 'Impossible de quitter cette ligue car elle a déjà commencé.',
         };
       }
 

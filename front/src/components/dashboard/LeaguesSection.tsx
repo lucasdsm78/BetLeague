@@ -137,8 +137,9 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, onJoin, onInvite, on
                 {showLeaveButton && onLeave && (
                     <button
                         className="btn btn-danger btn-leave"
-                        onClick={() => onLeave(league)}
-                        title={`Quitter la ligue ${league.name}`}
+                        onClick={() => { if (!league.isStarted) onLeave(league); }}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
                         aria-label={`Quitter la ligue ${league.name}`}
                     >
                         <span className="leave-icon">🚪</span>
@@ -395,13 +396,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         setIsDetailsModalOpen(true);
     }, [location.search]);
 
-    // Handle league joined from modal
-    const handleLeagueJoined = useCallback(() => {
-        console.log('✅ League joined - reloading page...');
-        // Reload page to refresh all data
-        window.location.reload();
-    }, []);
-
     // Handle invite user to league
     const handleInviteUser = useCallback((league: LeagueSummary) => {
         setSelectedLeagueForInvite(league);
@@ -427,6 +421,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
     // Handle leave league
     const handleLeaveLeague = useCallback((league: LeagueSummary) => {
+        if (league.isStarted) {
+            setError('Cette ligue a déjà commencé : vous ne pouvez plus la quitter.');
+            return;
+        }
         setSelectedLeagueForLeave(league);
         setIsLeaveModalOpen(true);
     }, []);
@@ -442,9 +440,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         // Close modal
         handleCloseLeaveModal();
 
-        // Reload page to refresh all data
-        window.location.reload();
-    }, [handleCloseLeaveModal]);
+        secureApiClient.clearCache();
+        refetchProfile().catch(() => {});
+        loadCreatedLeagues();
+        loadParticipatedLeagues();
+        loadAvailableLeagues();
+    }, [handleCloseLeaveModal, loadAvailableLeagues, loadCreatedLeagues, loadParticipatedLeagues, refetchProfile]);
 
     // Handle invitation sent
     const handleInvitationSent = useCallback((user: UserSearchResult) => {

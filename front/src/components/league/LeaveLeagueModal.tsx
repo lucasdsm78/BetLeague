@@ -71,11 +71,9 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
     setError('');
 
     try {
-
       const result = await leagueApiService.leaveLeague(leagueId);
 
       if (result.success) {
-
         // Call success callback
         if (onLeaveSuccess) {
           onLeaveSuccess();
@@ -102,7 +100,7 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
   if (!isOpen) return null;
 
   return (
-    <div className="leave-modal-overlay" onClick={onClose}>
+    <div className="leave-modal-overlay" onClick={() => { if (!isLeaving) onClose(); }}>
       <div className="leave-modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="leave-modal-header">
@@ -125,6 +123,10 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
           {/* Confirmation Message */}
           <p className="confirmation-message">
             Êtes-vous sûr de vouloir quitter la ligue <strong>{leagueName || 'cette ligue'}</strong> ?
+          </p>
+
+          <p className="leave-hint">
+            Si la ligue est payante et n'a pas encore commencé, vos BTL seront recrédités.
           </p>
 
           {/* Error Message */}

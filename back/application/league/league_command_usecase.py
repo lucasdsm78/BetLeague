@@ -226,6 +226,10 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if not league_player:
                     raise LeagueParticipantNotFoundError
 
+                if league.is_free is False and league.nb_btl is not None and league.nb_btl > 0:
+                    user.nb_btl += league.nb_btl
+                    await user_repo.update(user)
+
                 league.nb_players_remaining += 1
                 if league.nb_players_remaining + 1 >= MIN_PLAYERS:
                     league.is_started = False

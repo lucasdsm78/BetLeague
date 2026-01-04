@@ -378,6 +378,12 @@
   }
 }
 
+@media (max-width: 480px) {
+  .leave-hint {
+    font-size: 0.85rem;
+  }
+}
+
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -418,4 +424,11 @@
     border: 2px solid white;
     border-radius: 0;
   }
+}
+
+.leave-hint {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
 }
