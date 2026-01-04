@@ -64,7 +64,6 @@ async def create_league(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la création de la ligue."
@@ -95,13 +94,13 @@ async def join_league(
 
     except UserNotFoundError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message,
         )
 
     except LeagueMaxPlayersError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
         )
 
@@ -118,9 +117,9 @@ async def join_league(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de l'inscription à la ligue.",
         )
 
     return league_players
