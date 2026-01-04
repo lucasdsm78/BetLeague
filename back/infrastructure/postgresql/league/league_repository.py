@@ -46,6 +46,42 @@ class LeagueRepositoryImpl(LeagueRepository):
         except:
             raise
 
+    async def count_leagues(self, user_id: int) -> int:
+        q = (
+            select(func.count())
+            .select_from(DBLeague)
+            .where(
+                DBLeague.is_private == False,
+                DBLeague.user_id != user_id,
+                DBLeague.nb_players_remaining > 0,
+                DBLeague.id.notin_(
+                    select(DBLeaguePlayers.league_id)
+                    .where(DBLeaguePlayers.user_id == user_id)
+                    .scalar_subquery()
+                ),
+            )
+        )
+        result = await self.session.execute(q)
+        return int(result.scalar_one() or 0)
+
+    async def count_created_leagues(self, user_id: int) -> int:
+        q = select(func.count()).select_from(DBLeague).where(DBLeague.user_id == user_id)
+        result = await self.session.execute(q)
+        return int(result.scalar_one() or 0)
+
+    async def count_participated_leagues(self, user_id: int) -> int:
+        q = (
+            select(func.count())
+            .select_from(DBLeague)
+            .join(DBLeaguePlayers, DBLeague.id == DBLeaguePlayers.league_id)
+            .where(
+                DBLeaguePlayers.user_id == user_id,
+                DBLeague.user_id != user_id,
+            )
+        )
+        result = await self.session.execute(q)
+        return int(result.scalar_one() or 0)
+
     async def find_leagues(
             self, user_id: int, page: int = 1, limit: int = 10
     ) -> List[League]:

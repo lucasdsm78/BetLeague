@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 
 from pydantic import BaseModel
 
-from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, \
+from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
     LeagueInvitationReceivedSummary, UserSummaryLeagueDetail
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
@@ -25,15 +25,15 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_leagues(self, email: str) -> dict:
+    async def get_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_created_leagues(self, email: str) -> dict:
+    async def get_created_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_participated_leagues(self, email: str) -> dict:
+    async def get_participated_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -97,47 +97,86 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         return LeagueReadModel.from_entity_get_by_id(league)
 
 
-    async def get_leagues(self, email: str) -> dict:
+    async def get_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
             raise UserNotFoundError
 
-        leagues = await self.league_repository.find_leagues(user_id=user.id)
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 1
+        if page_size > 50:
+            page_size = 50
 
-        return {
-            "leagues": [
-                LeagueReadModel.from_entity_get_all(league=league)
-                for league in leagues
-            ]
-        }
+        total = await self.league_repository.count_leagues(user_id=user.id)
+        total_pages = (total + page_size - 1) // page_size if page_size else 1
+        if page > max(total_pages, 1):
+            page = max(total_pages, 1)
 
-    async def get_created_leagues(self, email: str) -> dict:
+        leagues = await self.league_repository.find_leagues(user_id=user.id, page=page, limit=page_size)
+
+        return LeaguesListResponse(
+            leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in leagues],
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+        )
+
+    async def get_created_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
             raise UserNotFoundError
 
-        created_leagues = await self.league_repository.find_created_leagues(user_id=user.id)
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 1
+        if page_size > 50:
+            page_size = 50
 
-        return {
-            "leagues": [
-                LeagueReadModel.from_entity_get_all(league=league)
-                for league in created_leagues
-            ]
-        }
+        total = await self.league_repository.count_created_leagues(user_id=user.id)
+        total_pages = (total + page_size - 1) // page_size if page_size else 1
+        if page > max(total_pages, 1):
+            page = max(total_pages, 1)
 
-    async def get_participated_leagues(self, email: str) -> dict:
+        created_leagues = await self.league_repository.find_created_leagues(user_id=user.id, page=page, limit=page_size)
+
+        return LeaguesListResponse(
+            leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in created_leagues],
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+        )
+
+    async def get_participated_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
             raise UserNotFoundError
 
-        participated_leagues = await self.league_repository.find_participated_leagues(user_id=user.id)
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 1
+        if page_size > 50:
+            page_size = 50
 
-        return {
-            "leagues": [
-                LeagueReadModel.from_entity_get_all(league=league)
-                for league in participated_leagues
-            ]
-        }
+        total = await self.league_repository.count_participated_leagues(user_id=user.id)
+        total_pages = (total + page_size - 1) // page_size if page_size else 1
+        if page > max(total_pages, 1):
+            page = max(total_pages, 1)
+
+        participated_leagues = await self.league_repository.find_participated_leagues(user_id=user.id, page=page, limit=page_size)
+
+        return LeaguesListResponse(
+            leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in participated_leagues],
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+        )
 
     async def get_invitations(self, email: str, is_received: bool) -> List[InvitationReceivedReadModel]:
         try:
