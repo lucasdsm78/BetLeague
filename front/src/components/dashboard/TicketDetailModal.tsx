@@ -4,7 +4,6 @@ import './TicketDetailSection.css';
 import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/ticket';
-import { useNavigate } from 'react-router-dom';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -55,11 +54,20 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
 };
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId, onAskDelete }) => {
-  const navigate = useNavigate();
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Lock scroll when modal is open (mobile-friendly)
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && closeBtnRef.current) {
@@ -98,7 +106,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="ticket-detail-title" onClick={handleOverlayClick}>
       <div ref={modalRef} className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+        <div className="modal-header" style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-primary)' }}>
           <h3 id="ticket-detail-title">Détail du ticket</h3>
           <button ref={closeBtnRef} className="icon-btn" onClick={onClose} aria-label="Fermer">×</button>
         </div>
@@ -174,7 +182,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           )}
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '1rem' }}>
+        <div className="modal-actions" style={{ marginTop: '1rem', position: 'sticky', bottom: 0, background: 'var(--bg-primary)', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
           <button className="btn btn-outline" onClick={onClose}>Fermer</button>
           {ticket && onAskDelete && (
             <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>Supprimer le ticket</button>
