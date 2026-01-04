@@ -12,6 +12,7 @@ import EditLeagueModal from '../league/EditLeagueModal';
 import InsufficientBTLModal from '../InsufficientBTLModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
+import type { LeaguesPage } from '../../services/leaguesPaging';
 
 interface LeagueCardProps {
     league: LeagueSummary;
@@ -190,6 +191,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
     const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
     const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
+
+    const [participatedPage, setParticipatedPage] = useState<LeaguesPage | null>(null);
+    const [createdPage, setCreatedPage] = useState<LeaguesPage | null>(null);
+    const [availablePage, setAvailablePage] = useState<LeaguesPage | null>(null);
+
+    const pageSize = 10;
+
     const [isLoadingParticipated, setIsLoadingParticipated] = useState<boolean>(false);
     const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
     const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
@@ -203,14 +211,17 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const loadParticipatedLeagues = useCallback(async () => {
         setIsLoadingParticipated(true);
         try {
-            const result = await leagueApiService.getParticipatedLeagues();
-            if (result.success && result.data) {
-                setParticipatedLeagues(result.data.leagues || []);
+            const res = await leagueApiService.getParticipatedLeaguesPage(1, pageSize);
+            if (res.success && res.data) {
+                setParticipatedPage(res.data);
+                setParticipatedLeagues(res.data.leagues);
             } else {
+                setParticipatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
                 setParticipatedLeagues([]);
             }
         } catch (err) {
             console.error('Failed to load participated leagues:', err);
+            setParticipatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
             setParticipatedLeagues([]);
         } finally {
             setIsLoadingParticipated(false);
@@ -221,14 +232,17 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const loadCreatedLeagues = useCallback(async () => {
         setIsLoadingCreated(true);
         try {
-            const result = await leagueApiService.getCreatedLeagues();
-            if (result.success && result.data) {
-                setCreatedLeagues(result.data.leagues || []);
+            const res = await leagueApiService.getCreatedLeaguesPage(1, pageSize);
+            if (res.success && res.data) {
+                setCreatedPage(res.data);
+                setCreatedLeagues(res.data.leagues);
             } else {
+                setCreatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
                 setCreatedLeagues([]);
             }
         } catch (err) {
             console.error('Failed to load created leagues:', err);
+            setCreatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
             setCreatedLeagues([]);
         } finally {
             setIsLoadingCreated(false);
@@ -239,19 +253,76 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const loadAvailableLeagues = useCallback(async () => {
         setIsLoadingAvailable(true);
         try {
-            const result = await leagueApiService.getAvailableLeagues();
-            if (result.success && result.data) {
-                setAvailableLeagues(result.data.leagues || []);
+            const res = await leagueApiService.getAvailableLeaguesPage(1, pageSize);
+            if (res.success && res.data) {
+                setAvailablePage(res.data);
+                setAvailableLeagues(res.data.leagues);
             } else {
+                setAvailablePage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
                 setAvailableLeagues([]);
             }
         } catch (err) {
             console.error('Failed to load available leagues:', err);
+            setAvailablePage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
             setAvailableLeagues([]);
         } finally {
             setIsLoadingAvailable(false);
         }
     }, []);
+
+    const loadMoreParticipated = useCallback(async () => {
+        if (isLoadingParticipated) return;
+        if (!participatedPage) return;
+        if (participatedPage.page >= participatedPage.totalPages) return;
+        setIsLoadingParticipated(true);
+        try {
+            const next = participatedPage.page + 1;
+            const res = await leagueApiService.getParticipatedLeaguesPage(next, pageSize);
+            if (res.success && res.data) {
+                const data = res.data;
+                setParticipatedPage(data);
+                setParticipatedLeagues(prev => [...prev, ...data.leagues]);
+            }
+        } finally {
+            setIsLoadingParticipated(false);
+        }
+    }, [isLoadingParticipated, participatedPage]);
+
+    const loadMoreCreated = useCallback(async () => {
+        if (isLoadingCreated) return;
+        if (!createdPage) return;
+        if (createdPage.page >= createdPage.totalPages) return;
+        setIsLoadingCreated(true);
+        try {
+            const next = createdPage.page + 1;
+            const res = await leagueApiService.getCreatedLeaguesPage(next, pageSize);
+            if (res.success && res.data) {
+                const data = res.data;
+                setCreatedPage(data);
+                setCreatedLeagues(prev => [...prev, ...data.leagues]);
+            }
+        } finally {
+            setIsLoadingCreated(false);
+        }
+    }, [isLoadingCreated, createdPage]);
+
+    const loadMoreAvailable = useCallback(async () => {
+        if (isLoadingAvailable) return;
+        if (!availablePage) return;
+        if (availablePage.page >= availablePage.totalPages) return;
+        setIsLoadingAvailable(true);
+        try {
+            const next = availablePage.page + 1;
+            const res = await leagueApiService.getAvailableLeaguesPage(next, pageSize);
+            if (res.success && res.data) {
+                const data = res.data;
+                setAvailablePage(data);
+                setAvailableLeagues(prev => [...prev, ...data.leagues]);
+            }
+        } finally {
+            setIsLoadingAvailable(false);
+        }
+    }, [isLoadingAvailable, availablePage]);
 
     // Load data on component mount
     useEffect(() => {
@@ -662,6 +733,19 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                 </div>
                             </div>
                         )}
+
+                        {participatedPage && participatedPage.totalPages > 1 && (
+                            <div className="load-more-wrapper">
+                                <button
+                                    className="btn btn-secondary btn-load-more"
+                                    onClick={loadMoreParticipated}
+                                    disabled={isLoadingParticipated}
+                                    style={{ width: '100%' }}
+                                >
+                                    {isLoadingParticipated ? '⏳ Chargement...' : 'Charger plus de ligues participées'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -715,6 +799,19 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                 </button>
                             </div>
                         )}
+
+                        {createdPage && createdPage.totalPages > 1 && (
+                            <div className="load-more-wrapper">
+                                <button
+                                    className="btn btn-secondary btn-load-more"
+                                    onClick={loadMoreCreated}
+                                    disabled={isLoadingCreated}
+                                    style={{ width: '100%' }}
+                                >
+                                    {isLoadingCreated ? '⏳ Chargement...' : 'Charger plus de ligues créées'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -761,6 +858,19 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     disabled={isLoadingAvailable}
                                 >
                                     {isLoadingAvailable ? '⏳ Actualisation...' : 'Actualiser'}
+                                </button>
+                            </div>
+                        )}
+
+                        {availablePage && availablePage.totalPages > 1 && (
+                            <div className="load-more-wrapper">
+                                <button
+                                    className="btn btn-secondary btn-load-more"
+                                    onClick={loadMoreAvailable}
+                                    disabled={isLoadingAvailable}
+                                    style={{ width: '100%' }}
+                                >
+                                    {isLoadingAvailable ? '⏳ Chargement...' : 'Charger plus de ligues disponibles'}
                                 </button>
                             </div>
                         )}

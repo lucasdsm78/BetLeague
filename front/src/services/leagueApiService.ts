@@ -5,6 +5,7 @@
 
 import secureApiClient from './secureApiClient';
 import { LeagueSummary } from '../types';
+import { mapLeaguesPage, type LeaguesPage, type LeaguesPageApi } from './leaguesPaging';
 
 export interface LeagueCreateFormData {
   name: string;
@@ -291,41 +292,55 @@ class LeagueApiService {
   }
 
   /**
+   * Nouvelle API paginée - Ligues disponibles
+   */
+  public async getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+    try {
+      const data = await this.makeRequest<LeaguesPageApi>('/leagues', {
+        method: 'GET',
+        params: { page, page_size: pageSize },
+      });
+      return { success: true, data: mapLeaguesPage(data) };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Erreur lors du chargement des ligues disponibles' };
+    }
+  }
+
+  /** Nouvelle API paginée - Ligues créées */
+  public async getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+    try {
+      const data = await this.makeRequest<LeaguesPageApi>('/leagues/created', {
+        method: 'GET',
+        params: { page, page_size: pageSize },
+      });
+      return { success: true, data: mapLeaguesPage(data) };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Erreur lors du chargement des ligues créées' };
+    }
+  }
+
+  /** Nouvelle API paginée - Ligues rejointes */
+  public async getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+    try {
+      const data = await this.makeRequest<LeaguesPageApi>('/leagues/participated', {
+        method: 'GET',
+        params: { page, page_size: pageSize },
+      });
+      return { success: true, data: mapLeaguesPage(data) };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Erreur lors du chargement des ligues rejointes' };
+    }
+  }
+
+  /**
    * Get available leagues (public leagues user can join)
    */
   public async getAvailableLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     try {
-      const raw = await this.makeRequest<any>('/leagues');
-
-      const items = (raw?.leagues ?? raw ?? []) as any[];
-
-      const toEpochMs = (ts: number | string | null | undefined): number | null => {
-        if (ts === null || ts === undefined) return null;
-        const n = typeof ts === 'string' ? Number(ts) : ts;
-        if (!Number.isFinite(n)) return null;
-        // Heuristique: si < 10^12, c'est en secondes -> convertir en ms
-        return n < 1_000_000_000_000 ? n * 1000 : n;
-      };
-
-      const leagues: LeagueSummary[] = Array.isArray(items)
-        ? items.map((l) => {
-            const startMs = toEpochMs(l.start_date);
-            return {
-              id: Number(l.id),
-              name: String(l.name ?? ''),
-              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
-              isStarted: Boolean(l.is_started ?? false),
-              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
-              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
-              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
-            } as LeagueSummary;
-          })
-        : [];
-
-      return {
-        success: true,
-        data: { leagues },
-      };
+      // Compat: prendre la 1ère page
+      const res = await this.getAvailableLeaguesPage(1, 50);
+      if (!res.success || !res.data) return { success: false, error: res.error };
+      return { success: true, data: { leagues: res.data.leagues } };
     } catch (error: any) {
       console.error('❌ Failed to load available leagues:', error);
       return {
@@ -340,37 +355,9 @@ class LeagueApiService {
    */
   public async getCreatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     try {
-      const raw = await this.makeRequest<any>('/leagues/created');
-
-      const items = (raw?.leagues ?? raw ?? []) as any[];
-
-      const toEpochMs = (ts: number | string | null | undefined): number | null => {
-        if (ts === null || ts === undefined) return null;
-        const n = typeof ts === 'string' ? Number(ts) : ts;
-        if (!Number.isFinite(n)) return null;
-        // Heuristique: si < 10^12, c'est en secondes -> convertir en ms
-        return n < 1_000_000_000_000 ? n * 1000 : n;
-      };
-
-      const leagues: LeagueSummary[] = Array.isArray(items)
-        ? items.map((l) => {
-            const startMs = toEpochMs(l.start_date);
-            return {
-              id: Number(l.id),
-              name: String(l.name ?? ''),
-              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
-              isStarted: Boolean(l.is_started ?? false),
-              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
-              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
-              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
-            } as LeagueSummary;
-          })
-        : [];
-
-      return {
-        success: true,
-        data: { leagues },
-      };
+      const res = await this.getCreatedLeaguesPage(1, 50);
+      if (!res.success || !res.data) return { success: false, error: res.error };
+      return { success: true, data: { leagues: res.data.leagues } };
     } catch (error: any) {
       console.error('❌ Failed to load created leagues:', error);
       return {
@@ -380,11 +367,15 @@ class LeagueApiService {
     }
   }
 
-  /**
-   * Get user's leagues (backward compatibility - now gets available leagues)
-   */
-  public async getLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; } > {
-    return this.getAvailableLeagues();
+  /** Compat: ligues rejointes (1ère page) */
+  public async getParticipatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
+    try {
+      const res = await this.getParticipatedLeaguesPage(1, 50);
+      if (!res.success || !res.data) return { success: false, error: res.error };
+      return { success: true, data: { leagues: res.data.leagues } };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erreur lors du chargement des ligues rejointes' };
+    }
   }
 
   /**
@@ -703,72 +694,9 @@ class LeagueApiService {
   }
 
   /**
-   * Get user's leagues (leagues the authenticated user participates in)
-   * Now calls getParticipatedLeagues for backward compatibility
+   * Récupérer le classement d'une ligue
+   * Backend: GET /league/{league_id}/rank
    */
-  public async getUserLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
-    return this.getParticipatedLeagues();
-  }
-
-  /**
-   * Get participated leagues (leagues where user is a participant, excluding created leagues)
-   */
-  public async getParticipatedLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
-    try {
-      console.log('🔍 Fetching participated leagues...');
-
-      const raw = await this.makeRequest<any>('/leagues/participated');
-
-      const items = (raw?.leagues ?? raw ?? []) as any[];
-
-      const toEpochMs = (ts: number | string | null | undefined): number | null => {
-        if (ts === null || ts === undefined) return null;
-        const n = typeof ts === 'string' ? Number(ts) : ts;
-        if (!Number.isFinite(n)) return null;
-        // Heuristic: if < 10^12, it's in seconds -> convert to ms
-        return n < 1_000_000_000_000 ? n * 1000 : n;
-      };
-
-      const leagues: LeagueSummary[] = Array.isArray(items)
-        ? items.map((l) => {
-            const startMs = toEpochMs(l.start_date);
-            return {
-              id: Number(l.id),
-              name: String(l.name ?? ''),
-              startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
-              isStarted: Boolean(l.is_started ?? false),
-              playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
-              isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
-              nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
-            } as LeagueSummary;
-          })
-        : [];
-
-      console.log(`✅ Found ${leagues.length} participated leagues`);
-
-      return {
-        success: true,
-        data: { leagues },
-      };
-    } catch (error: any) {
-      console.error('❌ Failed to load participated leagues:', error);
-
-      // Handle 204 No Content gracefully
-      if (error.message?.includes('204') || error.message?.includes('No Content')) {
-        return {
-          success: true,
-          data: { leagues: [] },
-        };
-      }
-
-      return {
-        success: false,
-        error: error.message || 'Erreur lors du chargement des ligues participées',
-      };
-    }
-  }
-
-
   public async getLeagueRanking(
     leagueId: number
   ): Promise<ApiResponse<Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>>> {
@@ -777,19 +705,15 @@ class LeagueApiService {
         throw new Error('ID de ligue invalide');
       }
 
-      const response = await this.makeRequest<
+      const data = await this.makeRequest<
         Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>
       >(`/league/${leagueId}/rank`, { method: 'GET' });
 
-      // Validation minimale (le hook fera une validation plus stricte)
-      if (!Array.isArray(response)) {
+      if (!Array.isArray(data)) {
         throw new Error('Format de réponse invalide');
       }
 
-      return {
-        success: true,
-        data: response,
-      };
+      return { success: true, data };
     } catch (error: any) {
       return {
         success: false,
@@ -799,60 +723,44 @@ class LeagueApiService {
   }
 
   /**
-   * Leave a league (unsubscribe from league) with enhanced validation and security
+   * Quitter une ligue (désinscription)
+   * Backend conservé: DELETE /league/{id}/player/delete
    */
   public async leaveLeague(leagueId: number): Promise<ApiResponse<{ message: string }>> {
     try {
-      // Validation: ensure leagueId is valid
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      console.log(`🚪 Leaving league ${leagueId}`);
-
-      // Backend: endpoint unique conservé côté back
-      const response = await this.makeRequest<{ message: string }>(
+      const data = await this.makeRequest<{ message: string }>(
         `/league/${leagueId}/player/delete`,
         { method: 'DELETE' }
       );
 
-      console.log(`✅ Successfully left league ${leagueId}`);
-
       return {
         success: true,
-        data: response,
-        message: response.message || 'Vous avez quitté la ligue avec succès',
+        data,
+        message: data?.message || 'Vous avez quitté la ligue avec succès',
       };
     } catch (error: any) {
-      console.error(`❌ Failed to leave league ${leagueId}:`, error);
-
-      // Enhanced error handling with specific messages
-      if (error.message?.includes('404') || error.message?.includes('Not Found')) {
-        return {
-          success: false,
-          error: 'Ligue introuvable.',
-        };
+      // Mapping d'erreurs fréquent
+      const msg = error?.message || 'Erreur lors de la désinscription de la ligue';
+      if (msg.includes('already started') || msg.includes('déjà')) {
+        return { success: false, error: 'Impossible de quitter cette ligue car elle a déjà commencé.' };
       }
-
-      if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
-        return {
-          success: false,
-          error: 'Vous ne participez pas à cette ligue.',
-        };
+      if (msg.includes('Not Found') || msg.includes('introuvable') || msg.includes('404')) {
+        return { success: false, error: 'Ligue introuvable.' };
       }
-
-      if (error.message?.includes('409') || error.message?.includes('Conflict')) {
-        return {
-          success: false,
-          error: 'Impossible de quitter cette ligue car elle a déjà commencé.',
-        };
-      }
-
-      return {
-        success: false,
-        error: error.message || 'Erreur lors de la désinscription de la ligue',
-      };
+      return { success: false, error: msg };
     }
+  }
+
+  /**
+   * Get user's leagues (leagues the authenticated user participates in)
+   * Now calls getParticipatedLeagues for backward compatibility
+   */
+  public async getUserLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
+    return this.getParticipatedLeagues();
   }
 }
 
