@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, func
 import pytz
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,10 +39,31 @@ class MatchRepositoryImpl(MatchRepository):
         except:
             raise
 
+    async def count_upcoming_matches(self) -> int:
+        now = datetime.utcnow()
+        stmt = select(func.count()).select_from(DBMatch).where(DBMatch.time > now)
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one() or 0)
+
+    async def find_matches_paginated(self, page: int, page_size: int) -> List[Match]:
+        now = datetime.utcnow()
+        offset = (page - 1) * page_size
+
+        stmt = (
+            select(DBMatch)
+            .where(DBMatch.time > now)
+            .order_by(DBMatch.time.asc())
+            .offset(offset)
+            .limit(page_size)
+        )
+        result = await self.session.execute(stmt)
+        match_dbs = result.scalars().all()
+        return [match_db.to_entity() for match_db in match_dbs]
+
     async def find_matches(self) -> List[Match]:
         try:
             now = datetime.utcnow()
-            query = select(DBMatch).where(DBMatch.time > now)
+            query = select(DBMatch).where(DBMatch.time > now).order_by(DBMatch.time.asc())
             result = await self.session.execute(query)
             match_dbs = result.scalars().all()
 

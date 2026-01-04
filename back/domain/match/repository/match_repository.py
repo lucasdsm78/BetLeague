@@ -24,6 +24,14 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def count_upcoming_matches(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_matches_paginated(self, page: int, page_size: int) -> List[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def exists_match_started_for_ticket(self, match_choices: List[MatchChoiceData]) -> bool:
         raise NotImplementedError
 
