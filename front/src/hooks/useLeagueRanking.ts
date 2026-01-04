@@ -6,7 +6,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { RankingEntry, RankingData } from '../types/ranking';
 import leagueApiService from '../services/leagueApiService';
-import { useToast } from './useToast';
 
 interface UseLeagueRankingReturn {
   ranking: RankingData | null;
@@ -24,9 +23,6 @@ export const useLeagueRanking = (leagueId: number | null): UseLeagueRankingRetur
   const [ranking, setRanking] = useState<RankingData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToast();
-  const showToastRef = useRef(showToast);
-  useEffect(() => { showToastRef.current = showToast; }, [showToast]);
 
   // Empêche les appels concurrents
   const inFlightRef = useRef<Promise<void> | null>(null);
@@ -89,10 +85,6 @@ export const useLeagueRanking = (leagueId: number | null): UseLeagueRankingRetur
         if (err?.name === 'AbortError') return; // ignoré
         const errorMessage = err.message || 'Erreur inconnue lors du chargement du classement';
         setError(errorMessage);
-        // Utiliser la ref pour éviter de recréer la dépendance
-        try {
-          showToastRef.current?.({ type: 'error', title: 'Erreur de chargement', message: errorMessage });
-        } catch {}
       } finally {
         setIsLoading(false);
         inFlightRef.current = null;

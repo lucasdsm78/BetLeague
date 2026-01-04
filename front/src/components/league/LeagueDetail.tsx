@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import leagueApiService from '../../services/leagueApiService';
+import LeagueRankingModal from './LeagueRankingModal';
 import './LeagueDetail.css';
 
 // Types for league details based on backend LeagueReadModel
@@ -32,6 +33,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const [error, setError] = useState<string>('');
     const [isJoining, setIsJoining] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isRankingOpen, setIsRankingOpen] = useState(false);
 
     const leagueId = propLeagueId || (id ? parseInt(id, 10) : null);
 
@@ -87,6 +89,15 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
             setIsJoining(false);
         }
     }, [leagueData, isJoining, loadLeagueDetails]);
+
+    const handleOpenRanking = useCallback(() => {
+        if (!leagueData) return;
+        setIsRankingOpen(true);
+    }, [leagueData]);
+
+    const handleCloseRanking = useCallback(() => {
+        setIsRankingOpen(false);
+    }, []);
 
     const handleBack = useCallback(() => {
         navigate(-1);
@@ -170,6 +181,13 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 
     return (
         <div className="league-detail-container">
+            <LeagueRankingModal
+                isOpen={isRankingOpen}
+                leagueId={leagueData?.id ?? null}
+                leagueName={leagueData?.name}
+                onClose={handleCloseRanking}
+            />
+
             <div className="league-detail-header">
                 <button className="back-button" onClick={handleBack} aria-label="Retour">
                     <span className="back-icon">←</span>
@@ -291,10 +309,10 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                     <div className="league-actions-section">
                         <h3>Actions disponibles</h3>
                         <div className="action-buttons">
-                            <button className="btn btn-secondary">
+                            <button className="btn btn-secondary" onClick={handleOpenRanking} type="button">
                                 📊 Voir le classement
                             </button>
-                            <button className="btn btn-outline">
+                            <button className="btn btn-outline" type="button">
                                 📈 Mes statistiques
                             </button>
                         </div>
