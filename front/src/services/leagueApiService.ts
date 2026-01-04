@@ -686,6 +686,21 @@ class LeagueApiService {
       };
     } catch (error: any) {
       console.error('❌ User invitation failed:', error);
+
+      const msg = String(error?.message || '');
+      if (msg.includes('403') || msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('owner')) {
+        return { success: false, error: "Vous n'avez pas l'autorisation d'inviter dans cette ligue." };
+      }
+      if (msg.includes('409') || msg.toLowerCase().includes('exist') || msg.toLowerCase().includes('already')) {
+        return { success: false, error: "Cet utilisateur est déjà invité ou déjà participant." };
+      }
+      if (msg.includes('404') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('introuvable')) {
+        return { success: false, error: 'Ligue ou utilisateur introuvable.' };
+      }
+      if (msg.toLowerCase().includes('started') || msg.toLowerCase().includes('commenc')) {
+        return { success: false, error: 'Cette ligue a déjà commencé, invitation impossible.' };
+      }
+
       return {
         success: false,
         error: error.message || 'Erreur lors de l\'invitation de l\'utilisateur',
