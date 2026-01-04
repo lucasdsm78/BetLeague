@@ -14,6 +14,8 @@ const ShopSection: React.FC = memo(() => {
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
   const [isTournamentSubscriptionModalOpen, setIsTournamentSubscriptionModalOpen] = useState(false);
   const [showSubscriptionSuccessModal, setShowSubscriptionSuccessModal] = useState(false);
+  const [showPackPurchaseSuccessModal, setShowPackPurchaseSuccessModal] = useState(false);
+  const [showPackPurchaseCancelledModal, setShowPackPurchaseCancelledModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { profile, refetch } = useUserProfile();
   const { user } = useAuthStore();
@@ -34,6 +36,25 @@ const ShopSection: React.FC = memo(() => {
     }
   }, [searchParams, setSearchParams, refetch]);
 
+  // Detect pack purchase success/cancel from URL
+  useEffect(() => {
+    const purchaseStatus = searchParams.get('purchase');
+    if (!purchaseStatus) return;
+
+    if (purchaseStatus === 'success') {
+      setActiveTab('packs');
+      setShowPackPurchaseSuccessModal(true);
+      // Refresh user profile to update nb_btl (webhook should have credited it)
+      refetch();
+    } else if (purchaseStatus === 'cancelled') {
+      setActiveTab('packs');
+      setShowPackPurchaseCancelledModal(true);
+    }
+
+    searchParams.delete('purchase');
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, refetch]);
+
   const handleOpenBTLPurchase = useCallback(() => {
     setIsBTLPurchaseModalOpen(true);
   }, []);
@@ -44,7 +65,7 @@ const ShopSection: React.FC = memo(() => {
 
   const handlePurchaseComplete = useCallback(() => {
     setIsBTLPurchaseModalOpen(false);
-    refetch();
+    // Ne plus refetch ici: le paiement n'est pas encore confirmé.
   }, [refetch]);
 
   const handleOpenTournamentSubscription = useCallback(() => {
@@ -356,6 +377,62 @@ const ShopSection: React.FC = memo(() => {
                 onClick={() => setShowSubscriptionSuccessModal(false)}
               >
                 Commencer à jouer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPackPurchaseSuccessModal && (
+        <div className="modal-overlay" onClick={() => setShowPackPurchaseSuccessModal(false)}>
+          <div className="modal-content subscription-success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="success-icon-large">💰</div>
+              <h2>Achat réussi !</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowPackPurchaseSuccessModal(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="success-message">
+                Votre paiement a été confirmé. Vos BTL ont été crédités sur votre compte.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setShowPackPurchaseSuccessModal(false)}>
+                Continuer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPackPurchaseCancelledModal && (
+        <div className="modal-overlay" onClick={() => setShowPackPurchaseCancelledModal(false)}>
+          <div className="modal-content subscription-success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="success-icon-large">ℹ️</div>
+              <h2>Paiement annulé</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowPackPurchaseCancelledModal(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="success-message">
+                Aucun BTL n’a été débité. Vous pouvez réessayer quand vous voulez.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setShowPackPurchaseCancelledModal(false)}>
+                OK
               </button>
             </div>
           </div>

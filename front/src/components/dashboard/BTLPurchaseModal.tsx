@@ -23,6 +23,15 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
     loadPacks();
   }, []);
 
+  // Close on Escape for better UX
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !purchasing) onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose, purchasing]);
+
   const loadPacks = async () => {
     try {
       setLoading(true);
@@ -46,23 +55,28 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
   };
 
   const handlePurchase = useCallback(async () => {
-    if (!selectedPack) return;
+    if (!selectedPack || purchasing) return;
 
     try {
       setPurchasing(true);
       setError(null);
 
+      if (!Number.isInteger(selectedPack.id) || selectedPack.id <= 0) {
+        throw new Error('Pack invalide');
+      }
+
       const response = await createPurchaseIntent(selectedPack.id);
 
       // Redirect to Stripe Checkout
       if (response.url) {
+        // IMPORTANT: ne pas appeler onPurchaseComplete ici.
+        // Le crédit BTL est confirmé via webhook backend; le refresh se fait au retour (ShopSection).
         window.location.href = response.url;
       } else if (response.session_id) {
         // Alternative: use Stripe.js
-      }
-
-      if (onPurchaseComplete) {
-        onPurchaseComplete();
+        throw new Error('Paiement non configuré: URL Stripe manquante');
+      } else {
+        throw new Error('Réponse de paiement invalide');
       }
     } catch (err) {
       setError('Erreur lors de la création du paiement. Veuillez réessayer.');
@@ -106,10 +120,10 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
         <div className="modal-body">
           {error && (
             <div className="error-banner" role="alert">
-              <span className="error-icon">🚨</span>
-              <span className="error-text">{error}</span>
-            </div>
-          )}
+              <span className="error-icon" aria-hidden>🚨</span>
+               <span className="error-text">{error}</span>
+             </div>
+           )}
 
           {loading ? (
             <div className="packs-loading">
@@ -134,11 +148,13 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
                     onClick={() => handlePackSelect(pack)}
                     role="button"
                     tabIndex={0}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
                         handlePackSelect(pack);
                       }
                     }}
+                    aria-pressed={isSelected}
                   >
                     {isRecommended && (
                       <div className="recommended-badge">Recommandé</div>
