@@ -17,6 +17,7 @@ import './CreateLeagueForm.css';
 // Types for enhanced type safety
 interface FormErrors {
   name?: string;
+  type?: string;
   maxMembers?: string;
   entryFee?: string;
   description?: string;
@@ -538,10 +539,10 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
 
   // Enhanced keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !isSubmitting) {
       onClose();
     }
-  }, [onClose]);
+  }, [onClose, isSubmitting]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -572,7 +573,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      onClick={() => { if (!isSubmitting) onClose(); }}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
@@ -649,7 +650,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
                   description: 'Visible et accessible à tous'
                 },
               ]}
-              error={errors.maxMembers}
+              error={errors.type}
               required
               disabled={isSubmitting}
             />
@@ -671,23 +672,58 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
             />
           </div>
 
-          {/* Entry Fee with BTL Balance Display */}
-          <SecureFormInput
-            type="number"
-            name="entryFee"
-            label="Mise d'entrée (BTL)"
-            value={formData.entryFee}
-            onChange={handleInputChange}
-            onBlur={() => handleFieldBlur('entryFee')}
-            error={errors.entryFee}
-            min={VALIDATION_PATTERNS.ENTRY_FEE_MIN}
-            max={VALIDATION_PATTERNS.ENTRY_FEE_MAX}
-            required
-            disabled={isSubmitting}
-            step={1}
-            inputMode="numeric"
-            pattern="[0-9]*"
-          />
+          {/* Free/Paid toggle (mobile friendly) */}
+          <div className="entryfee-toggle" role="group" aria-label="Type de ligue (gratuite ou payante)">
+            <button
+              type="button"
+              className={`toggle-btn ${formData.entryFee === 0 ? 'active' : ''}`}
+              onClick={() => setFormData(prev => ({ ...prev, entryFee: 0 }))}
+              disabled={isSubmitting}
+            >
+              Gratuit
+            </button>
+            <button
+              type="button"
+              className={`toggle-btn ${formData.entryFee > 0 ? 'active' : ''}`}
+              onClick={() => setFormData(prev => ({ ...prev, entryFee: prev.entryFee > 0 ? prev.entryFee : 10 }))}
+              disabled={isSubmitting}
+            >
+              Payant (BTL)
+            </button>
+          </div>
+
+           {/* Entry Fee with BTL Balance Display */}
+           <SecureFormInput
+             type="number"
+             name="entryFee"
+             label="Mise d'entrée (BTL)"
+             value={formData.entryFee}
+             onChange={handleInputChange}
+             onBlur={() => handleFieldBlur('entryFee')}
+             error={errors.entryFee}
+             min={VALIDATION_PATTERNS.ENTRY_FEE_MIN}
+             max={VALIDATION_PATTERNS.ENTRY_FEE_MAX}
+             required
+             disabled={isSubmitting}
+             step={1}
+             inputMode="numeric"
+             pattern="[0-9]*"
+           />
+
+          {/* Quick increment buttons */}
+          <div className="entryfee-quick" aria-label="Raccourcis mise d'entrée">
+            {[10, 25, 50, 100].map((v) => (
+              <button
+                key={v}
+                type="button"
+                className="chip-btn"
+                disabled={isSubmitting}
+                onClick={() => setFormData(prev => ({ ...prev, entryFee: v }))}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
 
           {/* BTL Balance and Status */}
           <div className="btl-balance-section">
