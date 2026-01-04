@@ -95,26 +95,41 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
         event = self.stripe_service.verify_webhook(payload, sig_header)
         event_type = event["type"]
 
-        if event_type == "charge.updated":
+        # Stripe Checkout (mode=payment): événement recommandé.
+        if event_type == "checkout.session.completed":
+            session_obj = event["data"]["object"]
+            uuid = session_obj.get("client_reference_id") or (session_obj.get("metadata") or {}).get("purchase_uuid")
+            is_payment_successful = session_obj.get("payment_status") == "paid"
+            session_pack_id = (session_obj.get("metadata") or {}).get("pack_id")
+            session_user_id = (session_obj.get("metadata") or {}).get("user_id")
+            amount_total = session_obj.get("amount_total")
+
+        elif event_type == "charge.updated":
             charge = event["data"]["object"]
-            charge_status = charge.get("status")
-
-            if charge_status != "succeeded":
+            if charge.get("status") != "succeeded":
                 return
-
-            uuid = charge.get("metadata", {}).get("purchase_uuid")
-            is_payment_successful = charge.get("paid", False)
+            uuid = (charge.get("metadata") or {}).get("purchase_uuid")
+            is_payment_successful = bool(charge.get("paid", False))
+            session_pack_id = (charge.get("metadata") or {}).get("pack_id")
+            session_user_id = (charge.get("metadata") or {}).get("user_id")
+            amount_total = charge.get("amount")
 
         elif event_type == "payment_intent.succeeded":
             payment_intent = event["data"]["object"]
-            uuid = payment_intent.get("metadata", {}).get("purchase_uuid")
+            uuid = (payment_intent.get("metadata") or {}).get("purchase_uuid")
             is_payment_successful = payment_intent.get("status") == "succeeded"
+            session_pack_id = (payment_intent.get("metadata") or {}).get("pack_id")
+            session_user_id = (payment_intent.get("metadata") or {}).get("user_id")
+            amount_total = payment_intent.get("amount_received") or payment_intent.get("amount")
 
         else:
             return
 
         if not uuid:
             raise ValueError("No purchase UUID found in webhook event")
+
+        if not is_payment_successful:
+            return
 
         async with self._session_factory() as session:
             async with session.begin(), self._lock:
@@ -126,17 +141,25 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
                 if not purchase:
                     raise PurchaseNotFoundError
 
+                # Idempotence: si déjà success, on sort sans créditer.
                 if purchase.status.value == PurchaseStatus.succeeded.value:
                     return
 
-                purchase.status = PurchaseStatus.succeeded if is_payment_successful else PurchaseStatus.failed
+                purchase.status = PurchaseStatus.succeeded
 
                 await purchase_repo.update(purchase)
 
-                if is_payment_successful:
-                    user = await user_repo.find_by_id(purchase.user.id)
-                    if not user:
-                        raise UserNotFoundError
-                    user.nb_btl += purchase.pack.total_btl
-                    user.nb_btl_paid += purchase.pack.total_btl
-                    await user_repo.update(user)
+                # Défense in depth: vérifier cohérence pack/user/amount
+                if session_pack_id is not None and str(purchase.pack.id) != str(session_pack_id):
+                    raise ValueError("Pack mismatch between Stripe metadata and purchase")
+                if session_user_id is not None and str(purchase.user.id) != str(session_user_id):
+                    raise ValueError("User mismatch between Stripe metadata and purchase")
+                if amount_total is not None and int(amount_total) != int(purchase.pack.price_cents):
+                    raise ValueError("Amount mismatch between Stripe and pack price")
+
+                user = await user_repo.find_by_id(purchase.user.id)
+                if not user:
+                    raise UserNotFoundError
+                user.nb_btl += purchase.pack.total_btl
+                user.nb_btl_paid += purchase.pack.total_btl
+                await user_repo.update(user)
