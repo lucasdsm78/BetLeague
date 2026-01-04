@@ -63,16 +63,28 @@ export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
   return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
 }
 
-export async function getTicketDetail(ticketId: number | string): Promise<TicketReadModel> {
+export async function getTicketDetail(
+  ticketId: number | string,
+  options?: { signal?: AbortSignal }
+): Promise<TicketReadModel> {
+  if (ticketId === null || ticketId === undefined || `${ticketId}`.trim() === '') {
+    throw new Error('Ticket invalide');
+  }
+
   const tryParse = (data: any): TicketReadModel => {
     const ticket = data?.ticket ?? data;
-    if (ticket && typeof ticket === 'object' && 'id' in ticket) return ticket as TicketReadModel;
-    throw new Error('Format de réponse invalide pour le ticket');
+    if (!ticket || typeof ticket !== 'object') {
+      throw new Error('Format de réponse invalide pour le ticket');
+    }
+    if (!('id' in ticket) || !('match_choice_summaries' in ticket)) {
+      throw new Error('Format de ticket invalide');
+    }
+    return ticket as TicketReadModel;
   };
 
   // 1) Essai plural: /tickets/:id
   try {
-    const resPlural: ApiResponse<any> = await secureApiClient.get(`/tickets/${ticketId}`);
+    const resPlural: ApiResponse<any> = await secureApiClient.get(`/tickets/${ticketId}`, { signal: options?.signal });
     if (resPlural.success) {
       return tryParse(resPlural.data);
     }
@@ -82,7 +94,7 @@ export async function getTicketDetail(ticketId: number | string): Promise<Ticket
   }
 
   // 2) Fallback singulier: /ticket/:id
-  const resSingular: ApiResponse<any> = await secureApiClient.get(`/ticket/${ticketId}`);
+  const resSingular: ApiResponse<any> = await secureApiClient.get(`/ticket/${ticketId}`, { signal: options?.signal });
   if (!resSingular.success) {
     throw new Error(resSingular.error || 'Récupération du ticket échouée');
   }
