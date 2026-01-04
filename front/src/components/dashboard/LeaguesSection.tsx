@@ -350,82 +350,95 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
             return;
         }
 
-        if (league.isFree === false && league.nbBtl && league.nbBtl > 0) {
-            if (userBtlBalance < league.nbBtl) {
-                // Afficher le modal d'insuffisance BTL
+        const requiredBtl = (league.isFree === false && league.nbBtl && league.nbBtl > 0) ? league.nbBtl : 0;
+        // Refresh profile balance right before a paid join to avoid stale client state
+        // (webhook/other actions could have changed nb_btl)
+        let freshBalance = userBtlBalance;
+        if (requiredBtl > 0) {
+            try {
+                // Best-effort refresh (hook returns void). The backend remains source of truth.
+                await refetchProfile();
+             } catch {
+                 // ignore: we'll still attempt join and rely on backend 403
+             }
+
+             if (freshBalance < requiredBtl) {
                 setInsufficientBTLData({
-                    required: league.nbBtl,
+                    required: requiredBtl,
                     action: `rejoindre "${league.name}"`
                 });
                 setIsInsufficientBTLModalOpen(true);
                 return;
-            }
+             }
         }
 
         setJoiningLeagueId(league.id);
         setError('');
 
         try {
-            const isPaidLeague = league.isFree === false && league.nbBtl && league.nbBtl > 0;
-            console.log(`🔄 Joining league ${league.id}: ${league.name}${isPaidLeague ? ` (${league.nbBtl} BTL)` : ''}`);
+            const isPaidLeague = requiredBtl > 0;
+             console.log(`🔄 Joining league ${league.id}: ${league.name}${isPaidLeague ? ` (${league.nbBtl} BTL)` : ''}`);
 
-            const result = await leagueApiService.joinLeague(league.id);
+             const result = await leagueApiService.joinLeague(league.id);
 
-            if (result.success) {
-                if (isPaidLeague) {
-                    console.log('💳 Paid league joined - refreshing balance and cache...');
-                    secureApiClient.clearCache();
-                    refetchProfile().catch(err => {
-                        console.warn('Failed to refresh profile after joining league:', err);
-                    });
-                }
+             if (result.success) {
+                 if (isPaidLeague) {
+                     console.log('💳 Paid league joined - refreshing balance and cache...');
+                     secureApiClient.clearCache();
+                     refetchProfile().catch(err => {
+                         console.warn('Failed to refresh profile after joining league:', err);
+                     });
+                 }
 
-                let successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
-                if (isPaidLeague) {
-                    successMsg += ` ${league.nbBtl} BTL ont été débités de votre compte.`;
-                }
+                 let successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
+                 if (isPaidLeague) {
+                    successMsg += ` ${requiredBtl} BTL ont été débités de votre compte.`;
+                 }
 
-                setSuccessMessage(successMsg);
-                setTimeout(() => setSuccessMessage(''), 6000);
+                 setSuccessMessage(successMsg);
+                 setTimeout(() => setSuccessMessage(''), 6000);
 
-                // Refresh both lists to reflect the changes
-                await Promise.all([
-                    loadCreatedLeagues(),
-                    loadParticipatedLeagues(),
-                    loadAvailableLeagues()
-                ]);
+                 // Refresh both lists to reflect the changes
+                 await Promise.all([
+                     loadCreatedLeagues(),
+                     loadParticipatedLeagues(),
+                     loadAvailableLeagues()
+                 ]);
 
-                console.log(`✅ Successfully joined league: ${league.name}`);
-            } else {
-                // Enhanced error handling with specific messages
-                let errorMsg = result.error || 'Erreur lors de la tentative de rejoindre la ligue';
+                 console.log(`✅ Successfully joined league: ${league.name}`);
+             } else {
+                 // Enhanced error handling with specific messages
+                 let errorMsg = result.error || 'Erreur lors de la tentative de rejoindre la ligue';
 
-                // Map common backend errors to user-friendly messages
-                if (errorMsg.includes('already')) {
-                    errorMsg = 'Vous participez déjà à cette ligue.';
-                } else if (errorMsg.includes('full') || errorMsg.includes('max')) {
-                    errorMsg = 'Cette ligue est complète.';
-                } else if (errorMsg.includes('started')) {
-                    errorMsg = 'Cette ligue a déjà commencé.';
-                } else if (errorMsg.includes('private')) {
-                    errorMsg = 'Cette ligue est privée et nécessite une invitation.';
-                } else if (errorMsg.includes('btl') || errorMsg.includes('insufficient') || errorMsg.includes('solde')) {
-                    const required = league.nbBtl || 0;
+                 // Map common backend errors to user-friendly messages
+                 if (errorMsg.includes('already')) {
+                     errorMsg = 'Vous participez déjà à cette ligue.';
+                 } else if (errorMsg.includes('full') || errorMsg.includes('max')) {
+                     errorMsg = 'Cette ligue est complète.';
+                 } else if (errorMsg.includes('started')) {
+                     errorMsg = 'Cette ligue a déjà commencé.';
+                 } else if (errorMsg.includes('private')) {
+                     errorMsg = 'Cette ligue est privée et nécessite une invitation.';
+                } else if (errorMsg.toLowerCase().includes('btl') || errorMsg.toLowerCase().includes('insufficient') || errorMsg.toLowerCase().includes('solde') || errorMsg.includes('403')) {
+                    const required = requiredBtl;
                     const missing = Math.max(0, required - userBtlBalance);
-                    errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL. Il manque ${missing} BTL.`;
-                }
+                    // Montrer directement le modal d’insuffisance pour une conversion clean
+                    setInsufficientBTLData({ required, action: `rejoindre "${league.name}"` });
+                    setIsInsufficientBTLModalOpen(true);
+                    errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL.`;
+                 }
 
-                setError(errorMsg);
-                console.error('❌ Failed to join league:', result.error);
-            }
-        } catch (err: any) {
-            const errorMessage = `Erreur réseau lors de la tentative de rejoindre la ligue "${league.name}". Veuillez réessayer.`;
-            setError(errorMessage);
-            console.error('❌ Exception while joining league:', err);
-        } finally {
-            setJoiningLeagueId(null);
-        }
-    }, [joiningLeagueId, userBtlBalance, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues, refetchProfile]);
+                 setError(errorMsg);
+                 console.error('❌ Failed to join league:', result.error);
+             }
+         } catch (err: any) {
+             const errorMessage = `Erreur réseau lors de la tentative de rejoindre la ligue "${league.name}". Veuillez réessayer.`;
+             setError(errorMessage);
+             console.error('❌ Exception while joining league:', err);
+         } finally {
+             setJoiningLeagueId(null);
+         }
+     }, [joiningLeagueId, userBtlBalance, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues, refetchProfile]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
