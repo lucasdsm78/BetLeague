@@ -1,4 +1,5 @@
 from typing import Optional
+from typing import List
 
 from pydantic import Field, BaseModel
 
@@ -81,3 +82,11 @@ class InvitationReceivedReadModel(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class LeaguesListResponse(BaseModel):
+    leagues: List[LeagueReadModel] = Field(default_factory=list)
+    page: int
+    page_size: int
+    total: int
+    total_pages: int

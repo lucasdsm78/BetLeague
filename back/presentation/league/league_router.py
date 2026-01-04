@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Query
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
     LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel
 from application.league.league_command_usecase import LeagueCommandUseCase
-from application.league.league_query_model import LeagueReadModel
+from application.league.league_query_model import LeagueReadModel, LeaguesListResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.invitation.exception.invitation_exception import InvitationFoundError
@@ -230,84 +231,60 @@ async def get_league(
 
 @router.get(
     "/leagues",
-    response_model=dict,
+    response_model=LeaguesListResponse,
     status_code=status.HTTP_200_OK
 )
 async def get_leagues(
         league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
         current_user: dict = Depends(current_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        leagues = await league_query_usecase.get_leagues(current_user.get('email', ''))
-
-        if not leagues:
-            raise HTTPException(
-                status_code=status.HTTP_204_NO_CONTENT,
-                detail="No leagues found."
-            )
-
-    except Exception as e:
-        raise
-
-    return leagues
+        return await league_query_usecase.get_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues")
 
 
 @router.get(
     "/leagues/created",
-    response_model=dict,
+    response_model=LeaguesListResponse,
     status_code=status.HTTP_200_OK
 )
 async def get_created_leagues(
         league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
         current_user: dict = Depends(current_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        created_leagues = await league_query_usecase.get_created_leagues(current_user.get('email', ''))
-
-        if not created_leagues or not created_leagues.get('leagues'):
-            raise HTTPException(
-                status_code=status.HTTP_204_NO_CONTENT,
-                detail="No created leagues found."
-            )
-
-    except Exception as e:
-        raise
-
-    return created_leagues
+        return await league_query_usecase.get_created_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues créées")
 
 
 @router.get(
     "/leagues/participated",
-    response_model=dict,
+    response_model=LeaguesListResponse,
     status_code=status.HTTP_200_OK,
     summary="Get leagues where user is a participant"
 )
 async def get_participated_leagues(
         league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
         current_user: dict = Depends(current_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        participated_leagues = await league_query_usecase.get_participated_leagues(current_user.get('email', ''))
-
-        if not participated_leagues or not participated_leagues.get('leagues'):
-            raise HTTPException(
-                status_code=status.HTTP_204_NO_CONTENT,
-                detail="No participated leagues found."
-            )
-
+        return await league_query_usecase.get_participated_leagues(current_user.get('email', ''), page=page, page_size=page_size)
     except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message,
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while fetching participated leagues."
-        )
-
-    return participated_leagues
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues rejointes")
 
 
 @router.post(
