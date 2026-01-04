@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from domain.match.model.match import Match
 
@@ -35,3 +36,11 @@ class MatchReadModel(BaseModel):
             created_at=match.created_at,
             updated_at=match.updated_at
         )
+
+
+class MatchesListResponse(BaseModel):
+    matches: List[MatchReadModel] = Field(default_factory=list)
+    page: int
+    page_size: int
+    total: int
+    total_pages: int

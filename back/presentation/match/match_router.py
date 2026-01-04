@@ -3,6 +3,8 @@ from datetime import datetime
 from application.match.match_command_model import MatchScoreUpdatedResponse
 from application.match.match_command_usecase import MatchCommandUseCase
 from application.match.match_query_usecase import MatchQueryUseCase
+from application.match.match_query_model import MatchesListResponse
+from domain.user.exception.user_exception import UserNotFoundError
 from domain.match.exception.match_exception import MatchesNotFoundError
 from domain.token.token_exception import TokenInvalidError
 from presentation.match.match_error_message import ErrorMessageMatchesNotFound
@@ -16,7 +18,7 @@ router = APIRouter(
 
 @router.get(
     "/matches",
-    response_model=dict,
+    response_model=MatchesListResponse,
     status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_404_NOT_FOUND: {
@@ -31,12 +33,11 @@ async def get_matches(
         current_user: dict = Depends(current_user),
 ):
     try:
-        matches = await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
-
-    except Exception as e:
-        raise
-
-    return matches
+        return await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des matchs")
 
 
 @router.post(
