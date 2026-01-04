@@ -3,10 +3,8 @@ import secureApiClient, { ApiResponse } from './secureApiClient';
 export interface UpdateLeagueData {
   name: string; // Obligatoire
   max_players: number; // Obligatoire
-  start_date: number; // Obligatoire (timestamp Unix en secondes)
-  is_private?: boolean; // Optionnel
-  is_free?: boolean; // Optionnel
-  nb_btl?: number; // Optionnel
+  // Obligatoire (timestamp Unix en millisecondes)
+  start_date: number;
 }
 
 export interface UpdateLeagueResponse {
@@ -108,13 +106,14 @@ class LeagueUpdateService {
         throw new Error('Le nom doit contenir au moins 3 caractères');
       }
 
-      if (name.length > 100) {
-        throw new Error('Le nom ne peut pas dépasser 100 caractères');
+      if (name.length > 50) {
+        throw new Error('Le nom ne peut pas dépasser 50 caractères');
       }
 
-      if (!/^[a-zA-Z0-9\s\-_À-ÿ]+$/.test(name)) {
+      // Aligné avec la regex backend: lettres/chiffres/espace/-/_/.
+      if (!/^[A-Za-z0-9\s\-_.]+$/.test(name)) {
         throw new Error(
-          'Le nom contient des caractères non autorisés. Utilisez uniquement des lettres, chiffres, espaces, tirets et underscores.'
+          'Le nom contient des caractères non autorisés. Utilisez uniquement lettres, chiffres, espaces, tirets, underscores et points.'
         );
       }
     }
@@ -130,17 +129,6 @@ class LeagueUpdateService {
       }
     }
 
-    // Validation des BTL (si ligue payante)
-    if (data.is_free === false && data.nb_btl !== undefined) {
-      if (!Number.isInteger(data.nb_btl) || data.nb_btl <= 0) {
-        throw new Error('Le montant BTL doit être un nombre positif');
-      }
-
-      if (data.nb_btl > 10000) {
-        throw new Error('Le montant BTL ne peut pas dépasser 10000');
-      }
-    }
-
     // Vérifier que les champs obligatoires sont présents
     if (!data.name) {
       throw new Error('Le nom de la ligue est requis');
@@ -152,6 +140,11 @@ class LeagueUpdateService {
 
     if (data.start_date === undefined || data.start_date === null) {
       throw new Error('La date de début est requise');
+    }
+
+    // start_date en millisecondes (13 chiffres génériques)
+    if (!Number.isInteger(data.start_date) || data.start_date < 1_000_000_000_000) {
+      throw new Error('La date de début doit être un timestamp en millisecondes');
     }
   }
 

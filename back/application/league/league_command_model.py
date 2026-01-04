@@ -32,9 +32,29 @@ class LeagueCreateModel(BaseModel):
 
 
 class LeagueUpdateModel(BaseModel):
-    name: str
-    max_players: int
+    name: str = Field(..., min_length=3, max_length=50)
+    max_players: int = Field(..., ge=2, le=200)
     start_date: int
+
+    @field_validator('name')
+    @classmethod
+    def _normalize_name(cls, v: str) -> str:
+        n = (v or '').strip()
+        n = ' '.join(n.split())
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9\s\-_.]+", n):
+            raise ValueError('Nom invalide (caractères non autorisés)')
+        return n
+
+    @field_validator('start_date')
+    @classmethod
+    def _validate_start_date_ms(cls, v: int) -> int:
+        if not isinstance(v, int):
+            raise ValueError('start_date invalide')
+        if v < 1_000_000_000_000:  # < 2001-09-09 en ms => la plupart du temps c’est des secondes
+            raise ValueError('start_date doit être en millisecondes')
+        return v
+
 
 class LeagueJoinResponse(BaseModel):
     message: str = "Your participation is well saved for this league"
