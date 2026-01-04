@@ -245,6 +245,40 @@
   flex-wrap: wrap;
 }
 
+/* Share / Copy link */
+.league-modal-share {
+  padding: 1rem 1.5rem 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-copy-link {
+  flex: 0 0 auto;
+  gap: 0.5rem;
+}
+
+.btn-copy-link.copy-success {
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.btn-copy-link.copy-success:hover {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: #fff;
+}
+
+.btn-copy-link.copy-error {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.btn-copy-link.copy-error:hover {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: #fff;
+}
+
 /* Button Styles */
 .btn {
   display: inline-flex;
@@ -397,6 +431,14 @@
 
   .error-actions {
     flex-direction: column;
+    width: 100%;
+  }
+
+  .league-modal-share {
+    padding: 0.75rem 1rem 0;
+  }
+
+  .btn-copy-link {
     width: 100%;
   }
 }
