@@ -15,16 +15,16 @@ export interface ApiMatchReadModel {
   updated_at: number;
 }
 
-export interface GetMatchesApiResponse {
+export interface MatchesListResponse {
   matches: ApiMatchReadModel[];
-  page?: number;
-  page_size?: number;
-  total?: number;
-  total_pages?: number;
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
 }
 
 export async function getMatches(): Promise<ApiMatchReadModel[]> {
-  const res: ApiResponse<GetMatchesApiResponse> = await secureApiClient.get('/matches');
+  const res: ApiResponse<MatchesListResponse> = await secureApiClient.get('/matches');
 
   if (!res.success) {
     throw new Error(res.error || 'Impossible de récupérer les matchs');
@@ -33,15 +33,19 @@ export async function getMatches(): Promise<ApiMatchReadModel[]> {
   return res.data?.matches ?? [];
 }
 
-export async function getMatchesPage(page: number, pageSize: number): Promise<GetMatchesApiResponse> {
+export async function getMatchesPage(page: number, pageSize: number): Promise<MatchesListResponse> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<GetMatchesApiResponse> = await secureApiClient.get(`/matches?${query.toString()}`);
+  const res: ApiResponse<MatchesListResponse> = await secureApiClient.get(`/matches?${query.toString()}`);
 
   if (!res.success) {
     throw new Error(res.error || 'Impossible de récupérer les matchs');
   }
 
-  return res.data as GetMatchesApiResponse;
+  const data = res.data as MatchesListResponse | undefined;
+  if (!data || !Array.isArray(data.matches)) {
+    throw new Error('Format de réponse invalide');
+  }
+  return data;
 }
 
 export default {

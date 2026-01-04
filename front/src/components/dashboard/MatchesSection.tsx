@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MatchesSection.css';
-import { getMatchesPage, ApiMatchReadModel, GetMatchesApiResponse } from '../../services/matchesApi';
+import { getMatchesPage, ApiMatchReadModel, MatchesListResponse } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
 import { createTicket, createTournamentBet } from '../../services/ticketsApi';
 import { getParticipatedLeagues, getLeagueBalance } from '../../services/leaguesApi';
@@ -541,7 +541,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         try {
             if (nextPage === 1) setIsLoading(true); else setIsFetchingMore(true);
             setError(null);
-            const res: GetMatchesApiResponse = await getMatchesPage(nextPage, pageSize);
+            const res: MatchesListResponse = await getMatchesPage(nextPage, pageSize);
             const uiMatches = (res.matches || []).map(mapApiMatchToUi);
             setMatches(prev => nextPage === 1 ? uiMatches : [...prev, ...uiMatches]);
             setPage(res.page || nextPage);
