@@ -80,8 +80,7 @@ async def create_ticket(
             detail=e.message,
         )
 
-    except Exception as e:
-        print(e)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
@@ -117,8 +116,7 @@ async def remove_ticket(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message
         )
-    except Exception as e:
-        print(e)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la suppression du ticket."
@@ -152,7 +150,7 @@ async def get_details_ticket(
         )
     except TicketAccessDeniedError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message
         )
     except LeagueNotFoundError as e:
@@ -160,8 +158,7 @@ async def get_details_ticket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
-    except Exception as e:
-        print(e)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération du ticket."
@@ -214,7 +211,7 @@ async def update_ticket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message,
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification du ticket."
@@ -222,48 +219,6 @@ async def update_ticket(
 
     return remove_ticket_result
 
-
-@router.get(
-    "/ticket/{ticket_id}",
-    response_model=TicketReadModel,
-    status_code=status.HTTP_200_OK,
-    summary="Get détails ticket"
-)
-async def get_details_ticket(
-        ticket_id: int,
-        ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
-        current_user: dict = Depends(current_user)
-):
-    try:
-        ticket = await ticket_query_usecase.get_ticket_details(ticket_id, current_user.get('email'))
-    except TicketNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except TicketAccessDeniedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.message
-        )
-    except LeagueNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except Exception as e:
-        print(e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erreur interne lors de la récupération du ticket."
-        )
-
-    return ticket
 
 @router.get(
     "/tickets/in-progress",
@@ -282,7 +237,7 @@ async def get_tickets_in_progress(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des tickets en cours."
@@ -307,8 +262,7 @@ async def get_tickets_finished(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
-    except Exception as e:
-        print(f"Erreur lors de la récupération des tickets terminés: {str(e)}")
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des tickets terminés."
@@ -369,7 +323,7 @@ async def check_match_choices_by_match_id(
             detail=e.message,
         )
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
