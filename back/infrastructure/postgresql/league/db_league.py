@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Union, Optional
 
 from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey
+from sqlalchemy import Index
 from sqlalchemy.orm import relationship
 
 from domain.league.model.league import League
@@ -18,6 +19,10 @@ def unixtimestamp() -> int:
 class DBLeague(Base):
 
     __tablename__ = "league"
+    __table_args__ = (
+        Index('ix_league_is_started', 'is_started'),
+    )
+
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     name: Union[str, Column] = Column(String, nullable=False, index=True)

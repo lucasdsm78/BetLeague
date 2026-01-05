@@ -52,6 +52,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             .select_from(DBLeague)
             .where(
                 DBLeague.is_private == False,
+                DBLeague.is_started == False,
                 DBLeague.user_id != user_id,
                 DBLeague.nb_players_remaining > 0,
                 DBLeague.id.notin_(
@@ -92,6 +93,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             .options(joinedload(DBLeague.user))   # ← charger aussi .user
             .where(
                 DBLeague.is_private == False,
+                DBLeague.is_started == False,
                 DBLeague.user_id != user_id,
                 DBLeague.nb_players_remaining > 0,
                 DBLeague.id.notin_(
