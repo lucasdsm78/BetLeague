@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import leagueApiService from '../../services/leagueApiService';
 import LeagueRankingModal from './LeagueRankingModal';
 import './LeagueDetail.css';
@@ -28,6 +28,7 @@ interface LeagueDetailProps {
 const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [leagueData, setLeagueData] = useState<LeagueDetailData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string>('');
@@ -93,11 +94,24 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const handleOpenRanking = useCallback(() => {
         if (!leagueData) return;
         setIsRankingOpen(true);
-    }, [leagueData]);
+
+        // Keep URL shareable + recoverable (open modal on paste)
+        const params = new URLSearchParams(location.search);
+        params.set('rankingLeagueId', String(leagueData.id));
+        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }, [leagueData, location.pathname, location.search, navigate]);
 
     const handleCloseRanking = useCallback(() => {
         setIsRankingOpen(false);
-    }, []);
+
+        // Clean URL after closing modal for better UX
+        const params = new URLSearchParams(location.search);
+        if (params.has('rankingLeagueId')) {
+            params.delete('rankingLeagueId');
+            const nextSearch = params.toString();
+            navigate({ pathname: location.pathname, search: nextSearch ? nextSearch : '' }, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
 
     const handleBack = useCallback(() => {
         navigate(-1);
@@ -106,6 +120,21 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     useEffect(() => {
         loadLeagueDetails();
     }, [loadLeagueDetails]);
+
+    // Open ranking modal if a shareable link contains ?rankingLeagueId=
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const rankingLeagueIdFromUrl = params.get('rankingLeagueId');
+        if (!rankingLeagueIdFromUrl) return;
+
+        const parsed = Number(rankingLeagueIdFromUrl);
+        if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+        // Only open if the ranking is for this league
+        if (leagueData && leagueData.id === parsed) {
+            setIsRankingOpen(true);
+        }
+    }, [location.search, leagueData]);
 
     if (isLoading) {
         return (
