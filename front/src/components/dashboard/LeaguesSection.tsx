@@ -482,6 +482,30 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         setIsDetailsModalOpen(true);
     }, [location.search]);
 
+    // Open ranking modal if a shareable link contains ?rankingLeagueId=
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const rankingLeagueIdFromUrl = params.get('rankingLeagueId');
+        if (!rankingLeagueIdFromUrl) return;
+
+        const parsed = Number(rankingLeagueIdFromUrl);
+        if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+        // Find the league in our loaded lists to get the full league object
+        const allLeagues = [...participatedLeagues, ...createdLeagues, ...availableLeagues];
+        const targetLeague = allLeagues.find(l => l.id === parsed);
+
+        if (targetLeague) {
+            setSelectedLeagueForRanking(targetLeague);
+            setIsRankingModalOpen(true);
+        } else {
+            // If league not found in loaded lists, create a minimal league object
+            // This allows deep linking to work even before leagues are fully loaded
+            setSelectedLeagueForRanking({ id: parsed, name: '', startDate: '', isStarted: false });
+            setIsRankingModalOpen(true);
+        }
+    }, [location.search, participatedLeagues, createdLeagues, availableLeagues]);
+
     // Handle invite user to league
     const handleInviteUser = useCallback((league: LeagueSummary) => {
         setSelectedLeagueForInvite(league);
@@ -498,12 +522,26 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const handleViewRanking = useCallback((league: LeagueSummary) => {
         setSelectedLeagueForRanking(league);
         setIsRankingModalOpen(true);
-    }, []);
+
+        // Keep URL shareable + recoverable (open modal on paste)
+        // We store the rankingLeagueId in query string only (no sensitive data)
+        const params = new URLSearchParams(location.search);
+        params.set('rankingLeagueId', String(league.id));
+        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }, [location.pathname, location.search, navigate]);
 
     const handleCloseRankingModal = useCallback(() => {
         setIsRankingModalOpen(false);
         setSelectedLeagueForRanking(null);
-    }, []);
+
+        // Clean URL after closing modal for better UX
+        const params = new URLSearchParams(location.search);
+        if (params.has('rankingLeagueId')) {
+            params.delete('rankingLeagueId');
+            const nextSearch = params.toString();
+            navigate({ pathname: location.pathname, search: nextSearch ? nextSearch : '' }, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
 
     // Handle leave league
     const handleLeaveLeague = useCallback((league: LeagueSummary) => {
