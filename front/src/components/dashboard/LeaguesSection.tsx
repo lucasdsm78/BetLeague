@@ -1,8 +1,9 @@
-import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
@@ -14,12 +15,11 @@ import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 import type { LeaguesPage } from '../../services/leaguesPaging';
 
-type LeagueBalanceMap = Record<number, number>;
-
 interface LeagueCardProps {
     league: LeagueSummary;
     onView: (league: LeagueSummary) => void;
     myBalanceBtl?: number | null;
+    isBalanceLoading?: boolean;
     showMyBalance?: boolean;
     replaceEntryFeeWithBalance?: boolean;
     onJoin?: (league: LeagueSummary) => void;
@@ -35,11 +35,11 @@ interface LeagueCardProps {
     showEditButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
     const statusLabel = league.isStarted ? 'Active' : 'En attente';
     const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
 
-    const isBalanceLoading = myBalanceBtl === null || myBalanceBtl === undefined;
+    const isLoadingBalance = isBalanceLoading || myBalanceBtl === null || myBalanceBtl === undefined;
 
     const startDateLabel = (() => {
         try {
@@ -50,7 +50,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
     })();
 
     const renderBalanceValue = () => {
-        if (isBalanceLoading) {
+        if (isLoadingBalance) {
             return <span className="balance-skeleton" aria-hidden="true" />;
         }
         return String(myBalanceBtl);
@@ -88,7 +88,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 </div>
                 {replaceEntryFeeWithBalance ? (
                     <div className="stat stat-btl">
-                        <span className="stat-value stat-value-btl" aria-busy={isBalanceLoading}>
+                        <span className="stat-value stat-value-btl" aria-busy={isLoadingBalance}>
                             {renderBalanceValue()}
                         </span>
                         <span className="stat-label">Mon solde</span>
@@ -109,7 +109,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
 
                         {showMyBalance && (
                             <div className="stat stat-btl">
-                                <span className="stat-value stat-value-btl" aria-busy={isBalanceLoading}>
+                                <span className="stat-value stat-value-btl" aria-busy={isLoadingBalance}>
                                     {renderBalanceValue()}
                                 </span>
                                 <span className="stat-label">Mon solde</span>
@@ -654,42 +654,15 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         }, 100);
     }, [handleCloseEditModal, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues]);
 
-    const [leagueBalances, setLeagueBalances] = useState<LeagueBalanceMap>({});
-    const fetchedBalanceLeagueIdsRef = useRef<Set<number>>(new Set());
-
-    const primeBalances = useCallback(async (leagueIds: number[]) => {
-        const ids = Array.from(new Set(leagueIds)).filter((id) => Number.isInteger(id) && id > 0);
-        if (ids.length === 0) return;
-
-        const missing = ids.filter((id) => !fetchedBalanceLeagueIdsRef.current.has(id));
-        if (missing.length === 0) return;
-
-        const batchSize = 6;
-        for (let i = 0; i < missing.length; i += batchSize) {
-            const batch = missing.slice(i, i + batchSize);
-            // marquer comme "en cours" tout de suite pour éviter double-fetch si les listes changent pendant le batch
-            batch.forEach((id) => fetchedBalanceLeagueIdsRef.current.add(id));
-
-            const results = await Promise.all(
-                batch.map(async (leagueId) => {
-                    const res = await leagueApiService.getLeagueBalance(leagueId);
-                    return { leagueId, nb_btl: res.success ? (res.data?.nb_btl ?? 0) : 0 };
-                })
-            );
-
-            setLeagueBalances((prev) => {
-                const next = { ...prev };
-                for (const r of results) next[r.leagueId] = Number(r.nb_btl) || 0;
-                return next;
-            });
-        }
-    }, []);
-
-    // Prime balances when lists change
-    useEffect(() => {
+    const allLeagueIds = useMemo(() => {
         const ids = [...participatedLeagues, ...createdLeagues].map((l) => l.id);
-        primeBalances(ids);
-    }, [participatedLeagues, createdLeagues, primeBalances]);
+        return Array.from(new Set(ids));
+    }, [participatedLeagues, createdLeagues]);
+
+    const {
+        getBalance,
+        isBalanceLoading,
+    } = useLeagueBalances(allLeagueIds, { autoFetch: true, concurrency: 6 });
 
     return (
         <div className="leagues-section">
@@ -823,7 +796,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     onView={handleViewLeague}
                                     onViewRanking={handleViewRanking}
                                     onLeave={handleLeaveLeague}
-                                    myBalanceBtl={leagueBalances[league.id]}
+                                    myBalanceBtl={getBalance(league.id) ?? null}
+                                    isBalanceLoading={isBalanceLoading(league.id)}
                                     replaceEntryFeeWithBalance={true}
                                     showJoinButton={false}
                                     showInviteButton={false}
@@ -895,7 +869,8 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     onInvite={handleInviteUser}
                                     onViewRanking={handleViewRanking}
                                     onEdit={handleEditLeague}
-                                    myBalanceBtl={leagueBalances[league.id]}
+                                    myBalanceBtl={getBalance(league.id) ?? null}
+                                    isBalanceLoading={isBalanceLoading(league.id)}
                                     showMyBalance={true}
                                     showJoinButton={false}
                                     showInviteButton={true}
