@@ -498,12 +498,39 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const handleViewRanking = useCallback((league: LeagueSummary) => {
         setSelectedLeagueForRanking(league);
         setIsRankingModalOpen(true);
-    }, []);
+
+        // Shareable link support: open ranking modal via URL param
+        const params = new URLSearchParams(location.search);
+        params.set('leagueRankId', String(league.id));
+        navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }, [location.pathname, location.search, navigate]);
 
     const handleCloseRankingModal = useCallback(() => {
         setIsRankingModalOpen(false);
         setSelectedLeagueForRanking(null);
-    }, []);
+
+        // Clean URL after closing ranking modal
+        const params = new URLSearchParams(location.search);
+        if (params.has('leagueRankId')) {
+            params.delete('leagueRankId');
+            const nextSearch = params.toString();
+            navigate({ pathname: location.pathname, search: nextSearch ? nextSearch : '' }, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
+
+    // Open ranking modal when a shareable link contains ?leagueRankId=
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const rankIdFromUrl = params.get('leagueRankId');
+        if (!rankIdFromUrl) return;
+
+        const parsed = Number(rankIdFromUrl);
+        if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+        // If already open on the same league, do nothing.
+        setSelectedLeagueForRanking(prev => (prev?.id === parsed ? prev : ({ id: parsed } as any)));
+        setIsRankingModalOpen(true);
+    }, [location.search]);
 
     // Handle leave league
     const handleLeaveLeague = useCallback((league: LeagueSummary) => {
