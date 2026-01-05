@@ -78,6 +78,10 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+export interface LeagueBalanceResponse {
+  nb_btl: number;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
@@ -767,6 +771,34 @@ class LeagueApiService {
         return { success: false, error: 'Ligue introuvable.' };
       }
       return { success: false, error: msg };
+    }
+  }
+
+  /**
+   * Récupérer le solde BTL de l’utilisateur dans une ligue.
+   * Backend attendu: GET /league/{leagueId}/balance -> { nb_btl: number }
+   */
+  public async getLeagueBalance(leagueId: number): Promise<ApiResponse<LeagueBalanceResponse>> {
+    try {
+      if (!Number.isInteger(leagueId) || leagueId <= 0) {
+        throw new Error('ID de ligue invalide');
+      }
+
+      const data = await this.makeRequest<LeagueBalanceResponse>(`/league/${leagueId}/balance`, {
+        method: 'GET',
+      });
+
+      return {
+        success: true,
+        data: {
+          nb_btl: Number((data as any)?.nb_btl) || 0,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error?.message || 'Erreur lors du chargement du solde de la ligue',
+      };
     }
   }
 
