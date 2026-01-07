@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi import Query
+from fastapi import Request
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
     LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel
 from application.league.league_command_usecase import LeagueCommandUseCase
-from application.league.league_query_model import LeagueReadModel, LeaguesListResponse
+from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.invitation.exception.invitation_exception import InvitationFoundError
@@ -13,6 +14,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError, League
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
     LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError
 from domain.user.exception.user_exception import UserNotFoundError
+from infrastructure.services.rate_limiter import rate_limiter
 
 router = APIRouter(
     prefix="/api",
@@ -154,6 +156,40 @@ async def get_league_ranking(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
+
+
+@router.post(
+    "/leagues/balances",
+    summary="Bulk: get the connected user's BTL balances in multiple leagues",
+    status_code=status.HTTP_200_OK,
+    response_model=LeagueBalancesBulkResponse,
+)
+async def get_leagues_balances_bulk(
+        payload: LeagueBalancesBulkRequest,
+        request: Request,
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        email = (current_user or {}).get('email', '')
+        client_host = getattr(getattr(request, 'client', None), 'host', 'unknown') if request else 'unknown'
+        key = f"leagues_balances_bulk:{email or client_host}"
+        rl = rate_limiter.check(key=key, limit=30, window_seconds=60)
+        if not rl.allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Trop de requêtes. Réessayez plus tard.",
+                headers={"Retry-After": str(rl.retry_after_seconds)},
+            )
+
+        return await league_query_usecase.get_leagues_balances(
+            current_user.get('email', ''),
+            payload.league_ids,
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
 
 
 @router.delete(
@@ -479,24 +515,3 @@ async def inject_btl(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
-
-@router.get(
-    "/league/{league_id}/balance",
-    status_code=status.HTTP_200_OK,
-    summary="Get league balance of a user"
-)
-async def get_league_balance(
-        league_id: int,
-        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
-        current_user: dict = Depends(current_user),
-):
-    try:
-        return await league_query_usecase.get_league_balance(current_user.get('email', ''), league_id)
-    except LeagueNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except LeagueParticipantNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unexpected error")

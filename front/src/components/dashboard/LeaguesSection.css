@@ -633,21 +633,64 @@
   font-size: 1rem;
 }
 
+/* Mini skeleton loader pour la valeur 'Mon solde' */
+.balance-skeleton {
+  display: inline-block;
+  width: 2.5rem;
+  height: 1.1em;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  background-size: 200% 100%;
+  animation: balanceShimmer 1.1s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes balanceShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Meilleur rendu sur fond jaune (stat-btl) */
+.stat-btl .balance-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(146, 64, 14, 0.08) 0%,
+    rgba(146, 64, 14, 0.16) 50%,
+    rgba(146, 64, 14, 0.08) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .balance-skeleton {
+    animation: none;
+  }
+}
+
 /* Responsive Design */
 @media (min-width: 640px) {
   .leagues-grid {
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   }
-  
+
   .invitation-card {
     flex-direction: row;
   }
-  
+
   .join-league-section {
     flex-direction: row;
     gap: 2rem;
   }
-  
+
   .join-form,
   .public-leagues {
     flex: 1;
@@ -658,7 +701,7 @@
   .section-header h2 {
     font-size: 2.25rem;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr 120px;
   }
