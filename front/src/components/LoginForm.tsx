@@ -3,7 +3,7 @@
  * Optimized for sports betting theme with enhanced UX and mobile-first design
  */
 
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
 import { AuthError } from 'services/authService.enhanced';
@@ -163,7 +163,7 @@ FormButton.displayName = 'FormButton';
 
 const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin }) => {
   const navigate = useNavigate();
-  const { login } = useEnhancedAuth({
+  const { login, error: authError } = useEnhancedAuth({
     autoRefresh: true,
     onAuthChange: (isAuthenticated) => {
       if (isAuthenticated) {
@@ -178,6 +178,8 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
   const [isLoading, setIsLoading] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const totp = useTotpTimer(30);
+  const passwordRef = useRef<HTMLInputElement|null>(null);
+  const errorBannerRef = useRef<HTMLDivElement|null>(null);
 
   // Validation helpers
   const validateEmail = useCallback((email: string): string | undefined => {
@@ -291,12 +293,23 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
       setAttemptCount(prev => prev + 1);
       let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
       if (error instanceof AuthError) {
-        if (error.isUnauthorized()) message = 'Email ou mot de passe incorrect. Vérifiez vos informations.';
-        else if (error.isTooManyRequests()) message = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
+        if (error.isUnauthorized()) {
+          message = 'Email ou mot de passe incorrect. Vérifiez vos informations.';
+          // Refocus sur le champ mot de passe pour aider l'utilisateur
+          if (passwordRef.current) {
+            passwordRef.current.focus();
+          }
+        } else if (error.isTooManyRequests()) message = 'Trop de tentatives de connexion. Réessayez dans quelques minutes.';
         else if (error.isNetworkError()) message = 'Problème de connexion. Vérifiez votre connexion internet.';
         else message = error.getDisplayMessage() || message;
       }
       setErrors({ general: message });
+      // Scroll vers le bandeau d'erreur pour visibilité mobile
+      setTimeout(() => {
+        if (errorBannerRef.current) {
+          errorBannerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 0);
     } finally {
       setIsLoading(false);
     }
@@ -355,11 +368,11 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
       {/* Login Form */}
       <form onSubmit={handleSubmit} noValidate>
         {/* Global Error */}
-        {errors.general && (
-          <div className="error-banner" role="alert" aria-live="polite">
+        {(errors.general || authError) && (
+          <div className="error-banner" role="alert" aria-live="polite" ref={errorBannerRef}>
             <div className="error-content">
               <span className="error-icon" aria-hidden="true">🚨</span>
-              <span className="error-text">{errors.general}</span>
+              <span className="error-text">{errors.general || authError || ''}</span>
             </div>
           </div>
         )}
@@ -380,19 +393,34 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
               disabled={isLoading}
             />
 
-            <FormInput
-              type="password"
-              name="password"
-              placeholder="Mot de passe"
-              value={formData.password}
-              onChange={handleChange}
-              error={errors.password}
-              autoComplete="current-password"
-              maxLength={128}
-              required
-              disabled={isLoading}
-              showPasswordToggle
-            />
+            {/* Inject ref sur l'input mot de passe via wrapper */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="password">Mot de passe<span className="required-asterisk" aria-label="requis">*</span></label>
+              <div className={`input-wrapper ${errors.password ? 'error' : ''}`}>
+                <input
+                  id="password"
+                  ref={passwordRef}
+                  type="password"
+                  name="password"
+                  className="form-input"
+                  placeholder="Mot de passe"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="current-password"
+                  maxLength={128}
+                  required
+                  disabled={isLoading}
+                  aria-invalid={errors.password ? 'true' : 'false'}
+                  aria-describedby={errors.password ? 'password-error' : undefined}
+                />
+              </div>
+              {errors.password && (
+                <div className="form-error" id="password-error" role="alert">
+                  <span className="error-icon">⚠️</span>
+                  {errors.password}
+                </div>
+              )}
+            </div>
           </>
         )}
 
