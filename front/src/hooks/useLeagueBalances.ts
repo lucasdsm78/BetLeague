@@ -128,39 +128,30 @@ export function useLeagueBalances(
     setLoadingIds(new Set(missing));
 
     try {
-      // Limitation de concurrence simple.
-      const queue = [...missing];
-      const workers = Array.from({ length: Math.max(1, Math.min(concurrency, queue.length)) });
+      // Si rien à fetch (cache rempli), on sort vite.
+      if (missing.length === 0) {
+        return;
+      }
 
-      await Promise.all(
-        workers.map(async () => {
-          while (queue.length > 0) {
-            if (abortRef.current?.signal.aborted) return;
-            const leagueId = queue.shift();
-            if (!leagueId) return;
+      // 1 seule requête bulk (beaucoup plus rapide que N requêtes)
+      const bulk = await leagueApiService.getLeaguesBalancesBulk(missing);
+      if (!bulk.success) {
+        // fallback léger: on évite d’afficher une UI bloquée
+        throw new Error(bulk.error || 'Erreur lors du chargement des soldes (bulk)');
+      }
 
-            try {
-              const nb = await fetchOne(leagueId);
-              balanceCache.set(leagueId, nb);
-              if (!mountedRef.current) return;
+      const balancesFromApi = bulk.data?.balances || {};
+      const forbidden = new Set(bulk.data?.forbidden || []);
 
-              setBalances((prev) => ({ ...prev, [leagueId]: nb }));
-            } catch {
-              balanceCache.set(leagueId, defaultBalance);
-              if (!mountedRef.current) return;
-              setBalances((prev) => ({ ...prev, [leagueId]: defaultBalance }));
-            } finally {
-              if (mountedRef.current) {
-                setLoadingIds((prev) => {
-                  const next = new Set(prev);
-                  next.delete(leagueId);
-                  return next;
-                });
-              }
-            }
-          }
-        })
-      );
+      for (const leagueId of missing) {
+        const value = forbidden.has(leagueId)
+          ? defaultBalance
+          : (Number(balancesFromApi[leagueId]) || defaultBalance);
+
+        balanceCache.set(leagueId, value);
+        if (!mountedRef.current) return;
+        setBalances((prev) => ({ ...prev, [leagueId]: value }));
+      }
     } catch (e: any) {
       if (!mountedRef.current) return;
       if (String(e?.name) === 'AbortError') return;
@@ -168,9 +159,10 @@ export function useLeagueBalances(
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
+        setLoadingIds(new Set());
       }
     }
-  }, [ids, concurrency, defaultBalance, fetchOne]);
+  }, [ids, defaultBalance]);
 
   useEffect(() => {
     // À chaque changement d’IDs, on hydrate depuis le cache.

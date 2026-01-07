@@ -99,6 +99,24 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         except:
             raise
 
+    async def get_balances_by_league_ids(self, user_id: int, league_ids: List[int]) -> Dict[int, float]:
+        if not league_ids:
+            return {}
+
+        try:
+            query = (
+                select(DBLeaguePlayers.league_id, DBLeaguePlayers.nb_btl)
+                .where(
+                    DBLeaguePlayers.user_id == user_id,
+                    DBLeaguePlayers.league_id.in_(league_ids)
+                )
+            )
+            result = await self.session.execute(query)
+            rows = result.all()
+            return {int(league_id): float(nb_btl or 0) for league_id, nb_btl in rows}
+        except:
+            raise
+
     async def delete_player(self, league_player_id: int):
         try:
             query = select(DBLeaguePlayers).where(DBLeaguePlayers.id == league_player_id)
