@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
-    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail
+    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError
@@ -41,7 +41,7 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_league_balance(self, email: str, league_id: int) -> dict:
+    async def get_leagues_balances(self, email: str, league_ids: List[int]) -> LeagueBalancesBulkResponse:
         raise NotImplementedError
 
 
@@ -219,24 +219,26 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         except Exception as e:
             raise e
 
-    async def get_league_balance(self, email: str, league_id: int) -> dict:
+    async def get_leagues_balances(self, email: str, league_ids: List[int]) -> LeagueBalancesBulkResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
             raise UserNotFoundError
 
-        league = await self.league_repository.find_by_id(league_id)
-        if not league:
-            raise LeagueNotFoundError
+        ids = [int(i) for i in league_ids if isinstance(i, int) and i > 0]
+        ids = list(dict.fromkeys(ids))
+        if not ids:
+            return LeagueBalancesBulkResponse(balances={}, not_found=[], forbidden=[])
 
-        participated = await self.league_players_repository.find_participation(
-            league_id=league_id,
-            user_id=user.id
-        )
-        if not participated:
-            raise LeagueParticipantNotFoundError
+        leagues = await self.league_repository.find_all_by_ids(ids)
+        existing_ids = {int(l.id) for l in leagues}
+        not_found = [i for i in ids if i not in existing_ids]
 
-        league_player = await self.league_players_repository.get_participation(
-            league_id=league_id,
-            user_id=user.id
+        balances = await self.league_players_repository.get_balances_by_league_ids(user.id, list(existing_ids))
+        participated_ids = set(balances.keys())
+        forbidden = [i for i in ids if (i in existing_ids and i not in participated_ids)]
+
+        return LeagueBalancesBulkResponse(
+            balances=balances,
+            not_found=not_found,
+            forbidden=forbidden,
         )
-        return {"nb_btl": league_player.nb_btl}

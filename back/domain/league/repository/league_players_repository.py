@@ -27,6 +27,10 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_balances_by_league_ids(self, user_id: int, league_ids: List[int]) -> Dict[int, float]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def count_players(self, league_id: int) -> int:
         raise NotImplementedError
 

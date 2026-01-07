@@ -1,6 +1,7 @@
 from typing import Optional
 from typing import List
 
+from pydantic import conlist
 from pydantic import Field, BaseModel
 
 from domain.league.model.league import League
@@ -90,3 +91,16 @@ class LeaguesListResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class LeagueBalancesBulkRequest(BaseModel):
+    league_ids: conlist(int, min_length=1, max_length=200) = Field(
+        ..., description="Liste d'IDs de ligues (max 200)."
+    )
+
+
+class LeagueBalancesBulkResponse(BaseModel):
+    balances: dict[int, float] = Field(default_factory=dict)
+    not_found: List[int] = Field(default_factory=list)
+    forbidden: List[int] = Field(default_factory=list)
+
