@@ -183,6 +183,48 @@ class UserProfileService {
       return true; // En cas d'erreur, on laisse le serveur valider
     }
   }
+
+  /**
+   * Récupère le profil complet de l'utilisateur connecté
+   * Inclut nb_btl, nb_win, nb_lose, etc.
+   * @returns Le profil utilisateur complet
+   */
+  async fetchCurrentUserProfile(): Promise<ApiResponse<UpdateProfileResponse['user']>> {
+    try {
+      const response = await secureApiClient.get<UpdateProfileResponse['user']>('/auth/me');
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Impossible de récupérer le profil utilisateur');
+      }
+
+      // Mettre à jour le store avec les nouvelles données
+      const authStore = useAuthStore.getState();
+      if (authStore.user && response.data) {
+        // Convertir l'id du backend (number) en string pour correspondre au type User
+        const userData = {
+          ...response.data,
+          id: String(response.data.id), // Conversion number -> string
+        };
+
+        authStore.updateUser({
+          ...authStore.user,
+          ...userData,
+          // Mapper les champs du backend vers le format frontend
+          btlBalance: response.data.nb_btl,
+        });
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error('❌ Failed to fetch user profile:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la récupération du profil utilisateur',
+        status: 500,
+        headers: {},
+      };
+    }
+  }
 }
 
 // Export singleton instance
