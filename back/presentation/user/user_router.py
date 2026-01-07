@@ -6,14 +6,16 @@ from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
-    UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel
+    UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
+    InvalidPasswordError
 )
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
 from application.user.user_query_usecase import UserQueryUseCase
 from domain.user.exception.user_exception import (
     UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError,
-    FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError
+    FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError,
+    UserLoginNotFoundError
 )
 from presentation.user.user_error_message import (
     ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, ErrorMessageUserNotFound
@@ -95,6 +97,14 @@ async def login(
     try:
         user = await user_command_usecase.login(user_login_model)
         return user.for_login()
+    except (UserLoginNotFoundError, InvalidPasswordError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Email ou mot de passe incorrect.",
+                "code": "INVALID_CREDENTIALS"
+            }
+        )
     except FARequiredError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -116,7 +126,6 @@ async def login(
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed."
