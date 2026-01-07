@@ -78,6 +78,16 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+export interface LeagueBalanceResponse {
+  nb_btl: number;
+}
+
+export interface LeagueBalancesBulkResponse {
+  balances: Record<number, number>;
+  not_found: number[];
+  forbidden: number[];
+}
+
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
@@ -767,6 +777,69 @@ class LeagueApiService {
         return { success: false, error: 'Ligue introuvable.' };
       }
       return { success: false, error: msg };
+    }
+  }
+
+  /**
+   * Bulk: récupérer les soldes BTL de l’utilisateur sur plusieurs ligues.
+   * Backend: POST /leagues/balances { league_ids: number[] }
+   */
+  public async getLeaguesBalancesBulk(leagueIds: number[]): Promise<ApiResponse<LeagueBalancesBulkResponse>> {
+    try {
+      const ids = Array.from(new Set(leagueIds)).filter((id) => Number.isInteger(id) && id > 0);
+      if (ids.length === 0) {
+        return { success: true, data: { balances: {}, not_found: [], forbidden: [] } };
+      }
+
+      const data = await this.makeRequest<LeagueBalancesBulkResponse>(`/leagues/balances`, {
+        method: 'POST',
+        body: JSON.stringify({ league_ids: ids }),
+      });
+
+      const balances = (data as any)?.balances && typeof (data as any).balances === 'object' ? (data as any).balances : {};
+      return {
+        success: true,
+        data: {
+          balances: Object.fromEntries(
+            Object.entries(balances).map(([k, v]) => [Number(k), Number(v) || 0])
+          ),
+          not_found: Array.isArray((data as any)?.not_found) ? (data as any).not_found : [],
+          forbidden: Array.isArray((data as any)?.forbidden) ? (data as any).forbidden : [],
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error?.message || 'Erreur lors du chargement des soldes (bulk)',
+      };
+    }
+  }
+
+  /**
+   * Récupérer le solde BTL de l’utilisateur dans une ligue.
+   * Backend attendu: GET /league/{leagueId}/balance -> { nb_btl: number }
+   */
+  public async getLeagueBalance(leagueId: number): Promise<ApiResponse<LeagueBalanceResponse>> {
+    try {
+      if (!Number.isInteger(leagueId) || leagueId <= 0) {
+        throw new Error('ID de ligue invalide');
+      }
+
+      const data = await this.makeRequest<LeagueBalanceResponse>(`/league/${leagueId}/balance`, {
+        method: 'GET',
+      });
+
+      return {
+        success: true,
+        data: {
+          nb_btl: Number((data as any)?.nb_btl) || 0,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error?.message || 'Erreur lors du chargement du solde de la ligue',
+      };
     }
   }
 
