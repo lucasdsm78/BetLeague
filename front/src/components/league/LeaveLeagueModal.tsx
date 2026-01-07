@@ -5,6 +5,7 @@
 
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import leagueApiService from '../../services/leagueApiService';
+import userProfileService from '../../services/userProfileService';
 import './LeaveLeagueModal.css';
 
 interface LeaveLeagueModalProps {
@@ -74,6 +75,15 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
       const result = await leagueApiService.leaveLeague(leagueId);
 
       if (result.success) {
+        // Rafraîchir le profil utilisateur pour récupérer le solde BTL mis à jour
+        const profileResult = await userProfileService.fetchCurrentUserProfile();
+
+        if (profileResult.success && profileResult.data) {
+          console.log('✅ User profile refreshed. New BTL balance:', profileResult.data.nb_btl);
+        } else {
+          console.warn('⚠️ Failed to refresh user profile, but league exit was successful');
+        }
+
         // Call success callback
         if (onLeaveSuccess) {
           onLeaveSuccess();
@@ -126,7 +136,7 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
           </p>
 
           <p className="leave-hint">
-            Si la ligue est payante et n'a pas encore commencé, vos BTL seront recrédités.
+            Si la ligue est payante et n'a pas encore commencé, vos BTL seront automatiquement recrédités sur votre compte.
           </p>
 
           {/* Error Message */}
