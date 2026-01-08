@@ -6,6 +6,7 @@ import { createTicket, createTournamentBet } from '../../services/ticketsApi';
 import { getParticipatedLeagues, getLeagueBalance } from '../../services/leaguesApi';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { getUserTournamentMatches, getTournamentPlayerBalance, type TournamentMatchOption } from '../../services/tournamentApi';
+import { useTicketsRefreshStore } from 'store/ticketsStore';
 
 // Types
 interface MatchOdds {
@@ -492,6 +493,8 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): Match => {
 };
 
 const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
+    const bumpTicketsRefresh = useTicketsRefreshStore((s) => s.bumpRefresh);
+
     const [matches, setMatches] = useState<Match[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -815,6 +818,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 setDesktopStake('');
                 setDesktopSelectedTournamentMatchId('');
 
+                bumpTicketsRefresh();
+
                 alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
             } else {
                 if (!desktopSelectedLeagueId) return;
@@ -832,6 +837,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 setSelectedBets([]);
                 setDesktopStake('');
 
+                bumpTicketsRefresh();
+
                 alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
             }
         } catch (e: any) {
@@ -841,7 +848,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 if (errorMsg.includes('user') || errorMsg.includes('utilisateur')) {
                     setDesktopError('Utilisateur non trouvé. Veuillez vous reconnecter.');
                 } else if (errorMsg.includes('tournament') || errorMsg.includes('tournoi')) {
-                    setDesktopError('Tournoi non trouvé ou vous n\'y participez plus.');
+                    setDesktopError("Tournoi non trouvé ou vous n'y participez plus.");
                 } else if (errorMsg.includes('match')) {
                     setDesktopError('Match non trouvé ou invalide.');
                 } else {
@@ -850,7 +857,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
             } else if (errorMsg.includes('mise') || errorMsg.includes('solde') || errorMsg.includes('balance')) {
                 setDesktopError('Mise supérieure au solde disponible.');
             } else if (errorMsg.includes('started') || errorMsg.includes('commencé') || errorMsg.includes('démarré')) {
-                setDesktopError('Le tournoi n\'est pas encore commencé ou est déjà terminé.');
+                setDesktopError("Le tournoi n'est pas encore commencé ou est déjà terminé.");
             } else if (errorMsg.includes('not in tournament') || errorMsg.includes('pas inscrit')) {
                 setDesktopError('Vous devez être inscrit au tournoi pour parier.');
             } else if (errorMsg.includes('eliminated') || errorMsg.includes('éliminé')) {
@@ -863,7 +870,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         } finally {
             setIsSubmittingDesktop(false);
         }
-    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId]);
+    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh]);
 
     // Charger les ligues quand le drawer s'ouvre
     useEffect(() => {
@@ -1038,6 +1045,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 setDrawerSelectedTournamentMatchId('');
                 setIsTicketDrawerOpen(false);
 
+                bumpTicketsRefresh();
+
                 alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
             } else {
                 if (!drawerSelectedLeagueId) return;
@@ -1055,6 +1064,8 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 setDrawerStake('');
                 setIsTicketDrawerOpen(false);
 
+                bumpTicketsRefresh();
+
                 alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
             }
         } catch (e: any) {
@@ -1064,7 +1075,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 if (errorMsg.includes('user') || errorMsg.includes('utilisateur')) {
                     setDrawerError('Utilisateur non trouvé. Veuillez vous reconnecter.');
                 } else if (errorMsg.includes('tournament') || errorMsg.includes('tournoi')) {
-                    setDrawerError('Tournoi non trouvé ou vous n\'y participez plus.');
+                    setDrawerError("Tournoi non trouvé ou vous n'y participez plus.");
                 } else if (errorMsg.includes('match')) {
                     setDrawerError('Match non trouvé ou invalide.');
                 } else {
@@ -1073,7 +1084,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
             } else if (errorMsg.includes('mise') || errorMsg.includes('solde') || errorMsg.includes('balance')) {
                 setDrawerError('Mise supérieure au solde disponible.');
             } else if (errorMsg.includes('started') || errorMsg.includes('commencé') || errorMsg.includes('démarré')) {
-                setDrawerError('Le tournoi n\'est pas encore commencé ou est déjà terminé.');
+                setDrawerError("Le tournoi n'est pas encore commencé ou est déjà terminé.");
             } else if (errorMsg.includes('not in tournament') || errorMsg.includes('pas inscrit')) {
                 setDrawerError('Vous devez être inscrit au tournoi pour parier.');
             } else if (errorMsg.includes('eliminated') || errorMsg.includes('éliminé')) {
@@ -1086,12 +1097,12 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         } finally {
             setIsSubmittingDrawer(false);
         }
-    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId]);
+    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh]);
 
     const handleTicketCreated = useCallback(() => {
-        // Nettoyer les paris sélectionnés mais garder la modale ouverte pour afficher le succès
         setSelectedBets([]);
-    }, []);
+        bumpTicketsRefresh();
+    }, [bumpTicketsRefresh]);
 
     if (isLoading) {
         return (
