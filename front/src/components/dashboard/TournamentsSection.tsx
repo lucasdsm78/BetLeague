@@ -85,6 +85,9 @@ const TournamentsSection: React.FC = () => {
   const handleTournamentCreated = useCallback(() => {
     showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
     setRefreshCounter(prev => prev + 1);
+
+    // Le créateur est auto-inscrit côté back : on l’envoie directement sur “Mes tournois”
+    setActiveTab('my-tournaments');
   }, []); // Removed showInfo - it's stable and doesn't need to trigger re-creation
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
@@ -272,6 +275,7 @@ const TournamentsSection: React.FC = () => {
         <CreateTournamentModal
           onClose={handleCloseCreateModal}
           onTournamentCreated={handleTournamentCreated}
+          onSwitchToMyTournaments={() => setActiveTab('my-tournaments')}
         />
       )}
 
