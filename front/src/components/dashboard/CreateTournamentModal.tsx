@@ -11,9 +11,10 @@ import './CreateTournamentModal.css';
 interface CreateTournamentModalProps {
   onClose: () => void;
   onTournamentCreated: () => void;
+  onSwitchToMyTournaments?: () => void;
 }
 
-const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, onTournamentCreated }) => {
+const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, onTournamentCreated, onSwitchToMyTournaments }) => {
   const [formData, setFormData] = useState<TournamentCreateRequest>({
     name: '',
     is_private: false,
@@ -79,10 +80,11 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
 
       showSuccess(
         'Tournoi créé !',
-        `Le tournoi "${formData.name.trim()}" a été créé avec succès`
+        `Tu es automatiquement inscrit au tournoi "${formData.name.trim()}".`
       );
 
       onTournamentCreated();
+      onSwitchToMyTournaments?.();
       onClose();
     } catch (error: any) {
       const errorMessage =
@@ -93,7 +95,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, showSuccess, showError, onTournamentCreated, onClose]);
+  }, [formData, validateForm, showSuccess, showError, onTournamentCreated, onSwitchToMyTournaments, onClose]);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isSubmitting && canCloseRef.current) {
