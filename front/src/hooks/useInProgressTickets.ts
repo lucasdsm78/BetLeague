@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getInProgressTickets } from '../services/ticketsApi';
 import type { TicketReadModel } from '../types/ticket';
+import { useTicketsRefreshStore } from '../store/ticketsStore';
 
 export interface UseInProgressTicketsOptions {
   refreshIntervalMs?: number; // auto-refresh interval, disabled if undefined
@@ -22,6 +23,8 @@ export function useInProgressTickets(options: UseInProgressTicketsOptions = {}):
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const intervalRef = useRef<number | null>(null);
+
+  const refreshSeq = useTicketsRefreshStore((s) => s.refreshSeq);
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -53,7 +56,7 @@ export function useInProgressTickets(options: UseInProgressTicketsOptions = {}):
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [fetchTickets]);
+  }, [fetchTickets, refreshSeq]);
 
   // Auto-refresh optionnel
   useEffect(() => {
