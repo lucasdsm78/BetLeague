@@ -104,8 +104,7 @@ class TournamentRepositoryImpl(TournamentRepository):
             )
             .where(
                 DBTournamentPlayer.user_id == user_id,
-                DBTournamentPlayer.is_eliminated.is_(False),
-                DBTournament.status == TournamentStatus.IN_PROGRESS.value
+                DBTournament.user_id != user_id
             )
             .order_by(DBTournament.created_at.desc())
             .limit(limit)
