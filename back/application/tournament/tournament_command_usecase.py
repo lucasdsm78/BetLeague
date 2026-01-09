@@ -59,6 +59,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             async with session.begin():
                 user_repo = UserRepositoryImpl(session)
                 tournament_repo = TournamentRepositoryImpl(session)
+                players_repo = TournamentPlayersRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -71,6 +72,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 uuid = shortuuid.uuid()
                 now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
+                # Le back impose le format actuel (16 joueurs) pour éviter toute manipulation côté client
                 max_players = 16
                 tournament = Tournament(
                     uuid=uuid,
@@ -90,7 +92,20 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 created_tournament = await tournament_repo.find_by_uuid(uuid)
 
-        # await self.join_tournament(created_tournament.id, email)
+                # Auto-inscription du créateur (atomique, pas de second appel API)
+                existing_player = await players_repo.get_player(created_tournament.id, user.id)
+                if not existing_player:
+                    player = TournamentPlayer(
+                        user_id=user.id,
+                        tournament_id=created_tournament.id,
+                        nb_btl=100,
+                        is_eliminated=False,
+                    )
+                    await players_repo.add_player(player)
+
+                    created_tournament.current_players += 1
+                    created_tournament.prize_pool += created_tournament.entry_fee
+                    await tournament_repo.update(created_tournament)
 
         return TournamentCreateResponse(
             tournament_id=created_tournament.id,
