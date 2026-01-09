@@ -124,7 +124,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
         <form onSubmit={handleSubmit} className="tournament-form">
           <div className="form-section">
             <p className="form-description">
-              Créez votre tournoi et affrontez jusqu'à 16 joueurs dans une compétition à élimination directe !
+              Créez votre tournoi et affrontez 15 autres joueurs dans une compétition à élimination directe !
             </p>
 
             {/* Tournament Name */}
