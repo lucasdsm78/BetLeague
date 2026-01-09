@@ -4,7 +4,7 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getMyTournaments, getTournamentStages, type MyTournament } from '../../services/tournamentApi';
+import { getMyTournaments, type MyTournament } from '../../services/tournamentApi';
 import TournamentStages from './TournamentStages';
 import { useToast } from '../../hooks/useToast';
 import './MyTournaments.css';
@@ -69,10 +69,10 @@ const MyTournaments: React.FC = memo(() => {
           <div className="my-tournaments-header-text">
             <h2 className="my-tournaments-title">
               <span className="title-icon">🏅</span>
-              Mes tournois
+              Mes tournois rejoints
             </h2>
             <p className="my-tournaments-subtitle">
-              Tous les tournois auxquels vous participez
+              Tous les tournois que vous avez rejoints
             </p>
           </div>
         </div>
@@ -104,7 +104,7 @@ const MyTournaments: React.FC = memo(() => {
         {!isLoading && !error && tournaments.length === 0 && (
           <div className="my-tournaments-empty">
             <span className="empty-icon">🎯</span>
-            <h3>Aucun tournoi en cours</h3>
+            <h3>Aucun tournoi rejoint</h3>
             <p>Vous n'êtes inscrit à aucun tournoi pour le moment.</p>
             <p className="empty-hint">Rejoignez ou créez un tournoi pour commencer à jouer !</p>
           </div>

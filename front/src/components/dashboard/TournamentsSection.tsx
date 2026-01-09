@@ -164,7 +164,7 @@ const TournamentsSection: React.FC = () => {
           aria-selected={activeTab === 'my-tournaments'}
         >
           <span className="tab-icon" aria-hidden="true">🏅</span>
-          <span className="tab-label">Mes tournois</span>
+          <span className="tab-label">Mes tournois rejoints</span>
         </button>
         <button
           type="button"
