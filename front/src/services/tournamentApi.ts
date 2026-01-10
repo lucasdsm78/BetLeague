@@ -9,6 +9,7 @@ export interface TournamentCreateRequest {
   name: string;
   is_private: boolean;
   max_players: number;
+  start_date?: number;
 }
 
 export interface TournamentCreateResponse {
@@ -123,6 +124,7 @@ export const createTournament = async (
     name: String(data.name ?? '').trim(),
     is_private: Boolean(data.is_private),
     max_players: 16,
+    ...(typeof data.start_date === 'number' ? { start_date: data.start_date } : {}),
   };
 
   try {
