@@ -16,6 +16,7 @@ from domain.token.token_exception import TokenInvalidError
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, UserNotInTournamentError, \
     TournamentAlreadyStartedError
 from domain.user.exception.user_exception import UserNotFoundError
+from domain.ticket.exception.duplicate_match_choice_error import DuplicateMatchChoiceError
 
 router = APIRouter(
     prefix="/api",
@@ -77,6 +78,12 @@ async def create_ticket(
     except MiseSuperiorToNbBtlError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message,
+        )
+
+    except DuplicateMatchChoiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=e.message,
         )
 
