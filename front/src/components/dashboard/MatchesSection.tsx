@@ -617,20 +617,17 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
 
     const handleAddToBet = useCallback((bet: Bet) => {
         setSelectedBets(prev => {
-            // Éviter les doublons du même match
-            const existingIndex = prev.findIndex(
-                b => b.matchId === bet.matchId && b.betType === bet.betType
-            );
+            // Un match ne doit apparaître qu'une seule fois dans le ticket.
+            // Si l'utilisateur change d'avis (1/N/2), on remplace la sélection existante pour ce match.
+            const existingIndex = prev.findIndex(b => b.matchId === bet.matchId);
 
             if (existingIndex >= 0) {
-                // Remplacer le pari existant
                 const newBets = [...prev];
                 newBets[existingIndex] = bet;
                 return newBets;
-            } else {
-                // Ajouter le nouveau pari
-                return [...prev, bet];
             }
+
+            return [...prev, bet];
         });
     }, []);
 

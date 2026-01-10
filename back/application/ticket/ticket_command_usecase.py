@@ -17,6 +17,7 @@ from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.ticket.event.match_choice_status_updated_event import MatchChoiceStatusUpdatedEvent
 from domain.ticket.exception.ticket_exception import GainNotEqualsError, TicketNotFoundError, NotTicketOwnerError, \
      MatchAlreadyStartedError, MiseSuperiorToNbBtlError
+from domain.ticket.exception.duplicate_match_choice_error import DuplicateMatchChoiceError
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
@@ -109,6 +110,13 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
         if updated:
             await mc_repo.delete_by_ticket_id(ticket_id)
+
+        seen: set[int] = set()
+        for cd in match_choices_data:
+            mid = int(cd.match_id)
+            if mid in seen:
+                raise DuplicateMatchChoiceError
+            seen.add(mid)
 
         already_started = await match_repo.exists_match_started_for_ticket(match_choices_data)
         if already_started:
