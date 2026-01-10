@@ -72,7 +72,9 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 uuid = shortuuid.uuid()
                 now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
-                # Le back impose le format actuel (16 joueurs) pour éviter toute manipulation côté client
+                start_ms = data.start_date if data.start_date is not None else now_ms
+                end_ms = start_ms + int(timedelta(days=7).total_seconds() * 1000)
+
                 max_players = 16
                 tournament = Tournament(
                     uuid=uuid,
@@ -83,8 +85,8 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                     prize_pool=0,
                     entry_fee=5.0,
                     status=TournamentStatus.PENDING,
-                    start_date=now_ms,
-                    end_date=int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp() * 1000),
+                    start_date=start_ms,
+                    end_date=end_ms,
                     user=UserSummary(id=user.id, email=user.email, pseudo=user.pseudo),
                 )
 

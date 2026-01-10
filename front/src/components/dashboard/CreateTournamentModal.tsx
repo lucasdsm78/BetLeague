@@ -14,16 +14,49 @@ interface CreateTournamentModalProps {
   onSwitchToMyTournaments?: () => void;
 }
 
+type CreateTournamentFormErrors = Partial<{
+  name: string;
+  max_players: string;
+  start_date: string;
+  end_date: string;
+}>;
+
+const TOURNAMENT_DURATION_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const toDatetimeLocalValue = (epochMs?: number): string => {
+  if (!epochMs || !Number.isFinite(epochMs)) return '';
+  const d = new Date(epochMs);
+  // datetime-local attend une date "locale" sans timezone
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+const datetimeLocalToEpochMs = (value: string): number | undefined => {
+  const v = String(value ?? '').trim();
+  if (!v) return undefined;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : undefined;
+};
+
+const addDaysMs = (epochMs: number, days: number): number => epochMs + days * DAY_MS;
+
 const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, onTournamentCreated, onSwitchToMyTournaments }) => {
   const [formData, setFormData] = useState<TournamentCreateRequest>({
     name: '',
     is_private: false,
-    max_players: 16
+    max_players: 16,
+    start_date: undefined,
   });
+
+  const [startDateLocal, setStartDateLocal] = useState<string>('');
+  const [endDateLocal, setEndDateLocal] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof TournamentCreateRequest, string>>>({});
+  const [errors, setErrors] = useState<CreateTournamentFormErrors>({});
   const { showSuccess, showError } = useToast();
   const canCloseRef = useRef(false);
+  const didInitDatesRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -35,8 +68,29 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     };
   }, []);
 
+  const resetDatesToToday = useCallback(() => {
+    const now = Date.now();
+    const startLocal = toDatetimeLocalValue(now);
+    const endMs = addDaysMs(now, TOURNAMENT_DURATION_DAYS);
+
+    setStartDateLocal(startLocal);
+    setEndDateLocal(toDatetimeLocalValue(endMs));
+    setFormData(prev => ({
+      ...prev,
+      start_date: now,
+    }));
+    setErrors(prev => ({ ...prev, start_date: undefined, end_date: undefined }));
+  }, []);
+
+  // Initialise par défaut: début = aujourd'hui, fin = +7 jours (affichage)
+  useEffect(() => {
+    if (didInitDatesRef.current) return;
+    didInitDatesRef.current = true;
+    resetDatesToToday();
+  }, [resetDatesToToday]);
+
   const validateForm = useCallback((): boolean => {
-    const newErrors: Partial<Record<keyof TournamentCreateRequest, string>> = {};
+    const newErrors: CreateTournamentFormErrors = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'Le nom est requis';
@@ -52,13 +106,38 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       newErrors.max_players = 'Le nombre de joueurs doit être 16';
     }
 
+    // Dates: fin auto-calculée (+7 jours). On valide seulement le début.
+    const startMs = datetimeLocalToEpochMs(startDateLocal);
+    if (startDateLocal && startMs === undefined) {
+      newErrors.start_date = 'Date de début invalide';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, startDateLocal]);
 
   const handleInputChange = useCallback((field: keyof TournamentCreateRequest, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => ({ ...prev, [field]: undefined }));
+  }, []);
+
+  const handleStartDateChange = useCallback((value: string) => {
+    setStartDateLocal(value);
+
+    const startMs = datetimeLocalToEpochMs(value);
+    if (startMs === undefined) {
+      setFormData(prev => ({ ...prev, start_date: undefined }));
+      setEndDateLocal('');
+      setErrors(prev => ({ ...prev, start_date: 'Date de début invalide' }));
+      return;
+    }
+
+    // Affichage UX: fin = début + 7 jours (source de vérité = backend)
+    const endMs = addDaysMs(startMs, TOURNAMENT_DURATION_DAYS);
+    setEndDateLocal(toDatetimeLocalValue(endMs));
+
+    setFormData(prev => ({ ...prev, start_date: startMs }));
+    setErrors(prev => ({ ...prev, start_date: undefined }));
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -75,7 +154,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
       await createTournament({
         name: formData.name.trim(),
         is_private: formData.is_private,
-        max_players: 16
+        max_players: 16,
+        ...(typeof formData.start_date === 'number' ? { start_date: formData.start_date } : {}),
       });
 
       showSuccess(
@@ -202,11 +282,62 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
               </div>
             </div>
 
+            {/* Dates */}
+            <div className="form-group">
+              <div className="form-label-row">
+                <label htmlFor="tournament-start-date" className="form-label">
+                  <span className="label-icon">🗓️</span>
+                  Date de début
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-tertiary btn-reset-today"
+                  onClick={resetDatesToToday}
+                  disabled={isSubmitting}
+                >
+                  <span className="label-desktop">Réinitialiser à aujourd’hui</span>
+                  <span className="label-mobile">Aujourd’hui</span>
+                </button>
+              </div>
+              <input
+                id="tournament-start-date"
+                type="datetime-local"
+                className={`form-input ${errors.start_date ? 'error' : ''}`}
+                value={startDateLocal}
+                onChange={(e) => handleStartDateChange(e.target.value)}
+                disabled={isSubmitting}
+                inputMode="numeric"
+              />
+              {errors.start_date && (
+                <span className="form-error">{errors.start_date}</span>
+              )}
+              <span className="form-hint">Durée fixe : {TOURNAMENT_DURATION_DAYS} jours (fin calculée automatiquement).</span>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="tournament-end-date" className="form-label">
+                <span className="label-icon">⏳</span>
+                Date de fin
+              </label>
+              <input
+                id="tournament-end-date"
+                type="datetime-local"
+                className={`form-input ${errors.end_date ? 'error' : ''}`}
+                value={endDateLocal}
+                disabled
+                readOnly
+              />
+              {errors.end_date && (
+                <span className="form-error">{errors.end_date}</span>
+              )}
+              <span className="form-hint">Calcul automatique : début + {TOURNAMENT_DURATION_DAYS} jours.</span>
+            </div>
+
             {/* Tournament Info */}
             <div className="tournament-info-box">
               <div className="info-item">
                 <span className="info-icon">⏱️</span>
-                <span className="info-text">Durée : 7 jours</span>
+                <span className="info-text">Durée : {TOURNAMENT_DURATION_DAYS} jours</span>
               </div>
               <div className="info-item">
                 <span className="info-icon">🎯</span>
