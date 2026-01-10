@@ -59,6 +59,7 @@ class LeagueReadModel(BaseModel):
             name=league.name,
             end_date=league.end_date,
             is_started=league.is_started,
+            nb_players_remaining=league.nb_players_remaining,
             user_creator=UserSummaryLeagueDetail(id=league.user.id, pseudo=league.user.pseudo),
         )
 
