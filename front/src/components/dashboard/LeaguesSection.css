@@ -339,19 +339,19 @@
 .btn-action--invite,
 .btn-action--edit {
   background: transparent;
-  border-color: var(--color-primary-500);
-  color: var(--color-primary-600);
+  border-color: var(--color-info-500);
+  color: var(--color-info-600);
 }
 
 .btn-action--view:hover:not(:disabled),
 .btn-action--ranking:hover:not(:disabled),
 .btn-action--invite:hover:not(:disabled),
 .btn-action--edit:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
-  border-color: var(--color-primary-600);
+  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600));
+  border-color: var(--color-info-600);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
 .btn-action--view:active:not(:disabled),
@@ -484,16 +484,16 @@
 [data-theme="dark"] .btn-action--ranking,
 [data-theme="dark"] .btn-action--invite,
 [data-theme="dark"] .btn-action--edit {
-  border-color: var(--color-primary-400);
-  color: var(--color-primary-400);
+  border-color: var(--color-info-400);
+  color: var(--color-info-400);
 }
 
 [data-theme="dark"] .btn-action--view:hover:not(:disabled),
 [data-theme="dark"] .btn-action--ranking:hover:not(:disabled),
 [data-theme="dark"] .btn-action--invite:hover:not(:disabled),
 [data-theme="dark"] .btn-action--edit:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
-  border-color: var(--color-primary-500);
+  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600));
+  border-color: var(--color-info-500);
 }
 
 [data-theme="dark"] .btn-action--leave {
