@@ -194,29 +194,36 @@ export const useAuthStore = create<AuthStoreWithActions>()(
 
       refreshSession: async () => {
         const state = get();
-        if (!state.isAuthenticated || !state.token) return;
+        if (!state.isAuthenticated) return;
 
         try {
-          // Call refresh endpoint
-          const response = await fetch('/api/auth/refresh', {
-            method: 'POST',
-            headers: {
-              'X-Authentication': `Bearer ${state.token}`,
-              'Content-Type': 'application/json',
-            },
-          });
+          // Utiliser le service d'auth principal (gère refresh token + single-flight + cooldown)
+          const enhancedAuthService = (await import('../services/authService.enhanced')).default;
+          const ok = await enhancedAuthService.forceRefresh();
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.token) {
-              set((prev) => ({ ...prev, token: data.token, sessionExpiry: Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT }));
-            }
-          } else {
-            throw new Error('Session refresh failed');
+          if (!ok) {
+            // Si le refresh échoue sans signal clair, on ne logout pas immédiatement.
+            // Le prochain appel API déclenchera un refresh ou une erreur explicite.
+            return;
           }
-        } catch (error) {
-          console.warn('Session refresh failed:', error);
-          get().logout();
+
+          const newToken = enhancedAuthService.getCurrentToken();
+          if (newToken) {
+            set((prev) => ({
+              ...prev,
+              token: newToken,
+              sessionExpiry: Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT,
+            }));
+          }
+        } catch (error: any) {
+          // Ne pas déconnecter sur erreurs réseau/transitoires.
+          // On ne logout que si le refresh token est réellement invalide/expiré.
+          const status = Number(error?.status || error?.response?.status || 0);
+          if (status === 401 || status === 403) {
+            get().logout();
+          } else {
+            console.warn('Session refresh failed (non-fatal):', error);
+          }
         }
       },
 
