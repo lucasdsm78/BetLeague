@@ -15,6 +15,60 @@ import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
 import type { LeaguesPage } from '../../services/leaguesPaging';
 
+// SVG Icons for action buttons - inline for performance
+const IconEye = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
+
+const IconUserPlus = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <line x1="20" y1="8" x2="20" y2="14" />
+        <line x1="23" y1="11" x2="17" y2="11" />
+    </svg>
+);
+
+const IconTrophy = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+        <path d="M4 22h16" />
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+);
+
+const IconEdit = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+);
+
+const IconLogOut = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+);
+
+const IconPlay = () => (
+    <svg className="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
+    </svg>
+);
+
+const IconLoader = () => (
+    <span className="loading-spinner" aria-hidden="true" />
+);
+
 interface LeagueCardProps {
     league: LeagueSummary;
     onView: (league: LeagueSummary) => void;
@@ -120,15 +174,75 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
             </div>
 
             <div className="league-actions">
+                {/* View Details Button */}
                 <button
-                    className="btn btn-secondary"
+                    className="btn-action btn-action--view"
                     onClick={() => onView(league)}
+                    aria-label={`Voir les détails de ${league.name}`}
                 >
-                    Voir détails
+                    <IconEye />
+                    <span>Détails</span>
                 </button>
+
+                {/* Ranking Button */}
+                {showRankingButton && onViewRanking && (
+                    <button
+                        className="btn-action btn-action--ranking"
+                        onClick={() => onViewRanking(league)}
+                        title={`Voir le classement de ${league.name}`}
+                        aria-label={`Voir le classement de la ligue ${league.name}`}
+                    >
+                        <IconTrophy />
+                        <span>Classement</span>
+                    </button>
+                )}
+
+                {/* Invite Button */}
+                {showInviteButton && onInvite && (
+                    <button
+                        className="btn-action btn-action--invite"
+                        onClick={() => onInvite(league)}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
+                        aria-label={`Inviter des utilisateurs dans la ligue ${league.name}`}
+                    >
+                        <IconUserPlus />
+                        <span>Inviter</span>
+                    </button>
+                )}
+
+                {/* Edit Button */}
+                {showEditButton && onEdit && (
+                    <button
+                        className="btn-action btn-action--edit"
+                        onClick={() => onEdit(league)}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
+                        aria-label={`Modifier la ligue ${league.name}`}
+                    >
+                        <IconEdit />
+                        <span>Modifier</span>
+                    </button>
+                )}
+
+                {/* Leave Button */}
+                {showLeaveButton && onLeave && (
+                    <button
+                        className="btn-action btn-action--leave"
+                        onClick={() => { if (!league.isStarted) onLeave(league); }}
+                        disabled={league.isStarted}
+                        title={league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
+                        aria-label={`Quitter la ligue ${league.name}`}
+                    >
+                        <IconLogOut />
+                        <span>Quitter</span>
+                    </button>
+                )}
+
+                {/* Join Button */}
                 {showJoinButton && onJoin && (
                     <button
-                        className="btn btn-primary"
+                        className={`btn-action btn-action--join ${isJoining ? 'is-loading' : ''}`}
                         onClick={() => onJoin(league)}
                         disabled={isJoining || league.isStarted}
                         title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Rejoindre cette ligue'}
@@ -136,62 +250,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     >
                         {isJoining ? (
                             <>
-                                <span className="loading-spinner"></span>
-                                Rejoindre...
+                                <IconLoader />
+                                <span>Rejoindre...</span>
                             </>
                         ) : league.isStarted ? (
-                            'Déjà commencée'
+                            <span>Déjà commencée</span>
                         ) : (
-                            'Rejoindre'
+                            <>
+                                <IconPlay />
+                                <span>Rejoindre</span>
+                            </>
                         )}
-                    </button>
-                )}
-                {showInviteButton && onInvite && (
-                    <button
-                        className="btn btn-outline"
-                        onClick={() => onInvite(league)
-                        }
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
-                        aria-label={`Inviter des utilisateurs dans la ligue ${league.name}`}
-                    >
-                        <span className="invite-icon">✉️</span>
-                        Inviter
-                    </button>
-                )}
-                {showRankingButton && onViewRanking && (
-                    <button
-                        className="btn btn-secondary btn-ranking"
-                        onClick={() => onViewRanking(league)}
-                        title={`Voir le classement de ${league.name}`}
-                        aria-label={`Voir le classement de la ligue ${league.name}`}
-                    >
-                        <span className="ranking-icon">🏆</span>
-                        Classement
-                    </button>
-                )}
-                {showLeaveButton && onLeave && (
-                    <button
-                        className="btn btn-danger btn-leave"
-                        onClick={() => { if (!league.isStarted) onLeave(league); }}
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
-                        aria-label={`Quitter la ligue ${league.name}`}
-                    >
-                        <span className="leave-icon">🚪</span>
-                        Quitter
-                    </button>
-                )}
-                {showEditButton && onEdit && (
-                    <button
-                        className="btn btn-outline btn-edit"
-                        onClick={() => onEdit(league)}
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
-                        aria-label={`Modifier la ligue ${league.name}`}
-                    >
-                        <span className="edit-icon">✏️</span>
-                        Modifier
                     </button>
                 )}
             </div>
