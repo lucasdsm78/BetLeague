@@ -176,7 +176,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
             <div className="league-actions">
                 {/* View Details Button */}
                 <button
-                    className="btn-action btn-action--view"
+                    className="btn btn-primary"
                     onClick={() => onView(league)}
                     aria-label={`Voir les détails de ${league.name}`}
                 >
@@ -187,7 +187,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {/* Ranking Button */}
                 {showRankingButton && onViewRanking && (
                     <button
-                        className="btn-action btn-action--ranking"
+                        className="btn btn-primary"
                         onClick={() => onViewRanking(league)}
                         title={`Voir le classement de ${league.name}`}
                         aria-label={`Voir le classement de la ligue ${league.name}`}
@@ -200,7 +200,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {/* Invite Button */}
                 {showInviteButton && onInvite && (
                     <button
-                        className="btn-action btn-action--invite"
+                        className="btn btn-primary"
                         onClick={() => onInvite(league)}
                         disabled={league.isStarted}
                         title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
@@ -214,7 +214,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {/* Edit Button */}
                 {showEditButton && onEdit && (
                     <button
-                        className="btn-action btn-action--edit"
+                        className="btn btn-primary"
                         onClick={() => onEdit(league)}
                         disabled={league.isStarted}
                         title={league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
@@ -228,7 +228,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {/* Leave Button */}
                 {showLeaveButton && onLeave && (
                     <button
-                        className="btn-action btn-action--leave"
+                        className="btn btn-danger"
                         onClick={() => { if (!league.isStarted) onLeave(league); }}
                         disabled={league.isStarted}
                         title={league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
@@ -242,7 +242,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {/* Join Button */}
                 {showJoinButton && onJoin && (
                     <button
-                        className={`btn-action btn-action--join ${isJoining ? 'is-loading' : ''}`}
+                        className={`btn btn-primary ${isJoining ? 'is-loading' : ''}`}
                         onClick={() => onJoin(league)}
                         disabled={isJoining || league.isStarted}
                         title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Rejoindre cette ligue'}
