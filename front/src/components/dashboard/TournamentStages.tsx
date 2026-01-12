@@ -171,11 +171,6 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
               {/* Stage Info */}
               <div className="stage-card-body">
                 <div className="stage-info-grid">
-                  <div className="stage-info-item">
-                    <span className="stage-info-label">Créée le</span>
-                    <span className="stage-info-value">{formatDate(stage.created_at)}</span>
-                  </div>
-
                   {stage.start_date && (
                     <div className="stage-info-item">
                       <span className="stage-info-label">Début</span>
@@ -189,14 +184,6 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
                       <span className="stage-info-value">{formatDate(stage.end_date)}</span>
                     </div>
                   )}
-
-                  <div className="stage-info-item">
-                    <span className="stage-info-label">Organisateur</span>
-                    <span className="stage-info-value stage-organizer">
-                      <span className="organizer-icon">👤</span>
-                      {stage.user_summary.username}
-                    </span>
-                  </div>
                 </div>
 
                 {/* View Matches Button */}
