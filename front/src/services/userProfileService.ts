@@ -3,28 +3,22 @@
  * Handles profile data updates with validation and error handling
  */
 
-import secureApiClient, { ApiResponse } from './secureApiClient';
-import enhancedAuthService from './authService.enhanced';
 import { useAuthStore } from '../store/authStore';
+import {
+  updateProfile as apiUpdateProfile,
+  checkPseudoAvailability as apiCheckPseudoAvailability,
+  checkEmailAvailability as apiCheckEmailAvailability,
+  getCurrentUserProfile as apiGetCurrentUserProfile,
+  type ApiUpdateProfileData,
+  type ApiUpdateProfileResponse,
+} from './api/userProfile';
 
 export interface UpdateProfileData {
   pseudo?: string;
   email?: string;
 }
 
-export interface UpdateProfileResponse {
-  message: string;
-  token_auth?: string;
-  refresh_token?: string;
-  user?: {
-    id: number;
-    email: string;
-    pseudo: string;
-    nb_win: number;
-    nb_lose: number;
-    nb_btl: number;
-  };
-}
+export interface UpdateProfileResponse extends ApiUpdateProfileResponse {}
 
 class UserProfileService {
   /**
@@ -32,71 +26,28 @@ class UserProfileService {
    * @param data - Données à mettre à jour (pseudo et/ou email)
    * @returns Response avec les données mises à jour
    */
-  async updateProfile(data: UpdateProfileData): Promise<ApiResponse<UpdateProfileResponse>> {
+  async updateProfile(data: UpdateProfileData) {
     // Validation côté client
     this.validateUpdateData(data);
 
-    const emailChanged = !!data.email;
+    const response = await apiUpdateProfile(data as ApiUpdateProfileData);
 
-    try {
-      const response = await secureApiClient.put<UpdateProfileResponse>('/auth/user', data);
-
-      if (!response.success) {
-        throw new Error(response.error || 'Échec de la mise à jour du profil');
-      }
-
-      // Si l'email a été modifié et que le backend renvoie un nouveau token
-      if (emailChanged && response.data?.token_auth) {
-
-        // Mettre à jour le token dans le store
-        const authStore = useAuthStore.getState();
-        if (authStore.user) {
-          authStore.login(
-            {
-              ...authStore.user,
-              email: data.email || authStore.user.email,
-              pseudo: data.pseudo || authStore.user.pseudo || authStore.user.username || ''
-            },
-            response.data.token_auth
-          );
-        }
-
-        // Stocker le nouveau token dans enhancedAuthService
-        const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24h par défaut
-        const tokenPair = {
-          accessToken: response.data.token_auth,
-          refreshToken: response.data.refresh_token || '__no_refresh__',
-          expiresAt
-        };
-
-        // Mettre à jour le token dans le storage
-        try {
-          localStorage.setItem('auth_access_token', tokenPair.accessToken);
-          if (response.data.refresh_token) {
-            localStorage.setItem('auth_refresh_token', response.data.refresh_token);
-          }
-          localStorage.setItem('auth_token_expiry', expiresAt.toString());
-        } catch (e) {
-          console.warn('Failed to store new token:', e);
-        }
-
-      } else if (emailChanged) {
-        // Si le backend ne renvoie pas de nouveau token, forcer un refresh
-        try {
-          const refreshed = await enhancedAuthService.forceRefresh();
-          if (!refreshed) {
-            console.warn('⚠️ Token refresh failed, but update succeeded');
-          }
-        } catch (error) {
-          console.warn('⚠️ Token refresh error:', error);
-        }
-      }
-
-      return response;
-    } catch (error: any) {
-      console.error('❌ Profile update error:', error);
-      throw error;
+    // Mettre à jour le store avec les nouvelles données si disponibles
+    const authStore = useAuthStore.getState();
+    if (authStore.user) {
+      authStore.updateUser({
+        ...authStore.user,
+        ...(data.pseudo ? { pseudo: data.pseudo } : {}),
+        ...(data.email ? { email: data.email } : {}),
+      });
     }
+
+    return {
+      success: true,
+      data: response,
+      status: 200,
+      headers: {},
+    };
   }
 
   /**
@@ -155,14 +106,9 @@ class UserProfileService {
    */
   async checkPseudoAvailability(pseudo: string): Promise<boolean> {
     try {
-      const response = await secureApiClient.get<{ available: boolean }>(
-        `/auth/check-pseudo?pseudo=${encodeURIComponent(pseudo)}`
-      );
-
-      return response.data?.available ?? false;
-    } catch (error) {
-      console.warn('Impossible de vérifier la disponibilité du pseudo:', error);
-      return true; // En cas d'erreur, on laisse le serveur valider
+      return await apiCheckPseudoAvailability(pseudo);
+    } catch {
+      return true;
     }
   }
 
@@ -173,14 +119,9 @@ class UserProfileService {
    */
   async checkEmailAvailability(email: string): Promise<boolean> {
     try {
-      const response = await secureApiClient.get<{ available: boolean }>(
-        `/auth/check-email?email=${encodeURIComponent(email)}`
-      );
-
-      return response.data?.available ?? false;
-    } catch (error) {
-      console.warn('Impossible de vérifier la disponibilité de l\'email:', error);
-      return true; // En cas d'erreur, on laisse le serveur valider
+      return await apiCheckEmailAvailability(email);
+    } catch {
+      return true;
     }
   }
 
@@ -189,34 +130,27 @@ class UserProfileService {
    * Inclut nb_btl, nb_win, nb_lose, etc.
    * @returns Le profil utilisateur complet
    */
-  async fetchCurrentUserProfile(): Promise<ApiResponse<UpdateProfileResponse['user']>> {
+  async fetchCurrentUserProfile() {
     try {
-      const response = await secureApiClient.get<UpdateProfileResponse['user']>('/auth/me');
+      const profile = await apiGetCurrentUserProfile();
 
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Impossible de récupérer le profil utilisateur');
-      }
-
-      // Mettre à jour le store avec les nouvelles données
       const authStore = useAuthStore.getState();
-      if (authStore.user && response.data) {
-        // Convertir l'id du backend (number) en string pour correspondre au type User
-        const userData = {
-          ...response.data,
-          id: String(response.data.id), // Conversion number -> string
-        };
-
+      if (authStore.user) {
         authStore.updateUser({
           ...authStore.user,
-          ...userData,
-          // Mapper les champs du backend vers le format frontend
-          btlBalance: response.data.nb_btl,
+          ...profile,
+          id: String(profile.id),
+          btlBalance: profile.nb_btl,
         });
       }
 
-      return response;
+      return {
+        success: true,
+        data: profile,
+        status: 200,
+        headers: {},
+      };
     } catch (error: any) {
-      console.error('❌ Failed to fetch user profile:', error);
       return {
         success: false,
         error: error.message || 'Erreur lors de la récupération du profil utilisateur',
