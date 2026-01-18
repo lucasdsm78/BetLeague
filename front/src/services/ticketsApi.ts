@@ -1,21 +1,35 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
 import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../types/ticket';
+import type {
+  ApiMatchChoiceCreate,
+  ApiTicketCreateRequest,
+  ApiTicketCreateResponse,
+  ApiTicketsInProgressResponse,
+  ApiTicketsFinishedResponse,
+  ApiTicketDetailResponse,
+  ApiTicketReadModel,
+} from '../types/api/tickets';
 
-export interface MatchChoiceData {
-  match_id: number;
-  choice: '1' | 'N' | '2';
+export type MatchChoiceData = ApiMatchChoiceCreate;
+export type TicketCreatePayload = ApiTicketCreateRequest;
+export type TicketCreateResponse = ApiTicketCreateResponse;
+
+// Mapping minimal DTO -> UI (actuellement mêm shape, mais ça isole le reste du code)
+function mapApiTicketToUi(ticket: ApiTicketReadModel): TicketReadModel {
+  return ticket as unknown as TicketReadModel;
 }
 
-export interface TicketCreatePayload {
-  match_choices: MatchChoiceData[];
-  mise: number;
-  gain?: number | null;
+function normalizeInProgress(data: ApiTicketsInProgressResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown): TicketsInProgressResponse {
+  const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
+  const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
+  return { tickets: tickets.map(mapApiTicketToUi) };
 }
 
-export interface TicketCreateResponse {
-  message: string;
-  ticket_id?: number;
+function normalizeFinished(data: ApiTicketsFinishedResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown): TicketsFinishedResponse {
+  const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
+  const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
+  return { tickets: tickets.map(mapApiTicketToUi) };
 }
 
 export async function createTicket(leagueId: number, payload: TicketCreatePayload): Promise<TicketCreateResponse> {
@@ -28,19 +42,14 @@ export async function createTicket(leagueId: number, payload: TicketCreatePayloa
 }
 
 export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
-  const normalize = (data: any): TicketsInProgressResponse => {
-    const payload = data?.tickets ?? data?.ticket ?? data;
-    return { tickets: Array.isArray(payload) ? payload : [] };
-  };
-
   // Endpoints possibles selon versions du backend
   const endpoints = ['/tickets/in-progress', '/ticket/in-progress', '/tickets/in_progress', '/ticket/in_progress'];
 
   let lastError: string | undefined;
   for (const endpoint of endpoints) {
-    const res: ApiResponse<any> = await secureApiClient.get(endpoint);
+    const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await secureApiClient.get(endpoint);
     if (res.success) {
-      return normalize(res.data);
+      return normalizeInProgress(res.data);
     }
     lastError = res.error;
   }
@@ -51,21 +60,19 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
 export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
   // 1) Essai plural
   try {
-    const res: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/tickets/finished');
+    const res: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await secureApiClient.get('/tickets/finished');
     if (res.success) {
-      const data = res.data as TicketsFinishedResponse;
-      return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+      return normalizeFinished(res.data);
     }
   } catch (e) {
     // ignore pour tenter le fallback
   }
   // 2) Fallback singulier
-  const fallback: ApiResponse<TicketsFinishedResponse> = await secureApiClient.get('/ticket/finished');
+  const fallback: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await secureApiClient.get('/ticket/finished');
   if (!fallback.success) {
     throw new Error(fallback.error || 'Récupération des tickets terminés échouée');
   }
-  const data = fallback.data as TicketsFinishedResponse;
-  return { tickets: Array.isArray(data?.tickets) ? data.tickets : [] };
+  return normalizeFinished(fallback.data);
 }
 
 export async function getTicketDetail(
@@ -76,22 +83,22 @@ export async function getTicketDetail(
     throw new Error('Ticket invalide');
   }
 
-  const tryParse = (data: any): TicketReadModel => {
-    const ticket = data?.ticket ?? data;
+  const tryParse = (data: ApiTicketDetailResponse): TicketReadModel => {
+    const ticket = (data as any)?.ticket ?? data;
     if (!ticket || typeof ticket !== 'object') {
       throw new Error('Format de réponse invalide pour le ticket');
     }
-    if (!('id' in ticket) || !('match_choice_summaries' in ticket)) {
+    if (!('id' in (ticket as any)) || !('match_choice_summaries' in (ticket as any))) {
       throw new Error('Format de ticket invalide');
     }
-    return ticket as TicketReadModel;
+    return mapApiTicketToUi(ticket as ApiTicketReadModel);
   };
 
   // 1) Essai plural: /tickets/:id
   try {
-    const resPlural: ApiResponse<any> = await secureApiClient.get(`/tickets/${ticketId}`, { signal: options?.signal });
+    const resPlural: ApiResponse<ApiTicketDetailResponse> = await secureApiClient.get(`/tickets/${ticketId}`, { signal: options?.signal });
     if (resPlural.success) {
-      return tryParse(resPlural.data);
+      return tryParse(resPlural.data as ApiTicketDetailResponse);
     }
     // si non succès, on tente le fallback
   } catch (e) {
@@ -99,19 +106,19 @@ export async function getTicketDetail(
   }
 
   // 2) Fallback singulier: /ticket/:id
-  const resSingular: ApiResponse<any> = await secureApiClient.get(`/ticket/${ticketId}`, { signal: options?.signal });
+  const resSingular: ApiResponse<ApiTicketDetailResponse> = await secureApiClient.get(`/ticket/${ticketId}`, { signal: options?.signal });
   if (!resSingular.success) {
     throw new Error(resSingular.error || 'Récupération du ticket échouée');
   }
-  return tryParse(resSingular.data);
+  return tryParse(resSingular.data as ApiTicketDetailResponse);
 }
 
 export async function deleteTicket(ticketId: number | string): Promise<{ success: boolean; message?: string }> {
-  const res: ApiResponse<any> = await secureApiClient.delete(`/ticket/${ticketId}`);
+  const res: ApiResponse<{ message?: string }> = await secureApiClient.delete(`/ticket/${ticketId}`);
   if (!res.success) {
     throw new Error(res.error || 'Suppression du ticket échouée');
   }
-  return { success: true, message: (res.data as any)?.message };
+  return { success: true, message: res.data?.message };
 }
 
 /**

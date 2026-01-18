@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
+import leagueApiService from '../../services/leagueApiService';
+import type { ApiUserSearchResult } from '../../types/api/leagues';
 import secureApiClient from '../../services/secureApiClient';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
@@ -456,7 +457,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         availableQuery.refetch();
     }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, refetchProfile]);
 
-    const handleInvitationSent = useCallback((user: UserSearchResult) => {
+    const handleInvitationSent = useCallback((user: ApiUserSearchResult) => {
         showSuccess('Invitation envoyée', `Invitation envoyée à ${user.pseudo} avec succès !`);
     }, [showSuccess]);
 

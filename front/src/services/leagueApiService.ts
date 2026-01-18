@@ -4,8 +4,24 @@
  */
 
 import secureApiClient from './secureApiClient';
-import { LeagueSummary } from '../types';
+import type { LeagueSummary } from '../types';
 import { mapLeaguesPage, type LeaguesPage, type LeaguesPageApi } from './leaguesPaging';
+import type {
+  ApiLeagueCreateRequest,
+  ApiLeagueMessageResponse,
+  ApiLeagueBalancesBulkResponse,
+  ApiLeagueBalanceResponse,
+  ApiUserSearchResult,
+  ApiLeagueRankingRow,
+  ApiInvitationReceived,
+} from '../types/api/leagues';
+
+// DTO local (réponse update invitation) : à migrer ensuite dans src/types/api/leagues.ts si on veut.
+export interface InvitationActionResponse {
+  message: string;
+  success: boolean;
+  error?: string;
+}
 
 export interface LeagueCreateFormData {
   name: string;
@@ -15,93 +31,19 @@ export interface LeagueCreateFormData {
   description?: string;
 }
 
-export interface LeagueCreateRequest {
-  name: string;
-  max_players: number;
-  is_private: boolean;
-  is_free: boolean;
-  nb_btl?: number;
-}
-
-export interface LeagueResponse {
-  message: string;
-}
-
-export interface League {
-  id: number;
-  name: string;
-  type: 'public' | 'private';
-  members: number;
-  maxMembers: number;
-  myRank: number;
-  totalPot: number;
-  endDate: string;
-  status: 'active' | 'ended' | 'pending';
-  admin: string;
-}
-
-export interface UserSummaryLeagueDetail {
-  id: number;
-  pseudo: string;
-}
-
-export interface LeagueInvitationSummary {
-  id: number;
-  name: string;
-  max_players: number;
-  start_date: number;
-  user_creator: UserSummaryLeagueDetail;
-  nb_players_remaining: number;
-  is_started?: boolean;
-}
-
-export interface InvitationReceived {
-  id: number;
-  league: LeagueInvitationSummary;
-  status: string;
-}
-
-export interface InvitationsResponse {
-  pending?: InvitationReceived[];
-}
-
-export interface InvitationActionResponse {
-  message: string;
-  success: boolean;
-  error?: string;
-}
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-export interface LeagueBalanceResponse {
-  nb_btl: number;
-}
-
-export interface LeagueBalancesBulkResponse {
-  balances: Record<number, number>;
-  not_found: number[];
-  forbidden: number[];
-}
-
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
 }
 
-export interface UserSearchResult {
-  id: number;
-  pseudo: string;
-  email: string;
-}
+// NOTE: ce service construit des objets "success/data/error" pour la UI.
+// Le type ApiResponse (secureApiClient) inclut status/headers et reste réservé au client HTTP.
 
-export interface InviteUserRequest {
-  leagueId: number;
-  userId: number;
+export interface LegacyApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }
 
 class LeagueApiService {
@@ -248,7 +190,7 @@ class LeagueApiService {
   /**
    * Create a new league with enhanced validation and security
    */
-  public async createLeague(formData: LeagueCreateFormData): Promise<ApiResponse<LeagueResponse>> {
+  public async createLeague(formData: LeagueCreateFormData): Promise<LegacyApiResponse<ApiLeagueMessageResponse>> {
     try {
       // Input validation with security checks
       const nameValidation = this.validateLeagueName(formData.name);
@@ -270,7 +212,7 @@ class LeagueApiService {
       }
 
       // Transform and sanitize data to match LeagueCreateModel
-      const payload: LeagueCreateRequest = {
+      const payload: ApiLeagueCreateRequest = {
         name: formData.name.trim(),
         max_players: formData.maxMembers,
         is_private: formData.type === 'private',
@@ -280,7 +222,7 @@ class LeagueApiService {
 
       console.log('📤 Creating league with payload:', payload);
 
-      const response = await this.makeRequest<LeagueResponse>('/league/create', {
+      const response = await this.makeRequest<ApiLeagueMessageResponse>('/league/create', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -304,7 +246,7 @@ class LeagueApiService {
   /**
    * Nouvelle API paginée - Ligues disponibles
    */
-  public async getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+  public async getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<LegacyApiResponse<LeaguesPage>> {
     try {
       const data = await this.makeRequest<LeaguesPageApi>('/leagues', {
         method: 'GET',
@@ -317,7 +259,7 @@ class LeagueApiService {
   }
 
   /** Nouvelle API paginée - Ligues créées */
-  public async getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+  public async getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<LegacyApiResponse<LeaguesPage>> {
     try {
       const data = await this.makeRequest<LeaguesPageApi>('/leagues/created', {
         method: 'GET',
@@ -330,7 +272,7 @@ class LeagueApiService {
   }
 
   /** Nouvelle API paginée - Ligues rejointes */
-  public async getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<ApiResponse<LeaguesPage>> {
+  public async getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<LegacyApiResponse<LeaguesPage>> {
     try {
       const data = await this.makeRequest<LeaguesPageApi>('/leagues/participated', {
         method: 'GET',
@@ -391,13 +333,13 @@ class LeagueApiService {
   /**
    * Join a league by ID
    */
-  public async joinLeague(leagueId: number): Promise<ApiResponse<LeagueResponse>> {
+  public async joinLeague(leagueId: number): Promise<LegacyApiResponse<ApiLeagueMessageResponse>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      const response = await this.makeRequest<LeagueResponse>(`/league/${leagueId}/join`, {
+      const response = await this.makeRequest<ApiLeagueMessageResponse>(`/league/${leagueId}/join`, {
         method: 'POST',
       });
 
@@ -418,11 +360,11 @@ class LeagueApiService {
   /**
    * Get received invitations with enhanced error handling
    */
-  public async getReceivedInvitations(): Promise<ApiResponse<InvitationReceived[]>> {
+  public async getReceivedInvitations(): Promise<LegacyApiResponse<ApiInvitationReceived[]>> {
     try {
       console.log('🔍 Fetching received invitations...');
 
-      const response = await this.makeRequest<InvitationReceived[]>(
+      const response = await this.makeRequest<ApiInvitationReceived[]>(
         `/invitations?is_received=true`
       );
 
@@ -492,7 +434,7 @@ class LeagueApiService {
   /**
    * Update invitation status (accept/decline) with enhanced validation
    */
-  public async updateInvitation(invitationId: number, accept: boolean): Promise<ApiResponse<InvitationActionResponse>> {
+  public async updateInvitation(invitationId: number, accept: boolean): Promise<LegacyApiResponse<InvitationActionResponse>> {
     try {
       if (!Number.isInteger(invitationId) || invitationId <= 0) {
         throw new Error('ID d\'invitation invalide');
@@ -544,7 +486,7 @@ class LeagueApiService {
   /**
    * Get league details by ID
    */
-  public async getLeagueDetails(leagueId: number): Promise<ApiResponse<any>> {
+  public async getLeagueDetails(leagueId: number): Promise<LegacyApiResponse<any>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
@@ -567,7 +509,7 @@ class LeagueApiService {
   /**
    * Search users with enhanced validation and security
    */
-  public async searchUsers(query: string): Promise<ApiResponse<{ users: UserSearchResult[] }>> {
+  public async searchUsers(query: string): Promise<LegacyApiResponse<{ users: ApiUserSearchResult[] }>> {
     try {
       if (!query || typeof query !== 'string') {
         throw new Error('Terme de recherche requis');
@@ -598,7 +540,7 @@ class LeagueApiService {
       console.log('🔍 Searching users with query:', trimmedQuery);
 
       // Use the new dedicated search endpoint
-      const response = await this.makeRequest<{ users: UserSearchResult[]; total: number; query: string }>(`/auth/users/search?q=${encodeURIComponent(trimmedQuery)}`);
+      const response = await this.makeRequest<{ users: ApiUserSearchResult[]; total: number; query: string }>(`/auth/users/search?q=${encodeURIComponent(trimmedQuery)}`);
 
       if (!response?.users || !Array.isArray(response.users)) {
         throw new Error('Format de réponse invalide');
@@ -609,7 +551,7 @@ class LeagueApiService {
         id: Number(user.id),
         pseudo: String(user.pseudo || 'Utilisateur'),
         email: String(user.email || ''),
-      }));
+      })) as ApiUserSearchResult[];
 
       console.log(`✅ Found ${users.length} users matching query:`, trimmedQuery);
 
@@ -667,7 +609,7 @@ class LeagueApiService {
   /**
    * Invite a user to a league with enhanced validation
    */
-  public async inviteUserToLeague(leagueId: number, userId: number): Promise<ApiResponse<LeagueResponse>> {
+  public async inviteUserToLeague(leagueId: number, userId: number): Promise<LegacyApiResponse<ApiLeagueMessageResponse>> {
     try {
       // Input validation
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
@@ -683,7 +625,7 @@ class LeagueApiService {
       const inviteEndpoint = `/league/${leagueId}/${userId}/invite`;
       console.log(`🔗 Invite endpoint: ${inviteEndpoint}`);
 
-      const response = await this.makeRequest<LeagueResponse>(inviteEndpoint, {
+      const response = await this.makeRequest<ApiLeagueMessageResponse>(inviteEndpoint, {
         method: 'POST',
       });
 
@@ -724,15 +666,13 @@ class LeagueApiService {
    */
   public async getLeagueRanking(
     leagueId: number
-  ): Promise<ApiResponse<Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>>> {
+  ): Promise<LegacyApiResponse<ApiLeagueRankingRow[]>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      const data = await this.makeRequest<
-        Array<{ position: number; pseudo: string; nb_btl: number; nb_win: number; nb_lose: number }>
-      >(`/league/${leagueId}/rank`, { method: 'GET' });
+      const data = await this.makeRequest<ApiLeagueRankingRow[]>(`/league/${leagueId}/rank`, { method: 'GET' });
 
       if (!Array.isArray(data)) {
         throw new Error('Format de réponse invalide');
@@ -751,7 +691,7 @@ class LeagueApiService {
    * Quitter une ligue (désinscription)
    * Backend conservé: DELETE /league/{id}/player/delete
    */
-  public async leaveLeague(leagueId: number): Promise<ApiResponse<{ message: string }>> {
+  public async leaveLeague(leagueId: number): Promise<LegacyApiResponse<{ message: string }>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
@@ -784,14 +724,14 @@ class LeagueApiService {
    * Bulk: récupérer les soldes BTL de l’utilisateur sur plusieurs ligues.
    * Backend: POST /leagues/balances { league_ids: number[] }
    */
-  public async getLeaguesBalancesBulk(leagueIds: number[]): Promise<ApiResponse<LeagueBalancesBulkResponse>> {
+  public async getLeaguesBalancesBulk(leagueIds: number[]): Promise<LegacyApiResponse<ApiLeagueBalancesBulkResponse>> {
     try {
       const ids = Array.from(new Set(leagueIds)).filter((id) => Number.isInteger(id) && id > 0);
       if (ids.length === 0) {
         return { success: true, data: { balances: {}, not_found: [], forbidden: [] } };
       }
 
-      const data = await this.makeRequest<LeagueBalancesBulkResponse>(`/leagues/balances`, {
+      const data = await this.makeRequest<ApiLeagueBalancesBulkResponse>(`/leagues/balances`, {
         method: 'POST',
         body: JSON.stringify({ league_ids: ids }),
       });
@@ -819,13 +759,13 @@ class LeagueApiService {
    * Récupérer le solde BTL de l’utilisateur dans une ligue.
    * Backend attendu: GET /league/{leagueId}/balance -> { nb_btl: number }
    */
-  public async getLeagueBalance(leagueId: number): Promise<ApiResponse<LeagueBalanceResponse>> {
+  public async getLeagueBalance(leagueId: number): Promise<LegacyApiResponse<ApiLeagueBalanceResponse>> {
     try {
       if (!Number.isInteger(leagueId) || leagueId <= 0) {
         throw new Error('ID de ligue invalide');
       }
 
-      const data = await this.makeRequest<LeagueBalanceResponse>(`/league/${leagueId}/balance`, {
+      const data = await this.makeRequest<ApiLeagueBalanceResponse>(`/league/${leagueId}/balance`, {
         method: 'GET',
       });
 
@@ -855,7 +795,7 @@ class LeagueApiService {
    * Nouveau helper: récupère les 3 listes (available/created/participated) côté UI.
    * On s'aligne sur le back: /leagues, /leagues/created, /leagues/participated.
    */
-  public async getUserLeaguesLists(page = 1, pageSize = 10): Promise<ApiResponse<{ available: LeagueSummary[]; created: LeagueSummary[]; participated: LeagueSummary[] }>> {
+  public async getUserLeaguesLists(page = 1, pageSize = 10): Promise<LegacyApiResponse<{ available: LeagueSummary[]; created: LeagueSummary[]; participated: LeagueSummary[] }>> {
     try {
       const [available, created, participated] = await Promise.all([
         this.getAvailableLeaguesPage(page, pageSize),

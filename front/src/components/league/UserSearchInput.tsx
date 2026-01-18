@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
-import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
+import leagueApiService from '../../services/leagueApiService';
+import type { ApiUserSearchResult } from '../../types/api/leagues';
 import './UserSearchInput.css';
 
 interface UserSearchInputProps {
-  onUserSelect: (user: UserSearchResult) => void;
+  onUserSelect: (user: ApiUserSearchResult) => void;
   placeholder?: string;
   disabled?: boolean;
   excludeUserIds?: number[];
@@ -16,7 +17,7 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
   excludeUserIds = []
 }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserSearchResult[]>([]);
+  const [results, setResults] = useState<ApiUserSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
@@ -84,7 +85,7 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
   }, [performSearch]);
 
   // Handle user selection
-  const handleUserSelect = useCallback((user: UserSearchResult) => {
+  const handleUserSelect = useCallback((user: ApiUserSearchResult) => {
     onUserSelect(user);
     setQuery(user.pseudo);
     setIsOpen(false);
