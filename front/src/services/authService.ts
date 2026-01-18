@@ -5,8 +5,8 @@
 
 /** Legacy Authentication Service (restored) */
 import http from './http';
-// ApiClientError n'est plus utilisé avec http/secureApiClient
-import type { User, LoginForm, RegisterForm, LoginResponse, RegisterResponse } from '../types';
+import type { User, LoginForm, RegisterForm } from '../types';
+import type { ApiLoginResponse as LoginResponse, ApiRegisterResponse as RegisterResponse } from '../types/api/auth';
 
 export class AuthError extends Error { constructor(public message:string, public readonly status:number=0, public readonly code?:string, public readonly data?:unknown){ super(message); this.name='AuthError'; }
   isNetworkError(){return this.status===0;} isTimeout(){return this.status===408;} isUnauthorized(){return this.status===401;} isForbidden(){return this.status===403;} isConflict(){return this.status===409;} isTooManyRequests(){return this.status===429;} isServerError(){return this.status>=500;} isValidationError(){return this.status===422;} getDisplayMessage(){return this.message;} }
