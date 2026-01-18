@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import './EditAccountModal.css';
-import userProfileService from 'services/userProfileService';
+import { useUpdateProfileMutation } from '../../hooks/queries/useProfileMutations';
 
 interface EditAccountModalProps {
   pseudo: string;
@@ -66,6 +66,8 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
            formData.email.trim().toLowerCase() !== originalData.email.toLowerCase();
   }, [formData, originalData]);
 
+  const updateProfileMutation = useUpdateProfileMutation();
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -102,7 +104,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
         updateData.email = formData.email.trim().toLowerCase();
       }
 
-      const response = await userProfileService.updateProfile(updateData);
+      const response = await updateProfileMutation.mutateAsync(updateData);
 
       if (response.success) {
         setSuccess(true);
@@ -140,7 +142,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, originalData, validateField, hasChanges, onSuccess, onClose]);
+  }, [formData, originalData, validateField, hasChanges, onSuccess, onClose, updateProfileMutation]);
 
   // Fermer avec Escape
   useEffect(() => {

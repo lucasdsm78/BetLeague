@@ -1,12 +1,14 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MatchesSection.css';
-import { getMatchesPage, type ApiMatchReadModel, type MatchesListResponse } from '../../services/matchesApi';
+import type { ApiMatchReadModel } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
 import { createTicket, createTournamentBet } from '../../services/ticketsApi';
 import type { TournamentMatchOption } from '../../services/tournamentApi';
 import { useTicketsRefreshStore } from 'store/ticketsStore';
 import { useParticipatedLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
 import { useTournamentPlayerBalanceQuery } from '../../hooks/queries/useTournamentBettingQueries';
+import { useMatchesInfiniteQuery } from '../../hooks/queries/useMatchesInfiniteQuery';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 // Types
 interface MatchOdds {
@@ -495,10 +497,8 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): Match => {
 
 const MatchesSection = memo<MatchesSectionProps>(() => {
     const bumpTicketsRefresh = useTicketsRefreshStore((s) => s.bumpRefresh);
+    const { showSuccess, showError } = useGlobalToast();
 
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
     const [sortBy, setSortBy] = useState<string>('kickoff');
@@ -587,57 +587,37 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         setDrawerError(null);
     }, [isTicketDrawerOpen]);
 
-    // Pagination & Infinite Scroll
-    const [page, setPage] = useState<number>(1);
-    const [pageSize] = useState<number>(20);
-    const [totalPages, setTotalPages] = useState<number>(1);
-    const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
+    // Pagination & Infinite Scroll (React Query)
+    const pageSize = 20;
+    const matchesQuery = useMatchesInfiniteQuery(pageSize);
+
+    const matches = useMemo(() => {
+        const pages = matchesQuery.data?.pages ?? [];
+        return pages.flatMap((p) => (p.matches ?? []).map(mapApiMatchToUi));
+    }, [matchesQuery.data]);
+
+    const isLoading = matchesQuery.isLoading;
+    const error = (matchesQuery.error as any)?.message ?? null;
+    const isFetchingMore = matchesQuery.isFetchingNextPage;
 
     const sentinelRef = useRef<HTMLDivElement | null>(null);
-    const isFetchingRef = useRef<boolean>(false);
 
-    const loadPage = useCallback(async (nextPage: number) => {
-        if (isFetchingRef.current) return;
-        isFetchingRef.current = true;
-        try {
-            if (nextPage === 1) setIsLoading(true); else setIsFetchingMore(true);
-            setError(null);
-            const res: MatchesListResponse = await getMatchesPage(nextPage, pageSize);
-            const uiMatches = (res.matches ?? []).map(mapApiMatchToUi);
-            setMatches(prev => nextPage === 1 ? uiMatches : [...prev, ...uiMatches]);
-            setPage(res.page ?? nextPage);
-            setTotalPages(res.total_pages ?? 1);
-        } catch (e: any) {
-            setError(e?.message || 'Une erreur est survenue lors du chargement des matchs.');
-            if (nextPage === 1) setMatches([]);
-        } finally {
-            isFetchingRef.current = false;
-            setIsLoading(false);
-            setIsFetchingMore(false);
-        }
-    }, [pageSize]);
-
-    // Initial load
-    useEffect(() => {
-        loadPage(1);
-    }, [loadPage]);
-
-    // IntersectionObserver pour scroll vertical (tous formats)
+    // IntersectionObserver pour scroll vertical
     useEffect(() => {
         const sentinel = sentinelRef.current;
         if (!sentinel) return;
-        if (page >= totalPages) return;
+        if (!matchesQuery.hasNextPage) return;
 
         const observer = new IntersectionObserver((entries) => {
             const entry = entries[0];
-            if (entry.isIntersecting && !isFetchingRef.current && page < totalPages) {
-                loadPage(page + 1);
+            if (entry.isIntersecting && matchesQuery.hasNextPage && !matchesQuery.isFetchingNextPage) {
+                matchesQuery.fetchNextPage();
             }
         }, { root: null, rootMargin: '200px', threshold: 0 });
 
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [page, totalPages, loadPage]);
+    }, [matchesQuery]);
 
     // Filtrage et tri des matchs
     const filteredMatches = useMemo(() => {
@@ -774,7 +754,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 bumpTicketsRefresh();
 
-                alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
+                showSuccess('Pari de tournoi créé', `Pari créé avec succès (ticket #${res.ticket_id}).`);
             } else {
                 if (!desktopSelectedLeagueId) return;
 
@@ -793,7 +773,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 bumpTicketsRefresh();
 
-                alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+                showSuccess('Ticket créé', `Ticket #${res.ticket_id} créé avec succès.`);
             }
         } catch (e: any) {
             const errorMsg = e?.message?.toLowerCase() || '';
@@ -824,7 +804,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         } finally {
             setIsSubmittingDesktop(false);
         }
-    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh]);
+    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, showError]);
 
     // Calculs pour le drawer
     const drawerTotalOdds = useMemo(() => {
@@ -899,7 +879,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 bumpTicketsRefresh();
 
-                alert(`Pari de tournoi créé avec succès ! ID: ${res.ticket_id}`);
+                showSuccess('Pari de tournoi créé', `Pari créé avec succès (ticket #${res.ticket_id}).`);
             } else {
                 if (!drawerSelectedLeagueId) return;
 
@@ -918,7 +898,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 bumpTicketsRefresh();
 
-                alert(`Ticket créé avec succès ! ID: ${res.ticket_id}`);
+                showSuccess('Ticket créé', `Ticket #${res.ticket_id} créé avec succès.`);
             }
         } catch (e: any) {
             const errorMsg = e?.message?.toLowerCase() || '';
@@ -949,7 +929,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         } finally {
             setIsSubmittingDrawer(false);
         }
-    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh]);
+    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, showError]);
 
     if (isLoading) {
         return (
@@ -1001,7 +981,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
             </div>
 
             {/* Sentinel pour infinite scroll vertical */}
-            {page < totalPages && (
+            {matchesQuery.hasNextPage && (
                 <div ref={sentinelRef} className="infinite-sentinel" aria-hidden="true" />
             )}
 

@@ -2,7 +2,7 @@ import React, { useState, useCallback, memo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './ProfileSection.css';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
-import twoFactorService from 'services/twoFactorService';
+import { useEnableTwoFactorMutation, useVerifyTwoFactorMutation } from '../../hooks/queries/useProfileMutations';
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
@@ -157,40 +157,40 @@ interface SecuritySettingsProps {
 
 const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEnabled }) => {
   const { user, updateUser } = useAuthStore();
-  const [enabling, setEnabling] = useState(false);
+  const enable2faMutation = useEnableTwoFactorMutation();
+  const verify2faMutation = useVerifyTwoFactorMutation();
+
   const [enabled, setEnabled] = useState<boolean>(isTwoFactorEnabled || !!user?.twoFactorEnabled);
   const [setupVisible, setSetupVisible] = useState(false);
   const [setupData, setSetupData] = useState<{ qr_code?: string; secret?: string; otpauth_url?: string } | null>(null);
   const [code, setCode] = useState('');
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const startEnable = useCallback(async () => {
     setError(null);
     setSuccess(null);
-    setEnabling(true);
     try {
-      const data = await twoFactorService.enableTwoFactor();
-      setSetupData({ qr_code: data.qr_code, secret: data.secret, otpauth_url: data.otpauth_url });
+      const data = await enable2faMutation.mutateAsync();
+      setSetupData({ qr_code: data.qr_code, secret: (data as any).secret, otpauth_url: (data as any).otpauth_url });
       setSetupVisible(true);
     } catch (e: any) {
       setError(e?.message || "Impossible d'activer la 2FA pour le moment");
-    } finally {
-      setEnabling(false);
     }
-  }, []);
+  }, [enable2faMutation]);
 
   const verify = useCallback(async () => {
     setError(null);
     setSuccess(null);
-    if (!code || code.trim().length < 4) {
-      setError('Entrez un code valide');
+
+    const clean = (code || '').trim();
+    if (!/^\d{6}$/.test(clean)) {
+      setError('Entrez un code valide à 6 chiffres');
       return;
     }
-    setVerifying(true);
+
     try {
-      const res = await twoFactorService.verifyTwoFactor(code.trim());
+      const res = await verify2faMutation.mutateAsync({ code: clean });
       if (res.enabled) {
         setEnabled(true);
         updateUser({ twoFactorEnabled: true });
@@ -202,10 +202,11 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
       }
     } catch (e: any) {
       setError(e?.message || 'Code incorrect');
-    } finally {
-      setVerifying(false);
     }
-  }, [code, updateUser]);
+  }, [code, updateUser, verify2faMutation]);
+
+  const enabling = enable2faMutation.isPending;
+  const verifying = verify2faMutation.isPending;
 
   return (
     <div className="settings-section">
@@ -295,6 +296,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
+                  disabled={verifying}
                 />
               </div>
 
@@ -302,7 +304,11 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
                 <button className="btn btn-primary" onClick={verify} disabled={verifying || !code || code.length < 6}>
                   {verifying ? 'Vérification...' : 'Vérifier et activer'}
                 </button>
-                <button className="btn btn-secondary" onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); }} disabled={verifying}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); }}
+                  disabled={verifying || enabling}
+                >
                   Annuler
                 </button>
               </div>

@@ -5,7 +5,7 @@
 
 import React, { memo, useMemo, useCallback } from 'react';
 import type { RankingEntry } from '../../types/ranking';
-import { useLeagueRanking } from '../../hooks/useLeagueRanking';
+import { useLeagueRankingQuery } from '../../hooks/queries/useLeaguesQueries';
 import './LeagueRanking.css';
 
 interface LeagueRankingProps {
@@ -76,17 +76,24 @@ const RankingEntryComponent: React.FC<RankingEntryComponentProps> = memo(({ entr
 RankingEntryComponent.displayName = 'RankingEntryComponent';
 
 const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, className = '', onPlayerClick }) => {
-  const { ranking, isLoading, error, refresh } = useLeagueRanking(leagueId);
+  const rankingQuery = useLeagueRankingQuery(leagueId ?? null, { enabled: !!leagueId && leagueId > 0 });
+
+  const isLoading = rankingQuery.isLoading || rankingQuery.isFetching;
+  const error = (rankingQuery.error as any)?.message ?? null;
+
+  const ranking = useMemo(() => {
+    const entries = rankingQuery.data ?? [];
+    return {
+      entries,
+      totalPlayers: entries.length,
+      leagueId,
+      lastUpdated: new Date().toISOString(),
+    };
+  }, [rankingQuery.data, leagueId]);
 
   const handleRefresh = useCallback(async () => {
-    try {
-      await refresh();
-    } catch (err) {
-      console.error('Erreur lors du rafraîchissement:', err);
-    }
-  }, [refresh]);
-
-  // Stats supprimées - plus besoin de calculs de statistiques globales
+    await rankingQuery.refetch();
+  }, [rankingQuery]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -101,7 +108,7 @@ const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, cla
     if (error) {
       return (
         <div className="league-ranking__error" role="alert">
-          <strong>Erreur:</strong> {error}
+          <strong>Erreur:</strong> {String(error)}
         </div>
       );
     }
@@ -130,7 +137,7 @@ const LeagueRanking: React.FC<LeagueRankingProps> = ({ leagueId, leagueName, cla
           {ranking.entries.map((entry, index) => (
             <RankingEntryComponent
               key={`${entry.pseudo}-${entry.position}`}
-              entry={entry}
+              entry={entry as RankingEntry}
               index={index}
               onPlayerClick={onPlayerClick}
             />
