@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext } from 'react';
 import { ToastContainer } from '../components/ToastContainer';
 import { useToast, type UseToastReturn } from '../hooks/useToast';
 
@@ -13,13 +13,11 @@ export const useGlobalToast = (): UseToastReturn => {
 };
 
 export const GlobalToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Hook unique -> un seul système toast global
   const toast = useToast();
 
-  // Stabiliser la référence du context value
-  const value = useMemo(() => toast, [toast]);
-
   return (
-    <ToastContext.Provider value={value}>
+    <ToastContext.Provider value={toast}>
       {children}
       <ToastContainer
         toasts={toast.toasts}
@@ -30,4 +28,3 @@ export const GlobalToastProvider: React.FC<{ children: React.ReactNode }> = ({ c
     </ToastContext.Provider>
   );
 };
-

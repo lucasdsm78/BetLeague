@@ -5,7 +5,7 @@
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import { getFinishedTournaments, type TournamentFinished } from '../../services/tournamentApi';
-import { useToast } from '../../hooks/useToast';
+import { useGlobalToast } from '../../toast/ToastProvider';
 import './FinishedTournaments.css';
 
 const FinishedTournaments: React.FC = memo(() => {
@@ -15,7 +15,7 @@ const FinishedTournaments: React.FC = memo(() => {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
-  const { showError } = useToast();
+  const { showError } = useGlobalToast();
 
   useEffect(() => {
     let isMounted = true;
