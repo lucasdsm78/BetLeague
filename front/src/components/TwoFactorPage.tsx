@@ -4,8 +4,7 @@ import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
 import { useAuthStore } from 'store/authStore';
 import { AuthError } from 'services/authService.enhanced';
 import useTotpTimer from 'hooks/useTotpTimer';
-import { useToast } from 'hooks/useToast';
-import ToastContainer from 'components/ToastContainer';
+import { useGlobalToast } from '../toast/ToastProvider';
 
 const TwoFactorPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +14,7 @@ const TwoFactorPage: React.FC = () => {
   const [verifying, setVerifying] = useState(false);
   const [error, setLocalError] = useState<string | null>(null);
   const totp = useTotpTimer(30);
-  const { showSuccess, toasts, removeToast, pauseToast, resumeToast } = useToast({ maxToasts: 3 });
+  const toast = useGlobalToast();
 
   // Si pas de challenge présent, revenir au login
   if (!twoFactorChallenge) {
@@ -37,6 +36,7 @@ const TwoFactorPage: React.FC = () => {
     e.preventDefault();
     if (code.trim().length !== 6) {
       setLocalError('Code 2FA invalide (6 chiffres requis)');
+      toast.showWarning('2FA', 'Code invalide (6 chiffres requis)');
       return;
     }
     try {
@@ -48,26 +48,27 @@ const TwoFactorPage: React.FC = () => {
         code: code.trim()
       });
       clearTwoFactorChallenge();
-      showSuccess('2FA validée', 'Connexion sécurisée. Redirection...');
+      toast.showSuccess('2FA validée', 'Connexion sécurisée. Redirection...');
       setTimeout(() => navigate('/matches', { replace: true }), 1200);
     } catch (err: any) {
       if (err instanceof AuthError && err.code === 'INVALID_2FA_CODE') {
         setLocalError('Code 2FA incorrect');
+        toast.showError('2FA', 'Code incorrect');
       } else if (err instanceof AuthError && err.code === 'TWO_FACTOR_REQUIRED') {
-        // Le backend continue de dire requis -> peut-être mauvais code formaté
         setLocalError('Code requis ou invalide');
+        toast.showError('2FA', 'Code requis ou invalide');
       } else {
-        setLocalError(err?.message || 'Erreur de vérification');
+        const msg = err?.message || 'Erreur de vérification';
+        setLocalError(msg);
+        toast.showError('2FA', msg);
       }
     } finally {
       setVerifying(false);
     }
-  }, [code, twoFactorChallenge, login, clearTwoFactorChallenge, navigate]); // Removed showSuccess - it's stable and doesn't need to trigger re-creation
+  }, [code, twoFactorChallenge, login, clearTwoFactorChallenge, navigate, toast]);
 
   return (
     <div className="auth-form form-container">
-      {/* Toasts */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} pauseToast={pauseToast} resumeToast={resumeToast} />
       <div className="steps-indicator" aria-hidden="false">
         <div className="step-line">
           <span className="step done">1</span>
@@ -80,6 +81,7 @@ const TwoFactorPage: React.FC = () => {
         type="button"
         aria-label="Annuler et revenir au login"
         onClick={() => { clearTwoFactorChallenge(); navigate('/login'); }}
+        disabled={verifying}
       />
       <div className="form-header">
         <h2>Vérification 2FA</h2>
@@ -92,14 +94,10 @@ const TwoFactorPage: React.FC = () => {
         </div>
       </div>
       <form onSubmit={handleSubmit} noValidate>
-        {error && (
-          <div className="error-banner" role="alert" aria-live="polite">
-            <div className="error-content">
-              <span className="error-icon" aria-hidden="true">🚨</span>
-              <span className="error-text">{error}</span>
-            </div>
-          </div>
-        )}
+        {/* Fallback accessibilité uniquement: on expose l'erreur aux lecteurs d'écran sans afficher une bannière */}
+        <div className="sr-only" role="alert" aria-live="polite">
+          {error || ''}
+        </div>
         <div className="form-group">
           <label className="form-label" htmlFor="twofa-code">
             Code 2FA
@@ -131,9 +129,9 @@ const TwoFactorPage: React.FC = () => {
           <div className="helper-text" aria-live="polite">
             {totp.isExpiring ? 'Code bientôt expiré' : 'Code valide'} — {totp.secondsRemaining}s restants
           </div>
+          {/* Fallback accessibilité: message lié au champ */}
           {error && (
-            <div className="form-error" id="twofa-error" role="alert">
-              <span className="error-icon">⚠️</span>
+            <div className="sr-only" id="twofa-error" role="alert">
               {error}
             </div>
           )}
