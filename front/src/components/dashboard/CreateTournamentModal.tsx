@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createTournament, TournamentCreateRequest } from '../../services/tournamentApi';
-import { useToast } from '../../hooks/useToast';
+import { useGlobalToast } from '../../toast/ToastProvider';
 import './CreateTournamentModal.css';
 
 interface CreateTournamentModalProps {
@@ -54,7 +54,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   const [endDateLocal, setEndDateLocal] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<CreateTournamentFormErrors>({});
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useGlobalToast();
   const canCloseRef = useRef(false);
   const didInitDatesRef = useRef(false);
 

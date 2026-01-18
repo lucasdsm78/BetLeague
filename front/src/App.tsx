@@ -3,14 +3,10 @@
  * Refactored with TypeScript and integrated with new architecture
  */
 
-import React, { useState, memo, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useToast } from './hooks/useToast';
+import React, { useState, memo, useEffect } from 'react';
 import { initializeServices } from './services';
 import { initializeStores } from './store';
 import SecurityUtils from './utils/security';
-import { ToastContainer } from './components/ToastContainer';
-import type { User } from './types';
 import './styles/App.css';
 
 
@@ -153,7 +149,6 @@ HomeScreen.displayName = 'HomeScreen';
 
 function App(): React.JSX.Element {
   const [isInitialized, setIsInitialized] = useState(false);
-  const { showSuccess, showError, showInfo, toasts, removeToast, pauseToast, resumeToast } = useToast();
 
   // Initialisation sécurisée de l'application
   useEffect(() => {
@@ -165,13 +160,14 @@ function App(): React.JSX.Element {
 
 
         // Appliquer la configuration de sécurité
-        const securityConfig = SecurityUtils.DEFAULT_SECURITY_CONFIG;
+        SecurityUtils.DEFAULT_SECURITY_CONFIG;
 
         // Marquer comme initialisé
         setIsInitialized(true);
 
       } catch (error) {
-        showError('Erreur d\'initialisation', 'Impossible de démarrer l\'application');
+        // Pas de toast ici: l'UI n'est pas forcément prête (splash).
+        console.error("Erreur d'initialisation", error);
       }
     };
 
@@ -181,36 +177,18 @@ function App(): React.JSX.Element {
   // Loading initial de l'application
   if (!isInitialized) {
     return (
-      <>
-        <div className="app">
-          <LoadingSpinner />
-        </div>
-        <ToastContainer
-          toasts={toasts}
-          removeToast={removeToast}
-          pauseToast={pauseToast}
-          resumeToast={resumeToast}
-        />
-      </>
+      <div className="app">
+        <LoadingSpinner />
+      </div>
     );
   }
 
   return (
-    <>
-      <div className="app">
-        <div className="container">
-          <HomeScreen />
-        </div>
+    <div className="app">
+      <div className="container">
+        <HomeScreen />
       </div>
-
-      {/* Toast notifications */}
-      <ToastContainer
-        toasts={toasts}
-        removeToast={removeToast}
-        pauseToast={pauseToast}
-        resumeToast={resumeToast}
-      />
-    </>
+    </div>
   );
 }
 

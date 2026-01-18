@@ -8,10 +8,9 @@ import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { useAuthStore } from '../store/authStore';
-import { useToast } from '../hooks/useToast';
+import { useGlobalToast } from '../toast/ToastProvider';
 import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import LogoutModal from './auth/LogoutModal';
-import type { User } from '../types';
 import './Dashboard.css';
 
 // Simple sanitization function
@@ -118,7 +117,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const location = useLocation();
   const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
   const { updateUser, hasPermission } = useAuthStore();
-  const { showError } = useToast();
+  const { showError } = useGlobalToast();
   const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });
   const profile = profileQuery.data;
 
