@@ -1,6 +1,8 @@
 /**
  * Toast Hook - TypeScript version
  * Advanced toast notification system with queue management
+ *
+ * Implémentation interne au système de toast global. À utiliser via `GlobalToastProvider`.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -60,17 +62,15 @@ interface ToastTimer {
 
 export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
-  
+
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timersRef = useRef<Map<string, ToastTimer>>(new Map());
   const nextIdRef = useRef(1);
 
-  // Generate unique toast ID
   const generateId = useCallback((): string => {
     return `toast-${nextIdRef.current++}-${Date.now()}`;
   }, []);
 
-  // Clean up timers
   const clearTimer = useCallback((id: string) => {
     const timer = timersRef.current.get(id);
     if (timer) {
@@ -79,9 +79,13 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     }
   }, []);
 
-  // Set up auto-removal timer
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+    clearTimer(id);
+  }, [clearTimer]);
+
   const setupTimer = useCallback((id: string, duration: number) => {
-    clearTimer(id); // Clear existing timer if any
+    clearTimer(id);
 
     const startTime = Date.now();
     const timeoutId = setTimeout(() => {
@@ -95,22 +99,15 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
       startTime,
       paused: false,
     });
-  }, []);
+  }, [clearTimer, removeToast]);
 
-  // Remove toast
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-    clearTimer(id);
-  }, [clearTimer]);
-
-  // Pause toast timer
   const pauseToast = useCallback((id: string) => {
     const timer = timersRef.current.get(id);
     if (timer && !timer.paused) {
       clearTimeout(timer.timeoutId);
       const elapsed = Date.now() - timer.startTime;
       const remainingTime = Math.max(0, timer.remainingTime - elapsed);
-      
+
       timersRef.current.set(id, {
         ...timer,
         remainingTime,
@@ -119,7 +116,6 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     }
   }, []);
 
-  // Resume toast timer
   const resumeToast = useCallback((id: string) => {
     const timer = timersRef.current.get(id);
     if (timer && timer.paused && timer.remainingTime > 0) {
@@ -136,11 +132,10 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     }
   }, [removeToast]);
 
-  // Create toast
   const showToast = useCallback((options: CreateToastOptions): string => {
     const id = generateId();
     const duration = options.duration ?? finalConfig.defaultDuration;
-    
+
     const toast: Toast = {
       id,
       type: options.type,
@@ -151,19 +146,17 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     };
 
     setToasts(prev => {
-      // Enforce max toasts limit
       let newToasts = finalConfig.newestFirst ? [toast, ...prev] : [...prev, toast];
-      
+
       if (newToasts.length > finalConfig.maxToasts) {
         const toastsToRemove = newToasts.slice(finalConfig.maxToasts);
         toastsToRemove.forEach(t => clearTimer(t.id));
         newToasts = newToasts.slice(0, finalConfig.maxToasts);
       }
-      
+
       return newToasts;
     });
 
-    // Set up auto-removal if not persistent
     if (!options.persistent && duration > 0) {
       setupTimer(id, duration);
     }
@@ -171,13 +164,12 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     return id;
   }, [generateId, finalConfig, setupTimer, clearTimer]);
 
-  // Convenience methods
   const showSuccess = useCallback((title: string, message?: string, duration?: number): string => {
     return showToast({ type: 'success', title, message, duration });
   }, [showToast]);
 
   const showError = useCallback((title: string, message?: string, duration?: number): string => {
-    return showToast({ type: 'error', title, message, duration: duration || 8000 }); // Longer duration for errors
+    return showToast({ type: 'error', title, message, duration: duration || 8000 });
   }, [showToast]);
 
   const showWarning = useCallback((title: string, message?: string, duration?: number): string => {
@@ -188,16 +180,12 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     return showToast({ type: 'info', title, message, duration });
   }, [showToast]);
 
-  // Clear all toasts
   const clearAllToasts = useCallback(() => {
-    // Clear all timers
     timersRef.current.forEach(timer => clearTimeout(timer.timeoutId));
     timersRef.current.clear();
-    
     setToasts([]);
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       timersRef.current.forEach(timer => clearTimeout(timer.timeoutId));
@@ -218,72 +206,3 @@ export function useToast(config: Partial<ToastConfig> = {}): UseToastReturn {
     resumeToast,
   };
 }
-
-// Specialized toast hooks
-export function useErrorToast() {
-  const { showError } = useToast();
-  
-  const showApiError = useCallback((error: any, fallbackMessage = 'Une erreur est survenue') => {
-    let message = fallbackMessage;
-    
-    if (error?.message) {
-      message = error.message;
-    } else if (error?.detail) {
-      message = error.detail;
-    } else if (typeof error === 'string') {
-      message = error;
-    }
-    
-    return showError('Erreur', message);
-  }, [showError]);
-  
-  const showValidationError = useCallback((errors: Record<string, string>) => {
-    const errorMessages = Object.values(errors).join(', ');
-    return showError('Erreurs de validation', errorMessages);
-  }, [showError]);
-  
-  return {
-    showError,
-    showApiError,
-    showValidationError,
-  };
-}
-
-export function useSuccessToast() {
-  const { showSuccess } = useToast();
-  
-  const showSaveSuccess = useCallback((entityName = 'élément') => {
-    return showSuccess('Sauvegardé', `${entityName} sauvegardé avec succès`);
-  }, [showSuccess]);
-  
-  const showDeleteSuccess = useCallback((entityName = 'élément') => {
-    return showSuccess('Supprimé', `${entityName} supprimé avec succès`);
-  }, [showSuccess]);
-  
-  const showCreateSuccess = useCallback((entityName = 'élément') => {
-    return showSuccess('Créé', `${entityName} créé avec succès`);
-  }, [showSuccess]);
-  
-  return {
-    showSuccess,
-    showSaveSuccess,
-    showDeleteSuccess,
-    showCreateSuccess,
-  };
-}
-
-// Global toast context hook (for use with React Context if needed)
-export function useGlobalToast() {
-  const toastMethods = useToast();
-  
-  // Store in window for global access (development/debugging)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      (window as any).__toast__ = toastMethods;
-    }
-  }, [toastMethods]);
-  
-  return toastMethods;
-}
-
-export default useToast;

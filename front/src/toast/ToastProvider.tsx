@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { ToastContainer } from '../components/ToastContainer';
-import { useToast, type UseToastReturn } from '../hooks/useToast';
+import { useToast, type UseToastReturn } from './useToast';
 
 const ToastContext = createContext<UseToastReturn | null>(null);
 
