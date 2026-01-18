@@ -5,7 +5,7 @@ import BTLPurchaseModal from './BTLPurchaseModal';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
-import { getSubscriptionPlan } from 'services/subscriptionApi';
+import { getSubscriptionPlan } from '../../services/api/subscription';
 
 type ShopTabType = 'packs' | 'subscription';
 
