@@ -1,8 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import leagueApiService from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
 import { leaguesKeys } from './leaguesKeys';
 import type { LeagueSummary } from '../../types';
+import {
+  getAvailableLeaguesPage,
+  getCreatedLeaguesPage,
+  getParticipatedLeaguesPage,
+  getLeagueRanking,
+} from '../../services/api/leagues';
 
 type LeagueTab = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 
@@ -20,18 +25,15 @@ export function useLeaguesListQuery(
     queryKey: leaguesKeys.list(mappedTab, page, pageSize),
     queryFn: async () => {
       if (mappedTab === 'participated') {
-        const res = await leagueApiService.getParticipatedLeaguesPage(page, pageSize);
-        if (!res.success || !res.data) throw new Error(res.error || 'Impossible de charger les ligues participées');
-        return res.data.leagues;
+        const pageData = await getParticipatedLeaguesPage(page, pageSize);
+        return pageData.leagues;
       }
       if (mappedTab === 'created') {
-        const res = await leagueApiService.getCreatedLeaguesPage(page, pageSize);
-        if (!res.success || !res.data) throw new Error(res.error || 'Impossible de charger les ligues créées');
-        return res.data.leagues;
+        const pageData = await getCreatedLeaguesPage(page, pageSize);
+        return pageData.leagues;
       }
-      const res = await leagueApiService.getAvailableLeaguesPage(page, pageSize);
-      if (!res.success || !res.data) throw new Error(res.error || 'Impossible de charger les ligues disponibles');
-      return res.data.leagues;
+      const pageData = await getAvailableLeaguesPage(page, pageSize);
+      return pageData.leagues;
     },
     enabled: options?.enabled ?? true,
     staleTime: 15_000,
@@ -60,9 +62,7 @@ export function useLeagueRankingQuery(leagueId: number | null, options?: { enabl
     queryKey: leaguesKeys.ranking(leagueId ?? -1),
     queryFn: async () => {
       if (!leagueId) throw new Error('Ligue invalide');
-      const res = await leagueApiService.getLeagueRanking(leagueId);
-      if (!res.success || !res.data) throw new Error(res.error || 'Impossible de charger le classement');
-      return res.data;
+      return getLeagueRanking(leagueId);
     },
     enabled: (options?.enabled ?? true) && !!leagueId,
     staleTime: 10_000,
