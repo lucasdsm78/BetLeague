@@ -117,7 +117,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
-  const { updateUser } = useAuthStore();
+  const { updateUser, hasPermission } = useAuthStore();
   const { showError } = useToast();
   const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });
   const profile = profileQuery.data;
@@ -234,8 +234,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
     const tab = TABS[tabId as TabId];
 
-    // Security: Check permissions if required
-    if (tab.requiresPermission && user && !user[tab.requiresPermission as keyof User]) {
+    // Security: Check permissions if required (source de vérité: securityContext)
+    if (tab.requiresPermission && !hasPermission(tab.requiresPermission)) {
       console.warn('🔒 Insufficient permissions for tab:', tabId);
       showError('Accès refusé', 'Permissions insuffisantes');
       return;
@@ -261,7 +261,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       console.error('🔒 Navigation error:', error);
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
-  }, [navigate, user, securityState.lastActivity]);
+  }, [navigate, hasPermission, securityState.lastActivity]);
 
   // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {

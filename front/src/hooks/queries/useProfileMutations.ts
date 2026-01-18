@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiResponse } from '../../services/secureApiClient';
+import type { ApiResponse } from '../../services/http';
 import userProfileService, { type UpdateProfileData, type UpdateProfileResponse } from '../../services/userProfileService';
 import twoFactorService, { type TwoFactorStatus } from '../../services/twoFactorService';
 import { profileKeys } from './profileKeys';
@@ -33,4 +33,3 @@ export function useVerifyTwoFactorMutation() {
     },
   });
 }
-

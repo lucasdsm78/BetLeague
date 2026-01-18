@@ -43,12 +43,25 @@ export const initializeStores = () => {
 export const clearAllStores = () => {
   // Clear all store data
   useAuthStore.getState().logout();
-  useLeagueStore.setState({
-    leagues: [],
-    currentLeague: null,
-    invitations: [],
-    isLoading: false,
-    error: null,
+  useLeagueStore.setState((state: any) => {
+    state.leagues = [];
+    state.currentLeague = null;
+    state.invitations = [];
+    state.isLoading = false;
+    state.error = null;
+    state.filters = {
+      search: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    };
+    state.pagination = {
+      currentPage: 1,
+      pageSize: 10,
+      totalItems: 0,
+    };
   });
 
 };
