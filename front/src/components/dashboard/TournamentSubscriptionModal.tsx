@@ -10,7 +10,7 @@ import {
   getSubscriptionPlan,
   formatPrice,
   type SubscriptionPlan
-} from '../../services/subscriptionApi';
+} from '../../services/api/subscription';
 
 interface TournamentSubscriptionModalProps {
   onClose: () => void;
