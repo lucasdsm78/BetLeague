@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getTicketDetail } from 'services/ticketsApi';
+import { getTicketDetail } from 'services/api/tickets';
 import type { TicketReadModel } from 'types/entities/ticket';
 
 export interface UseTicketDetailReturn {

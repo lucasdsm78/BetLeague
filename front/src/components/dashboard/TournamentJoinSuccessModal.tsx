@@ -4,7 +4,7 @@
  */
 
 import React, { memo, useEffect, useState } from 'react';
-import type { Tournament } from '../../services/tournamentApi';
+import type { Tournament } from '../../services/api/tournament';
 import './TournamentJoinSuccessModal.css';
 
 interface TournamentJoinSuccessModalProps {

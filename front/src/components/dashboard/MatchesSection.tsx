@@ -1,9 +1,9 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MatchesSection.css';
-import type { ApiMatchReadModel } from '../../services/matchesApi';
+import type { ApiMatchReadModel } from '../../services/api/matches';
 import CreateTicketModal from './CreateTicketModal';
-import { createTicket, createTournamentBet } from '../../services/ticketsApi';
-import type { TournamentMatchOption } from '../../services/tournamentApi';
+import { createTicket, createTournamentBet } from '../../services/api/tickets';
+import type { TournamentMatchOption } from '../../services/api/tournament';
 import { useTicketsRefreshStore } from 'store/ticketsStore';
 import { useParticipatedLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
 import { useTournamentPlayerBalanceQuery } from '../../hooks/queries/useTournamentBettingQueries';

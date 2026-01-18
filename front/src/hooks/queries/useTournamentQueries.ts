@@ -7,7 +7,7 @@ import {
   getTournamentStages,
   getTournaments,
   joinTournament,
-} from '../../services/tournamentApi';
+} from '../../services/api/tournament';
 import type {
   MyTournament,
   MyTournamentsResponse,
@@ -18,7 +18,7 @@ import type {
   TournamentStagesResponse,
   TournamentsFinishedResponse,
   TournamentsResponse,
-} from '../../services/tournamentApi';
+} from '../../services/api/tournament';
 import { tournamentKeys } from './tournamentKeys';
 
 export function useAvailableTournamentsQuery(page: number, pageSize: number, options?: { enabled?: boolean }) {

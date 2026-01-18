@@ -4,7 +4,7 @@ import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTicket
 import type { TicketReadModel, MatchChoiceSummary } from '../../types/entities/ticket';
 import TicketDetailModal from './TicketDetailModal';
 import DeleteTicketModal from './DeleteTicketModal';
-import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';
+import { deleteTicket as apiDeleteTicket } from 'services/api/tickets';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 

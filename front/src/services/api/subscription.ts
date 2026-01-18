@@ -1,3 +1,4 @@
+
 // services/api/subscription.ts
 // API module: subscription (tournament subscription)
 

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { createTournament, TournamentCreateRequest } from '../../services/tournamentApi';
+import { createTournament, TournamentCreateRequest } from '../../services/api/tournament';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './CreateTournamentModal.css';
 

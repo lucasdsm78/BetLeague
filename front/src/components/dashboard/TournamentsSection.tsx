@@ -11,7 +11,7 @@ import MyTournaments from './MyTournaments';
 import FinishedTournaments from './FinishedTournaments';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useAvailableTournamentsQuery, useJoinTournamentMutation } from '../../hooks/queries/useTournamentQueries';
-import type { Tournament } from '../../services/tournamentApi';
+import type { Tournament } from '../../services/api/tournament';
 import './TournamentsSection.css';
 
 type TournamentTab = 'available' | 'my-tournaments' | 'finished-tournaments';
