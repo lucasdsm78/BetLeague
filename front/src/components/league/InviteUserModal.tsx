@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import leagueApiService from '../../services/leagueApiService';
-import type { ApiUserSearchResult } from '../../types/api/leagues';
+import type { UserSearchResult } from 'types/entities/userSearch';
 import UserSearchInput from './UserSearchInput';
 import './InviteUserModal.css';
 
@@ -9,7 +9,7 @@ interface InviteUserModalProps {
   leagueId: number | null;
   leagueName?: string;
   onClose: () => void;
-  onInviteSent?: (user: ApiUserSearchResult) => void;
+  onInviteSent?: (user: UserSearchResult) => void;
   excludeUserIds?: number[];
 }
 
@@ -21,7 +21,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
   onInviteSent,
   excludeUserIds = []
 }) => {
-  const [selectedUser, setSelectedUser] = useState<ApiUserSearchResult | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
   const [isInviting, setIsInviting] = useState(false);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -69,7 +69,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
   }, [isOpen, onClose]);
 
   // Handle user selection from search
-  const handleUserSelect = useCallback((user: ApiUserSearchResult) => {
+  const handleUserSelect = useCallback((user: UserSearchResult) => {
     setSelectedUser(user);
     setError('');
     setSuccessMessage('');
