@@ -17,3 +17,6 @@ export interface ApiTwoFactorSetupResponse {
   secret?: string;
   otpauth_url?: string;
 }
+
+// Certaines implémentations renvoient directement une image (Blob/PNG)
+export type ApiTwoFactorSetupRawResponse = Blob | ApiTwoFactorSetupResponse;

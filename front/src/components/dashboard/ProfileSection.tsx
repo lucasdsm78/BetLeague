@@ -7,6 +7,7 @@ import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
 import { useGlobalToast } from '../../toast/ToastProvider';
+import type { TwoFactorSetup } from '../../types/entities/twoFactor';
 
 type TabType = 'overview' | 'account' | 'security';
 
@@ -165,7 +166,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
 
   const [enabled, setEnabled] = useState<boolean>(isTwoFactorEnabled || !!user?.twoFactorEnabled);
   const [setupVisible, setSetupVisible] = useState(false);
-  const [setupData, setSetupData] = useState<{ qr_code?: string; secret?: string; otpauth_url?: string } | null>(null);
+  const [setupData, setSetupData] = useState<TwoFactorSetup | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -177,7 +178,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
     setShowSecret(false);
     try {
       const data = await enable2faMutation.mutateAsync();
-      setSetupData({ qr_code: data.qr_code, secret: (data as any).secret, otpauth_url: (data as any).otpauth_url });
+      setSetupData(data);
       setSetupVisible(true);
       toast.showSuccess('2FA', 'Scannez le QR code puis saisissez le code à 6 chiffres.');
     } catch (e: any) {
@@ -302,10 +303,10 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
             </div>
 
             <div className="twofa-setup-body">
-              {setupData?.qr_code ? (
-                <img src={setupData.qr_code} alt="QR Code 2FA" className="twofa-qr" />
-              ) : setupData?.otpauth_url ? (
-                <a href={setupData.otpauth_url} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ marginBottom: '0.75rem' }}>
+              {setupData?.qrCodeDataUrl ? (
+                <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="twofa-qr" />
+              ) : setupData?.otpauthUrl ? (
+                <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ marginBottom: '0.75rem' }}>
                   Ouvrir dans l'application d'authentification
                 </a>
               ) : null}
@@ -319,7 +320,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
                       className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`}
                       aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}
                     >
-                      {showSecret ? setupData.secret : '••••••••••••••••'}
+                      {showSecret ? setupData.secret : (setupData.secretMasked || '••••••••')}
                     </div>
 
                     <div className="secret-actions">

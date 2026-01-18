@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiResponse } from '../../services/http';
 import userProfileService, { type UpdateProfileData, type UpdateProfileResponse } from '../../services/userProfileService';
-import twoFactorService, { type TwoFactorStatus } from '../../services/twoFactorService';
+import twoFactorService from '../../services/twoFactorService';
+import type { TwoFactorSetup, TwoFactorStatus } from '../../types/entities/twoFactor';
 import { profileKeys } from './profileKeys';
 
 export function useUpdateProfileMutation() {
@@ -17,7 +18,7 @@ export function useUpdateProfileMutation() {
 }
 
 export function useEnableTwoFactorMutation() {
-  return useMutation<{ qr_code?: string; secret?: string; otpauth_url?: string }, Error, void>({
+  return useMutation<TwoFactorSetup, Error, void>({
     mutationFn: async () => twoFactorService.enableTwoFactor(),
   });
 }
