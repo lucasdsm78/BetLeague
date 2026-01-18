@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import './EditAccountModal.css';
 import { useUpdateProfileMutation } from '../../hooks/queries/useProfileMutations';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 interface EditAccountModalProps {
   pseudo: string;
@@ -17,7 +18,6 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
   const [originalData] = useState({ pseudo, email });
   const [errors, setErrors] = useState<{ pseudo?: string; email?: string; general?: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
   const [touched, setTouched] = useState({ pseudo: false, email: false });
@@ -29,7 +29,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
       if (!trimmed) return 'Le pseudo ne peut pas être vide';
       if (trimmed.length < 2) return 'Le pseudo doit contenir au moins 2 caractères';
       if (trimmed.length > 50) return 'Le pseudo ne peut pas dépasser 50 caractères';
-      if (!/^[a-zA-Z0-9\s\-_\.]+$/.test(trimmed)) {
+      if (!/^[a-zA-Z0-9\s\-_.]+$/.test(trimmed)) {
         return 'Caractères autorisés: lettres, chiffres, espaces, tirets, underscores, points';
       }
     }
@@ -67,6 +67,9 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
   }, [formData, originalData]);
 
   const updateProfileMutation = useUpdateProfileMutation();
+  const toast = useGlobalToast();
+
+  const isSubmitting = updateProfileMutation.isPending;
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +92,6 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
       return;
     }
 
-    setIsSubmitting(true);
     setErrors({});
 
     try {
@@ -114,6 +116,11 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
           setEmailChanged(true);
         }
 
+        toast.showSuccess(
+          'Profil mis à jour',
+          hasEmailChanged ? 'Email mis à jour. Votre session peut être rafraîchie.' : 'Modifications enregistrées.'
+        );
+
         // Délai pour lire le message (plus long si email changé)
         const delay = hasEmailChanged ? 2000 : 1500;
 
@@ -122,7 +129,9 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
           onClose();
         }, delay);
       } else {
-        setErrors({ general: response.error || 'Échec de la mise à jour du profil' });
+        const msg = response.error || 'Échec de la mise à jour du profil';
+        setErrors({ general: msg });
+        toast.showError('Mise à jour impossible', msg);
       }
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du profil:', error);
@@ -131,18 +140,20 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
       if (error.message) {
         if (error.message.toLowerCase().includes('pseudo')) {
           setErrors({ pseudo: error.message });
+          toast.showError('Pseudo invalide', error.message);
         } else if (error.message.toLowerCase().includes('email')) {
           setErrors({ email: error.message });
+          toast.showError('Email invalide', error.message);
         } else {
           setErrors({ general: error.message });
+          toast.showError('Erreur', error.message);
         }
       } else {
         setErrors({ general: 'Une erreur est survenue lors de la mise à jour' });
+        toast.showError('Erreur', 'Une erreur est survenue lors de la mise à jour');
       }
-    } finally {
-      setIsSubmitting(false);
     }
-  }, [formData, originalData, validateField, hasChanges, onSuccess, onClose, updateProfileMutation]);
+  }, [formData, originalData, validateField, hasChanges, onSuccess, onClose, updateProfileMutation, toast]);
 
   // Fermer avec Escape
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './ProfileSection.css';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
@@ -6,6 +6,7 @@ import { useEnableTwoFactorMutation, useVerifyTwoFactorMutation } from '../../ho
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 type TabType = 'overview' | 'account' | 'security';
 
@@ -159,6 +160,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
   const { user, updateUser } = useAuthStore();
   const enable2faMutation = useEnableTwoFactorMutation();
   const verify2faMutation = useVerifyTwoFactorMutation();
+  const toast = useGlobalToast();
 
   const [enabled, setEnabled] = useState<boolean>(isTwoFactorEnabled || !!user?.twoFactorEnabled);
   const [setupVisible, setSetupVisible] = useState(false);
@@ -166,18 +168,23 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showSecret, setShowSecret] = useState(false);
 
   const startEnable = useCallback(async () => {
     setError(null);
     setSuccess(null);
+    setShowSecret(false);
     try {
       const data = await enable2faMutation.mutateAsync();
       setSetupData({ qr_code: data.qr_code, secret: (data as any).secret, otpauth_url: (data as any).otpauth_url });
       setSetupVisible(true);
+      toast.showSuccess('2FA', 'Scannez le QR code puis saisissez le code à 6 chiffres.');
     } catch (e: any) {
-      setError(e?.message || "Impossible d'activer la 2FA pour le moment");
+      const msg = e?.message || "Impossible d'activer la 2FA pour le moment";
+      setError(msg);
+      toast.showError('2FA', msg);
     }
-  }, [enable2faMutation]);
+  }, [enable2faMutation, toast]);
 
   const verify = useCallback(async () => {
     setError(null);
@@ -185,7 +192,9 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
 
     const clean = (code || '').trim();
     if (!/^\d{6}$/.test(clean)) {
-      setError('Entrez un code valide à 6 chiffres');
+      const msg = 'Entrez un code valide à 6 chiffres';
+      setError(msg);
+      toast.showWarning('2FA', msg);
       return;
     }
 
@@ -194,19 +203,52 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
       if (res.enabled) {
         setEnabled(true);
         updateUser({ twoFactorEnabled: true });
-        setSuccess('Authentification à deux facteurs activée avec succès');
+        const msg = res.message || 'Authentification à deux facteurs activée avec succès';
+        setSuccess(msg);
+        toast.showSuccess('2FA activée', msg);
         setSetupVisible(false);
         setCode('');
+        setShowSecret(false);
       } else {
-        setError('Vérification échouée');
+        const msg = 'Vérification échouée';
+        setError(msg);
+        toast.showError('2FA', msg);
       }
     } catch (e: any) {
-      setError(e?.message || 'Code incorrect');
+      const msg = e?.message || 'Code incorrect';
+      setError(msg);
+      toast.showError('2FA', msg);
     }
-  }, [code, updateUser, verify2faMutation]);
+  }, [code, updateUser, verify2faMutation, toast]);
+
+  const handleCopySecret = useCallback(async () => {
+    const secret = setupData?.secret;
+    if (!secret) return;
+
+    try {
+      await navigator.clipboard.writeText(secret);
+      toast.showSuccess('Clé copiée', 'La clé secrète a été copiée dans le presse-papier.');
+    } catch {
+      // Fallback legacy
+      try {
+        const el = document.createElement('textarea');
+        el.value = secret;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        toast.showSuccess('Clé copiée', 'La clé secrète a été copiée dans le presse-papier.');
+      } catch {
+        toast.showError('Copie impossible', 'Votre navigateur a bloqué la copie automatique.');
+      }
+    }
+  }, [setupData?.secret, toast]);
 
   const enabling = enable2faMutation.isPending;
   const verifying = verify2faMutation.isPending;
+  const isBusy = enabling || verifying;
 
   return (
     <div className="settings-section">
@@ -235,7 +277,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
           </div>
           <div className="option-action">
             {!enabled ? (
-              <button className="btn btn-primary" onClick={startEnable} disabled={enabling}>
+              <button className="btn btn-primary" onClick={startEnable} disabled={isBusy}>
                 {enabling ? 'Activation...' : 'Activer 2FA'}
               </button>
             ) : (
@@ -252,22 +294,12 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
         {setupVisible && (
           <div className="twofa-setup">
             <div className="twofa-setup-header">Configuration 2FA</div>
-            {error && (
-              <div className="error-banner" role="alert" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
-                <div className="error-content">
-                  <span className="error-icon" aria-hidden="true">🚨</span>
-                  <span className="error-text">{error}</span>
-                </div>
-              </div>
-            )}
-            {success && (
-              <div className="success-banner" role="status" aria-live="polite" style={{ marginBottom: '0.75rem' }}>
-                <div className="success-content">
-                  <span className="success-icon" aria-hidden="true">✅</span>
-                  <span className="success-text">{success}</span>
-                </div>
-              </div>
-            )}
+
+            {/* Fallback accessibilité uniquement (les toasts gèrent l’affichage) */}
+            <div className="sr-only" role="alert" aria-live="polite">
+              {error || success || ''}
+            </div>
+
             <div className="twofa-setup-body">
               {setupData?.qr_code ? (
                 <img src={setupData.qr_code} alt="QR Code 2FA" className="twofa-qr" />
@@ -280,7 +312,39 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
               {setupData?.secret && (
                 <div className="twofa-secret">
                   <div className="secret-label">Clé secrète</div>
-                  <div className="secret-value" style={{ userSelect: 'all' }}>{setupData.secret}</div>
+
+                  <div className="secret-row">
+                    <div
+                      className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`}
+                      aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}
+                    >
+                      {showSecret ? setupData.secret : '••••••••••••••••'}
+                    </div>
+
+                    <div className="secret-actions">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => setShowSecret((v) => !v)}
+                        disabled={isBusy}
+                        aria-pressed={showSecret}
+                      >
+                        {showSecret ? 'Masquer' : 'Afficher'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        onClick={handleCopySecret}
+                        disabled={isBusy}
+                      >
+                        Copier
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="secret-hint">
+                    Gardez cette clé privée. Évitez les captures d’écran.
+                  </div>
                 </div>
               )}
 
@@ -297,17 +361,24 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
                   disabled={verifying}
+                  aria-invalid={error ? 'true' : 'false'}
+                  aria-describedby={error ? 'twofa-verify-error' : undefined}
                 />
+                {error && (
+                  <div className="sr-only" id="twofa-verify-error" role="alert">
+                    {error}
+                  </div>
+                )}
               </div>
 
               <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-                <button className="btn btn-primary" onClick={verify} disabled={verifying || !code || code.length < 6}>
+                <button className="btn btn-primary" onClick={verify} disabled={isBusy || !code || code.length < 6}>
                   {verifying ? 'Vérification...' : 'Vérifier et activer'}
                 </button>
                 <button
                   className="btn btn-secondary"
-                  onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); }}
-                  disabled={verifying || enabling}
+                  onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); setShowSecret(false); }}
+                  disabled={isBusy}
                 >
                   Annuler
                 </button>
@@ -363,37 +434,44 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const paymentStatus = useMemo(() => searchParams.get('payment'), [searchParams]);
+  const subscriptionStatus = useMemo(() => searchParams.get('subscription'), [searchParams]);
+
   const { data: profile, isLoading: loading, isError: error, refetch } = useProfileMeQuery();
 
   // Detect payment success/cancelled from URL params
   useEffect(() => {
-    const paymentStatus = searchParams.get('payment');
-    const subscriptionStatus = searchParams.get('subscription');
+    if (!paymentStatus && !subscriptionStatus) return;
 
     if (paymentStatus === 'success') {
       setShowPaymentSuccessModal(true);
       // Refresh profile to get updated BTL balance
       refetch();
-      // Clean URL by removing the payment parameter
-      searchParams.delete('payment');
-      setSearchParams(searchParams, { replace: true });
-    } else if (paymentStatus === 'cancelled') {
-      // Clean URL
-      searchParams.delete('payment');
-      setSearchParams(searchParams, { replace: true });
+      // Clean URL by removing the payment parameter (clone to avoid mutating the same instance)
+      const next = new URLSearchParams(searchParams);
+      next.delete('payment');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    if (paymentStatus === 'cancelled') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('payment');
+      setSearchParams(next, { replace: true });
+      return;
     }
 
     // Handle subscription success/cancelled
     if (subscriptionStatus === 'success') {
-      // Refresh profile to get updated subscription status
       refetch();
-      // Redirect to shop to show success modal
       navigate('/shop?subscription=success', { replace: true });
-    } else if (subscriptionStatus === 'cancelled') {
-      // Redirect to shop
+      return;
+    }
+
+    if (subscriptionStatus === 'cancelled') {
       navigate('/shop', { replace: true });
     }
-  }, [searchParams, setSearchParams, refetch, navigate]);
+  }, [paymentStatus, subscriptionStatus, searchParams, setSearchParams, refetch, navigate]);
 
   const handleEditProfile = useCallback(() => {
     setActiveTab('account');
