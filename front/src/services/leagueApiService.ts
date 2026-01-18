@@ -4,7 +4,7 @@
  */
 
 import secureApiClient from './secureApiClient';
-import type { LeagueSummary } from '../types';
+import type { LeagueSummary } from 'types/entities/league';
 import { mapLeaguesPage, type LeaguesPage, type LeaguesPageApi } from './leaguesPaging';
 import type {
   ApiLeagueCreateRequest,
@@ -14,7 +14,6 @@ import type {
   ApiUserSearchResult,
   ApiLeagueRankingRow,
   ApiInvitationReceived,
-  ApiLeagueSummary,
 } from '../types/api/leagues';
 import type { UserSearchResult } from '../types/entities/userSearch';
 import { mapApiUserSearchResultToUi } from './mappers/userSearchMapper';
@@ -529,7 +528,7 @@ class LeagueApiService {
       }
 
       // Enhanced security: check for forbidden characters and patterns
-      const forbiddenChars = /[<>\\/\\&\"'`]/;
+      const forbiddenChars = /[<>/\\&"'`]/;
       if (forbiddenChars.test(trimmedQuery)) {
         throw new Error('Caractères non autorisés détectés');
       }
