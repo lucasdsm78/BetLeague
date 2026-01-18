@@ -1,31 +1,21 @@
-/**
- * Types API communs
- *
- * Convention: ces types représentent la forme des réponses côté backend.
- * - snake_case conservé si retourné tel quel par l'API
- * - aucun mapping UI ici
- */
-
-export interface ApiResponse<T = unknown> {
-  readonly success: boolean;
-  readonly data?: T;
-  readonly message?: string;
-  readonly error?: string;
-  readonly errors?: Record<string, string[]>;
-}
+// DTOs et utilitaires de types pour les réponses API
 
 export interface ApiError {
-  readonly message: string;
-  readonly status: number;
-  readonly code?: string;
-  readonly details?: Record<string, unknown>;
+  message: string;
+  code?: string;
+  details?: unknown;
 }
 
-export interface ApiPaginatedResponse<T = unknown> {
-  readonly items: readonly T[];
-  readonly total: number;
-  readonly page: number;
-  readonly pageSize: number;
-  readonly totalPages: number;
+// Format de réponse standardisé côté front (suite à l'unification autour de secureApiClient)
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
+export interface ApiPaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}

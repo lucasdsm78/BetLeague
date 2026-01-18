@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient, ApiClientError } from '../services/apiClient';
-import type { ApiResponse, RequestConfig } from '../types';
+import http, { type ApiResponse, type RequestConfig } from '../services/http';
+import { ApiClientError } from '../services/apiClient';
 
 export interface UseApiState<T> {
   data: T | null;
@@ -73,13 +73,13 @@ class ApiCache {
   clearExpired(): void {
     const now = Date.now();
     const keysToDelete: string[] = [];
-    
+
     this.cache.forEach((entry, key) => {
       if (now - entry.timestamp > entry.ttl) {
         keysToDelete.push(key);
       }
     });
-    
+
     keysToDelete.forEach(key => this.cache.delete(key));
   }
 }
@@ -168,7 +168,7 @@ export function useApi<T = any>(
       }));
 
       abortControllerRef.current = new AbortController();
-      
+
       let lastError: ApiClientError | null = null;
       let result: T | null = null;
 
@@ -182,23 +182,35 @@ export function useApi<T = any>(
             },
           };
 
+          const parseBody = (rawBody: unknown) => {
+            if (!rawBody) return undefined;
+            if (typeof rawBody === 'string') {
+              try {
+                return JSON.parse(rawBody);
+              } catch {
+                return undefined;
+              }
+            }
+            return undefined;
+          };
+
           let response: ApiResponse<T>;
 
           switch (config.method?.toUpperCase()) {
             case 'POST':
-              response = await apiClient.post<T>(endpoint, config.body ? JSON.parse(config.body) : undefined, requestConfig);
+              response = await http.post<T>(endpoint, parseBody(config.body), requestConfig);
               break;
             case 'PUT':
-              response = await apiClient.put<T>(endpoint, config.body ? JSON.parse(config.body) : undefined, requestConfig);
+              response = await http.put<T>(endpoint, parseBody(config.body), requestConfig);
               break;
             case 'PATCH':
-              response = await apiClient.patch<T>(endpoint, config.body ? JSON.parse(config.body) : undefined, requestConfig);
+              response = await http.patch<T>(endpoint, parseBody(config.body), requestConfig);
               break;
             case 'DELETE':
-              response = await apiClient.delete<T>(endpoint, requestConfig);
+              response = await http.delete<T>(endpoint, requestConfig);
               break;
             default:
-              response = await apiClient.get<T>(endpoint, requestConfig);
+              response = await http.get<T>(endpoint, requestConfig);
           }
 
           if (!response.success) {
@@ -219,7 +231,7 @@ export function useApi<T = any>(
         } catch (error) {
           if (error instanceof ApiClientError) {
             lastError = error;
-            
+
             // Don't retry client errors (4xx) except 429
             if (error.status >= 400 && error.status < 500 && error.status !== 429) {
               break;
@@ -265,7 +277,7 @@ export function useApi<T = any>(
 
     } catch (error) {
       const apiError = error instanceof ApiClientError ? error : new ApiClientError('Unknown error');
-      
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -376,25 +388,21 @@ export function useApiMutation<T = any>(
       setLoading(true);
       setError(null);
 
-      const config: RequestConfig = {
-        method,
-        body: data ? JSON.stringify(data) : undefined,
-      };
-
+      // (RequestConfig legacy) on envoie directement `data` comme body JSON via http
       let response: ApiResponse<T>;
 
       switch (method) {
         case 'POST':
-          response = await apiClient.post<T>(endpoint, data);
+          response = await http.post<T>(endpoint, data);
           break;
         case 'PUT':
-          response = await apiClient.put<T>(endpoint, data);
+          response = await http.put<T>(endpoint, data);
           break;
         case 'PATCH':
-          response = await apiClient.patch<T>(endpoint, data);
+          response = await http.patch<T>(endpoint, data);
           break;
         case 'DELETE':
-          response = await apiClient.delete<T>(endpoint);
+          response = await http.delete<T>(endpoint);
           break;
       }
 
