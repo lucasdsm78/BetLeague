@@ -1,4 +1,4 @@
-import leagueApiService from './leagueApiService';
+import { getLeagueBalanceResponse } from './api/leagues';
 
 /**
  * Cache léger en mémoire des soldes par ligue pour l’utilisateur courant.
@@ -12,13 +12,14 @@ export function clearLeagueBalanceCache(): void {
 }
 
 async function fetchLeagueBalance(leagueId: number): Promise<number> {
-  const res = await leagueApiService.getLeagueBalance(leagueId);
-  if (!res.success) {
+  try {
+    const dto = await getLeagueBalanceResponse(leagueId);
+    const nb = Number(dto?.nb_btl);
+    return Number.isFinite(nb) ? nb : 0;
+  } catch {
     // Silencieux: pas bloquant pour l’UI
     return 0;
   }
-  const nb = Number(res.data?.nb_btl);
-  return Number.isFinite(nb) ? nb : 0;
 }
 
 /**
