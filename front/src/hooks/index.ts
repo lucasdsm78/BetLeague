@@ -30,9 +30,6 @@ export {
   SanitizationUtils,
 } from './useFormValidation';
 
-// Toast hooks
-export { useGlobalToast } from '../toast/ToastProvider';
-
 // (Optionnel) si besoin interne/technique :
 // export { useToast } from '../toast/useToast';
 
