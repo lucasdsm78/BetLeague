@@ -6,4 +6,5 @@ export * from './invitation';
 export * from './notification';
 export * from './toast';
 export * from './ticket';
+export * from './twoFactor';
 
