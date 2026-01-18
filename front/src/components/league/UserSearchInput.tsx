@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
-import leagueApiService from '../../services/leagueApiService';
+import { searchUsers } from '../../services/api/users';
 import type { UserSearchResult } from 'types/entities/userSearch';
 import './UserSearchInput.css';
 
@@ -39,30 +39,22 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
     setError('');
 
     try {
-      const response = await leagueApiService.searchUsers(searchQuery);
+      const users = await searchUsers(searchQuery);
 
+      // Filter out excluded users
+      const filteredResults = users.filter(
+        user => !excludeUserIds.includes(user.id)
+      );
 
-      if (response.success && response.data) {
-        // Filter out excluded users
-        const filteredResults = (response.data.users || []).filter(
-          user => !excludeUserIds.includes(user.id)
-        );
+      setResults(filteredResults);
+      setIsOpen(true);
+      setSelectedIndex(-1);
 
-        setResults(filteredResults);
-        setIsOpen(true); // Always show dropdown to display results or "no results"
-        setSelectedIndex(-1);
-
-      } else {
-        console.warn('⚠️ Search failed:', response);
-        setError(response.error || 'Erreur lors de la recherche');
-        setResults([]);
-        setIsOpen(true); // Show dropdown to display error
-      }
     } catch (err: any) {
       console.error('❌ Search error:', err);
-      setError('Erreur réseau lors de la recherche');
+      setError(err?.message || 'Erreur réseau lors de la recherche');
       setResults([]);
-      setIsOpen(true); // Show dropdown to display error
+      setIsOpen(true);
     } finally {
       setIsLoading(false);
     }

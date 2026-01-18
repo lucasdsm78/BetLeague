@@ -9,11 +9,8 @@ import type {
   ApiLeagueRankingRow,
   ApiLeagueBalancesBulkResponse,
   ApiLeagueBalanceResponse,
-  ApiUserSearchResult,
   ApiInvitationReceived,
 } from '../../types/api/leagues';
-import type { UserSearchResult } from '../../types/entities/userSearch';
-import { mapApiUserSearchResultToUi } from '../mappers/userSearchMapper';
 
 // Compat API légère (utilisée dans quelques endroits)
 export interface LeagueSummaryApi {
@@ -126,37 +123,6 @@ export async function getLeagueDetails(leagueId: number): Promise<any> {
   return res.data;
 }
 
-export async function getReceivedInvitations(): Promise<ApiInvitationReceived[]> {
-  const res: ApiResponse<ApiInvitationReceived[]> = await http.get('/invitations?is_received=true');
-  if (!res.success) throw new Error(res.error || 'Erreur lors du chargement des invitations');
-
-  const data = res.data;
-  if (!data) return [];
-  if (!Array.isArray(data)) throw new Error('Format de réponse invalide');
-  return data;
-}
-
-export async function updateInvitation(invitationId: number, accept: boolean): Promise<InvitationActionResponse> {
-  if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
-  const endpoint = `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`;
-  const res: ApiResponse<InvitationActionResponse> = await http.put(endpoint);
-  if (!res.success) throw new Error(res.error || "Erreur lors de la mise à jour de l'invitation");
-  return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
-}
-
-export async function searchUsers(query: string): Promise<UserSearchResult[]> {
-  const trimmed = String(query ?? '').trim();
-  if (trimmed.length < 2) return [];
-
-  const res: ApiResponse<{ users: ApiUserSearchResult[]; total: number; query: string }> = await http.get(
-    `/auth/users/search?q=${encodeURIComponent(trimmed)}`
-  );
-
-  if (!res.success) throw new Error(res.error || 'Erreur lors de la recherche utilisateur');
-  const users = Array.isArray(res.data?.users) ? res.data!.users : [];
-  return users.map((u) => mapApiUserSearchResultToUi(u));
-}
-
 export async function inviteUserToLeague(leagueId: number, userId: number): Promise<ApiLeagueMessageResponse> {
   if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
   if (!Number.isInteger(userId) || userId <= 0) throw new Error("ID d'utilisateur invalide");
@@ -190,9 +156,7 @@ export default {
   getLeaguesBalancesBulk,
   getLeagueBalance: getLeagueBalanceResponse,
   getLeagueDetails,
-  getReceivedInvitations,
-  updateInvitation,
-  searchUsers,
+  // invitations/search déplacés
   inviteUserToLeague,
   getParticipatedLeagues,
   getLeagueBalanceAmount,
