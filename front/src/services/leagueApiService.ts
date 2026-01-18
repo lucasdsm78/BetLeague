@@ -14,23 +14,23 @@ import type {
   ApiInvitationReceived,
 } from '../types/api/leagues';
 import type { UserSearchResult } from '../types/entities/userSearch';
-import type { InvitationActionResponse } from './api/leagues';
 import {
   createLeague as apiCreateLeague,
   getAvailableLeaguesPage as apiGetAvailableLeaguesPage,
   getCreatedLeaguesPage as apiGetCreatedLeaguesPage,
   getParticipatedLeaguesPage as apiGetParticipatedLeaguesPage,
   joinLeague as apiJoinLeague,
-  getReceivedInvitations as apiGetReceivedInvitations,
-  updateInvitation as apiUpdateInvitation,
   getLeagueDetails as apiGetLeagueDetails,
-  searchUsers as apiSearchUsers,
   inviteUserToLeague as apiInviteUserToLeague,
   getLeagueRanking as apiGetLeagueRanking,
   leaveLeague as apiLeaveLeague,
   getLeaguesBalancesBulk as apiGetLeaguesBalancesBulk,
   getLeagueBalanceResponse as apiGetLeagueBalance,
 } from './api/leagues';
+
+import { searchUsers as apiSearchUsers } from './api/users';
+import { getReceivedInvitations as apiGetReceivedInvitations, updateInvitation as apiUpdateInvitation } from './api/invitations';
+import type { InvitationActionResponse } from './api/invitations';
 
 export interface LeagueCreateFormData {
   name: string;
