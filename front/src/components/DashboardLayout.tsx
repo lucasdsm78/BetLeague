@@ -9,7 +9,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '../hooks/useToast';
-import { useUserProfile } from '../hooks/useUserProfile';
+import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import LogoutModal from './auth/LogoutModal';
 import type { User } from '../types';
 import './Dashboard.css';
@@ -119,7 +119,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
   const { updateUser } = useAuthStore();
   const { showError } = useToast();
-  const { profile } = useUserProfile();
+  const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });
+  const profile = profileQuery.data;
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

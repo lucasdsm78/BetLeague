@@ -2,7 +2,7 @@ import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import leagueApiService, { UserSearchResult } from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
-import { useUserProfile } from '../../hooks/useUserProfile';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
@@ -275,7 +275,9 @@ type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 interface LeaguesSectionProps {}
 
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
-    const { profile, refetch: refetchProfile } = useUserProfile();
+    const profileQuery = useProfileMeQuery();
+    const profile = profileQuery.data;
+    const refetchProfile = profileQuery.refetch;
     const userBtlBalance = profile?.nb_btl ?? 0;
 
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');

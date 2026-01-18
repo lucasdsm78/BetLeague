@@ -1,14 +1,12 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
 import './TicketsSection.css';
-import { useInProgressTickets } from 'hooks/useInProgressTickets';
-import { useFinishedTickets } from 'hooks/useFinishedTickets';
-import type { TicketReadModel, MatchChoiceSummary } from 'types/ticket';
+import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTickets } from '../../hooks/queries/useTicketsQueries';
+import type { TicketReadModel, MatchChoiceSummary } from '../../types/ticket';
 import TicketDetailModal from './TicketDetailModal';
 import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';
-import { useToast } from 'hooks/useToast';
-import { ToastContainer } from '../ToastContainer';
-import { useUserProfile } from 'hooks/useUserProfile';
+import { useGlobalToast } from '../../toast/ToastProvider';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 
 type TabType = 'current' | 'finished';
 
@@ -62,7 +60,7 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, 
       </header>
 
       <div className="ticket-choices">
-        {ticket.match_choice_summaries.slice(0, 3).map((mc) => (
+        {ticket.match_choice_summaries.slice(0, 3).map((mc: MatchChoiceSummary) => (
           <ChoiceLabel key={mc.id} choice={mc} />
         ))}
         {ticket.match_choice_summaries.length > 3 && (
@@ -120,7 +118,7 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
       </header>
 
       <div className="ticket-choices">
-        {ticket.match_choice_summaries.slice(0, 3).map((mc) => (
+        {ticket.match_choice_summaries.slice(0, 3).map((mc: MatchChoiceSummary) => (
           <ChoiceLabel key={mc.id} choice={mc} />
         ))}
         {ticket.match_choice_summaries.length > 3 && (
@@ -271,16 +269,34 @@ const TicketsSection: React.FC = memo(() => {
   const [deleteSource, setDeleteSource] = useState<'list' | 'detail' | null>(null);
   const [localUpdatedAt, setLocalUpdatedAt] = useState<number | null>(null);
 
-  const { showSuccess, showError, toasts, removeToast, pauseToast, resumeToast } = useToast();
-  const { refetch: refetchProfile } = useUserProfile();
+  const { showSuccess, showError } = useGlobalToast();
+  const profileQuery = useProfileMeQuery({ enabled: true });
+  const refetchProfile = useCallback(() => profileQuery.refetch(), [profileQuery]);
+  const invalidateTickets = useInvalidateTickets();
 
   // Data for current (in-progress)
-  const { tickets, loading, error, refetch, lastUpdated } = useInProgressTickets({ refreshIntervalMs: 30_000 });
+  const inProgressQuery = useInProgressTicketsQuery({ refetchIntervalMs: 30_000 });
+  const tickets = inProgressQuery.data ?? [];
+  const loading = inProgressQuery.isLoading;
+  const error = inProgressQuery.error?.message ?? null;
+  const lastUpdated = inProgressQuery.dataUpdatedAt || null;
 
   const filteredTickets = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
 
-  // Data for finished tickets (manual refresh, pas d’auto-refresh par défaut)
-  const { tickets: finishedTickets, loading: loadingFinished, error: errorFinished, refetch: refetchFinished, lastUpdated: lastUpdatedFinished } = useFinishedTickets();
+  // Data for finished tickets (manual refresh)
+  const finishedQuery = useFinishedTicketsQuery();
+  const finishedTickets = finishedQuery.data ?? [];
+  const loadingFinished = finishedQuery.isLoading;
+  const errorFinished = finishedQuery.error?.message ?? null;
+  const lastUpdatedFinished = finishedQuery.dataUpdatedAt || null;
+
+  const refetch = useCallback(async () => {
+    await inProgressQuery.refetch();
+  }, [inProgressQuery]);
+
+  const refetchFinished = useCallback(async () => {
+    await finishedQuery.refetch();
+  }, [finishedQuery]);
 
   const handleViewTicket = useCallback((id: number) => {
     setSelectedTicketId(id);
@@ -308,9 +324,8 @@ const TicketsSection: React.FC = memo(() => {
       await apiDeleteTicket(id);
       showSuccess('Ticket supprimé', `Ticket #${id} supprimé avec succès. Votre mise a été recréditée.`);
 
-      // Rafraîchir la liste pour refléter l'état serveur
-      refetch();
-      // Rafraîchir le profil pour refléter le recrédit BTL dans l'UI
+      // Rafraîchir via React Query
+      invalidateTickets.invalidateAll();
       refetchProfile();
 
       // Fermeture des modales
@@ -342,8 +357,6 @@ const TicketsSection: React.FC = memo(() => {
 
   return (
     <div className="tickets-section">
-      {/* Toasts locaux */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} pauseToast={pauseToast} resumeToast={resumeToast} />
 
       {/* Modales */}
       <TicketDetailModal

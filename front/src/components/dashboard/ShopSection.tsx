@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import './ShopSection.css';
 import BTLPurchaseModal from './BTLPurchaseModal';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
-import { useUserProfile } from 'hooks/useUserProfile';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
 import { getSubscriptionPlan } from 'services/subscriptionApi';
 
@@ -17,7 +17,7 @@ const ShopSection: React.FC = memo(() => {
   const [showPackPurchaseSuccessModal, setShowPackPurchaseSuccessModal] = useState(false);
   const [showPackPurchaseCancelledModal, setShowPackPurchaseCancelledModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, refetch } = useUserProfile();
+  const { data: profile, refetch } = useProfileMeQuery();
   const { user } = useAuthStore();
   const subscriptionPlan = getSubscriptionPlan();
 

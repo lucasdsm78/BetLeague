@@ -9,8 +9,9 @@ import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
 import MyTournaments from './MyTournaments';
 import FinishedTournaments from './FinishedTournaments';
-import { useToast } from '../../hooks/useToast';
-import { getTournaments, joinTournament, type Tournament } from '../../services/tournamentApi';
+import { useGlobalToast } from '../../toast/ToastProvider';
+import { useAvailableTournamentsQuery, useJoinTournamentMutation } from '../../hooks/queries/useTournamentQueries';
+import type { Tournament } from '../../services/tournamentApi';
 import './TournamentsSection.css';
 
 type TournamentTab = 'available' | 'my-tournaments' | 'finished-tournaments';
@@ -19,57 +20,19 @@ const TournamentsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TournamentTab>('available');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Debug log to track state changes
-  useEffect(() => {
-  }, [isCreateModalOpen]);
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
-  const [refreshCounter, setRefreshCounter] = useState(0);
   const [joinedTournament, setJoinedTournament] = useState<Tournament | null>(null);
-  const { showInfo, showError } = useToast();
 
-  // Load tournaments on mount, when page changes, or when refresh is triggered
-  useEffect(() => {
-    // Only fetch available tournaments when on the "available" tab
-    if (activeTab !== 'available') {
-      return;
-    }
+  const { showInfo, showError } = useGlobalToast();
 
-    let isMounted = true;
+  const availableQuery = useAvailableTournamentsQuery(page, pageSize, { enabled: activeTab === 'available' });
+  const tournaments = availableQuery.data?.tournaments ?? [];
+  const totalCount = availableQuery.data?.total_count ?? 0;
+  const isLoading = availableQuery.isLoading;
+  const error = availableQuery.error?.message ?? null;
 
-    const fetchTournaments = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await getTournaments(page, pageSize);
-        if (isMounted) {
-          setTournaments(response.tournaments);
-          setTotalCount(response.total_count);
-        }
-      } catch (err: any) {
-        console.error('Error fetching tournaments:', err);
-        if (isMounted) {
-          setError(err.message || 'Erreur lors du chargement des tournois');
-          showError('Erreur', 'Impossible de charger les tournois');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchTournaments();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeTab, page, pageSize, refreshCounter]); // showError intentionally omitted to prevent infinite loop
+  const joinMutation = useJoinTournamentMutation();
 
   const handleOpenCreateModal = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -84,41 +47,28 @@ const TournamentsSection: React.FC = () => {
 
   const handleTournamentCreated = useCallback(() => {
     showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
-    setRefreshCounter(prev => prev + 1);
-
-    // Le créateur est auto-inscrit côté back : on l’envoie directement sur “Mes tournois”
     setActiveTab('my-tournaments');
-  }, []); // Removed showInfo - it's stable and doesn't need to trigger re-creation
+  }, [showInfo]);
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
-      await joinTournament(tournamentId);
-
+      await joinMutation.mutateAsync({ tournamentId });
       const tournament = tournaments.find(t => t.id === tournamentId);
-      if (tournament) {
-        setJoinedTournament(tournament);
-      }
-
-      setRefreshCounter(prev => prev + 1);
+      if (tournament) setJoinedTournament(tournament);
+      // Pas de refetch manuel: l'invalidation est gérée par la mutation React Query
     } catch (err: any) {
-      console.error('Error joining tournament:', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Impossible de rejoindre le tournoi';
-      showError('Erreur', errorMessage);
+      showError('Erreur', err?.message || 'Impossible de rejoindre le tournoi');
       throw err;
     }
-  }, [tournaments]); // Removed showError - it's stable and doesn't need to trigger re-creation
+  }, [joinMutation, tournaments, showError]);
 
   const handlePreviousPage = useCallback(() => {
-    if (page > 1) {
-      setPage(prev => prev - 1);
-    }
+    if (page > 1) setPage(prev => prev - 1);
   }, [page]);
 
   const handleNextPage = useCallback(() => {
     const totalPages = Math.ceil(totalCount / pageSize);
-    if (page < totalPages) {
-      setPage(prev => prev + 1);
-    }
+    if (page < totalPages) setPage(prev => prev + 1);
   }, [page, totalCount, pageSize]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -196,7 +146,7 @@ const TournamentsSection: React.FC = () => {
                 <span className="error-icon">⚠️</span>
                 <h3>Erreur de chargement</h3>
                 <p>{error}</p>
-                <button className="btn-retry" onClick={() => setRefreshCounter(prev => prev + 1)}>
+                <button className="btn-retry" onClick={() => availableQuery.refetch()}>
                   🔄 Réessayer
                 </button>
               </div>

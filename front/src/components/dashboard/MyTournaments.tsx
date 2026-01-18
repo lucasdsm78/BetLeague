@@ -3,44 +3,23 @@
  * Shows all tournaments the user is currently participating in
  */
 
-import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getMyTournaments, type MyTournament } from '../../services/tournamentApi';
+import React, { memo, useState, useCallback } from 'react';
+import { useMyTournamentsQuery } from '../../hooks/queries/useTournamentQueries';
 import TournamentStages from './TournamentStages';
-import { useToast } from '../../hooks/useToast';
+import { useGlobalToast } from '../../toast/ToastProvider';
 import './MyTournaments.css';
 
 const MyTournaments: React.FC = memo(() => {
-  const [tournaments, setTournaments] = useState<MyTournament[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
-  const { showError } = useToast();
+  const { showError } = useGlobalToast();
 
-  // Fetch my tournaments
-  const fetchMyTournaments = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await getMyTournaments(page, pageSize);
-      setTournaments(response.tournaments);
-      setTotalCount(response.total_count);
-    } catch (err: any) {
-      console.error('Error fetching my tournaments:', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Impossible de charger vos tournois';
-      setError(errorMessage);
-      showError('Erreur', errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, pageSize]); // Removed showError from deps - it's stable and doesn't need to trigger re-fetches
-
-  useEffect(() => {
-    fetchMyTournaments();
-  }, [fetchMyTournaments]);
+  const myQuery = useMyTournamentsQuery(page, pageSize);
+  const tournaments = myQuery.data?.tournaments ?? [];
+  const totalCount = myQuery.data?.total_count ?? 0;
+  const isLoading = myQuery.isLoading;
+  const error = myQuery.error?.message ?? null;
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {
@@ -94,7 +73,7 @@ const MyTournaments: React.FC = memo(() => {
             <span className="error-icon">⚠️</span>
             <h3>Erreur de chargement</h3>
             <p>{error}</p>
-            <button className="btn-retry" onClick={fetchMyTournaments}>
+            <button className="btn-retry" onClick={() => myQuery.refetch()}>
               🔄 Réessayer
             </button>
           </div>

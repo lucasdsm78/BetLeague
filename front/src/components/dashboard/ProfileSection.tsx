@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './ProfileSection.css';
-import { useUserProfile } from 'hooks/useUserProfile';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import twoFactorService from 'services/twoFactorService';
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
@@ -357,7 +357,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { profile, loading, error, refetch } = useUserProfile();
+  const { data: profile, isLoading: loading, isError: error, refetch } = useProfileMeQuery();
 
   // Detect payment success/cancelled from URL params
   useEffect(() => {
