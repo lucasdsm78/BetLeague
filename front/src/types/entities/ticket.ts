@@ -1,6 +1,6 @@
 // Types UI / entités côté front (consommés par les composants)
 
-export interface LeagueSummary {
+export interface TicketLeagueSummary {
   id: number;
   name: string;
 }
@@ -26,7 +26,7 @@ export interface TicketReadModel {
   uuid: string;
   gain: number;
   status: string;
-  league_summary?: LeagueSummary | null;
+  league_summary?: TicketLeagueSummary | null;
   tournament_match_summary?: unknown | null;
   match_choice_summaries: MatchChoiceSummary[];
 }
@@ -38,4 +38,3 @@ export interface TicketsInProgressResponse {
 export interface TicketsFinishedResponse {
   tickets: TicketReadModel[];
 }
-

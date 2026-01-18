@@ -64,4 +64,3 @@ export interface UIState {
   readonly modals: Record<string, boolean>;
   readonly toasts: readonly Toast[];
 }
-
