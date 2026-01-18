@@ -1,4 +1,5 @@
-import type { LeagueSummary } from '../types';
+import type { LeagueSummary } from 'types/entities/league';
+import { mapApiLeagueSummaryToUi } from './mappers/leagueMapper';
 
 export interface LeaguesPageApi {
   leagues: Array<{
@@ -24,34 +25,14 @@ export interface LeaguesPage {
   totalPages: number;
 }
 
-export function toEpochMs(ts: number | string | null | undefined): number | null {
-  if (ts === null || ts === undefined) return null;
-  const n = typeof ts === 'string' ? Number(ts) : ts;
-  if (!Number.isFinite(n)) return null;
-  // < 10^12 means seconds, convert to ms
-  return n < 1_000_000_000_000 ? n * 1000 : n;
-}
-
 export function mapLeaguesPage(api: LeaguesPageApi): LeaguesPage {
-  const leagues: LeagueSummary[] = (api.leagues ?? []).map((l) => {
-    const startMs = toEpochMs(l.start_date);
-    return {
-      id: Number(l.id),
-      name: String(l.name ?? ''),
-      startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
-      isStarted: Boolean(l.is_started ?? false),
-      playersRemaining: typeof l.nb_players_remaining === 'number' ? l.nb_players_remaining : undefined,
-      isFree: typeof l.is_free === 'boolean' ? l.is_free : true,
-      nbBtl: typeof l.nb_btl === 'number' && l.nb_btl > 0 ? l.nb_btl : undefined,
-    } as LeagueSummary;
-  });
+  const leagues: LeagueSummary[] = (api.leagues ?? []).map((l) => mapApiLeagueSummaryToUi(l as any));
 
   return {
     leagues,
-    page: Number(api.page ?? 1),
-    pageSize: Number(api.page_size ?? 10),
-    total: Number(api.total ?? leagues.length),
-    totalPages: Number(api.total_pages ?? 1),
+    page: Number((api as any).page ?? 1),
+    pageSize: Number((api as any).page_size ?? 10),
+    total: Number((api as any).total ?? leagues.length),
+    totalPages: Number((api as any).total_pages ?? 1),
   };
 }
-

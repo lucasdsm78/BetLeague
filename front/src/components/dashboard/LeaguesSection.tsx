@@ -14,7 +14,7 @@ import LeaveLeagueModal from '../league/LeaveLeagueModal';
 import EditLeagueModal from '../league/EditLeagueModal';
 import InsufficientBTLModal from '../InsufficientBTLModal';
 import './LeaguesSection.css';
-import { LeagueSummary } from '../../types';
+import type { LeagueSummary } from 'types/entities/league';
 import type { UserSearchResult } from 'types/entities/userSearch';
 
 // SVG Icons for action buttons - inline for performance
