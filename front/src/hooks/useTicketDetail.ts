@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTicketDetail } from 'services/ticketsApi';
-import type { TicketReadModel } from 'types/ticket';
+import type { TicketReadModel } from 'types/entities/ticket';
 
 export interface UseTicketDetailReturn {
   ticket: TicketReadModel | null;

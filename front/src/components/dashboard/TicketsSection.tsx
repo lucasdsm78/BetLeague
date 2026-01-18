@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
 import './TicketsSection.css';
 import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTickets } from '../../hooks/queries/useTicketsQueries';
-import type { TicketReadModel, MatchChoiceSummary } from '../../types/ticket';
+import type { TicketReadModel, MatchChoiceSummary } from '../../types/entities/ticket';
 import TicketDetailModal from './TicketDetailModal';
 import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/ticketsApi';

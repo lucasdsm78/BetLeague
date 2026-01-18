@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getFinishedTickets } from 'services/ticketsApi';
-import type { TicketReadModel } from 'types/ticket';
+import type { TicketReadModel } from 'types/entities/ticket';
 
 export interface UseFinishedTicketsOptions {
   refreshIntervalMs?: number; // auto-refresh interval, disabled if undefined

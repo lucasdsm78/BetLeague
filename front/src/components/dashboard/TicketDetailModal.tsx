@@ -3,7 +3,7 @@ import './CreateTicketModal.css';
 import './TicketDetailSection.css';
 import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
-import type { MatchChoiceSummary } from 'types/ticket';
+import type { MatchChoiceSummary } from 'types/entities/ticket';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -24,16 +24,32 @@ const normalizeStatus = (status: string | null | undefined): NormalizedStatus =>
 
 const statusToLabel = (status: string | null | undefined): string => {
   switch (normalizeStatus(status)) {
-    case 'pending': return 'En cours';
-    case 'correct': return 'Gagné';
-    case 'wrong': return 'Perdu';
-    default: return 'En cours';
+    case 'pending':
+      return 'En cours';
+    case 'correct':
+      return 'Gagné';
+    case 'wrong':
+      return 'Perdu';
+    default:
+      return 'En cours';
   }
 };
 
 const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
-  const teamChoice = choice.choice === '1' ? choice.match_summary.home_team : choice.choice === '2' ? choice.match_summary.away_team : 'Match nul';
-  const chipClass = normalizeStatus(choice.status) === 'correct' ? 'chip success' : normalizeStatus(choice.status) === 'wrong' ? 'chip danger' : 'chip';
+  const teamChoice =
+    choice.choice === '1'
+      ? choice.match_summary.home_team
+      : choice.choice === '2'
+        ? choice.match_summary.away_team
+        : 'Match nul';
+
+  const chipClass =
+    normalizeStatus(choice.status) === 'correct'
+      ? 'chip success'
+      : normalizeStatus(choice.status) === 'wrong'
+        ? 'chip danger'
+        : 'chip';
+
   return (
     <li className="choice-row">
       <div className="teams">
@@ -75,14 +91,20 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
     }
   }, [isOpen]);
 
-  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  }, [onClose]);
+  const handleOverlayClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose]
+  );
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isOpen) return;
-    if (e.key === 'Escape') onClose();
-  }, [isOpen, onClose]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if (e.key === 'Escape') onClose();
+    },
+    [isOpen, onClose]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -92,7 +114,12 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
 
   const leagueName = ticket?.league_summary?.name || 'Ligues';
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
-  const badgeClass = isWin ? 'badge badge-success' : normalizeStatus(ticket?.status) === 'wrong' ? 'badge badge-danger' : 'badge badge-warning';
+  const badgeClass =
+    isWin
+      ? 'badge badge-success'
+      : normalizeStatus(ticket?.status) === 'wrong'
+        ? 'badge badge-danger'
+        : 'badge badge-warning';
   const statusLabel = statusToLabel(ticket?.status);
   const totalChoices = ticket?.match_choice_summaries?.length || 0;
 
@@ -104,11 +131,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
   if (!isOpen || ticketId == null) return null;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="ticket-detail-title" onClick={handleOverlayClick}>
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ticket-detail-title"
+      onClick={handleOverlayClick}
+    >
       <div ref={modalRef} className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header" style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-primary)' }}>
+        <div
+          className="modal-header"
+          style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-primary)' }}
+        >
           <h3 id="ticket-detail-title">Détail du ticket</h3>
-          <button ref={closeBtnRef} className="icon-btn" onClick={onClose} aria-label="Fermer">×</button>
+          <button ref={closeBtnRef} className="icon-btn" onClick={onClose} aria-label="Fermer">
+            ×
+          </button>
         </div>
 
         <div className="ticket-detail-section" style={{ paddingTop: 0 }}>
@@ -138,7 +176,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           {error && (
             <div className="alert alert-danger" role="alert">
               <span>Impossible de charger le ticket: {error}</span>
-              <button className="btn btn-outline btn-sm" onClick={refetch}>Réessayer</button>
+              <button className="btn btn-outline btn-sm" onClick={refetch}>
+                Réessayer
+              </button>
             </div>
           )}
 
@@ -162,7 +202,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
                 </div>
                 <div className="summary-card">
                   <div className="label">Gain {normalizeStatus(ticket.status) === 'pending' ? 'potentiel' : ''}</div>
-                  <div className={`value ${normalizeStatus(ticket.status) === 'correct' ? 'win' : ''}`}>{summary.gain.toFixed(2)}€</div>
+                  <div className={`value ${normalizeStatus(ticket.status) === 'correct' ? 'win' : ''}`}>
+                    {summary.gain.toFixed(2)}€
+                  </div>
                 </div>
                 <div className="summary-card">
                   <div className="label">Sélections</div>
@@ -182,10 +224,24 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           )}
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '1rem', position: 'sticky', bottom: 0, background: 'var(--bg-primary)', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
-          <button className="btn btn-outline" onClick={onClose}>Fermer</button>
+        <div
+          className="modal-actions"
+          style={{
+            marginTop: '1rem',
+            position: 'sticky',
+            bottom: 0,
+            background: 'var(--bg-primary)',
+            padding: '1rem',
+            borderTop: '1px solid var(--border-color)',
+          }}
+        >
+          <button className="btn btn-outline" onClick={onClose}>
+            Fermer
+          </button>
           {ticket && onAskDelete && (
-            <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>Supprimer le ticket</button>
+            <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>
+              Supprimer le ticket
+            </button>
           )}
         </div>
       </div>
@@ -194,3 +250,4 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
 };
 
 export default TicketDetailModal;
+

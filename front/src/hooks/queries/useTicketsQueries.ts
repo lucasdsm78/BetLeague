@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ticketsApi from '../../services/ticketsApi';
-import type { TicketsFinishedResponse, TicketsInProgressResponse, TicketReadModel } from '../../types/ticket';
+import type { TicketsFinishedResponse, TicketsInProgressResponse, TicketReadModel } from '../../types/entities/ticket';
 
 export const ticketsKeys = {
   all: ['tickets'] as const,
@@ -52,4 +52,3 @@ export function useInvalidateTickets() {
     invalidateFinished: () => qc.invalidateQueries({ queryKey: ticketsKeys.finished() }),
   };
 }
-
