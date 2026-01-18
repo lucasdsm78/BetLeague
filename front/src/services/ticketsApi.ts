@@ -1,6 +1,7 @@
 // ticketsApi.ts - service pour la création et gestion des tickets
 import secureApiClient, { ApiResponse } from './secureApiClient';
-import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../types/ticket';
+import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../types/entities/ticket';
+import { mapApiTicketToUi, tryMapApiTicketToUi } from './mappers/ticketMapper';
 import type {
   ApiMatchChoiceCreate,
   ApiTicketCreateRequest,
@@ -15,21 +16,34 @@ export type MatchChoiceData = ApiMatchChoiceCreate;
 export type TicketCreatePayload = ApiTicketCreateRequest;
 export type TicketCreateResponse = ApiTicketCreateResponse;
 
-// Mapping minimal DTO -> UI (actuellement mêm shape, mais ça isole le reste du code)
-function mapApiTicketToUi(ticket: ApiTicketReadModel): TicketReadModel {
-  return ticket as unknown as TicketReadModel;
-}
-
-function normalizeInProgress(data: ApiTicketsInProgressResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown): TicketsInProgressResponse {
+function normalizeInProgress(
+  data: ApiTicketsInProgressResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown
+): TicketsInProgressResponse {
   const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
   const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
-  return { tickets: tickets.map(mapApiTicketToUi) };
+
+  const mapped: TicketReadModel[] = [];
+  for (const t of tickets) {
+    const ui = tryMapApiTicketToUi(t);
+    if (ui) mapped.push(ui);
+  }
+
+  return { tickets: mapped };
 }
 
-function normalizeFinished(data: ApiTicketsFinishedResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown): TicketsFinishedResponse {
+function normalizeFinished(
+  data: ApiTicketsFinishedResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown
+): TicketsFinishedResponse {
   const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
   const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
-  return { tickets: tickets.map(mapApiTicketToUi) };
+
+  const mapped: TicketReadModel[] = [];
+  for (const t of tickets) {
+    const ui = tryMapApiTicketToUi(t);
+    if (ui) mapped.push(ui);
+  }
+
+  return { tickets: mapped };
 }
 
 export async function createTicket(leagueId: number, payload: TicketCreatePayload): Promise<TicketCreateResponse> {
@@ -88,9 +102,7 @@ export async function getTicketDetail(
     if (!ticket || typeof ticket !== 'object') {
       throw new Error('Format de réponse invalide pour le ticket');
     }
-    if (!('id' in (ticket as any)) || !('match_choice_summaries' in (ticket as any))) {
-      throw new Error('Format de ticket invalide');
-    }
+    // Ici on mappe en strict (si ça casse, on préfère une erreur explicite)
     return mapApiTicketToUi(ticket as ApiTicketReadModel);
   };
 

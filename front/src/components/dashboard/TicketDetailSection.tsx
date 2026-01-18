@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
-import type { MatchChoiceSummary } from 'types/ticket';
+import type { MatchChoiceSummary } from 'types/entities/ticket';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
