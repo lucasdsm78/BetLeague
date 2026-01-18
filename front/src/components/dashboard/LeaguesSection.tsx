@@ -1,7 +1,6 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import leagueApiService from '../../services/leagueApiService';
-import type { ApiUserSearchResult } from '../../types/api/leagues';
 import secureApiClient from '../../services/secureApiClient';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
@@ -16,6 +15,7 @@ import EditLeagueModal from '../league/EditLeagueModal';
 import InsufficientBTLModal from '../InsufficientBTLModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
+import type { UserSearchResult } from 'types/entities/userSearch';
 
 // SVG Icons for action buttons - inline for performance
 const IconEye = () => (
@@ -457,7 +457,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         availableQuery.refetch();
     }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, refetchProfile]);
 
-    const handleInvitationSent = useCallback((user: ApiUserSearchResult) => {
+    const handleInvitationSent = useCallback((user: UserSearchResult) => {
         showSuccess('Invitation envoyée', `Invitation envoyée à ${user.pseudo} avec succès !`);
     }, [showSuccess]);
 

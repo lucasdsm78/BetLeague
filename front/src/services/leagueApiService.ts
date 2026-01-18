@@ -14,7 +14,10 @@ import type {
   ApiUserSearchResult,
   ApiLeagueRankingRow,
   ApiInvitationReceived,
+  ApiLeagueSummary,
 } from '../types/api/leagues';
+import type { UserSearchResult } from '../types/entities/userSearch';
+import { mapApiUserSearchResultToUi } from './mappers/userSearchMapper';
 
 // DTO local (réponse update invitation) : à migrer ensuite dans src/types/api/leagues.ts si on veut.
 export interface InvitationActionResponse {
@@ -509,7 +512,7 @@ class LeagueApiService {
   /**
    * Search users with enhanced validation and security
    */
-  public async searchUsers(query: string): Promise<LegacyApiResponse<{ users: ApiUserSearchResult[] }>> {
+  public async searchUsers(query: string): Promise<LegacyApiResponse<{ users: UserSearchResult[] }>> {
     try {
       if (!query || typeof query !== 'string') {
         throw new Error('Terme de recherche requis');
@@ -546,12 +549,8 @@ class LeagueApiService {
         throw new Error('Format de réponse invalide');
       }
 
-      // Map and validate the response
-      const users = response.users.map((user: any) => ({
-        id: Number(user.id),
-        pseudo: String(user.pseudo || 'Utilisateur'),
-        email: String(user.email || ''),
-      })) as ApiUserSearchResult[];
+      // Mapper + validation minimale
+      const users: UserSearchResult[] = response.users.map((u: ApiUserSearchResult) => mapApiUserSearchResultToUi(u));
 
       console.log(`✅ Found ${users.length} users matching query:`, trimmedQuery);
 
@@ -601,7 +600,7 @@ class LeagueApiService {
 
       return {
         success: false,
-        error: error.message || 'Erreur lors de la recherche d\'utilisateurs',
+        error: error.message || 'Erreur lors de la recherche d\'utilisateur',
       };
     }
   }
