@@ -1,0 +1,51 @@
+// services/api/userProfile.ts
+// API module: user profile (network + DTO typing)
+
+import http, { type ApiResponse } from '../http';
+import type { ApiUserProfile } from '../../types/api/profile';
+
+export interface ApiUpdateProfileData {
+  pseudo?: string;
+  email?: string;
+}
+
+export interface ApiUpdateProfileResponse {
+  message: string;
+  token_auth?: string;
+  refresh_token?: string;
+  user?: ApiUserProfile;
+}
+
+export async function updateProfile(data: ApiUpdateProfileData): Promise<ApiUpdateProfileResponse> {
+  const res: ApiResponse<ApiUpdateProfileResponse> = await http.put('/auth/user', data);
+  if (!res.success) {
+    throw new Error(res.error || 'Échec de la mise à jour du profil');
+  }
+  return res.data as ApiUpdateProfileResponse;
+}
+
+export async function checkPseudoAvailability(pseudo: string): Promise<boolean> {
+  const res: ApiResponse<{ available: boolean }> = await http.get(`/auth/check-pseudo?pseudo=${encodeURIComponent(pseudo)}`);
+  if (!res.success) {
+    // fallback: laisser le serveur valider
+    return true;
+  }
+  return res.data?.available ?? false;
+}
+
+export async function checkEmailAvailability(email: string): Promise<boolean> {
+  const res: ApiResponse<{ available: boolean }> = await http.get(`/auth/check-email?email=${encodeURIComponent(email)}`);
+  if (!res.success) {
+    return true;
+  }
+  return res.data?.available ?? false;
+}
+
+export async function getCurrentUserProfile(): Promise<ApiUserProfile> {
+  const res: ApiResponse<ApiUserProfile> = await http.get('/auth/me');
+  if (!res.success || !res.data) {
+    throw new Error(res.error || 'Impossible de récupérer le profil utilisateur');
+  }
+  return res.data as ApiUserProfile;
+}
+
