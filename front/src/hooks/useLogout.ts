@@ -6,7 +6,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from './useAuth.enhanced';
-import { useToast } from './useToast';
+import { useGlobalToast } from '../toast/ToastProvider';
 import secureApiClient from '../services/secureApiClient';
 
 export type LogoutOption = 'current' | 'all_devices' | 'except_current';
@@ -84,7 +84,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
   // Dependencies
   const navigate = useNavigate();
   const { logout: authLogout, isAuthenticated } = useEnhancedAuth();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError } = useGlobalToast();
 
   // State
   const [isLoggingOut, setIsLoggingOut] = useState(false);

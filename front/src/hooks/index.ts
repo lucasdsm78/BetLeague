@@ -4,7 +4,7 @@
  */
 
 // Authentication hooks
-export { 
+export {
   useAuth,
   useAuthUser,
   useIsAuthenticated,
@@ -31,12 +31,10 @@ export {
 } from './useFormValidation';
 
 // Toast hooks
-export {
-  useToast,
-  useErrorToast,
-  useSuccessToast,
-  useGlobalToast,
-} from './useToast';
+export { useGlobalToast } from '../toast/ToastProvider';
+
+// (Optionnel) si besoin interne/technique :
+// export { useToast } from '../toast/useToast';
 
 // Utility hooks
 export {
@@ -50,12 +48,12 @@ export { default as useFormSecurity } from './useFormSecurity';
 
 // Hook composition utilities
 import { useAuth as useAuthHook } from './useAuth';
-import { useErrorToast as useErrorToastHook } from './useToast';
+import { useGlobalToast } from '../toast/ToastProvider';
 
 export const useAppInitialization = () => {
   const { isAuthenticated, isLoading } = useAuthHook();
-  const { showError } = useErrorToastHook();
-  
+  const { showError } = useGlobalToast();
+
   return {
     isAuthenticated,
     isLoading,
@@ -82,11 +80,8 @@ export type {
 } from './useFormValidation';
 
 export type {
-  ToastType,
-  CreateToastOptions,
-  UseToastReturn,
-  ToastConfig,
-} from './useToast';
+  // pas de types toast exposés depuis hooks (API publique = toast/ToastProvider)
+} from '../toast/useToast';
 
 export type {
   UseDebounceOptions,
