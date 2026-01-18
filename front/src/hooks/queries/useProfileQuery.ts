@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import secureApiClient, { type ApiResponse } from '../../services/secureApiClient';
+import http, { type ApiResponse } from '../../services/http';
 import { profileKeys } from './profileKeys';
 import type { ApiUserProfile } from '../../types/api/profile';
 
 async function fetchMe(): Promise<ApiUserProfile> {
-  const meRes: ApiResponse<any> = await secureApiClient.get('/auth/me');
+  const meRes: ApiResponse<any> = await http.get('/auth/me');
   if (meRes.success && meRes.data) {
     const currentUser = meRes.data;
     return {
@@ -19,7 +19,7 @@ async function fetchMe(): Promise<ApiUserProfile> {
     };
   }
 
-  const validateRes: ApiResponse<any> = await secureApiClient.get('/auth/validate');
+  const validateRes: ApiResponse<any> = await http.get('/auth/validate');
   if (!validateRes.success) {
     throw new Error(validateRes.error || 'Session invalide. Veuillez vous reconnecter.');
   }

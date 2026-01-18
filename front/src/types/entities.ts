@@ -288,142 +288,30 @@ export type NotificationType =
   | 'system_announcement'
   | 'account_update';
 
-export interface ApiResponse<T = unknown> {
-  readonly success: boolean;
-  readonly data?: T;
-  readonly message?: string;
-  readonly error?: string;
-  readonly errors?: Record<string, string[]>;
-}
+/**
+ * ⚠️ Compat (à migrer)
+ *
+ * Historiquement, certains types API ont été exportés depuis `types/entities.ts`.
+ * On les conserve temporairement en alias vers `types/api/*` pour migration progressive.
+ */
+import type {
+  ApiResponse as _ApiResponse,
+  ApiError as _ApiError,
+  ApiPaginatedResponse as _ApiPaginatedResponse,
+} from './api/common';
+import type {
+  ApiLoginResponse as _ApiLoginResponse,
+  ApiRegisterResponse as _ApiRegisterResponse,
+} from './api/auth';
 
-export interface LoginResponseData {
-  readonly token_auth: string;
-  readonly uuid: string;
-  readonly token_expiration?: string;
-  readonly two_factor_enabled?: boolean; // ajouté
-}
+export type ApiResponse<T = unknown> = _ApiResponse<T>;
+export type ApiError = _ApiError;
+export type PaginatedResponse<T = unknown> = _ApiPaginatedResponse<T>;
 
-export interface RegisterResponseData {
-  readonly token_auth: string;
-  readonly uuid: string;
-  readonly token_expiration?: string;
-  readonly two_factor_enabled?: boolean; // ajouté (cas futur d'activation automatique)
-}
+export type LoginResponse = _ApiLoginResponse;
+export type RegisterResponse = _ApiRegisterResponse;
 
-export type LoginResponse = ApiResponse<LoginResponseData>;
-export type RegisterResponse = ApiResponse<RegisterResponseData>;
-
-export interface PaginatedResponse<T = unknown> {
-  readonly items: readonly T[];
-  readonly total: number;
-  readonly page: number;
-  readonly pageSize: number;
-  readonly totalPages: number;
-}
-
-export interface ApiError {
-  readonly message: string;
-  readonly status: number;
-  readonly code?: string;
-  readonly details?: Record<string, unknown>;
-}
-
-export interface TwoFactorSetupResponse {
-  readonly otpauth_url?: string;
-  readonly secret?: string;
-  readonly qr_code?: string; // data URL d'une image QR éventuelle
-  readonly recovery_codes?: readonly string[];
-}
-
-
-export interface LoginForm {
-  readonly email: string;
-  readonly password: string;
-  readonly code?: string;
-  readonly rememberMe?: boolean;
-}
-
-export interface RegisterForm {
-  readonly pseudo: string;
-  readonly email: string;
-  readonly password: string;
-  readonly confirmPassword: string;
-  readonly acceptTerms: boolean;
-}
-
-export interface LeagueCreateForm {
-  readonly name: string;
-  readonly maxMembers: number;
-  readonly type: 'public' | 'private';
-  readonly entryFee: number;
-  readonly description?: string;
-  readonly startDate?: string;
-  readonly endDate?: string;
-}
-
-
-export interface PaginationState {
-  readonly currentPage: number;
-  readonly pageSize: number;
-  readonly totalItems: number;
-}
-
-export interface FilterState {
-  readonly search: string;
-  readonly status?: string;
-  readonly dateFrom?: string;
-  readonly dateTo?: string;
-  readonly sortBy: string;
-  readonly sortOrder: 'asc' | 'desc';
-}
-
-
-export interface AuthState {
-  isAuthenticated: boolean;
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  error: string | null;
-  twoFactorChallenge?: { email: string; password: string } | null;
-}
-
-export interface LeaguesState {
-  readonly leagues: readonly League[];
-  readonly currentLeague: LeagueDetails | null;
-  readonly invitations: readonly Invitation[];
-  readonly isLoading: boolean;
-  readonly error: string | null;
-}
-
-export interface MatchesState {
-  readonly matches: readonly Match[];
-  readonly selectedMatch: Match | null;
-  readonly isLoading: boolean;
-  readonly error: string | null;
-  readonly filters: FilterState;
-}
-
-export interface BetsState {
-  readonly bets: readonly Bet[];
-  readonly currentBet: BetDetails | null;
-  readonly isLoading: boolean;
-  readonly error: string | null;
-}
-
-export interface NotificationsState {
-  readonly notifications: readonly Notification[];
-  readonly unreadCount: number;
-  readonly isLoading: boolean;
-  readonly error: string | null;
-}
-
-export interface UIState {
-  readonly theme: 'light' | 'dark' | 'auto';
-  readonly sidebarOpen: boolean;
-  readonly modals: Record<string, boolean>;
-  readonly toasts: readonly Toast[];
-}
-
+// Toast UI types (utilisés par `useToast` et `ToastContainer`)
 export interface Toast {
   readonly id: string;
   readonly type: 'success' | 'error' | 'warning' | 'info';
@@ -439,38 +327,3 @@ export interface ToastAction {
   readonly variant?: 'primary' | 'secondary';
 }
 
-
-export interface ValidationRule<T = unknown> {
-  readonly required?: boolean;
-  readonly min?: number;
-  readonly max?: number;
-  readonly pattern?: RegExp;
-  readonly custom?: (value: T, allValues?: any) => string | null;
-}
-
-export type ValidationSchema<T = Record<string, unknown>> = {
-  readonly [K in keyof T]?: ValidationRule<T[K]>;
-}
-
-export interface ValidationResult {
-  readonly isValid: boolean;
-  readonly errors: Record<string, string>;
-}
-
-
-export interface SecurityConfig {
-  readonly maxLoginAttempts: number;
-  readonly lockoutDuration: number;
-  readonly sessionTimeout: number;
-  readonly csrfTokenRequired: boolean;
-  readonly rateLimitRequests: number;
-  readonly rateLimitWindow: number;
-}
-
-export interface SecurityContext {
-  readonly permissions: readonly string[];
-  readonly roles: readonly string[];
-  readonly sessionId: string;
-  readonly lastActivity: string;
-  readonly deviceFingerprint?: string;
-}

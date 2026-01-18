@@ -7,7 +7,8 @@ import { useState, useEffect, useCallback } from 'react';
 import enhancedAuthService, { AuthError } from 'services/authService.enhanced';
 import { useAuthStore } from 'store/authStore';
 import useTokenMonitor from 'hooks/useTokenMonitor';
-import type { User, LoginForm, RegisterForm } from 'types';
+import type { LoginForm, RegisterForm } from '../types';
+import type { User } from '../store/authStore';
 
 export interface UseAuthReturn {
   // State

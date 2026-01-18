@@ -157,7 +157,8 @@ interface SecuritySettingsProps {
 }
 
 const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEnabled }) => {
-  const { user, updateUser } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const enable2faMutation = useEnableTwoFactorMutation();
   const verify2faMutation = useVerifyTwoFactorMutation();
   const toast = useGlobalToast();

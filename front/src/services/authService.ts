@@ -4,7 +4,8 @@
  */
 
 /** Legacy Authentication Service (restored) */
-import { apiClient, ApiClientError } from './apiClient';
+import http from './http';
+// ApiClientError n'est plus utilisé avec http/secureApiClient
 import type { User, LoginForm, RegisterForm, LoginResponse, RegisterResponse } from '../types';
 
 export class AuthError extends Error { constructor(public message:string, public readonly status:number=0, public readonly code?:string, public readonly data?:unknown){ super(message); this.name='AuthError'; }
@@ -20,21 +21,99 @@ class AuthService { private tracker=new LoginAttemptTracker(); private TOKEN_KEY
   private getToken(){ try{ return localStorage.getItem(this.TOKEN_KEY);}catch{return null;} }
   private getRefresh(){ try{ return localStorage.getItem(this.REFRESH_KEY);}catch{return null;} }
   private clear(){ try{localStorage.removeItem(this.TOKEN_KEY);localStorage.removeItem(this.REFRESH_KEY);}catch{}}
-  private handleApiError(error:any):never { if(error instanceof ApiClientError){ throw new AuthError(error.message,error.status,error.code,error.details);} if(error instanceof Error) throw new AuthError(error.message,0,'UNKNOWN_ERROR',error); throw new AuthError('Erreur inconnue',0); }
-
-  async login(credentials:LoginForm):Promise<LoginResponse>{ const email=this.validateEmail(credentials.email); const password=this.validatePassword(credentials.password); if(this.tracker.isBlocked(email)){ const minutes=Math.ceil(this.tracker.remaining(email)/60000); throw new AuthError(`Compte temporairement bloqué. Réessayez dans ${minutes} minute(s).`,429,'ACCOUNT_LOCKED'); }
-    try { const payload={ email, password, code: credentials.code?credentials.code.trim():'' }; const resp:any=await apiClient.post('/auth/login',payload); if(!resp.success||!resp.data) throw new AuthError('Réponse invalide du serveur',500); if(!resp.data.token_auth||!resp.data.uuid){ if(resp.data?.detail && /2fa/i.test(resp.data.detail)) throw new AuthError('Deuxième facteur requis',400,'TWO_FACTOR_REQUIRED'); throw new AuthError('Données de connexion incomplètes',500); } this.storeToken(resp.data.token_auth); this.tracker.record(email,true); return resp; } catch(e:any){ if(credentials.email) this.tracker.record(email,false); if(e instanceof ApiClientError && e.status===400){ const lower=(e.message||'').toLowerCase(); if(lower.includes('2fa')&&lower.includes('required')) throw new AuthError('Deuxième facteur requis',400,'TWO_FACTOR_REQUIRED'); if(lower.includes('invalid')&&lower.includes('2fa')) throw new AuthError('Code 2FA invalide',400,'INVALID_2FA_CODE'); } this.handleApiError(e); }
+  private handleApiError(error:any):never {
+    // secureApiClient/http lève généralement un Error avec message déjà exploitable
+    if (error instanceof Error) {
+      throw new AuthError(error.message, (error as any).status || 0, (error as any).code, (error as any).details);
+    }
+    throw new AuthError('Erreur inconnue',0);
   }
 
-  async register(credentials:RegisterForm):Promise<RegisterResponse>{ const email=this.validateEmail(credentials.email); const password=this.validatePassword(credentials.password); const pseudo=this.validatePseudo(credentials.pseudo); if(password!==credentials.confirmPassword) throw new AuthError('Les mots de passe ne correspondent pas',400,'PASSWORDS_MISMATCH'); if(!credentials.acceptTerms) throw new AuthError('Vous devez accepter les conditions d\'utilisation',400,'TERMS_NOT_ACCEPTED'); try { const payload={ pseudo, email, password }; const resp:any=await apiClient.post('/auth/register',payload); if(!resp.success||!resp.data) throw new AuthError('Réponse invalide du serveur',500); if(!resp.data.token_auth||!resp.data.uuid) throw new AuthError('Données d\'inscription incomplètes',500); this.storeToken(resp.data.token_auth); return resp; } catch(e){ this.handleApiError(e);} }
+  async login(credentials:LoginForm):Promise<LoginResponse>{
+    const email=this.validateEmail(credentials.email);
+    const password=this.validatePassword(credentials.password);
+    if(this.tracker.isBlocked(email)){
+      const minutes=Math.ceil(this.tracker.remaining(email)/60000);
+      throw new AuthError(`Compte temporairement bloqué. Réessayez dans ${minutes} minute(s).`,429,'ACCOUNT_LOCKED');
+    }
+    try {
+      const payload={ email, password, code: credentials.code?credentials.code.trim():'' };
+      const resp:any=await http.post('/auth/login',payload);
+      if(!resp.success||!resp.data) throw new AuthError('Réponse invalide du serveur',500);
+      if(!resp.data.token_auth||!resp.data.uuid){
+        if(resp.data?.detail && /2fa/i.test(resp.data.detail)) throw new AuthError('Deuxième facteur requis',400,'TWO_FACTOR_REQUIRED');
+        throw new AuthError('Données de connexion incomplètes',500);
+      }
+      this.storeToken(resp.data.token_auth);
+      this.tracker.record(email,true);
+      return resp;
+    } catch(e:any){
+      if(credentials.email) this.tracker.record(email,false);
+      // Heuristique 2FA
+      const lower=(e?.message||'').toLowerCase();
+      if(lower.includes('2fa')&&lower.includes('required')) throw new AuthError('Deuxième facteur requis',400,'TWO_FACTOR_REQUIRED');
+      if(lower.includes('invalid')&&lower.includes('2fa')) throw new AuthError('Code 2FA invalide',400,'INVALID_2FA_CODE');
+      this.handleApiError(e);
+    }
+  }
 
-  async validateToken(){ const token=this.getToken(); if(!token) throw new AuthError('Aucun token trouvé',401,'NO_TOKEN'); try { const payload=JSON.parse(atob(token.split('.')[1])); const user:User={ id:payload.id||payload.user_id, email:payload.sub||payload.email, username:payload.username||payload.pseudo, pseudo:payload.pseudo }; return { user, valid:true, expires_at:new Date(payload.exp*1000).toISOString() }; } catch{ throw new AuthError('Token invalide',401,'INVALID_TOKEN'); } }
-  async refreshToken(){ const r=this.getRefresh(); if(!r) throw new AuthError('Aucun refresh token trouvé',401,'NO_REFRESH_TOKEN'); try{ const resp:any=await apiClient.post('/auth/refresh',{refresh_token:r}); if(!resp.success||!resp.data) throw new AuthError('Actualisation du token échouée',401,'REFRESH_FAILED'); this.storeToken(resp.data.token_auth); return resp.data; }catch(e){ this.clear(); this.handleApiError(e);} }
-  async logout(){ try{ const t=this.getToken(); if(t){ try{await apiClient.post('/auth/logout');}catch{}} this.clear(); } catch(e){ this.clear(); }
+  async register(credentials:RegisterForm):Promise<RegisterResponse>{
+    const email=this.validateEmail(credentials.email);
+    const password=this.validatePassword(credentials.password);
+    const pseudo=this.validatePseudo(credentials.pseudo);
+    if(password!==credentials.confirmPassword) throw new AuthError('Les mots de passe ne correspondent pas',400,'PASSWORDS_MISMATCH');
+    if(!credentials.acceptTerms) throw new AuthError('Vous devez accepter les conditions d\'utilisation',400,'TERMS_NOT_ACCEPTED');
+    try {
+      const payload={ pseudo, email, password };
+      const resp:any=await http.post('/auth/register',payload);
+      if(!resp.success||!resp.data) throw new AuthError('Réponse invalide du serveur',500);
+      if(!resp.data.token_auth||!resp.data.uuid) throw new AuthError("Données d'inscription incomplètes",500);
+      this.storeToken(resp.data.token_auth);
+      return resp;
+    } catch(e:any){
+      this.handleApiError(e);
+    }
+  }
+
+  async refreshToken(){
+    const r=this.getRefresh();
+    if(!r) throw new AuthError('Aucun refresh token trouvé',401,'NO_REFRESH_TOKEN');
+    try{
+      const resp:any=await http.post('/auth/refresh',{refresh_token:r});
+      if(!resp.success||!resp.data) throw new AuthError('Actualisation du token échouée',401,'REFRESH_FAILED');
+      this.storeToken(resp.data.token_auth);
+      return resp.data;
+    }catch(e:any){
+      this.clear();
+      this.handleApiError(e);
+    }
+  }
+
+  async logout(){
+    try{
+      const t=this.getToken();
+      if(t){
+        try{await http.post('/auth/logout');}catch{}
+      }
+      this.clear();
+    }catch{
+      this.clear();
+    }
   }
   isAuthenticated(){ return !!this.getToken(); }
   getCurrentToken(){ return this.getToken(); }
   checkPasswordStrength(password:string){ const feedback:string[]=[]; let score=0; if(password.length>=8)score++; else feedback.push('Au moins 8 caractères'); if(/[a-z]/.test(password))score++; else feedback.push('Au moins une minuscule'); if(/[A-Z]/.test(password))score++; else feedback.push('Au moins une majuscule'); if(/\d/.test(password))score++; else feedback.push('Au moins un chiffre'); if(/[^a-zA-Z\d]/.test(password))score++; else feedback.push('Au moins un caractère spécial'); return {score,feedback,isStrong:score>=4}; }
+  async validateToken(){
+    const token=this.getToken();
+    if(!token) throw new AuthError('Aucun token trouvé',401,'NO_TOKEN');
+    try {
+      const payload=JSON.parse(atob(token.split('.')[1]));
+      const user:User={ id:payload.id||payload.user_id, email:payload.sub||payload.email, username:payload.username||payload.pseudo, pseudo:payload.pseudo };
+      return { user, valid:true, expires_at: payload.exp ? new Date(payload.exp*1000).toISOString() : undefined };
+    } catch {
+      throw new AuthError('Token invalide',401,'INVALID_TOKEN');
+    }
+  }
 }
 export const authService=new AuthService();
 export default authService;

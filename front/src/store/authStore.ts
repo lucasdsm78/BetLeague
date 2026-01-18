@@ -7,7 +7,35 @@ import React from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { User, SecurityContext, AuthState } from '../types';
+
+// Types minimaux locaux (évite les cycles/collisions avec src/types)
+export interface SecurityContext {
+  readonly permissions: readonly string[];
+  readonly roles: readonly string[];
+  readonly sessionId: string;
+  readonly lastActivity: string;
+  readonly deviceFingerprint?: string;
+}
+
+export interface User {
+  readonly id?: string;
+  readonly email: string;
+  readonly pseudo: string;
+  readonly username: string;
+  readonly avatar?: string;
+  readonly twoFactorEnabled?: boolean;
+  readonly btlBalance?: number;
+  readonly isTournamentSubscriber?: boolean;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  error: string | null;
+  twoFactorChallenge?: { email: string; password: string } | null;
+}
 
 interface AuthActions {
   // Auth actions
