@@ -28,6 +28,3 @@ export async function updateInvitation(invitationId: number, accept: boolean): P
   if (!res.success) throw new Error(res.error || "Erreur lors de la mise à jour de l'invitation");
   return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
 }
-
-export default { getReceivedInvitations, updateInvitation };
-

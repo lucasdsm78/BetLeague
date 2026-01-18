@@ -22,5 +22,3 @@ export async function getMatchesPage(page: number, pageSize: number): Promise<Ma
 
   return data;
 }
-
-export default { getMatchesPage };
