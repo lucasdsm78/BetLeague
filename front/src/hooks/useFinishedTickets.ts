@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getFinishedTickets } from 'services/ticketsApi';
+import { getFinishedTickets } from 'services/api/tickets';
 import type { TicketReadModel } from 'types/entities/ticket';
 
 export interface UseFinishedTicketsOptions {

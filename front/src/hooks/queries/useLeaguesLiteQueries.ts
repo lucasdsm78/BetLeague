@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLeagueBalance, getParticipatedLeagues, type LeagueSummaryApi } from '../../services/leaguesApi';
+import { getLeagueBalance, getParticipatedLeagues, type LeagueSummaryApi } from '../../services/api/leagues';
 import { leaguesLiteKeys } from './leaguesLiteKeys';
 
 export function useParticipatedLeaguesQuery(options?: { enabled?: boolean }) {

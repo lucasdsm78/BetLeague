@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { getMatchesPage } from '../../services/matchesApi';
+import { getMatchesPage } from '../../services/api/matches';
 import type { MatchesListResponse } from '../../types/api/matches';
 import { matchesKeys } from './matchesKeys';
 

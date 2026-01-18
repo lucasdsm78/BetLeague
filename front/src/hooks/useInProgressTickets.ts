@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getInProgressTickets } from '../services/ticketsApi';
+import { getInProgressTickets } from '../services/api/tickets';
 import type { TicketReadModel } from '../types/entities/ticket';
 import { useTicketsRefreshStore } from '../store/ticketsStore';
 
