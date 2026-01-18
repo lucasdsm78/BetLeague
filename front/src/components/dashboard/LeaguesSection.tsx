@@ -4,6 +4,8 @@ import leagueApiService, { UserSearchResult } from '../../services/leagueApiServ
 import secureApiClient from '../../services/secureApiClient';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
+import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
+import { useGlobalToast } from '../../toast/ToastProvider';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
 import InviteUserModal from '../league/InviteUserModal';
@@ -13,7 +15,6 @@ import EditLeagueModal from '../league/EditLeagueModal';
 import InsufficientBTLModal from '../InsufficientBTLModal';
 import './LeaguesSection.css';
 import { LeagueSummary } from '../../types';
-import type { LeaguesPage } from '../../services/leaguesPaging';
 
 // SVG Icons for action buttons - inline for performance
 const IconEye = () => (
@@ -275,12 +276,45 @@ type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 interface LeaguesSectionProps {}
 
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
+    const { showSuccess, showError } = useGlobalToast();
+
     const profileQuery = useProfileMeQuery();
     const profile = profileQuery.data;
     const refetchProfile = profileQuery.refetch;
     const userBtlBalance = profile?.nb_btl ?? 0;
 
     const [activeTab, setActiveTab] = useState<TabType>('myLeagues');
+
+    // React Query: listes ligues (split par onglet)
+    const participatedQuery = useLeaguesListQuery('participatedLeagues', { enabled: activeTab === 'participatedLeagues' });
+    const createdQuery = useLeaguesListQuery('myLeagues', { enabled: activeTab === 'myLeagues' });
+    const availableQuery = useLeaguesListQuery('availableLeagues', { enabled: activeTab === 'availableLeagues' });
+
+    const joinMutation = useJoinLeagueMutation();
+
+    const participatedLeagues = participatedQuery.data ?? [];
+    const createdLeagues = createdQuery.data ?? [];
+    const availableLeagues = availableQuery.data ?? [];
+
+    const isLoadingParticipated = participatedQuery.isLoading || participatedQuery.isFetching;
+    const isLoadingCreated = createdQuery.isLoading || createdQuery.isFetching;
+    const isLoadingAvailable = availableQuery.isLoading || availableQuery.isFetching;
+
+    const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
+
+    const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
+        try {
+            setJoiningLeagueId(league.id);
+            await joinMutation.mutateAsync({ leagueId: league.id });
+            showSuccess('Ligue rejointe', `Vous avez rejoint ${league.name}`);
+            refetchProfile();
+        } catch (e: any) {
+            showError('Erreur', e?.message || 'Impossible de rejoindre la ligue');
+        } finally {
+            setJoiningLeagueId(null);
+        }
+    }, [joinMutation, refetchProfile, showSuccess, showError]);
+
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
@@ -288,273 +322,30 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
     const [isInsufficientBTLModalOpen, setIsInsufficientBTLModalOpen] = useState<boolean>(false);
-    const [insufficientBTLData, setInsufficientBTLData] = useState<{ required: number; action: string } | null>(null);
+    const [insufficientBTLData, _setInsufficientBTLData] = useState<{ required: number; action: string } | null>(null);
     const [selectedLeagueId, setSelectedLeagueId] = useState<number | null>(null);
     const [selectedLeagueForInvite, setSelectedLeagueForInvite] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForRanking, setSelectedLeagueForRanking] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForLeave, setSelectedLeagueForLeave] = useState<LeagueSummary | null>(null);
     const [selectedLeagueForEdit, setSelectedLeagueForEdit] = useState<any | null>(null);
-    const [participatedLeagues, setParticipatedLeagues] = useState<LeagueSummary[]>([]);
-    const [createdLeagues, setCreatedLeagues] = useState<LeagueSummary[]>([]);
-    const [availableLeagues, setAvailableLeagues] = useState<LeagueSummary[]>([]);
 
-    const [participatedPage, setParticipatedPage] = useState<LeaguesPage | null>(null);
-    const [createdPage, setCreatedPage] = useState<LeaguesPage | null>(null);
-    const [availablePage, setAvailablePage] = useState<LeaguesPage | null>(null);
-
-    const pageSize = 10;
-
-    const [isLoadingParticipated, setIsLoadingParticipated] = useState<boolean>(false);
-    const [isLoadingCreated, setIsLoadingCreated] = useState<boolean>(false);
-    const [isLoadingAvailable, setIsLoadingAvailable] = useState<boolean>(false);
-    const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string>('');
-    const [error, setError] = useState<string>('');
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Load participated leagues (leagues where user is participant but not creator)
-    const loadParticipatedLeagues = useCallback(async () => {
-        setIsLoadingParticipated(true);
-        try {
-            const res = await leagueApiService.getParticipatedLeaguesPage(1, pageSize);
-            if (res.success && res.data) {
-                setParticipatedPage(res.data);
-                setParticipatedLeagues(res.data.leagues);
-            } else {
-                setParticipatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-                setParticipatedLeagues([]);
-            }
-        } catch (err) {
-            console.error('Failed to load participated leagues:', err);
-            setParticipatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-            setParticipatedLeagues([]);
-        } finally {
-            setIsLoadingParticipated(false);
-        }
-    }, [pageSize]);
-
-    // Load created leagues
-    const loadCreatedLeagues = useCallback(async () => {
-        setIsLoadingCreated(true);
-        try {
-            const res = await leagueApiService.getCreatedLeaguesPage(1, pageSize);
-            if (res.success && res.data) {
-                setCreatedPage(res.data);
-                setCreatedLeagues(res.data.leagues);
-            } else {
-                setCreatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-                setCreatedLeagues([]);
-            }
-        } catch (err) {
-            console.error('Failed to load created leagues:', err);
-            setCreatedPage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-            setCreatedLeagues([]);
-        } finally {
-            setIsLoadingCreated(false);
-        }
-    }, [pageSize]);
-
-    // Load available leagues
-    const loadAvailableLeagues = useCallback(async () => {
-        setIsLoadingAvailable(true);
-        try {
-            const res = await leagueApiService.getAvailableLeaguesPage(1, pageSize);
-            if (res.success && res.data) {
-                setAvailablePage(res.data);
-                setAvailableLeagues(res.data.leagues);
-            } else {
-                setAvailablePage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-                setAvailableLeagues([]);
-            }
-        } catch (err) {
-            console.error('Failed to load available leagues:', err);
-            setAvailablePage({ leagues: [], page: 1, pageSize, total: 0, totalPages: 1 });
-            setAvailableLeagues([]);
-        } finally {
-            setIsLoadingAvailable(false);
-        }
-    }, [pageSize]);
-
-    const loadMoreParticipated = useCallback(async () => {
-        if (isLoadingParticipated) return;
-        if (!participatedPage) return;
-        if (participatedPage.page >= participatedPage.totalPages) return;
-        setIsLoadingParticipated(true);
-        try {
-            const next = participatedPage.page + 1;
-            const res = await leagueApiService.getParticipatedLeaguesPage(next, pageSize);
-            if (res.success && res.data) {
-                const data = res.data;
-                setParticipatedPage(data);
-                setParticipatedLeagues(prev => [...prev, ...data.leagues]);
-            }
-        } finally {
-            setIsLoadingParticipated(false);
-        }
-    }, [isLoadingParticipated, participatedPage]);
-
-    const loadMoreCreated = useCallback(async () => {
-        if (isLoadingCreated) return;
-        if (!createdPage) return;
-        if (createdPage.page >= createdPage.totalPages) return;
-        setIsLoadingCreated(true);
-        try {
-            const next = createdPage.page + 1;
-            const res = await leagueApiService.getCreatedLeaguesPage(next, pageSize);
-            if (res.success && res.data) {
-                const data = res.data;
-                setCreatedPage(data);
-                setCreatedLeagues(prev => [...prev, ...data.leagues]);
-            }
-        } finally {
-            setIsLoadingCreated(false);
-        }
-    }, [isLoadingCreated, createdPage]);
-
-    const loadMoreAvailable = useCallback(async () => {
-        if (isLoadingAvailable) return;
-        if (!availablePage) return;
-        if (availablePage.page >= availablePage.totalPages) return;
-        setIsLoadingAvailable(true);
-        try {
-            const next = availablePage.page + 1;
-            const res = await leagueApiService.getAvailableLeaguesPage(next, pageSize);
-            if (res.success && res.data) {
-                const data = res.data;
-                setAvailablePage(data);
-                setAvailableLeagues(prev => [...prev, ...data.leagues]);
-            }
-        } finally {
-            setIsLoadingAvailable(false);
-        }
-    }, [isLoadingAvailable, availablePage]);
-
-    // Load data on component mount
-    useEffect(() => {
-        loadParticipatedLeagues();
-        loadCreatedLeagues();
-        loadAvailableLeagues();
-    }, [loadParticipatedLeagues, loadCreatedLeagues, loadAvailableLeagues]);
-
     // Handle league creation success
-    const handleCreateLeague = useCallback((leagueData: any, message: string) => {
+    const handleCreateLeague = useCallback((_leagueData: any, message: string) => {
         setIsCreateModalOpen(false);
-        setSuccessMessage(message || 'Ligue créée avec succès !');
-        setTimeout(() => setSuccessMessage(''), 5000);
-        loadCreatedLeagues();
-        loadAvailableLeagues();
-    }, [loadCreatedLeagues, loadAvailableLeagues]);
-
-    const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
-        if (joiningLeagueId !== null) {
-            return; // Prevent multiple simultaneous join requests
-        }
-
-        if (league.isStarted) {
-            setError('Cette ligue a déjà commencé, impossible de la rejoindre.');
-            return;
-        }
-
-        const requiredBtl = (league.isFree === false && league.nbBtl && league.nbBtl > 0) ? league.nbBtl : 0;
-        // Refresh profile balance right before a paid join to avoid stale client state
-        // (webhook/other actions could have changed nb_btl)
-        let freshBalance = userBtlBalance;
-        if (requiredBtl > 0) {
-            try {
-                // Best-effort refresh (hook returns void). The backend remains source of truth.
-                await refetchProfile();
-             } catch {
-                 // ignore: we'll still attempt join and rely on backend 403
-             }
-
-             // After refetch, use the latest known balance if available
-             freshBalance = (profile?.nb_btl ?? freshBalance);
-
-              if (freshBalance < requiredBtl) {
-                 setInsufficientBTLData({
-                     required: requiredBtl,
-                     action: `rejoindre "${league.name}"`
-                 });
-                 setIsInsufficientBTLModalOpen(true);
-                 return;
-              }
-         }
-
-        setJoiningLeagueId(league.id);
-        setError('');
-
-        try {
-            const isPaidLeague = requiredBtl > 0;
-             console.log(`🔄 Joining league ${league.id}: ${league.name}${isPaidLeague ? ` (${league.nbBtl} BTL)` : ''}`);
-
-             const result = await leagueApiService.joinLeague(league.id);
-
-             if (result.success) {
-                 if (isPaidLeague) {
-                     console.log('💳 Paid league joined - refreshing balance and cache...');
-                     secureApiClient.clearCache();
-                     refetchProfile().catch(err => {
-                         console.warn('Failed to refresh profile after joining league:', err);
-                     });
-                 }
-
-                 let successMsg = result.message || `🎉 Vous avez rejoint la ligue "${league.name}" avec succès !`;
-                 if (isPaidLeague) {
-                    successMsg += ` ${requiredBtl} BTL ont été débités de votre compte.`;
-                 }
-
-                 setSuccessMessage(successMsg);
-                 setTimeout(() => setSuccessMessage(''), 6000);
-
-                 // Refresh both lists to reflect the changes
-                 await Promise.all([
-                     loadCreatedLeagues(),
-                     loadParticipatedLeagues(),
-                     loadAvailableLeagues()
-                 ]);
-
-                 console.log(`✅ Successfully joined league: ${league.name}`);
-             } else {
-                 // Enhanced error handling with specific messages
-                 let errorMsg = result.error || 'Erreur lors de la tentative de rejoindre la ligue';
-
-                 // Map common backend errors to user-friendly messages
-                 if (errorMsg.includes('already')) {
-                     errorMsg = 'Vous participez déjà à cette ligue.';
-                 } else if (errorMsg.includes('full') || errorMsg.includes('max')) {
-                     errorMsg = 'Cette ligue est complète.';
-                 } else if (errorMsg.includes('started')) {
-                     errorMsg = 'Cette ligue a déjà commencé.';
-                 } else if (errorMsg.includes('private')) {
-                     errorMsg = 'Cette ligue est privée et nécessite une invitation.';
-                } else if (errorMsg.toLowerCase().includes('btl') || errorMsg.toLowerCase().includes('insufficient') || errorMsg.toLowerCase().includes('solde') || errorMsg.includes('403')) {
-                    const required = requiredBtl;
-                     // Montrer directement le modal d’insuffisance pour une conversion clean
-                     setInsufficientBTLData({ required, action: `rejoindre "${league.name}"` });
-                     setIsInsufficientBTLModalOpen(true);
-                     errorMsg = `💳 Solde insuffisant ! Vous avez ${userBtlBalance} BTL mais cette ligue nécessite ${required} BTL.`;
-                  }
-
-                 setError(errorMsg);
-                 console.error('❌ Failed to join league:', result.error);
-             }
-         } catch (err: any) {
-             const errorMessage = `Erreur réseau lors de la tentative de rejoindre la ligue "${league.name}". Veuillez réessayer.`;
-             setError(errorMessage);
-             console.error('❌ Exception while joining league:', err);
-         } finally {
-             setJoiningLeagueId(null);
-         }
-     }, [joiningLeagueId, userBtlBalance, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues, refetchProfile]);
+        showSuccess('Ligue créée', message || 'Ligue créée avec succès !');
+        // Rafraîchir les données via React Query
+        createdQuery.refetch();
+        availableQuery.refetch();
+    }, [showSuccess, createdQuery, availableQuery]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
         setSelectedLeagueId(league.id);
         setIsDetailsModalOpen(true);
 
-        // Keep URL shareable + recoverable (open modal on paste)
-        // We store the leagueId in query string only (no sensitive data)
         const params = new URLSearchParams(location.search);
         params.set('leagueId', String(league.id));
         navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
@@ -641,12 +432,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     // Handle leave league
     const handleLeaveLeague = useCallback((league: LeagueSummary) => {
         if (league.isStarted) {
-            setError('Cette ligue a déjà commencé : vous ne pouvez plus la quitter.');
+            showError('Impossible', 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.');
             return;
         }
         setSelectedLeagueForLeave(league);
         setIsLeaveModalOpen(true);
-    }, []);
+    }, [showError]);
 
     // Handle close leave modal
     const handleCloseLeaveModal = useCallback(() => {
@@ -656,31 +447,26 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
     // Handle leave success
     const handleLeaveSuccess = useCallback(() => {
-        // Close modal
         handleCloseLeaveModal();
-
         secureApiClient.clearCache();
         refetchProfile().catch(() => {});
-        loadCreatedLeagues();
-        loadParticipatedLeagues();
-        loadAvailableLeagues();
-    }, [handleCloseLeaveModal, loadAvailableLeagues, loadCreatedLeagues, loadParticipatedLeagues, refetchProfile]);
+        // refresh listes
+        participatedQuery.refetch();
+        createdQuery.refetch();
+        availableQuery.refetch();
+    }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, refetchProfile]);
 
-    // Handle invitation sent
     const handleInvitationSent = useCallback((user: UserSearchResult) => {
-        // Show success message
-        setSuccessMessage(`🎉 Invitation envoyée à ${user.pseudo} avec succès !`);
-        setTimeout(() => setSuccessMessage(''), 5000);
-        // Could refresh league data here if needed
-    }, []);
+        showSuccess('Invitation envoyée', `Invitation envoyée à ${user.pseudo} avec succès !`);
+    }, [showSuccess]);
 
     const handleEditLeague = useCallback(async (league: LeagueSummary) => {
         try {
             const result = await leagueApiService.getLeagueDetails(league.id);
             if (result.success && result.data) {
                 const startDate = result.data.start_date > 9999999999
-                    ? Math.floor(result.data.start_date / 1000)  // Millisecondes → Secondes
-                    : Math.floor(result.data.start_date);        // Déjà en secondes
+                    ? Math.floor(result.data.start_date / 1000)
+                    : Math.floor(result.data.start_date);
 
                 setSelectedLeagueForEdit({
                     id: result.data.id,
@@ -693,13 +479,13 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 });
                 setIsEditModalOpen(true);
             } else {
-                setError('Impossible de charger les détails de la ligue');
+                showError('Erreur', 'Impossible de charger les détails de la ligue');
             }
         } catch (err) {
             console.error('Failed to load league details:', err);
-            setError('Erreur lors du chargement des détails de la ligue');
+            showError('Erreur', 'Erreur lors du chargement des détails de la ligue');
         }
-    }, []);
+    }, [showError]);
 
     // Handle close edit modal
     const handleCloseEditModal = useCallback(() => {
@@ -707,23 +493,18 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         setSelectedLeagueForEdit(null);
     }, []);
 
-    // Handle edit success
     const handleEditSuccess = useCallback(() => {
-        setSuccessMessage('🎉 Ligue modifiée avec succès !');
-        setTimeout(() => setSuccessMessage(''), 5000);
+        showSuccess('Ligue modifiée', 'Ligue modifiée avec succès !');
 
-        // Fermer le modal d'abord
         handleCloseEditModal();
 
         setTimeout(() => {
-            console.log('🗑️ Clearing API cache to force fresh data...');
             secureApiClient.clearCache();
-            console.log('🔄 Refreshing all leagues after edit...');
-            loadCreatedLeagues();
-            loadParticipatedLeagues();
-            loadAvailableLeagues();
+            participatedQuery.refetch();
+            createdQuery.refetch();
+            availableQuery.refetch();
         }, 100);
-    }, [handleCloseEditModal, loadCreatedLeagues, loadParticipatedLeagues, loadAvailableLeagues]);
+    }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, showSuccess]);
 
     const allLeagueIds = useMemo(() => {
         const ids = [...participatedLeagues, ...createdLeagues].map((l) => l.id);
@@ -737,59 +518,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
     return (
         <div className="leagues-section">
-            {successMessage && (
-                <div style={{
-                    background: 'var(--success-color)',
-                    color: 'white',
-                    padding: '0.75rem 1rem',
-                    marginBottom: '1rem',
-                    borderRadius: 'var(--border-radius-sm)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <span>✅ {successMessage}</span>
-                    <button
-                        onClick={() => setSuccessMessage('')}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'white',
-                            cursor: 'pointer',
-                            fontSize: '1rem'
-                        }}
-                    >
-                        ✕
-                    </button>
-                </div>
-            )}
-
-            {error && (
-                <div style={{
-                    background: 'var(--danger-color)',
-                    color: 'white',
-                    padding: '0.75rem 1rem',
-                    marginBottom: '1rem',
-                    borderRadius: 'var(--border-radius-sm)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <span>⚠️ {error}</span>
-                    <button
-                        onClick={() => setError('')}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'white',
-                            cursor: 'pointer',
-                            fontSize: '1rem'
-                        }}
-                    >
-                        ✕
-                    </button>
-                </div>
-            )}
 
             <div className="section-header">
                 <h2>Mes Ligues</h2>
@@ -894,19 +622,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                 </div>
                             </div>
                         )}
-
-                        {participatedPage && participatedPage.totalPages > 1 && (
-                            <div className="load-more-wrapper">
-                                <button
-                                    className="btn btn-secondary btn-load-more"
-                                    onClick={loadMoreParticipated}
-                                    disabled={isLoadingParticipated}
-                                    style={{ width: '100%' }}
-                                >
-                                    {isLoadingParticipated ? '⏳ Chargement...' : 'Charger plus de ligues participées'}
-                                </button>
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -963,19 +678,6 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                 </button>
                             </div>
                         )}
-
-                        {createdPage && createdPage.totalPages > 1 && (
-                            <div className="load-more-wrapper">
-                                <button
-                                    className="btn btn-secondary btn-load-more"
-                                    onClick={loadMoreCreated}
-                                    disabled={isLoadingCreated}
-                                    style={{ width: '100%' }}
-                                >
-                                    {isLoadingCreated ? '⏳ Chargement...' : 'Charger plus de ligues créées'}
-                                </button>
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -1018,23 +720,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                 <p>Aucune ligue publique n'est disponible pour le moment</p>
                                 <button
                                     className="btn btn-secondary"
-                                    onClick={() => loadAvailableLeagues()}
+                                    onClick={() => availableQuery.refetch()}
                                     disabled={isLoadingAvailable}
                                 >
                                     {isLoadingAvailable ? '⏳ Actualisation...' : 'Actualiser'}
-                                </button>
-                            </div>
-                        )}
-
-                        {availablePage && availablePage.totalPages > 1 && (
-                            <div className="load-more-wrapper">
-                                <button
-                                    className="btn btn-secondary btn-load-more"
-                                    onClick={loadMoreAvailable}
-                                    disabled={isLoadingAvailable}
-                                    style={{ width: '100%' }}
-                                >
-                                    {isLoadingAvailable ? '⏳ Chargement...' : 'Charger plus de ligues disponibles'}
                                 </button>
                             </div>
                         )}

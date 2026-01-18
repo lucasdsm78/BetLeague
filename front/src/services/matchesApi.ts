@@ -5,16 +5,6 @@ import type { ApiMatchReadModel, MatchesListResponse } from '../types/api/matche
 // Ré-exports temporaires pour compat pendant la migration (à retirer quand tout importe depuis src/types/api)
 export type { ApiMatchReadModel, MatchesListResponse };
 
-export async function getMatches(): Promise<ApiMatchReadModel[]> {
-  const res: ApiResponse<MatchesListResponse> = await secureApiClient.get('/matches');
-
-  if (!res.success) {
-    throw new Error(res.error || 'Impossible de récupérer les matchs');
-  }
-
-  return res.data?.matches ?? [];
-}
-
 export async function getMatchesPage(page: number, pageSize: number): Promise<MatchesListResponse> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   const res: ApiResponse<MatchesListResponse> = await secureApiClient.get(`/matches?${query.toString()}`);

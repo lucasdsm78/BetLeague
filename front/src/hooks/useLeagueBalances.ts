@@ -60,6 +60,7 @@ export function useLeagueBalances(
   } = options;
 
   const ids = useMemo(() => sanitizeLeagueIds(leagueIds), [leagueIds]);
+  const idsKey = useMemo(() => ids.slice().sort((a, b) => a - b).join(','), [ids]);
 
   const [balances, setBalances] = useState<LeagueBalances>(() => {
     const initial: LeagueBalances = {};
@@ -109,8 +110,8 @@ export function useLeagueBalances(
   const refetch = useCallback(async () => {
     if (ids.length === 0) {
       if (!mountedRef.current) return;
-      setBalances({});
-      setLoadingIds(new Set());
+      setBalances((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      setLoadingIds((prev) => (prev.size === 0 ? prev : new Set()));
       setIsLoading(false);
       setError(null);
       return;
@@ -122,36 +123,46 @@ export function useLeagueBalances(
     setIsLoading(true);
     setError(null);
 
-    // On ne fetch que les IDs manquants du cache/state.
     const missing = ids.filter((id) => !balanceCache.has(id));
-    // Marquer en loading uniquement ceux-là.
     setLoadingIds(new Set(missing));
 
     try {
-      // Si rien à fetch (cache rempli), on sort vite.
       if (missing.length === 0) {
         return;
       }
 
-      // 1 seule requête bulk (beaucoup plus rapide que N requêtes)
       const bulk = await leagueApiService.getLeaguesBalancesBulk(missing);
       if (!bulk.success) {
-        // fallback léger: on évite d’afficher une UI bloquée
         throw new Error(bulk.error || 'Erreur lors du chargement des soldes (bulk)');
       }
 
       const balancesFromApi = bulk.data?.balances || {};
       const forbidden = new Set(bulk.data?.forbidden || []);
 
+      const updates: LeagueBalances = {};
       for (const leagueId of missing) {
         const value = forbidden.has(leagueId)
           ? defaultBalance
           : (Number(balancesFromApi[leagueId]) || defaultBalance);
 
         balanceCache.set(leagueId, value);
-        if (!mountedRef.current) return;
-        setBalances((prev) => ({ ...prev, [leagueId]: value }));
+        updates[leagueId] = value;
       }
+
+      if (!mountedRef.current) return;
+      setBalances((prev) => {
+        // évite un setState si rien ne change
+        let changed = false;
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(updates)) {
+          const id = Number(k);
+          if (next[id] !== v) {
+            next[id] = v;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
     } catch (e: any) {
       if (!mountedRef.current) return;
       if (String(e?.name) === 'AbortError') return;
@@ -162,28 +173,39 @@ export function useLeagueBalances(
         setLoadingIds(new Set());
       }
     }
-  }, [ids, defaultBalance]);
+  }, [idsKey, defaultBalance]);
 
   useEffect(() => {
-    // À chaque changement d’IDs, on hydrate depuis le cache.
+    // Hydrate depuis le cache + prune, sans boucler inutilement.
     setBalances((prev) => {
+      let changed = false;
       const next: LeagueBalances = { ...prev };
+
       for (const id of ids) {
-        if (balanceCache.has(id)) next[id] = balanceCache.get(id) as number;
+        if (balanceCache.has(id)) {
+          const v = balanceCache.get(id) as number;
+          if (next[id] !== v) {
+            next[id] = v;
+            changed = true;
+          }
+        }
       }
-      // Option: on enlève les ids qui ne sont plus nécessaires
+
       for (const k of Object.keys(next)) {
         const id = Number(k);
-        if (!ids.includes(id)) delete next[id];
+        if (!ids.includes(id)) {
+          delete next[id];
+          changed = true;
+        }
       }
-      return next;
+
+      return changed ? next : prev;
     });
 
     if (autoFetch) {
-      // best-effort
       refetch().catch(() => {});
     }
-  }, [ids, autoFetch, refetch]);
+  }, [idsKey, autoFetch, refetch]);
 
   return {
     balances,

@@ -844,11 +844,40 @@ class LeagueApiService {
   }
 
   /**
-   * Get user's leagues (leagues the authenticated user participates in)
-   * Now calls getParticipatedLeagues for backward compatibility
+   * Get user's leagues (compat)
+   * Retourne les ligues participées (ancien comportement).
    */
   public async getUserLeagues(): Promise<{ success: boolean; data?: { leagues: LeagueSummary[] }; error?: string; }> {
     return this.getParticipatedLeagues();
+  }
+
+  /**
+   * Nouveau helper: récupère les 3 listes (available/created/participated) côté UI.
+   * On s'aligne sur le back: /leagues, /leagues/created, /leagues/participated.
+   */
+  public async getUserLeaguesLists(page = 1, pageSize = 10): Promise<ApiResponse<{ available: LeagueSummary[]; created: LeagueSummary[]; participated: LeagueSummary[] }>> {
+    try {
+      const [available, created, participated] = await Promise.all([
+        this.getAvailableLeaguesPage(page, pageSize),
+        this.getCreatedLeaguesPage(page, pageSize),
+        this.getParticipatedLeaguesPage(page, pageSize),
+      ]);
+
+      if (!available.success || !available.data) return { success: false, error: available.error || 'Impossible de charger les ligues disponibles' };
+      if (!created.success || !created.data) return { success: false, error: created.error || 'Impossible de charger les ligues créées' };
+      if (!participated.success || !participated.data) return { success: false, error: participated.error || 'Impossible de charger les ligues participées' };
+
+      return {
+        success: true,
+        data: {
+          available: available.data.leagues,
+          created: created.data.leagues,
+          participated: participated.data.leagues,
+        },
+      };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Impossible de charger les ligues' };
+    }
   }
 }
 
