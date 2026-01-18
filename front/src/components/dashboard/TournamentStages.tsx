@@ -3,9 +3,10 @@
  * Visualizes tournament progression with interactive design
  */
 
-import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getTournamentStages, type TournamentStage } from '../../services/tournamentApi';
-import { useToast } from '../../hooks/useToast';
+import React, { memo, useState, useMemo } from 'react';
+import { useTournamentStagesQuery } from '../../hooks/queries/useTournamentQueries';
+import type { TournamentStage } from '../../services/tournamentApi';
+import { useGlobalToast } from '../../toast/ToastProvider';
 import StageMatches from './StageMatches';
 import './TournamentStages.css';
 
@@ -35,37 +36,29 @@ const STAGE_ICONS: Record<string, string> = {
   'qualifying': '🎯',
 };
 
-const TournamentStages: React.FC<TournamentStagesProps> = memo(({
-  tournamentId,
-  tournamentName
-}) => {
-  const [stages, setStages] = useState<TournamentStage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const TournamentStages: React.FC<TournamentStagesProps> = memo(({ tournamentId, tournamentName }) => {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
-  const { showError } = useToast();
+  const { showError } = useGlobalToast();
 
-  // Fetch stages on mount
-  const fetchStages = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const stagesQuery = useTournamentStagesQuery(tournamentId);
+  const stages: TournamentStage[] = stagesQuery.data?.stages || [];
+  const isLoading = stagesQuery.isLoading;
+  const error = stagesQuery.error?.message ?? null;
 
+  const fetchStages = async () => {
     try {
-      const response = await getTournamentStages(tournamentId);
-      setStages(response.stages || []);
-    } catch (err: any) {
-      console.error('Error fetching tournament stages:', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Impossible de charger les étapes';
-      setError(errorMessage);
-      showError('Erreur', errorMessage);
-    } finally {
-      setIsLoading(false);
+      await stagesQuery.refetch();
+    } catch (e: any) {
+      showError('Erreur', e?.message || 'Impossible de charger les étapes');
     }
-  }, [tournamentId]); // Removed showError from deps - it's stable and doesn't need to trigger re-fetches
+  };
 
-  useEffect(() => {
-    fetchStages();
-  }, [fetchStages]);
+  const sortedStages = useMemo(() => {
+    return [...stages].sort((a, b) => {
+      const order = ['eighth_final', 'quarter_final', 'semi_final', 'final', 'round_16', 'group', 'qualifying'];
+      return order.indexOf(a.type) - order.indexOf(b.type);
+    });
+  }, [stages]);
 
   // Format date
   const formatDate = (timestamp?: number) => {
@@ -88,11 +81,6 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({
     return STAGE_ICONS[type] || '🎮';
   };
 
-  // Sort stages by type (chronological order: eighth_final to final)
-  const sortedStages = [...stages].sort((a, b) => {
-    const order = ['eighth_final', 'quarter_final', 'semi_final', 'final', 'round_16', 'group', 'qualifying'];
-    return order.indexOf(a.type) - order.indexOf(b.type);
-  });
 
   return (
     <div className="tournament-stages">

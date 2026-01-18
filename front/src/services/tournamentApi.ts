@@ -3,120 +3,40 @@
  * Secure and optimized API calls for tournament management
  */
 
-import apiClient from './apiClient';
+import http, { type ApiResponse } from './http';
+import type {
+  TournamentCreateRequest,
+  TournamentCreateResponse,
+  TournamentsResponse,
+  Tournament,
+  TournamentStagesResponse,
+  MyTournamentsResponse,
+  StageMatchesResponse,
+  TournamentsFinishedResponse,
+  TournamentMatchOption,
+  TournamentStage,
+  StageMatch,
+  TournamentFinished,
+  MyTournament,
+} from '../types/api/tournament';
 
-export interface TournamentCreateRequest {
-  name: string;
-  is_private: boolean;
-  max_players: number;
-  start_date?: number;
-}
+// Re-export des types pour compatibilité (migration progressive)
+export type {
+  TournamentCreateRequest,
+  TournamentCreateResponse,
+  TournamentsResponse,
+  Tournament,
+  TournamentStagesResponse,
+  MyTournamentsResponse,
+  StageMatchesResponse,
+  TournamentsFinishedResponse,
+  TournamentMatchOption,
+  TournamentStage,
+  StageMatch,
+  TournamentFinished,
+  MyTournament,
+};
 
-export interface TournamentCreateResponse {
-  message: string;
-  tournament_id?: number;
-  tournament_uuid?: string;
-  name?: string;
-}
-
-export interface Tournament {
-  id: number;
-  uuid: string;
-  name: string;
-  is_private: boolean;
-  max_players: number;
-  current_players: number;
-  start_date: number;
-  end_date: number;
-}
-
-export interface TournamentsResponse {
-  tournaments: Tournament[];
-  total_count: number;
-  page: number;
-  page_size: number;
-}
-
-export interface UserSummary {
-  id: number;
-  username: string;
-  email: string;
-}
-
-export interface TournamentStage {
-  id: number;
-  tournament_id: number;
-  type: string;
-  user_summary: UserSummary;
-  is_active: boolean;
-  is_completed: boolean;
-  created_at?: number;
-  start_date?: number;
-  end_date?: number;
-}
-
-export interface TournamentStagesResponse {
-  stages: TournamentStage[];
-}
-
-export interface MyTournament {
-  id: number;
-  uuid: string;
-  name: string;
-  is_private: boolean;
-  max_players: number;
-}
-
-export interface MyTournamentsResponse {
-  tournaments: MyTournament[];
-  total_count: number;
-  page: number;
-  page_size: number;
-}
-
-export interface PlayerSummary {
-  id: number;
-  email: string;
-  pseudo: string;
-}
-
-export interface StageMatch {
-  id: number;
-  tournament_id: number;
-  stage: string;
-  player1_summary: PlayerSummary;
-  player2_summary: PlayerSummary;
-  start_date: number; // timestamp in milliseconds
-  end_date: number; // timestamp in milliseconds
-  winner_id: number | null;
-  loser_id: number | null;
-}
-
-export interface StageMatchesResponse {
-  matches: StageMatch[];
-}
-
-export interface TournamentFinished {
-  id: number;
-  uuid: string;
-  name: string;
-  is_private: boolean;
-  start_date: number; // timestamp in milliseconds
-  end_date: number; // timestamp in milliseconds
-}
-
-export interface TournamentsFinishedResponse {
-  tournaments: TournamentFinished[];
-  total_count: number;
-  page: number;
-  page_size: number;
-}
-
-/**
- * Create a new tournament
- * @param data Tournament creation data
- * @returns Tournament creation response
- */
 export const createTournament = async (
   data: TournamentCreateRequest
 ): Promise<TournamentCreateResponse> => {
@@ -127,15 +47,16 @@ export const createTournament = async (
     ...(typeof data.start_date === 'number' ? { start_date: data.start_date } : {}),
   };
 
-  try {
-    const response = await apiClient.post<TournamentCreateResponse>(
-      '/tournament/create',
-      payload
-    );
-    return response.data as TournamentCreateResponse;
-  } catch (err: any) {
-    const status = err?.response?.status;
-    const detail = err?.response?.data?.detail;
+  const response: ApiResponse<TournamentCreateResponse> = await http.post(
+    '/tournament/create',
+    payload
+  );
+
+  if (!response.success) {
+    // Mapping UX friendly (statuts utilisés par le backend)
+    const status = response.status;
+    const detail = response.error || response.message;
+
     if (status === 402) {
       throw new Error(detail || "Vous devez être abonné à l'option tournoi pour créer un tournoi.");
     }
@@ -145,178 +66,133 @@ export const createTournament = async (
     if (status === 400 || status === 422) {
       throw new Error(detail || 'Données invalides.');
     }
-    throw err;
+
+    throw new Error(detail || 'Création du tournoi échouée');
   }
+
+  return response.data as TournamentCreateResponse;
 };
 
-/**
- * Get available public tournaments with pagination
- * @param page Page number (starts at 1)
- * @param pageSize Number of items per page
- * @returns Tournaments response with pagination
- */
 export const getTournaments = async (
   page: number = 1,
   pageSize: number = 10
 ): Promise<TournamentsResponse> => {
-  const response = await apiClient.get<TournamentsResponse>(
+  const response: ApiResponse<TournamentsResponse> = await http.get(
     `/tournaments?page=${page}&page_size=${pageSize}`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer les tournois');
+  }
   return response.data as TournamentsResponse;
 };
 
-/**
- * Join a tournament
- * @param tournamentId Tournament ID
- * @returns Join response
- */
 export const joinTournament = async (tournamentId: number): Promise<{ message: string }> => {
-  const response = await apiClient.post<{ message: string }>(
+  const response: ApiResponse<{ message: string }> = await http.post(
     `/tournament/${tournamentId}/join`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de rejoindre le tournoi');
+  }
   return response.data as { message: string };
 };
 
-/**
- * Get tournament details
- * @param tournamentId Tournament ID
- * @returns Tournament details
- */
 export const getTournamentDetails = async (tournamentId: number): Promise<Tournament> => {
-  const response = await apiClient.get<Tournament>(
+  const response: ApiResponse<Tournament> = await http.get(
     `/tournament/${tournamentId}`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer le tournoi');
+  }
   return response.data as Tournament;
 };
 
-/**
- * Get tournament stages
- * @param tournamentId Tournament ID
- * @returns Tournament stages with bracket information
- */
 export const getTournamentStages = async (tournamentId: number): Promise<TournamentStagesResponse> => {
-  const response = await apiClient.get<TournamentStagesResponse>(
+  const response: ApiResponse<TournamentStagesResponse> = await http.get(
     `/tournament/${tournamentId}/stages`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer les phases du tournoi');
+  }
   return response.data as TournamentStagesResponse;
 };
 
-/**
- * Get my tournaments (tournaments user is registered in)
- * @param page Page number (starts at 1)
- * @param pageSize Number of items per page
- * @returns My tournaments response with pagination
- */
 export const getMyTournaments = async (
   page: number = 1,
   pageSize: number = 10
 ): Promise<MyTournamentsResponse> => {
-  const response = await apiClient.get<MyTournamentsResponse>(
+  const response: ApiResponse<MyTournamentsResponse> = await http.get(
     `/tournaments/my?page=${page}&page_size=${pageSize}`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer vos tournois');
+  }
   return response.data as MyTournamentsResponse;
 };
 
-/**
- * Get matches for a specific tournament stage
- * @param tournamentId Tournament ID
- * @param stageType Stage type (e.g., 'eighth_final', 'quarter_final', 'semi_final', 'final')
- * @returns Stage matches response
- */
 export const getStageMatches = async (
   tournamentId: number,
   stageType: string
 ): Promise<StageMatchesResponse> => {
-  const response = await apiClient.get<StageMatchesResponse>(
+  const response: ApiResponse<StageMatchesResponse> = await http.get(
     `/tournament/${tournamentId}/stage/${stageType}/matches`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer les matchs de tournoi');
+  }
   return response.data as StageMatchesResponse;
 };
 
-/**
- * Get finished tournaments for the current user
- * @param page - Page number (starts at 1)
- * @param pageSize - Number of tournaments per page (1-100)
- * @returns Finished tournaments response with pagination
- */
 export const getFinishedTournaments = async (
   page: number = 1,
   pageSize: number = 10
 ): Promise<TournamentsFinishedResponse> => {
-  const response = await apiClient.get<TournamentsFinishedResponse>(
+  const response: ApiResponse<TournamentsFinishedResponse> = await http.get(
     `/tournaments/my/finished?page=${page}&page_size=${pageSize}`
   );
+  if (!response.success) {
+    throw new Error(response.error || 'Impossible de récupérer les tournois terminés');
+  }
   return response.data as TournamentsFinishedResponse;
 };
 
-/**
- * Tournament match option for dropdown (simplified)
- */
-export interface TournamentMatchOption {
-  id: number;
-  tournament_id: number;
-  tournament_name: string;
-  stage_label: string;
-  player1_name: string;
-  player2_name: string;
-  start_date: number;
-  end_date: number;
-  display_label: string; // For dropdown display
-}
+export interface TournamentMatchOptionExport extends TournamentMatchOption {}
 
-/**
- * Get all tournament matches for the current user (simplified for dropdown)
- * Returns only necessary data for match selection
- * @returns Array of tournament match options
- */
 export const getUserTournamentMatches = async (): Promise<TournamentMatchOption[]> => {
-  try {
-    const myTournamentsResponse = await getMyTournaments(1, 100);
-    const tournaments = myTournamentsResponse.tournaments;
+  // (On laisse ici une implémentation simple; la version performante arrivera via React Query + batching)
+  const myTournamentsResponse = await getMyTournaments(1, 100);
+  const tournaments = myTournamentsResponse.tournaments;
 
-    if (!tournaments || tournaments.length === 0) {
-      return [];
-    }
-
-    const allMatches: TournamentMatchOption[] = [];
-
-    for (const tournament of tournaments) {
-      try {
-        const stagesResponse = await getTournamentStages(tournament.id);
-        const stages = stagesResponse.stages || [];
-
-        for (const stage of stages) {
-          try {
-            const matchesResponse = await getStageMatches(tournament.id, stage.type);
-            const matches = matchesResponse.matches || [];
-
-            const matchOptions: TournamentMatchOption[] = matches.map(match => ({
-              id: match.id,
-              tournament_id: tournament.id,
-              tournament_name: tournament.name,
-              stage_label: getStageLabelFromType(stage.type),
-              player1_name: match.player1_summary.pseudo,
-              player2_name: match.player2_summary.pseudo,
-              start_date: match.start_date,
-              end_date: match.end_date,
-              display_label: `${tournament.name} - ${getStageLabelFromType(stage.type)} - ${match.player1_summary.pseudo} vs ${match.player2_summary.pseudo}`
-            }));
-
-            allMatches.push(...matchOptions);
-          } catch (err) {
-            console.error(`Error fetching matches for tournament ${tournament.id}, stage ${stage.type}:`, err);
-          }
-        }
-      } catch (err) {
-        console.error(`Error fetching stages for tournament ${tournament.id}:`, err);
-      }
-    }
-
-    return allMatches.sort((a, b) => a.start_date - b.start_date);
-  } catch (err) {
-    console.error('Error fetching user tournament matches:', err);
-    throw err;
+  if (!tournaments || tournaments.length === 0) {
+    return [];
   }
+
+  const allMatches: TournamentMatchOption[] = [];
+
+  for (const tournament of tournaments) {
+    const stagesResponse = await getTournamentStages(tournament.id);
+    const stages: TournamentStage[] = stagesResponse.stages || [];
+
+    for (const stage of stages) {
+      const matchesResponse = await getStageMatches(tournament.id, stage.type);
+      const matches: StageMatch[] = matchesResponse.matches || [];
+
+      const matchOptions: TournamentMatchOption[] = matches.map(match => ({
+        id: match.id,
+        tournament_id: tournament.id,
+        tournament_name: tournament.name,
+        stage_label: getStageLabelFromType(stage.type),
+        player1_name: match.player1_summary.pseudo,
+        player2_name: match.player2_summary.pseudo,
+        start_date: match.start_date,
+        end_date: match.end_date,
+        display_label: `${tournament.name} - ${getStageLabelFromType(stage.type)} - ${match.player1_summary.pseudo} vs ${match.player2_summary.pseudo}`
+      }));
+
+      allMatches.push(...matchOptions);
+    }
+  }
+
+  return allMatches.sort((a, b) => a.start_date - b.start_date);
 };
 
 const getStageLabelFromType = (type: string): string => {

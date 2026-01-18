@@ -1,5 +1,6 @@
 // Re-export all types for easy importing
 export * from './entities';
+export * from './api';
 
 // Additional utility types
 export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

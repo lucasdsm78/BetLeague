@@ -1,12 +1,12 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './MatchesSection.css';
-import { getMatchesPage, ApiMatchReadModel, MatchesListResponse } from '../../services/matchesApi';
+import { getMatchesPage, type ApiMatchReadModel, type MatchesListResponse } from '../../services/matchesApi';
 import CreateTicketModal from './CreateTicketModal';
 import { createTicket, createTournamentBet } from '../../services/ticketsApi';
-import { getParticipatedLeagues, getLeagueBalance } from '../../services/leaguesApi';
-import { useCurrentLeague } from '../../store/leagueStore';
-import { getUserTournamentMatches, getTournamentPlayerBalance, type TournamentMatchOption } from '../../services/tournamentApi';
+import type { TournamentMatchOption } from '../../services/tournamentApi';
 import { useTicketsRefreshStore } from 'store/ticketsStore';
+import { useParticipatedLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
+import { useTournamentPlayerBalanceQuery } from '../../hooks/queries/useTournamentBettingQueries';
 
 // Types
 interface MatchOdds {
@@ -471,7 +471,8 @@ interface MatchesSectionProps {
 }
 
 const mapApiMatchToUi = (m: ApiMatchReadModel): Match => {
-    const kickoffIso = typeof m.time === 'string' ? m.time : new Date(m.time as unknown as string).toISOString();
+    // m.time est déjà une string dans ton type ApiMatchReadModel
+    const kickoffIso = m.time;
     const now = Date.now();
     const startTs = new Date(kickoffIso).getTime();
     const status: 'upcoming' | 'live' | 'finished' = startTs > now ? 'upcoming' : 'finished';
@@ -492,7 +493,7 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): Match => {
     };
 };
 
-const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
+const MatchesSection = memo<MatchesSectionProps>(() => {
     const bumpTicketsRefresh = useTicketsRefreshStore((s) => s.bumpRefresh);
 
     const [matches, setMatches] = useState<Match[]>([]);
@@ -505,29 +506,86 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
     const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
     const [isTicketDrawerOpen, setIsTicketDrawerOpen] = useState<boolean>(false);
 
-    // États pour le tiroir mobile avec création directe
+    // États drawer (mobile)
     const [drawerStake, setDrawerStake] = useState<string>('');
-    const [drawerLeagues, setDrawerLeagues] = useState<any[]>([]);
     const [drawerSelectedLeagueId, setDrawerSelectedLeagueId] = useState<number | null>(null);
-    const [drawerBalance, setDrawerBalance] = useState<number | null>(null);
+    const [drawerSelectedTournamentMatchId, setDrawerSelectedTournamentMatchId] = useState<string>('');
     const [drawerError, setDrawerError] = useState<string | null>(null);
     const [isSubmittingDrawer, setIsSubmittingDrawer] = useState<boolean>(false);
 
-    const [drawerTournamentMatches, setDrawerTournamentMatches] = useState<TournamentMatchOption[]>([]);
-    const [drawerSelectedTournamentMatchId, setDrawerSelectedTournamentMatchId] = useState<string>('');
-    const [drawerTournamentBalance, setDrawerTournamentBalance] = useState<number | null>(null);
-
-    // États pour le sidebar desktop (partage la logique avec le drawer mobile)
+    // Desktop (états manquants)
     const [desktopStake, setDesktopStake] = useState<string>('');
-    const [desktopLeagues, setDesktopLeagues] = useState<any[]>([]);
     const [desktopSelectedLeagueId, setDesktopSelectedLeagueId] = useState<number | null>(null);
-    const [desktopBalance, setDesktopBalance] = useState<number | null>(null);
     const [desktopError, setDesktopError] = useState<string | null>(null);
     const [isSubmittingDesktop, setIsSubmittingDesktop] = useState<boolean>(false);
 
-    const [desktopTournamentMatches, setDesktopTournamentMatches] = useState<TournamentMatchOption[]>([]);
-    const [desktopSelectedTournamentMatchId, setDesktopSelectedTournamentMatchId] = useState<string>(''); // Format: "tournamentId-matchId"
-    const [desktopTournamentBalance, setDesktopTournamentBalance] = useState<number | null>(null);
+    // Desktop (tournoi)
+    const [desktopSelectedTournamentMatchId, setDesktopSelectedTournamentMatchId] = useState<string>('');
+
+    // Tournois: options (placeholder)
+    const [drawerTournamentMatches] = useState<TournamentMatchOption[]>([]);
+    const [desktopTournamentMatches] = useState<TournamentMatchOption[]>([]);
+
+    // React Query: ligues + balance ligue
+    const participatedLeaguesQuery = useParticipatedLeaguesQuery();
+    const participatedLeagues = participatedLeaguesQuery.data ?? [];
+
+    const desktopBalanceQuery = useLeagueBalanceQuery(desktopSelectedLeagueId, { enabled: !!desktopSelectedLeagueId });
+    const desktopBalance = desktopSelectedLeagueId ? (desktopBalanceQuery.data ?? null) : null;
+
+    const drawerBalanceQuery = useLeagueBalanceQuery(drawerSelectedLeagueId, { enabled: isTicketDrawerOpen && !!drawerSelectedLeagueId });
+    const drawerBalance = drawerSelectedLeagueId ? (drawerBalanceQuery.data ?? null) : null;
+
+    // Tournament balances (API retourne un number dans ton hook)
+    const drawerTournamentId = useMemo(() => {
+        if (!drawerSelectedTournamentMatchId) return null;
+        const [tId] = drawerSelectedTournamentMatchId.split('-');
+        const tid = Number(tId);
+        return Number.isFinite(tid) && tid > 0 ? tid : null;
+    }, [drawerSelectedTournamentMatchId]);
+
+    const desktopTournamentId = useMemo(() => {
+        if (!desktopSelectedTournamentMatchId) return null;
+        const [tId] = desktopSelectedTournamentMatchId.split('-');
+        const tid = Number(tId);
+        return Number.isFinite(tid) && tid > 0 ? tid : null;
+    }, [desktopSelectedTournamentMatchId]);
+
+    const drawerTournamentBalanceQuery = useTournamentPlayerBalanceQuery(drawerTournamentId, { enabled: isTicketDrawerOpen && !!drawerTournamentId });
+    const drawerTournamentBalance = drawerTournamentId ? (drawerTournamentBalanceQuery.data ?? null) : null;
+
+    const desktopTournamentBalanceQuery = useTournamentPlayerBalanceQuery(desktopTournamentId, { enabled: !!desktopTournamentId });
+    const desktopTournamentBalance = desktopTournamentId ? (desktopTournamentBalanceQuery.data ?? null) : null;
+
+    // Handlers desktop
+    const handleLeagueChange = useCallback((leagueId: number | null) => {
+        setDesktopSelectedLeagueId(leagueId);
+        if (leagueId !== null) setDesktopSelectedTournamentMatchId('');
+    }, []);
+
+    const handleTournamentMatchChange = useCallback((tournamentMatchId: string) => {
+        setDesktopSelectedTournamentMatchId(tournamentMatchId);
+        if (tournamentMatchId !== '') setDesktopSelectedLeagueId(null);
+    }, []);
+
+    // Handlers drawer
+    const handleDrawerLeagueChange = useCallback((leagueId: number | null) => {
+        setDrawerSelectedLeagueId(leagueId);
+        setDrawerError(null);
+        if (leagueId !== null) setDrawerSelectedTournamentMatchId('');
+    }, []);
+
+    const handleDrawerTournamentMatchChange = useCallback((tournamentMatchId: string) => {
+        setDrawerSelectedTournamentMatchId(tournamentMatchId);
+        setDrawerError(null);
+        if (tournamentMatchId !== '') setDrawerSelectedLeagueId(null);
+    }, []);
+
+    // Reset errors à l'ouverture
+    useEffect(() => {
+        if (!isTicketDrawerOpen) return;
+        setDrawerError(null);
+    }, [isTicketDrawerOpen]);
 
     // Pagination & Infinite Scroll
     const [page, setPage] = useState<number>(1);
@@ -545,10 +603,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
             if (nextPage === 1) setIsLoading(true); else setIsFetchingMore(true);
             setError(null);
             const res: MatchesListResponse = await getMatchesPage(nextPage, pageSize);
-            const uiMatches = (res.matches || []).map(mapApiMatchToUi);
+            const uiMatches = (res.matches ?? []).map(mapApiMatchToUi);
             setMatches(prev => nextPage === 1 ? uiMatches : [...prev, ...uiMatches]);
-            setPage(res.page || nextPage);
-            setTotalPages(res.total_pages || 1);
+            setPage(res.page ?? nextPage);
+            setTotalPages(res.total_pages ?? 1);
         } catch (e: any) {
             setError(e?.message || 'Une erreur est survenue lors du chargement des matchs.');
             if (nextPage === 1) setMatches([]);
@@ -639,10 +697,10 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         setSelectedBets([]);
     }, []);
 
-    const handleCreateTicket = useCallback(() => {
-        setIsCreateOpen(true);
-        setIsTicketDrawerOpen(false);
-    }, []);
+    const handleTicketCreated = useCallback(() => {
+        setSelectedBets([]);
+        bumpTicketsRefresh();
+    }, [bumpTicketsRefresh]);
 
     const toggleTicketDrawer = useCallback(() => {
         setIsTicketDrawerOpen((v) => !v);
@@ -652,107 +710,6 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         setIsTicketDrawerOpen(false);
         setDrawerError(null);
         setDrawerStake('');
-    }, []);
-
-    const currentLeague = useCurrentLeague();
-
-    // Charger les ligues pour le sidebar desktop (au montage du composant)
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                const list = await getParticipatedLeagues();
-                if (!mounted) return;
-                setDesktopLeagues(list);
-                // Ne pas pré-sélectionner automatiquement - laisser l'utilisateur choisir
-                setDesktopSelectedLeagueId(null);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading leagues for desktop sidebar:', e);
-                setDesktopLeagues([]);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [currentLeague]);
-
-    // Charger le solde BTL pour le sidebar desktop
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!desktopSelectedLeagueId) {
-                setDesktopBalance(null);
-                return;
-            }
-            try {
-                const btl = await getLeagueBalance(desktopSelectedLeagueId);
-                if (!mounted) return;
-                setDesktopBalance(btl);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading balance for desktop sidebar:', e);
-                setDesktopBalance(null);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [desktopSelectedLeagueId]);
-
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                const tournamentMatchOptions = await getUserTournamentMatches();
-                if (!mounted) return;
-                setDesktopTournamentMatches(tournamentMatchOptions);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading tournament matches for sidebar:', e);
-                setDesktopTournamentMatches([]);
-            }
-        })();
-        return () => { mounted = false; };
-    }, []);
-
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!desktopSelectedTournamentMatchId) {
-                setDesktopTournamentBalance(null);
-                return;
-            }
-
-            const [tournamentIdStr] = desktopSelectedTournamentMatchId.split('-');
-            const tournamentId = Number(tournamentIdStr);
-
-            if (!tournamentId) {
-                setDesktopTournamentBalance(null);
-                return;
-            }
-
-            try {
-                const balance = await getTournamentPlayerBalance(tournamentId);
-                if (!mounted) return;
-                setDesktopTournamentBalance(balance);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading tournament balance:', e);
-                setDesktopTournamentBalance(null);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [desktopSelectedTournamentMatchId]);
-
-    const handleLeagueChange = useCallback((leagueId: number | null) => {
-        setDesktopSelectedLeagueId(leagueId);
-        if (leagueId !== null) {
-            setDesktopSelectedTournamentMatchId('');
-        }
-    }, []);
-
-    const handleTournamentMatchChange = useCallback((tournamentMatchId: string) => {
-        setDesktopSelectedTournamentMatchId(tournamentMatchId);
-        if (tournamentMatchId !== '') {
-            setDesktopSelectedLeagueId(null);
-        }
     }, []);
 
     // Calculs pour le sidebar desktop
@@ -868,108 +825,6 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
             setIsSubmittingDesktop(false);
         }
     }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh]);
-
-    // Charger les ligues quand le drawer s'ouvre
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!isTicketDrawerOpen) return;
-            try {
-                setDrawerError(null);
-                const list = await getParticipatedLeagues();
-                if (!mounted) return;
-                setDrawerLeagues(list);
-                // Ne pas pré-sélectionner automatiquement - laisser l'utilisateur choisir
-                setDrawerSelectedLeagueId(null);
-            } catch (e: any) {
-                if (!mounted) return;
-                setDrawerError(e?.message || 'Impossible de charger les ligues.');
-                setDrawerLeagues([]);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [isTicketDrawerOpen, currentLeague]);
-
-    // Charger le solde BTL quand on a une ligue sélectionnée
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!isTicketDrawerOpen || !drawerSelectedLeagueId) {
-                setDrawerBalance(null);
-                return;
-            }
-            try {
-                const btl = await getLeagueBalance(drawerSelectedLeagueId);
-                if (!mounted) return;
-                setDrawerBalance(btl);
-            } catch (e: any) {
-                if (!mounted) return;
-                setDrawerError(e?.message || 'Impossible de charger le solde BTL.');
-                setDrawerBalance(null);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [isTicketDrawerOpen, drawerSelectedLeagueId]);
-
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!isTicketDrawerOpen) return;
-            try {
-                const tournamentMatchOptions = await getUserTournamentMatches();
-                if (!mounted) return;
-                setDrawerTournamentMatches(tournamentMatchOptions);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading tournament matches for drawer:', e);
-                setDrawerTournamentMatches([]);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [isTicketDrawerOpen]);
-
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            if (!isTicketDrawerOpen || !drawerSelectedTournamentMatchId) {
-                setDrawerTournamentBalance(null);
-                return;
-            }
-
-            const [tournamentIdStr] = drawerSelectedTournamentMatchId.split('-');
-            const tournamentId = Number(tournamentIdStr);
-
-            if (!tournamentId) {
-                setDrawerTournamentBalance(null);
-                return;
-            }
-
-            try {
-                const balance = await getTournamentPlayerBalance(tournamentId);
-                if (!mounted) return;
-                setDrawerTournamentBalance(balance);
-            } catch (e: any) {
-                if (!mounted) return;
-                console.error('Error loading tournament balance for drawer:', e);
-                setDrawerTournamentBalance(null);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [isTicketDrawerOpen, drawerSelectedTournamentMatchId]);
-
-    const handleDrawerLeagueChange = useCallback((leagueId: number | null) => {
-        setDrawerSelectedLeagueId(leagueId);
-        if (leagueId !== null) {
-            setDrawerSelectedTournamentMatchId('');
-        }
-    }, []);
-
-    const handleDrawerTournamentMatchChange = useCallback((tournamentMatchId: string) => {
-        setDrawerSelectedTournamentMatchId(tournamentMatchId);
-        if (tournamentMatchId !== '') {
-            setDrawerSelectedLeagueId(null);
-        }
-    }, []);
 
     // Calculs pour le drawer
     const drawerTotalOdds = useMemo(() => {
@@ -1096,11 +951,6 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
         }
     }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh]);
 
-    const handleTicketCreated = useCallback(() => {
-        setSelectedBets([]);
-        bumpTicketsRefresh();
-    }, [bumpTicketsRefresh]);
-
     if (isLoading) {
         return (
             <div className="matches-loading">
@@ -1166,7 +1016,7 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                 selectedBets={selectedBets}
                 onRemoveBet={handleRemoveBet}
                 onClearAll={handleClearAllBets}
-                leagues={desktopLeagues}
+                leagues={participatedLeagues}
                 selectedLeagueId={desktopSelectedLeagueId}
                 onLeagueChange={handleLeagueChange}
                 balance={desktopBalance}
@@ -1236,14 +1086,14 @@ const MatchesSection = memo<MatchesSectionProps>(({ user }) => {
                                     className="drawer-select"
                                     value={drawerSelectedLeagueId ?? ''}
                                     onChange={(e) => handleDrawerLeagueChange(e.target.value ? Number(e.target.value) : null)}
-                                    disabled={drawerLeagues.length === 0 || drawerSelectedTournamentMatchId !== ''}
+                                    disabled={participatedLeagues.length === 0 || drawerSelectedTournamentMatchId !== ''}
                                 >
                                     <option value="">-- Sélectionnez une ligue --</option>
-                                    {drawerLeagues.map((l: any) => (
+                                    {participatedLeagues.map((l: any) => (
                                         <option key={l.id} value={l.id}>{l.name}</option>
                                     ))}
                                 </select>
-                                {(!drawerLeagues || drawerLeagues.length === 0) && (
+                                {(!participatedLeagues || participatedLeagues.length === 0) && (
                                     <div className="drawer-warning" role="alert">
                                         Vous ne participez à aucune ligue.
                                     </div>

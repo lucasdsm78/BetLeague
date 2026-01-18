@@ -3,9 +3,9 @@
  * Shows all player matchups in a specific tournament stage
  */
 
-import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getStageMatches, type StageMatch } from '../../services/tournamentApi';
-import { useToast } from '../../hooks/useToast';
+import React, { memo, useCallback } from 'react';
+import { useStageMatchesQuery } from '../../hooks/queries/useTournamentQueries';
+import type { StageMatch } from '../../services/tournamentApi';
 import './StageMatches.css';
 
 interface StageMatchesProps {
@@ -19,32 +19,11 @@ const StageMatches: React.FC<StageMatchesProps> = memo(({
   stageType,
   stageName
 }) => {
-  const [matches, setMatches] = useState<StageMatch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { showError } = useToast();
+  const matchesQuery = useStageMatchesQuery(tournamentId, stageType);
 
-  // Fetch matches on mount
-  const fetchMatches = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await getStageMatches(tournamentId, stageType);
-      setMatches(response.matches || []);
-    } catch (err: any) {
-      console.error('Error fetching stage matches:', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Impossible de charger les matchs';
-      setError(errorMessage);
-      showError('Erreur', errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tournamentId, stageType]); // Removed showError from deps - it's stable
-
-  useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
+  const matches: StageMatch[] = matchesQuery.data?.matches || [];
+  const isLoading = matchesQuery.isLoading;
+  const error = matchesQuery.error?.message ?? null;
 
   // Format date from timestamp
   const formatDate = (timestamp: number) => {
@@ -93,7 +72,7 @@ const StageMatches: React.FC<StageMatchesProps> = memo(({
           <span className="stage-matches-error-icon">⚠️</span>
           <h5>Erreur de chargement</h5>
           <p>{error}</p>
-          <button className="btn-retry-matches" onClick={fetchMatches}>
+          <button className="btn-retry-matches" onClick={() => matchesQuery.refetch()}>
             🔄 Réessayer
           </button>
         </div>

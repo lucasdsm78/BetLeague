@@ -1,27 +1,9 @@
 // filepath: /Users/lucasdasilvamarques/BetLeague/front/src/services/matchesApi.ts
-import secureApiClient, { ApiResponse } from './secureApiClient';
+import secureApiClient, { type ApiResponse } from './secureApiClient';
+import type { ApiMatchReadModel, MatchesListResponse } from '../types/api/matches';
 
-// Modèle de réponse API backend (MatchReadModel)
-export interface ApiMatchReadModel {
-  id: number;
-  uuid: string;
-  home_team: string;
-  away_team: string;
-  cote_home: number;
-  cote_draw: number;
-  cote_away: number;
-  time: string; // ISO datetime string
-  created_at: number;
-  updated_at: number;
-}
-
-export interface MatchesListResponse {
-  matches: ApiMatchReadModel[];
-  page: number;
-  page_size: number;
-  total: number;
-  total_pages: number;
-}
+// Ré-exports temporaires pour compat pendant la migration (à retirer quand tout importe depuis src/types/api)
+export type { ApiMatchReadModel, MatchesListResponse };
 
 export async function getMatches(): Promise<ApiMatchReadModel[]> {
   const res: ApiResponse<MatchesListResponse> = await secureApiClient.get('/matches');
@@ -47,8 +29,3 @@ export async function getMatchesPage(page: number, pageSize: number): Promise<Ma
   }
   return data;
 }
-
-export default {
-  getMatches,
-  getMatchesPage,
-};
