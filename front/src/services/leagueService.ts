@@ -3,15 +3,14 @@
  * Comprehensive league management with validation and error handling
  */
 
-import { apiClient, ApiClientError } from './apiClient';
-import type { 
-  League, 
-  LeagueDetails, 
-  Invitation, 
+import http, { type ApiResponse } from './http';
+import type {
+  League,
+  LeagueDetails,
+  Invitation,
   LeagueCreateForm,
-  ApiResponse,
-  PaginatedResponse 
 } from '../types';
+import type { ApiPaginatedResponse } from '../types/api/common';
 
 export interface LeagueCreatePayload {
   name: string;
@@ -51,22 +50,13 @@ export class LeagueServiceError extends Error {
     this.code = code;
     this.details = details;
   }
-
-  static fromApiError(error: ApiClientError): LeagueServiceError {
-    return new LeagueServiceError(
-      error.message,
-      error.status,
-      error.code,
-      error.details
-    );
-  }
 }
 
 // League validation utilities
 class LeagueValidator {
   static validateName(name: string): string {
     const trimmed = name.trim();
-    
+
     if (!trimmed) {
       throw new LeagueServiceError('Le nom de la ligue est requis', 400, 'NAME_REQUIRED');
     }
@@ -115,7 +105,7 @@ class LeagueValidator {
     if (!description) return undefined;
 
     const trimmed = description.trim();
-    
+
     if (trimmed.length > 500) {
       throw new LeagueServiceError('La description ne peut pas dépasser 500 caractères', 400, 'DESCRIPTION_TOO_LONG');
     }
@@ -132,10 +122,7 @@ class LeagueValidator {
 // League Service Class
 export class LeagueService {
   private handleApiError(error: any): never {
-    if (error instanceof ApiClientError) {
-      throw LeagueServiceError.fromApiError(error);
-    }
-
+    // http/secureApiClient lève généralement un Error standard
     if (error instanceof LeagueServiceError) {
       throw error;
     }
@@ -183,7 +170,7 @@ export class LeagueService {
         payload.end_date = endDate.toISOString();
       }
 
-      const response = await apiClient.post<{ league: League }>('/league/create', payload);
+      const response: ApiResponse<{ league: League }> = await http.post('/league/create', payload);
 
       if (!response.success || !response.data?.league) {
         throw new LeagueServiceError('Réponse invalide du serveur', 500, 'INVALID_RESPONSE');
@@ -197,9 +184,9 @@ export class LeagueService {
   }
 
   // Get user's leagues
-  async getLeagues(page: number = 1, pageSize: number = 10): Promise<PaginatedResponse<League>> {
+  async getLeagues(page: number = 1, pageSize: number = 10): Promise<ApiPaginatedResponse<League>> {
     try {
-      const response = await apiClient.get<PaginatedResponse<League>>(
+      const response: ApiResponse<ApiPaginatedResponse<League>> = await http.get(
         `/leagues?page=${page}&page_size=${pageSize}`
       );
 
@@ -221,7 +208,7 @@ export class LeagueService {
         throw new LeagueServiceError('ID de ligue invalide', 400, 'INVALID_LEAGUE_ID');
       }
 
-      const response = await apiClient.get<{ league: LeagueDetails }>(`/league/${leagueId}`);
+      const response: ApiResponse<{ league: LeagueDetails }> = await http.get(`/league/${leagueId}`);
 
       if (!response.success || !response.data?.league) {
         throw new LeagueServiceError('Ligue non trouvée', 404, 'LEAGUE_NOT_FOUND');
@@ -241,7 +228,7 @@ export class LeagueService {
         throw new LeagueServiceError('ID de ligue invalide', 400, 'INVALID_LEAGUE_ID');
       }
 
-      const response = await apiClient.post<LeagueJoinResponse>(`/league/${leagueId}/join`);
+      const response: ApiResponse<LeagueJoinResponse> = await http.post(`/league/${leagueId}/join`);
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError('Impossible de rejoindre la ligue', 500, 'JOIN_FAILED');
@@ -261,7 +248,7 @@ export class LeagueService {
         throw new LeagueServiceError('ID de ligue invalide', 400, 'INVALID_LEAGUE_ID');
       }
 
-      const response = await apiClient.post<{ message: string }>(`/league/${leagueId}/leave`);
+      const response: ApiResponse<{ message: string }> = await http.post(`/league/${leagueId}/leave`);
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError('Impossible de quitter la ligue', 500, 'LEAVE_FAILED');
@@ -276,7 +263,7 @@ export class LeagueService {
 
   // Search public leagues
   async searchLeagues(
-    query: string, 
+    query: string,
     filters: {
       minPlayers?: number;
       maxPlayers?: number;
@@ -286,7 +273,7 @@ export class LeagueService {
     } = {},
     page: number = 1,
     pageSize: number = 10
-  ): Promise<PaginatedResponse<League>> {
+  ): Promise<ApiPaginatedResponse<League>> {
     try {
       const searchParams = new URLSearchParams({
         q: query.trim(),
@@ -301,7 +288,7 @@ export class LeagueService {
         }
       });
 
-      const response = await apiClient.get<PaginatedResponse<League>>(
+      const response: ApiResponse<ApiPaginatedResponse<League>> = await http.get(
         `/leagues/search?${searchParams.toString()}`
       );
 
@@ -319,7 +306,7 @@ export class LeagueService {
   // Get invitations
   async getInvitations(isReceived: boolean = true): Promise<Invitation[]> {
     try {
-      const response = await apiClient.get<{ invitations: Invitation[] }>(
+      const response: ApiResponse<{ invitations: Invitation[] }> = await http.get(
         `/invitations?is_received=${isReceived}`
       );
 
@@ -353,7 +340,7 @@ export class LeagueService {
         message: message?.trim(),
       };
 
-      const response = await apiClient.post<InvitationResponse>('/invitation/send', payload);
+      const response: ApiResponse<InvitationResponse> = await http.post('/invitation/send', payload);
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError('Impossible d\'envoyer l\'invitation', 500, 'SEND_INVITATION_FAILED');
@@ -373,14 +360,14 @@ export class LeagueService {
         throw new LeagueServiceError('ID d\'invitation invalide', 400, 'INVALID_INVITATION_ID');
       }
 
-      const response = await apiClient.put<{ message: string }>(
+      const response: ApiResponse<{ message: string }> = await http.put(
         `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`
       );
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError(
-          `Impossible de ${accept ? 'accepter' : 'refuser'} l\'invitation`, 
-          500, 
+          `Impossible de ${accept ? 'accepter' : 'refuser'} l\'invitation`,
+          500,
           'RESPOND_INVITATION_FAILED'
         );
       }
@@ -418,7 +405,7 @@ export class LeagueService {
         payload.is_private = updates.type === 'private';
       }
 
-      const response = await apiClient.put<{ league: League }>(`/league/${leagueId}`, payload);
+      const response: ApiResponse<{ league: League }> = await http.put(`/league/${leagueId}`, payload);
 
       if (!response.success || !response.data?.league) {
         throw new LeagueServiceError('Impossible de mettre à jour la ligue', 500, 'UPDATE_FAILED');
@@ -438,7 +425,7 @@ export class LeagueService {
         throw new LeagueServiceError('ID de ligue invalide', 400, 'INVALID_LEAGUE_ID');
       }
 
-      const response = await apiClient.delete<{ message: string }>(`/league/${leagueId}`);
+      const response: ApiResponse<{ message: string }> = await http.delete(`/league/${leagueId}`);
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError('Impossible de supprimer la ligue', 500, 'DELETE_FAILED');
@@ -458,7 +445,7 @@ export class LeagueService {
         throw new LeagueServiceError('ID de ligue invalide', 400, 'INVALID_LEAGUE_ID');
       }
 
-      const response = await apiClient.get<{ leaderboard: any[] }>(`/league/${leagueId}/leaderboard`);
+      const response: ApiResponse<{ leaderboard: any[] }> = await http.get(`/league/${leagueId}/leaderboard`);
 
       if (!response.success || !response.data) {
         throw new LeagueServiceError('Impossible de récupérer le classement', 500, 'LEADERBOARD_FAILED');
@@ -475,8 +462,8 @@ export class LeagueService {
   async checkNameAvailability(name: string): Promise<{ available: boolean; suggestions?: string[] }> {
     try {
       const validatedName = LeagueValidator.validateName(name);
-      
-      const response = await apiClient.get<{ available: boolean; suggestions?: string[] }>(
+
+      const response: ApiResponse<{ available: boolean; suggestions?: string[] }> = await http.get(
         `/league/check-name?name=${encodeURIComponent(validatedName)}`
       );
 
