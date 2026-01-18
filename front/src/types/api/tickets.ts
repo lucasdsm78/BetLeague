@@ -1,9 +1,6 @@
 // Types API (DTO) pour les endpoints tickets
 
-export interface ApiLeagueSummary {
-  id: number;
-  name: string;
-}
+import type { ApiLeagueSummary } from './leagues';
 
 export interface ApiMatchSummary {
   id: number;

@@ -1,11 +1,11 @@
 import type {
-  ApiLeagueSummary,
   ApiMatchChoiceSummary,
   ApiMatchSummary,
   ApiTicketReadModel,
 } from '../../types/api/tickets';
+import type { ApiLeagueSummary } from '../../types/api/leagues';
 import type {
-  LeagueSummary,
+  TicketLeagueSummary,
   MatchChoiceSummary,
   MatchSummary,
   TicketReadModel,
@@ -53,7 +53,7 @@ function mapApiMatchChoiceSummaryToUi(api: ApiMatchChoiceSummary): MatchChoiceSu
   };
 }
 
-function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
+function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): TicketLeagueSummary {
   return {
     id: asNumber(api.id),
     name: asString(api.name),
@@ -100,4 +100,3 @@ export function tryMapApiTicketToUi(api: unknown): TicketReadModel | null {
     return null;
   }
 }
-
