@@ -396,6 +396,16 @@ export class ApiClient {
   }
 }
 
+/**
+ * @deprecated
+ * ⚠️ Ancien client HTTP.
+ *
+ * Ce projet utilise désormais `services/http.ts` (alias de `services/secureApiClient.ts`).
+ * Merci de migrer les imports vers :
+ *   - `import http from 'services/http'`
+ *   - ou `import secureApiClient from 'services/secureApiClient'`
+ */
+
 // Create and export singleton instance
 export const apiClient = new ApiClient();
 
