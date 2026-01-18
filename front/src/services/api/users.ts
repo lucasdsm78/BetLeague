@@ -24,6 +24,3 @@ export async function searchUsers(query: string): Promise<UserSearchResult[]> {
   const users = Array.isArray(res.data?.users) ? res.data!.users : [];
   return users.map(mapApiUserSearchResultToUi);
 }
-
-export default { searchUsers };
-

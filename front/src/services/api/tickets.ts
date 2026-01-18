@@ -140,13 +140,3 @@ export async function createTournamentBet(
   }
   return res.data as TicketCreateResponse;
 }
-
-export default {
-  createTicket,
-  getInProgressTickets,
-  getFinishedTickets,
-  getTicketDetail,
-  deleteTicket,
-  createTournamentBet,
-};
-

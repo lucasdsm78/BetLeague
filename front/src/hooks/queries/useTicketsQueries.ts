@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import ticketsApi from '../../services/ticketsApi';
+import { getFinishedTickets, getInProgressTickets, getTicketDetail } from '../../services/api/tickets';
 import type { TicketsFinishedResponse, TicketsInProgressResponse, TicketReadModel } from '../../types/entities/ticket';
 
 export const ticketsKeys = {
@@ -13,7 +13,7 @@ export function useInProgressTicketsQuery(options?: { refetchIntervalMs?: number
   return useQuery<TicketReadModel[], Error>({
     queryKey: ticketsKeys.inProgress(),
     queryFn: async () => {
-      const res: TicketsInProgressResponse = await ticketsApi.getInProgressTickets();
+      const res: TicketsInProgressResponse = await getInProgressTickets();
       return Array.isArray(res.tickets) ? res.tickets : [];
     },
     refetchInterval: options?.refetchIntervalMs,
@@ -24,7 +24,7 @@ export function useFinishedTicketsQuery(options?: { refetchIntervalMs?: number }
   return useQuery<TicketReadModel[], Error>({
     queryKey: ticketsKeys.finished(),
     queryFn: async () => {
-      const res: TicketsFinishedResponse = await ticketsApi.getFinishedTickets();
+      const res: TicketsFinishedResponse = await getFinishedTickets();
       return Array.isArray(res.tickets) ? res.tickets : [];
     },
     refetchInterval: options?.refetchIntervalMs,
@@ -39,7 +39,7 @@ export function useTicketDetailQuery(ticketId: number | string | null | undefine
       if (ticketId === null || ticketId === undefined) {
         throw new Error('Ticket invalide');
       }
-      return ticketsApi.getTicketDetail(ticketId);
+      return getTicketDetail(ticketId);
     },
   });
 }

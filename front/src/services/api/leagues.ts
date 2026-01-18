@@ -144,20 +144,3 @@ export async function getParticipatedLeagues(): Promise<LeagueSummaryApi[]> {
 export async function getLeagueBalanceAmount(leagueId: number): Promise<number> {
   return getLeagueBalance(leagueId);
 }
-
-export default {
-  createLeague,
-  getAvailableLeaguesPage,
-  getCreatedLeaguesPage,
-  getParticipatedLeaguesPage,
-  joinLeague,
-  leaveLeague,
-  getLeagueRanking,
-  getLeaguesBalancesBulk,
-  getLeagueBalance: getLeagueBalanceResponse,
-  getLeagueDetails,
-  // invitations/search déplacés
-  inviteUserToLeague,
-  getParticipatedLeagues,
-  getLeagueBalanceAmount,
-};
