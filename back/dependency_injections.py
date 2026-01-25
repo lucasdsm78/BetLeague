@@ -37,6 +37,7 @@ from domain.tournament_subscription.repository.tournament_subscription_repositor
     TournamentSubscriptionRepository
 from domain.tournament_subscription.service.tournament_subscription_domain_service import SubscriptionDomainService
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError
+from domain.user.model.user import User
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
@@ -430,12 +431,18 @@ async def verify_tournament_subscription(
         current_user: dict = Depends(current_user),
         user_repository: UserRepository = Depends(user_repository_dependency),
         subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
-) -> None:
-    user = await user_repository.find_by_email(current_user.get("email", ""))
+) -> User:
+    email = current_user.get("email")
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide")
+
+    user = await user_repository.find_by_email(email)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé")
 
     subscription = await subscription_repository.find_active_by_user_id(user.id)
     if not subscription or not subscription.is_active():
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=UserNotSubscribedError.message)
+
+    return user
 

@@ -39,7 +39,7 @@ class TournamentQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_tournaments_created(self, email: str, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
+    async def get_tournaments_created(self, user_id: int, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
         raise NotImplementedError
 
 
@@ -230,21 +230,16 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 return response
 
-    async def get_tournaments_created(self, email: str, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
+    async def get_tournaments_created(self, user_id: int, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
 
         async with self._session_factory() as session:
             async with session.begin():
-
-                user = await self.user_repository.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
-
                 offset = (page - 1) * page_size
 
                 tournaments, total_count = await self.tournament_repository.find_created_tournaments(
-                    user.id, page_size, offset
+                    user_id, page_size, offset
                 )
 
                 response = TournamentCreatedResponse(
