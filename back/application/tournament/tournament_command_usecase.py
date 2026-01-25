@@ -14,7 +14,7 @@ from application.tournament.tournament_command_model import (
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
-    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError
+    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -399,6 +399,9 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 if not tournament_player:
                     raise TournamentPlayerNotFoundError
+
+                if tournament_player.user.id != user_id:
+                    raise TournamentNotThePlayerError
 
                 tournament.current_players -= 1
 

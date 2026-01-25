@@ -88,6 +88,13 @@ class TournamentNotOwnerLeaguedError(Exception):
         return TournamentNotOwnerLeaguedError.message
 
 
+class TournamentNotThePlayerError(Exception):
+    message = "The user is not the player."
+
+    def __str__(self):
+        return TournamentNotThePlayerError.message
+
+
 class TournamentNameAlreadyExistsError(Exception):
     message = "The tournament with the name you specified already exists."
 
