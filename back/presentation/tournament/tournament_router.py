@@ -7,6 +7,7 @@ from application.tournament.tournament_command_model import (
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
     SchedulerSuccessfulyRunResponse,
+    TournamentPlayerDeletedResponse
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
@@ -353,7 +354,6 @@ async def create_tournament_subscription_checkout(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la création de l'abonnement"
@@ -397,3 +397,45 @@ async def stripe_webhook(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur webhook")
+
+@router.delete(
+    "/tournament/{id}/player/delete",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Delete player to a tournament",
+    response_model=TournamentPlayerDeletedResponse
+)
+async def delete_player(
+        id: int,
+        tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        delete_tournament_player = await tournament_command_usecase.delete_player(
+            id,
+            current_user.get('email', '')
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except TournamentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        print(e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return delete_tournament_player

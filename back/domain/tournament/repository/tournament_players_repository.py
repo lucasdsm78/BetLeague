@@ -16,6 +16,10 @@ class TournamentPlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def unregister_tournament(self, tournament_players_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, player: TournamentPlayer) -> Optional[TournamentPlayer]:
         raise NotImplementedError
 
