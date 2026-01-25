@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request, Header
+from domain.user.model.user import User
 
 from application.tournament import TournamentQueryUseCase
 from application.tournament.tournament_command_model import (
@@ -25,7 +26,7 @@ from domain.tournament.exception.tournament_exception import TournamentAlreadySt
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 
-from application.tournament.tournament_query_model import (TournamentCreatedResponse)
+from application.tournament.tournament_query_model import TournamentCreatedResponse
 
 router = APIRouter(prefix="/api", tags=["tournament"])
 
@@ -246,17 +247,14 @@ async def get_tournaments_created(
         page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
+        user: User = Depends(verify_tournament_subscription)
 ):
     try:
-        return await tournament_usecase.get_tournaments_created(current_user.get("email", ""), page, page_size)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception as e:
+        return await tournament_usecase.get_tournaments_created(user.id, page, page_size)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erreur lors de la récupération des tournois créés par l'utilisateur: {str(e)}"
+            detail="Erreur interne"
         )
 
 @router.put(
