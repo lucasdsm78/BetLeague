@@ -76,7 +76,6 @@ async def join_tournament(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de l'inscription au tournoi: {str(e)}"
@@ -399,20 +398,20 @@ async def stripe_webhook(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur webhook")
 
 @router.delete(
-    "/tournament/{id}/player/delete",
+    "/tournament/{id}/player/me",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Delete player to a tournament",
+    summary="Delete player connected to a tournament",
     response_model=TournamentPlayerDeletedResponse
 )
-async def delete_player(
+async def leave_tournament(
         id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
-        delete_tournament_player = await tournament_command_usecase.delete_player(
+        delete_tournament_player = await tournament_command_usecase.leave_tournament(
             id,
-            current_user.get('email', '')
+            current_user.get('id', '')
         )
     except UserNotFoundError as e:
         raise HTTPException(
@@ -433,6 +432,7 @@ async def delete_player(
         )
 
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

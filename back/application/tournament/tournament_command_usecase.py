@@ -47,6 +47,10 @@ class TournamentCommandUseCase(ABC):
     async def update(self, data: TournamentUpdateModel, tournament_id: int, email: str):
         raise NotImplementedError
 
+    @abstractmethod
+    async def leave_tournament(self, tournament_id: int, user_id: int) -> TournamentPlayerDeletedResponse:
+        raise NotImplementedError
+
 
 class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
     def __init__(
@@ -371,37 +375,34 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
             return TournamentUpdateResponse()
 
-    async def delete_player(
+    async def leave_tournament(
             self,
-            id: int,
-            email: str
+            tournament_id: int,
+            user_id: int
     ) -> TournamentPlayerDeletedResponse:
         async with self._session_factory() as session:
             async with session.begin():
-                user_repo    = UserRepositoryImpl(session)
-                tournament_repo  = TournamentRepositoryImpl(session)
+                tournament_repo = TournamentRepositoryImpl(session)
                 players_repo = TournamentPlayersRepositoryImpl(session)
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
-
-                tournament = await tournament_repo.find_by_id(id)
+                tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
                     raise TournamentNotFoundError
 
-                if tournament.status.value != TournamentStatus.PENDING.value:
+                if tournament.status != TournamentStatus.PENDING:
                     raise TournamentAlreadyStartedError
 
                 tournament_player = await players_repo.get_player(
                     tournament_id=tournament.id,
-                    user_id=user.id
+                    user_id=user_id
                 )
 
                 if not tournament_player:
                     raise TournamentPlayerNotFoundError
 
-                await tournament_repo.update(tournament)
+                tournament.current_players -= 1
+
                 await players_repo.unregister_tournament(tournament_player.id)
+                await tournament_repo.update(tournament)
 
         return TournamentPlayerDeletedResponse()
