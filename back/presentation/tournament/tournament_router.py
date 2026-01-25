@@ -25,6 +25,8 @@ from domain.tournament.exception.tournament_exception import TournamentAlreadySt
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 
+from application.tournament.tournament_query_model import (TournamentCreatedResponse)
+
 router = APIRouter(prefix="/api", tags=["tournament"])
 
 
@@ -50,7 +52,7 @@ async def create_tournament(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erreur lors de la création du tournoi: {str(e)}"
+            detail=f"Erreur lors de la création du tournoi"
         )
 
 
@@ -232,6 +234,29 @@ async def get_available_public_tournaments(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des tournois disponibles publics: {str(e)}"
+        )
+
+@router.get(
+    "/tournaments/my/created",
+    status_code=status.HTTP_200_OK,
+    response_model=TournamentCreatedResponse,
+    summary="Récupère les tournois créés par l'utilisateur",
+)
+async def get_tournaments_created(
+        page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
+        page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
+):
+    try:
+        return await tournament_usecase.get_tournaments_created(current_user.get("email", ""), page, page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des tournois créés par l'utilisateur: {str(e)}"
         )
 
 @router.put(

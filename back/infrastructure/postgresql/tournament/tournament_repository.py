@@ -219,6 +219,42 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         return tournaments, total_count
 
+    async def find_created_tournaments(
+            self,
+            user_id: int,
+            limit: int,
+            offset: int
+    ) -> Tuple[List[Tournament], int]:
+        stmt = (
+            select(
+                DBTournament,
+                func.count().over().label("total_count")
+            )
+            .where(
+                DBTournament.user_id == user_id,
+            )
+            .order_by(DBTournament.end_date.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.session.execute(stmt)
+
+        rows = result.all()
+        if not rows:
+            return [], 0
+
+        total_count = rows[0][1]
+
+        db_tournaments = [row[0] for row in rows]
+
+        tournaments: List[Tournament] = await self.session.run_sync(
+            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
+            db_tournaments
+        )
+
+        return tournaments, total_count
+
     async def update(self, tournament: Tournament):
         result = await self.session.execute(
             select(DBTournament).where(DBTournament.id == tournament.id)
