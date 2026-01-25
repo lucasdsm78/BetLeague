@@ -17,7 +17,7 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
     UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError, LeagueNbBtlIsNotEnoughError, \
-    LeagueNotFinishedError, LeagueNotStartedError, LeagueFinishedError
+    LeagueNotFinishedError, LeagueNotStartedError, LeagueFinishedError, LeagueNotThePlayerError
 from domain.league.model.league import League
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -225,6 +225,9 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 if not league_player:
                     raise LeagueParticipantNotFoundError
+
+                if league_player.user.id != id:
+                    raise LeagueNotThePlayerError
 
                 if league.is_free is False and league.nb_btl is not None and league.nb_btl > 0:
                     user.nb_btl += league.nb_btl
