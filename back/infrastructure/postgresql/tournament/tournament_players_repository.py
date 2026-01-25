@@ -34,6 +34,15 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
         except:
             raise
 
+    async def unregister_tournament(self, tournament_players_id: int):
+        try:
+            query = select(DBTournamentPlayer).where(DBTournamentPlayer.id == tournament_players_id)
+            result = await self.session.execute(query)
+            tournament_player = result.scalar_one()
+            await self.session.delete(tournament_player)
+        except:
+            raise
+
     async def get_non_eliminated_players(self, tournament_id: int) -> List[TournamentPlayer]:
         try:
             result = await self.session.execute(

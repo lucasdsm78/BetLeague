@@ -9,11 +9,12 @@ from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
+    TournamentPlayerDeletedResponse
 )
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
-    NotEnoughPaidPlayersError
+    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -369,3 +370,38 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                     await tournament_repo.update(tournament)
 
             return TournamentUpdateResponse()
+
+    async def delete_player(
+            self,
+            id: int,
+            email: str
+    ) -> TournamentPlayerDeletedResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo    = UserRepositoryImpl(session)
+                tournament_repo  = TournamentRepositoryImpl(session)
+                players_repo = TournamentPlayersRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                tournament = await tournament_repo.find_by_id(id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                if tournament.status.value != TournamentStatus.PENDING.value:
+                    raise TournamentAlreadyStartedError
+
+                tournament_player = await players_repo.get_player(
+                    tournament_id=tournament.id,
+                    user_id=user.id
+                )
+
+                if not tournament_player:
+                    raise TournamentPlayerNotFoundError
+
+                await tournament_repo.update(tournament)
+                await players_repo.unregister_tournament(tournament_player.id)
+
+        return TournamentPlayerDeletedResponse()
