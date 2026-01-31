@@ -58,3 +58,6 @@ class SchedulerSuccessfulyRunResponse(BaseModel):
 
 class TournamentPlayerDeletedResponse(BaseModel):
     message: str = "The player is well deleted to the tournament"
+
+class TournamentInviteResponse(BaseModel):
+    message: str = "The user is invited to join this tournament"

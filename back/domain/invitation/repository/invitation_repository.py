@@ -20,6 +20,10 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_user_id_tournament_id(self, user_id: int, tournament_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_invitations(
             self,
             user_id: int,

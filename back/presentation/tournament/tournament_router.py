@@ -7,7 +7,7 @@ from application.tournament.tournament_command_model import (
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
     SchedulerSuccessfulyRunResponse,
-    TournamentPlayerDeletedResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
@@ -24,10 +24,12 @@ from dependency_injections import current_user, tournament_command_usecase, tour
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
-    TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError
+    TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError
 from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse
+
+from domain.invitation.exception.invitation_exception import InvitationFoundError
 
 router = APIRouter(prefix="/api", tags=["tournament"])
 
@@ -407,6 +409,7 @@ async def leave_tournament(
         id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         delete_tournament_player = await tournament_command_usecase.leave_tournament(
@@ -432,9 +435,67 @@ async def leave_tournament(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
     return delete_tournament_player
+
+@router.post(
+    "/tournament/{tournament_id}/{user_id}/invite",
+    response_model=TournamentInviteResponse,
+    summary="Invite user to a league",
+    status_code=status.HTTP_200_OK
+)
+async def invite_user_to_tournament(
+        tournament_id: int,
+        user_id: int,
+        tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
+):
+    try:
+        invitation = await tournament_command_usecase.invite_user(tournament_id, user_id, current_user.get('email', ''))
+
+    except TournamentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except TournamentNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message,
+        )
+
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message,
+        )
+
+    except TournamentPlayerFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except InvitationFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return invitation

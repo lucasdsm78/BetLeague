@@ -46,6 +46,19 @@ class InvitationRepositoryImpl(InvitationRepository):
         except:
             raise
 
+    async def find_by_user_id_tournament_id(self, user_id: int, tournament_id: int) -> bool:
+        try:
+            result = await self.session.execute(
+                select(DBInvitation).where(
+                    DBInvitation.tournament_id == user_id,
+                    DBInvitation.user_id == user_id
+                )
+            )
+            count = len(result.scalars().all())
+            return count != 0
+        except:
+            raise
+
     async def find_invitations(
             self,
             user_id: int,
