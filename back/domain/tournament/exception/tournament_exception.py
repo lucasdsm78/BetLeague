@@ -19,6 +19,20 @@ class TournamentPlayerNotFoundError(Exception):
         return TournamentPlayerNotFoundError.message
 
 
+class TournamentPlayerFoundError(Exception):
+    message = "Le player du tournoi existe déjà"
+
+    def __str__(self):
+        return TournamentPlayerFoundError.message
+
+
+class TournamentMaxPlayersError(Exception):
+    message = "The tournament can't have more players than the maximum of the players."
+
+    def __str__(self):
+        return TournamentMaxPlayersError.message
+
+
 class TournamentFullError(Exception):
     message = "Le tournoi est complet"
 

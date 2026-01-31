@@ -47,6 +47,7 @@ class DBTournament(Base):
         "DBTournamentMatch",
         back_populates="tournament"
     )
+    invitations = relationship("DBInvitation", back_populates="tournament")
 
     def to_entity(self) -> Tournament:
         # En async, on doit éviter tout lazy-load implicite ici.

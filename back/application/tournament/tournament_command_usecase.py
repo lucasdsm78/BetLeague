@@ -3,18 +3,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 import shortuuid
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
-    TournamentPlayerDeletedResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse
 )
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
-    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError
+    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError, TournamentMaxPlayersError, \
+    TournamentPlayerFoundError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -28,6 +30,10 @@ from infrastructure.postgresql.tournament import TournamentRepositoryImpl, Tourn
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
+from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.model.invitation import Invitation
+from domain.invitation.model.invitation_status import InvitationStatus
 
 
 class TournamentCommandUseCase(ABC):
@@ -409,3 +415,65 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 await tournament_repo.update(tournament)
 
         return TournamentPlayerDeletedResponse()
+
+    async def invite_user(
+            self,
+            tournament_id: int,
+            user_id: int,
+            user_owner_email: str
+    ) -> TournamentInviteResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo        = UserRepositoryImpl(session)
+                tournament_repo      = TournamentRepositoryImpl(session)
+                players_repo     = TournamentPlayersRepositoryImpl(session)
+                invitation_repo  = InvitationRepositoryImpl(session)
+
+                user_owner = await user_repo.find_by_email(user_owner_email)
+                if not user_owner:
+                    raise UserNotFoundError
+
+                user = await user_repo.find_by_id(user_id)
+                if not user:
+                    raise UserNotFoundError
+
+                tournament = await tournament_repo.find_by_id(tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                if user.is_tournament_subscriber is False:
+                    raise UserNotSubscribedError
+
+                if user_owner.id != tournament.user.id:
+                    raise TournamentNotOwnerLeaguedError
+
+                if tournament.status != TournamentStatus.PENDING:
+                    raise TournamentAlreadyStartedError
+
+                if await players_repo.get_player(tournament_id, user.id):
+                    raise TournamentPlayerFoundError
+
+                if await invitation_repo.find_by_user_id_tournament_id(user.id, tournament.id):
+                    raise InvitationFoundError
+
+                if tournament.current_players == tournament.max_players:
+                    raise TournamentMaxPlayersError
+
+                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
+                if (
+                        (tournament.max_players - tournament.current_players) != 0 and
+                        (tournament.max_players - tournament.current_players) - 1 <= tournament.min_players
+                        and unixtimestamp > tournament.start_date
+                ):
+                    tournament.status = TournamentStatus.IN_PROGRESS
+
+                invitation = Invitation(
+                    league_id=None,
+                    tournament_id=tournament.id,
+                    user_sender_id=user_owner.id,
+                    user_id=user.id,
+                    status=InvitationStatus.pending
+                )
+                await invitation_repo.add(invitation)
+
+        return TournamentInviteResponse()
