@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { createTournament, TournamentCreateRequest } from '../../services/api/tournament';
+import { createTournament } from '../../services/api/tournament';
+import type { TournamentCreateRequest } from '../../types/api/tournament';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './CreateTournamentModal.css';
 
@@ -75,11 +76,11 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
 
     setStartDateLocal(startLocal);
     setEndDateLocal(toDatetimeLocalValue(endMs));
-    setFormData(prev => ({
+    setFormData((prev: TournamentCreateRequest) => ({
       ...prev,
       start_date: now,
     }));
-    setErrors(prev => ({ ...prev, start_date: undefined, end_date: undefined }));
+    setErrors((prev: CreateTournamentFormErrors) => ({ ...prev, start_date: undefined, end_date: undefined }));
   }, []);
 
   // Initialise par défaut: début = aujourd'hui, fin = +7 jours (affichage)
@@ -117,8 +118,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   }, [formData, startDateLocal]);
 
   const handleInputChange = useCallback((field: keyof TournamentCreateRequest, value: string | boolean | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => ({ ...prev, [field]: undefined }));
+    setFormData((prev: TournamentCreateRequest) => ({ ...prev, [field]: value } as TournamentCreateRequest));
+    setErrors((prev: CreateTournamentFormErrors) => ({ ...prev, [field]: undefined }));
   }, []);
 
   const handleStartDateChange = useCallback((value: string) => {
@@ -126,9 +127,9 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
 
     const startMs = datetimeLocalToEpochMs(value);
     if (startMs === undefined) {
-      setFormData(prev => ({ ...prev, start_date: undefined }));
+      setFormData((prev: TournamentCreateRequest) => ({ ...prev, start_date: undefined }));
       setEndDateLocal('');
-      setErrors(prev => ({ ...prev, start_date: 'Date de début invalide' }));
+      setErrors((prev: CreateTournamentFormErrors) => ({ ...prev, start_date: 'Date de début invalide' }));
       return;
     }
 
@@ -136,8 +137,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     const endMs = addDaysMs(startMs, TOURNAMENT_DURATION_DAYS);
     setEndDateLocal(toDatetimeLocalValue(endMs));
 
-    setFormData(prev => ({ ...prev, start_date: startMs }));
-    setErrors(prev => ({ ...prev, start_date: undefined }));
+    setFormData((prev: TournamentCreateRequest) => ({ ...prev, start_date: startMs }));
+    setErrors((prev: CreateTournamentFormErrors) => ({ ...prev, start_date: undefined }));
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {

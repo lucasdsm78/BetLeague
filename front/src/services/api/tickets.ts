@@ -14,10 +14,6 @@ import type {
 import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../../types/entities/ticket';
 import { mapApiTicketToUi, tryMapApiTicketToUi } from '../mappers/ticketMapper';
 
-export type MatchChoiceData = ApiMatchChoiceCreate;
-export type TicketCreatePayload = ApiTicketCreateRequest;
-export type TicketCreateResponse = ApiTicketCreateResponse;
-
 function normalizeInProgress(
   data: ApiTicketsInProgressResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown
 ): TicketsInProgressResponse {
@@ -48,13 +44,13 @@ function normalizeFinished(
   return { tickets: mapped };
 }
 
-export async function createTicket(leagueId: number, payload: TicketCreatePayload): Promise<TicketCreateResponse> {
+export async function createTicket(leagueId: number, payload: ApiTicketCreateRequest): Promise<ApiTicketCreateResponse> {
   const query = new URLSearchParams({ league_id: String(leagueId) });
-  const res: ApiResponse<TicketCreateResponse> = await http.post(`/ticket/create?${query.toString()}`, payload);
+  const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/ticket/create?${query.toString()}`, payload);
   if (!res.success) {
     throw new Error(res.error || 'Création du ticket échouée');
   }
-  return res.data as TicketCreateResponse;
+  return res.data as ApiTicketCreateResponse;
 }
 
 export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
@@ -132,11 +128,11 @@ export async function deleteTicket(ticketId: number | string): Promise<{ success
 export async function createTournamentBet(
   tournamentId: number,
   matchId: number,
-  payload: TicketCreatePayload
-): Promise<TicketCreateResponse> {
-  const res: ApiResponse<TicketCreateResponse> = await http.post(`/tournament/${tournamentId}/match/${matchId}/bet`, payload);
+  payload: ApiTicketCreateRequest
+): Promise<ApiTicketCreateResponse> {
+  const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/tournament/${tournamentId}/match/${matchId}/bet`, payload);
   if (!res.success) {
     throw new Error(res.error || 'Création du pari de tournoi échouée');
   }
-  return res.data as TicketCreateResponse;
+  return res.data as ApiTicketCreateResponse;
 }

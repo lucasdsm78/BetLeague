@@ -14,25 +14,7 @@ import type {
   TournamentMatchOption,
   TournamentStage,
   StageMatch,
-  TournamentFinished,
-  MyTournament,
 } from '../../types/api/tournament';
-
-export type {
-  TournamentCreateRequest,
-  TournamentCreateResponse,
-  TournamentsResponse,
-  Tournament,
-  TournamentStagesResponse,
-  MyTournamentsResponse,
-  StageMatchesResponse,
-  TournamentsFinishedResponse,
-  TournamentMatchOption,
-  TournamentStage,
-  StageMatch,
-  TournamentFinished,
-  MyTournament,
-};
 
 export async function createTournament(data: TournamentCreateRequest): Promise<TournamentCreateResponse> {
   const payload: TournamentCreateRequest = {

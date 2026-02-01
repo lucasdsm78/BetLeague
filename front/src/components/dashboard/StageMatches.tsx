@@ -5,7 +5,7 @@
 
 import React, { memo, useCallback } from 'react';
 import { useStageMatchesQuery } from '../../hooks/queries/useTournamentQueries';
-import type { StageMatch } from '../../services/api/tournament';
+import type { StageMatch } from '../../types/api/tournament';
 import './StageMatches.css';
 
 interface StageMatchesProps {

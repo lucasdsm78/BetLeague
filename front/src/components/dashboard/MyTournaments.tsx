@@ -5,6 +5,7 @@
 
 import React, { memo, useState, useCallback } from 'react';
 import { useMyTournamentsQuery } from '../../hooks/queries/useTournamentQueries';
+import type { MyTournament } from '../../types/api/tournament';
 import TournamentStages from './TournamentStages';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './MyTournaments.css';
@@ -93,7 +94,7 @@ const MyTournaments: React.FC = memo(() => {
         {!isLoading && !error && tournaments.length > 0 && (
           <>
             <div className="my-tournaments-list">
-              {tournaments.map(tournament => (
+              {tournaments.map((tournament: MyTournament) => (
                 <div key={tournament.id} className="my-tournament-card">
                   {/* Card Header */}
                   <div className="my-tournament-card-header">

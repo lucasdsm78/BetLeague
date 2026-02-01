@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import './CreateTicketModal.css';
-import { createTicket, TicketCreateResponse } from '../../services/api/tickets';
-import type { MatchChoiceData, TicketCreatePayload } from '../../services/api/tickets';
-import { getParticipatedLeagues, getLeagueBalance, LeagueSummaryApi } from '../../services/api/leagues';
+import { createTicket } from '../../services/api/tickets';
+import type { ApiMatchChoiceCreate as MatchChoiceData, ApiTicketCreateRequest as TicketCreatePayload, ApiTicketCreateResponse as TicketCreateResponse } from '../../types/api/tickets';
+import { getParticipatedLeagues, getLeagueBalance } from '../../services/api/leagues';
+import type { LeagueSummaryApi } from '../../services/api/leagues';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { useNavigate } from 'react-router-dom';
 import InsufficientBTLModal from '../InsufficientBTLModal';

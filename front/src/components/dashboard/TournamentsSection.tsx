@@ -11,7 +11,7 @@ import MyTournaments from './MyTournaments';
 import FinishedTournaments from './FinishedTournaments';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useAvailableTournamentsQuery, useJoinTournamentMutation } from '../../hooks/queries/useTournamentQueries';
-import type { Tournament } from '../../services/api/tournament';
+import type { Tournament } from '../../types/api/tournament';
 import './TournamentsSection.css';
 
 type TournamentTab = 'available' | 'my-tournaments' | 'finished-tournaments';
@@ -53,7 +53,7 @@ const TournamentsSection: React.FC = () => {
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
       await joinMutation.mutateAsync({ tournamentId });
-      const tournament = tournaments.find(t => t.id === tournamentId);
+      const tournament = tournaments.find((t: Tournament) => t.id === tournamentId);
       if (tournament) setJoinedTournament(tournament);
       // Pas de refetch manuel: l'invalidation est gérée par la mutation React Query
     } catch (err: any) {
