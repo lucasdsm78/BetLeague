@@ -2,14 +2,14 @@
 // API module: leagues (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
-import { mapLeaguesPage, type LeaguesPage, type LeaguesPageApi } from '../leaguesPaging';
+import { mapLeaguesPage, type LeaguesPage } from '../mappers/leaguesPagingMapper';
 import type {
+  ApiLeaguesPage,
   ApiLeagueCreateRequest,
   ApiLeagueMessageResponse,
   ApiLeagueRankingRow,
   ApiLeagueBalancesBulkResponse,
   ApiLeagueBalanceResponse,
-  ApiInvitationReceived,
 } from '../../types/api/leagues';
 
 // Compat API légère (utilisée dans quelques endroits)
@@ -43,7 +43,7 @@ export async function createLeague(payload: ApiLeagueCreateRequest): Promise<Api
 }
 
 export async function getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
-  const res: ApiResponse<LeaguesPageApi> = await http.get('/leagues', {
+  const res: ApiResponse<ApiLeaguesPage> = await http.get('/leagues', {
     // `secureApiClient` ne gère pas `params` nativement: ce champ est ignoré.
     // On encode explicitement dans l'URL.
   });
@@ -51,27 +51,27 @@ export async function getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<
   // fallback: URL avec query
   if (!res.success) {
     const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-    const res2: ApiResponse<LeaguesPageApi> = await http.get(`/leagues?${query.toString()}`);
+    const res2: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues?${query.toString()}`);
     if (!res2.success) throw new Error(res2.error || 'Erreur lors du chargement des ligues disponibles');
-    return mapLeaguesPage(res2.data as LeaguesPageApi);
+    return mapLeaguesPage(res2.data as ApiLeaguesPage);
   }
 
   // si le back ignore la pagination, on mappe quand même
-  return mapLeaguesPage(res.data as LeaguesPageApi);
+  return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<LeaguesPageApi> = await http.get(`/leagues/created?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/created?${query.toString()}`);
   if (!res.success) throw new Error(res.error || 'Erreur lors du chargement des ligues créées');
-  return mapLeaguesPage(res.data as LeaguesPageApi);
+  return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<LeaguesPageApi> = await http.get(`/leagues/participated?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/participated?${query.toString()}`);
   if (!res.success) throw new Error(res.error || 'Erreur lors du chargement des ligues rejointes');
-  return mapLeaguesPage(res.data as LeaguesPageApi);
+  return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function joinLeague(leagueId: number): Promise<ApiLeagueMessageResponse> {
