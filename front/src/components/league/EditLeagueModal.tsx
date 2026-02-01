@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import './EditLeagueModal.css';
-import { updateLeague } from '../../services/api/leagueUpdate';
+import { updateLeague } from '../../services/api/leagues';
 
 interface LeagueToEdit {
   id: number;
