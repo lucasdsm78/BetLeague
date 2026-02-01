@@ -9,51 +9,46 @@ Migrations Alembic pour BetLeague.
 - On n'utilise plus `Base.metadata.create_all()` au startup.
 - Les changements de schéma passent par des migrations versionnées.
 
-# Commandes (Docker Compose)
-## 0) Rebuild l'image backend (obligatoire après ajout d'une dépendance)
+# PROD — DB neuve (ton cas)
+Objectif: une migration `initial` qui crée *réellement* toutes les tables.
 
-    docker compose build --no-cache backend
+1) Démarrer une DB vide.
+2) Générer une migration initiale via autogenerate.
+3) Appliquer `upgrade head`.
 
-## 1) Cas A — Nouvelle base (recommandé)
+Commandes (Docker Compose):
 
     docker compose up -d db
+    docker compose build --no-cache backend
     docker compose run --rm backend alembic -c alembic.ini revision --autogenerate -m "initial"
     docker compose run --rm backend alembic -c alembic.ini upgrade head
 
-## 2) Cas B — Base déjà existante (tables créées avant Alembic)
-Si tu as déjà une BDD avec des tables (créées via create_all ou manuellement), Alembic refusera souvent d'autogénérer
-avec:
+# DEV — repartir de zéro (DB vide)
+ATTENTION: supprime le volume Postgres.
 
-    FAILED: Target database is not up to date.
+    docker compose down -v
+    docker compose up -d db
 
-Dans ce cas, tu as 2 options:
+Puis tu refais les commandes PROD.
 
-Option B1 (safe si tu veux *garder* les tables existantes):
-- Marquer la DB comme "à jour" sans exécuter de DDL:
+# Cas B — DB déjà existante (tables créées avant Alembic)
+Dans ce cas, ne tente pas de recréer les tables via une migration initiale.
+
+- Marquer la DB comme "à jour" sans DDL:
 
     docker compose run --rm backend alembic -c alembic.ini stamp head
 
-- Puis générer les prochaines migrations normalement:
+Puis ensuite migrations incrémentales:
 
     docker compose run --rm backend alembic -c alembic.ini revision --autogenerate -m "add_xxx"
     docker compose run --rm backend alembic -c alembic.ini upgrade head
 
-Option B2 (clean dev):
-- Reset la base (supprimer le volume) puis refaire Cas A.
-
-# Commandes (local, sans Docker)
-    cd back
-    python -m pip install -r requirements.txt
-    alembic -c alembic.ini revision --autogenerate -m "initial"
-    alembic -c alembic.ini upgrade head
-
 # Troubleshooting
-- "exec: alembic: not found": tu n'as pas rebuild l'image backend. Fais `docker compose build --no-cache backend`.
-- "No 'script_location' key found": ton `alembic.ini` est invalide ou Alembic ne lit pas le bon fichier.
-  Vérifie que `back/alembic.ini` contient bien:
+- "exec: alembic: not found": rebuild l'image backend.
 
-    [alembic]
-    script_location = alembic
+    docker compose build --no-cache backend
 
-- "Target database is not up to date": la DB est sur une révision différente de `head`.
-  Solution: `alembic upgrade head` (si tu peux appliquer les migrations) ou `alembic stamp head` (si tu gardes la DB telle quelle).
+- "No 'script_location' key found": vérifier `back/alembic.ini`.
+- "Target database is not up to date": la DB n'est pas sur `head`.
+  - DB neuve: fais `upgrade head`.
+  - DB existante: fais `stamp head`.
