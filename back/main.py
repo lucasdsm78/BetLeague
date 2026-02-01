@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from dependency_injections import get_settings
-from infrastructure.postgresql.database import create_tables
 from presentation.user.user_router import router as user_router
 from presentation.league.league_router import router as league_router
 from presentation.match.match_router import router as match_router
@@ -70,9 +69,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    # Create database tables
+    # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
     init_models()
-    await create_tables()
+    # IMPORTANT: les tables ne sont plus créées via create_all.
+    # Utilisez Alembic pour versionner et appliquer les migrations.
 
 # Health check endpoint
 @app.get("/health")
