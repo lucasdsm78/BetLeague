@@ -9,7 +9,7 @@ import shortuuid
 from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, \
-    LeagueUpdateResponse, LeagueInjectBtlResponse
+    LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -43,6 +43,10 @@ class LeagueCommandUseCase(ABC):
 
     @abstractmethod
     async def delete_league_player(self, id: int, email: str) -> LeaguePlayerDeletedResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_invitation(self, invitation_id: int, user_email: str):
         raise NotImplementedError
 
     @abstractmethod
@@ -300,6 +304,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 invitation = Invitation(
                     league_id=league.id,
+                    tournament_id=None,
                     user_sender_id=user_owner.id,
                     user_id=user.id,
                     status=InvitationStatus.pending
@@ -341,6 +346,27 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 await invitation_repo.delete(invitation.id)
 
         return InvitationUpdateResponse()
+
+    async def delete_invitation(self, invitation_id: int, user_email: str):
+        async with self._session_factory() as session:
+            async with session.begin():
+                invitation_repo  = InvitationRepositoryImpl(session)
+                league_repo = LeagueRepositoryImpl(session)
+
+                invitation = await invitation_repo.find_by_id(invitation_id)
+                if not invitation:
+                    raise InvitationNotFoundError
+
+                league = await league_repo.find_by_id(invitation.league_id)
+                if not league:
+                    raise LeagueNotFoundError
+
+                if league.user.id != invitation.user_sender_id:
+                    raise UserNotOwnerLeaguedError
+
+                await invitation_repo.delete(invitation.id)
+
+        return InvitationDeleteResponse()
 
     async def update_league(
             self,

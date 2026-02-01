@@ -4,7 +4,7 @@ from fastapi import Request
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
-    LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel
+    LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel, InvitationDeleteResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
@@ -14,6 +14,7 @@ from domain.league.exception.league_exception import LeagueNotFoundError, League
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
     LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError
 from domain.user.exception.user_exception import UserNotFoundError
+from domain.invitation.exception.invitation_exception import InvitationNotFoundError
 from infrastructure.services.rate_limiter import rate_limiter
 
 router = APIRouter(
@@ -437,6 +438,33 @@ async def update_invitation(
         )
 
     return update_invitation_result
+
+
+@router.delete(
+    "/league/invitation/{invitation_id}",
+    response_model=InvitationDeleteResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Delete invitation to a league",
+)
+async def delete_invitation(
+        invitation_id: int,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        delete_invitation_result = await league_command_usecase.delete_invitation(invitation_id, current_user.get('email'))
+    except InvitationNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la suppression d'une l'invitation à une league"
+        )
+
+    return delete_invitation_result
 
 @router.put(
     "/league/{id}",
