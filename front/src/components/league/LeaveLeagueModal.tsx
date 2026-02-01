@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useEffect, memo } from 'react';
-import leagueApiService from '../../services/leagueApiService';
+import { leaveLeague } from '../../services/api/leagues';
 import userProfileService from '../../services/userProfileService';
 import './LeaveLeagueModal.css';
 
@@ -72,32 +72,25 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
     setError('');
 
     try {
-      const result = await leagueApiService.leaveLeague(leagueId);
+      const data = await leaveLeague(leagueId);
 
-      if (result.success) {
-        // Rafraîchir le profil utilisateur pour récupérer le solde BTL mis à jour
-        const profileResult = await userProfileService.fetchCurrentUserProfile();
+      // si pas throw => succès
+      // Rafraîchir le profil utilisateur pour récupérer le solde BTL mis à jour
+      const profileResult = await userProfileService.fetchCurrentUserProfile();
 
-        if (profileResult.success && profileResult.data) {
-          console.log('✅ User profile refreshed. New BTL balance:', profileResult.data.nb_btl);
-        } else {
-          console.warn('⚠️ Failed to refresh user profile, but league exit was successful');
-        }
-
-        // Call success callback
-        if (onLeaveSuccess) {
-          onLeaveSuccess();
-        }
-
-        // Close modal after short delay
-        setTimeout(() => {
-          onClose();
-        }, 500);
+      if (profileResult.success && profileResult.data) {
+        console.log('✅ User profile refreshed. New BTL balance:', (profileResult.data as any).nb_btl);
       } else {
-        const errorMsg = result.error || 'Erreur lors de la désinscription';
-        setError(errorMsg);
-        console.error('❌ Failed to leave league:', result.error);
+        console.warn('⚠️ Failed to refresh user profile, but league exit was successful');
       }
+
+      if (onLeaveSuccess) {
+        onLeaveSuccess();
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (err: any) {
       const errorMessage = err?.message || 'Erreur lors de la désinscription';
       setError(errorMessage);

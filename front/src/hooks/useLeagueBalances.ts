@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import leagueApiService from '../services/leagueApiService';
+import { getLeagueBalanceResponse, getLeaguesBalancesBulk } from '../services/api/leagues';
 
 export type LeagueBalances = Record<number, number>;
 
@@ -99,12 +99,13 @@ export function useLeagueBalances(
     // cache hit
     if (balanceCache.has(leagueId)) return balanceCache.get(leagueId) as number;
 
-    const res = await leagueApiService.getLeagueBalance(leagueId);
-    if (!res.success) {
+    try {
+      const dto = await getLeagueBalanceResponse(leagueId);
+      const nb = Number(dto?.nb_btl);
+      return Number.isFinite(nb) ? nb : defaultBalance;
+    } catch {
       return defaultBalance;
     }
-    const nb = Number(res.data?.nb_btl);
-    return Number.isFinite(nb) ? nb : defaultBalance;
   }, [defaultBalance]);
 
   const refetch = useCallback(async () => {
@@ -131,19 +132,16 @@ export function useLeagueBalances(
         return;
       }
 
-      const bulk = await leagueApiService.getLeaguesBalancesBulk(missing);
-      if (!bulk.success) {
-        throw new Error(bulk.error || 'Erreur lors du chargement des soldes (bulk)');
-      }
+      const bulk = await getLeaguesBalancesBulk(missing);
 
-      const balancesFromApi = bulk.data?.balances || {};
-      const forbidden = new Set(bulk.data?.forbidden || []);
+      const balancesFromApi = bulk.balances || {};
+      const forbidden = new Set(bulk.forbidden || []);
 
       const updates: LeagueBalances = {};
       for (const leagueId of missing) {
         const value = forbidden.has(leagueId)
           ? defaultBalance
-          : (Number(balancesFromApi[leagueId]) || defaultBalance);
+          : (Number((balancesFromApi as any)[leagueId]) || defaultBalance);
 
         balanceCache.set(leagueId, value);
         updates[leagueId] = value;

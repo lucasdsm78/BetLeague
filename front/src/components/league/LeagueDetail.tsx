@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import leagueApiService from '../../services/leagueApiService';
+import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
 import LeagueRankingModal from './LeagueRankingModal';
 import './LeagueDetail.css';
 
@@ -53,14 +53,8 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         setError('');
 
         try {
-            const result = await leagueApiService.getLeagueDetails(leagueId);
-
-            if (result.success && result.data) {
-                setLeagueData(result.data);
-            } else {
-                setError(result.error || 'Erreur lors du chargement des détails de la ligue');
-                console.error('❌ Failed to load league details:', result.error);
-            }
+            const data = await getLeagueDetails(leagueId);
+            setLeagueData(data);
         } catch (err: any) {
             setError('Erreur réseau lors du chargement des détails');
             console.error('❌ Exception while loading league details:', err);
@@ -75,14 +69,8 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 
         setIsJoining(true);
         try {
-            const result = await leagueApiService.joinLeague(leagueData.id);
-            if (result.success) {
-                // Refresh league details to update player count
-                await loadLeagueDetails(true);
-                // You could show a success toast here
-            } else {
-                setError(result.error || 'Erreur lors de la tentative de rejoindre la ligue');
-            }
+            const _ = await joinLeague(leagueData.id);
+            await loadLeagueDetails(true);
         } catch (err: any) {
             setError('Erreur lors de la tentative de rejoindre la ligue');
             console.error('Join league error:', err);

@@ -6,11 +6,9 @@
 import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
 import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import { useUserProfile } from '../../hooks/useUserProfile';
-import secureApiClient from '../../services/secureApiClient';
-import leagueApiService, {
-  LeagueCreateFormData,
-  ValidationResult
-} from '../../services/leagueApiService';
+import { createLeague } from '../../services/api/leagues';
+import type { ApiLeagueCreateRequest, ApiLeagueMessageResponse } from '../../types/api/leagues';
+import { validateLeagueName, type LeagueNameValidationResult } from '../../utils/leagueValidation';
 import InsufficientBTLModal from '../InsufficientBTLModal';
 import './CreateLeagueForm.css';
 
@@ -29,6 +27,15 @@ interface CreateLeagueFormProps {
   onClose: () => void;
   onSuccess: (league: any, message: string) => void;
   className?: string;
+}
+
+// Types UI (form)
+interface LeagueCreateFormData {
+  name: string;
+  type: 'private' | 'public';
+  maxMembers: number;
+  entryFee: number;
+  description?: string;
 }
 
 // Secure input validation patterns
@@ -304,8 +311,8 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
   }, [isOpen]);
 
   // Optimized validation functions with security checks
-  const validateName = useCallback((name: string): ValidationResult => {
-    return leagueApiService.validateLeagueName(name);
+  const validateName = useCallback((name: string): LeagueNameValidationResult => {
+    return validateLeagueName(name);
   }, []);
 
   const validateMaxMembers = useCallback((value: number): string | undefined => {
@@ -462,60 +469,18 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({
         userEmail: user?.email
       });
 
-      const result = await leagueApiService.createLeague(formData);
+      const payload: ApiLeagueCreateRequest = {
+        name: formData.name.trim(),
+        max_players: formData.maxMembers,
+        is_private: formData.type === 'private',
+        is_free: formData.entryFee === 0,
+        nb_btl: formData.entryFee > 0 ? formData.entryFee : undefined,
+      };
 
-      if (result.success) {
-        console.log('✅ League created successfully:', result);
-
-        // Pour les ligues payantes: rafraîchir le cache et le profil
-        if (formData.entryFee > 0) {
-          console.log(`💳 League created with entry fee: ${formData.entryFee} BTL`);
-          console.log('🗑️ Clearing API cache to ensure fresh data...');
-
-          // Vider le cache pour forcer le rechargement des données
-          secureApiClient.clearCache();
-
-          // Rafraîchir le profil utilisateur pour mettre à jour le solde BTL
-          console.log(`💳 Refreshing user profile to update BTL balance (debited ${formData.entryFee} BTL)...`);
-          refetchProfile().catch(err => {
-            console.warn('Failed to refresh profile after league creation:', err);
-          });
-        }
-
-        // Reset form state
-        setFormData({
-          name: '',
-          type: 'private',
-          maxMembers: 10,
-          entryFee: 0,
-          description: '',
-        });
-        setShowPreview(false);
-        setErrors({});
-
-        // Close modal and notify parent with appropriate message
-        const successMessage = formData.entryFee > 0
-          ? `Ligue créée avec succès ! ${formData.entryFee} BTL ont été débités de votre compte.`
-          : 'Ligue créée avec succès !';
-
-        onClose();
-        onSuccess(result.data, result.message || successMessage);
-      } else {
-        console.error('❌ League creation failed:', result.error);
-
-        // Enhanced error handling for BTL-related errors
-        let errorMessage = result.error || 'Erreur lors de la création de la ligue';
-
-        // Check for BTL-related errors from backend
-        if (errorMessage.toLowerCase().includes('btl') ||
-            errorMessage.toLowerCase().includes('insufficient') ||
-            errorMessage.toLowerCase().includes('solde')) {
-          errorMessage = `💳 Solde BTL insuffisant. Vous avez ${userBtlBalance} BTL mais la création de cette ligue nécessite ${formData.entryFee} BTL.`;
-          setErrors({ entryFee: errorMessage });
-        } else {
-          setErrors({ general: errorMessage });
-        }
-      }
+      const response: ApiLeagueMessageResponse = await createLeague(payload);
+      const message = response.message || 'Ligue créée avec succès !';
+      onSuccess(response, message);
+      onClose();
     } catch (error: any) {
       console.error('❌ Unexpected error during league creation:', error);
 

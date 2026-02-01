@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
-import leagueApiService from '../../services/leagueApiService';
+import { inviteUserToLeague } from '../../services/api/leagues';
 import type { UserSearchResult } from 'types/entities/userSearch';
 import UserSearchInput from './UserSearchInput';
 import './InviteUserModal.css';
@@ -85,44 +85,18 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
 
     try {
 
-      const result = await leagueApiService.inviteUserToLeague(leagueId, selectedUser.id);
+      const data = await inviteUserToLeague(leagueId, selectedUser.id);
+      const successMsg = data.message || `🎉 Invitation envoyée à ${selectedUser.pseudo} !`;
+      setSuccessMessage(successMsg);
 
-      if (result.success) {
-        const successMsg = result.message || `🎉 Invitation envoyée à ${selectedUser.pseudo} !`;
-        setSuccessMessage(successMsg);
-
-        // Call the callback to notify parent
-        if (onInviteSent) {
-          onInviteSent(selectedUser);
-        }
-
-        // Auto-close after success (with delay for user to see message)
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-
-      } else {
-        // Enhanced error handling with specific messages
-        let errorMsg = result.error || 'Erreur lors de l\'envoi de l\'invitation';
-
-        // Map common backend errors to user-friendly messages
-        if (errorMsg.includes('already') || errorMsg.includes('déjà')) {
-          errorMsg = `${selectedUser.pseudo} participe déjà à cette ligue.`;
-        } else if (errorMsg.includes('full') || errorMsg.includes('max') || errorMsg.includes('complet')) {
-          errorMsg = 'Cette ligue est complète.';
-        } else if (errorMsg.includes('started') || errorMsg.includes('commencé')) {
-          errorMsg = 'Cette ligue a déjà commencé, impossible d\'inviter.';
-        } else if (errorMsg.includes('invitation') && errorMsg.includes('exist')) {
-          errorMsg = `Une invitation a déjà été envoyée à ${selectedUser.pseudo}.`;
-        } else if (errorMsg.includes('btl') || errorMsg.includes('insufficient')) {
-          errorMsg = `${selectedUser.pseudo} n'a pas assez de BTL pour rejoindre cette ligue.`;
-        } else if (errorMsg.includes('owner') || errorMsg.includes('permission')) {
-          errorMsg = 'Vous n\'avez pas l\'autorisation d\'inviter dans cette ligue.';
-        }
-
-        setError(errorMsg);
-        console.error('❌ Failed to send invitation:', result.error || result);
+      if (onInviteSent) {
+        onInviteSent(selectedUser);
       }
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+
     } catch (err: any) {
       let errorMessage = `Erreur réseau lors de l'envoi de l'invitation à ${selectedUser.pseudo}. Veuillez réessayer.`;
 

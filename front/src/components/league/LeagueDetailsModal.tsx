@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState, useCallback } from 'react';
-import leagueApiService from '../../services/leagueApiService';
+import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
 import './LeagueDetailsModal.css';
 
 // Types for league details based on backend LeagueReadModel
@@ -71,12 +71,8 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     setError(null);
     setDetails(null);
     try {
-      const res = await leagueApiService.getLeagueDetails(leagueId);
-      if (res.success && res.data) {
-        setDetails(res.data);
-      } else {
-        setError(res.error || 'Impossible de charger les détails de la ligue');
-      }
+      const data = await getLeagueDetails(leagueId);
+      setDetails(data);
     } catch (e: any) {
       setError(e?.message || 'Erreur lors du chargement des détails');
     } finally {
@@ -95,16 +91,9 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     setJoining(true);
     setError(null);
     try {
-      const res = await leagueApiService.joinLeague(details.id);
-      if (!res.success) {
-        setError(res.error || 'Impossible de rejoindre la ligue');
-        setJoining(false);
-      } else {
-        // Close modal first
-        onClose();
-        // Then reload page
-        window.location.reload();
-      }
+      const _ = await joinLeague(details.id);
+      onClose();
+      window.location.reload();
     } catch (e: any) {
       setError(e?.message || 'Erreur lors de la tentative de rejoindre la ligue');
       setJoining(false);
