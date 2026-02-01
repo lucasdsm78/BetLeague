@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import './EditLeagueModal.css';
-import leagueUpdateService from 'services/leagueUpdateService';
+import { updateLeague } from '../../services/api/leagueUpdate';
 
 interface LeagueToEdit {
   id: number;
@@ -159,21 +159,18 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
           start_date: startDate, // Timestamp Unix en millisecondes
         };
 
-        const response = await leagueUpdateService.updateLeague(league.id, updateData);
+        await updateLeague(league.id, updateData);
 
-        if (response.success) {
-          setSuccess(true);
+        // si pas throw => succès
+        setSuccess(true);
 
-          // Appeler onSuccess immédiatement pour déclencher le rafraîchissement
-          onSuccess();
+        // Appeler onSuccess immédiatement pour déclencher le rafraîchissement
+        onSuccess();
 
-          // Fermer le modal après avoir montré le message de succès
-          setTimeout(() => {
-            onClose();
-          }, 1500);
-        } else {
-          setErrors({ general: response.error || 'Échec de la mise à jour de la ligue' });
-        }
+        // Fermer le modal après avoir montré le message de succès
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } catch (error: any) {
         console.error('Erreur lors de la mise à jour de la ligue:', error);
 
