@@ -2,10 +2,7 @@
 // API module: matches (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
-import type { ApiMatchReadModel, MatchesListResponse } from '../../types/api/matches';
-
-// Ré-exports temporaires pour compat
-export type { ApiMatchReadModel, MatchesListResponse };
+import type { MatchesListResponse } from '../../types/api/matches';
 
 export async function getMatchesPage(page: number, pageSize: number): Promise<MatchesListResponse> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });

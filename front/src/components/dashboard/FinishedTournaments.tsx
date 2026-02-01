@@ -4,7 +4,8 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react';
-import { getFinishedTournaments, type TournamentFinished } from '../../services/api/tournament';
+import { getFinishedTournaments } from '../../services/api/tournament';
+import type { TournamentFinished } from '../../types/api/tournament';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './FinishedTournaments.css';
 

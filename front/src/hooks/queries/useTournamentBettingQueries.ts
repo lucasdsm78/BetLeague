@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { getTournamentPlayerBalance, getUserTournamentMatches, type TournamentMatchOption } from '../../services/api/tournament';
+import { getTournamentPlayerBalance, getUserTournamentMatches } from '../../services/api/tournament';
+import type { TournamentMatchOption } from '../../types/api/tournament';
 import { tournamentBettingKeys } from './tournamentBettingKeys';
 
 export function useUserTournamentMatchesQuery(options?: { enabled?: boolean }) {
@@ -22,4 +23,3 @@ export function useTournamentPlayerBalanceQuery(tournamentId: number | null, opt
     staleTime: 10_000,
   });
 }
-

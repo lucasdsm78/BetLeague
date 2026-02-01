@@ -3,7 +3,7 @@
  */
 
 import React, { memo, useMemo, useState } from 'react';
-import type { Tournament } from '../../services/api/tournament';
+import type { Tournament } from '../../types/api/tournament';
 import './TournamentCard.css';
 
 interface TournamentCardProps {

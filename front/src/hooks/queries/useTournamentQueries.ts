@@ -18,7 +18,7 @@ import type {
   TournamentStagesResponse,
   TournamentsFinishedResponse,
   TournamentsResponse,
-} from '../../services/api/tournament';
+} from '../../types/api/tournament';
 import { tournamentKeys } from './tournamentKeys';
 
 export function useAvailableTournamentsQuery(page: number, pageSize: number, options?: { enabled?: boolean }) {
@@ -93,5 +93,3 @@ export function useTournamentLists() {
     invalidateAll: () => qc.invalidateQueries({ queryKey: tournamentKeys.all }),
   };
 }
-
-export type { Tournament, MyTournament };

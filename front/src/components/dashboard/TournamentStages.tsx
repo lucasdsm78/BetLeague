@@ -5,7 +5,7 @@
 
 import React, { memo, useState, useMemo } from 'react';
 import { useTournamentStagesQuery } from '../../hooks/queries/useTournamentQueries';
-import type { TournamentStage } from '../../services/api/tournament';
+import type { TournamentStage } from '../../types/api/tournament';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import StageMatches from './StageMatches';
 import './TournamentStages.css';
