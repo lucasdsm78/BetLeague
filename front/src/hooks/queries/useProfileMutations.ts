@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiResponse } from '../../services/http';
-import { updateProfile, type ApiUpdateProfileData, type ApiUpdateProfileResponse } from '../../services/api/userProfile';
+import { updateProfile } from '../../services/api/userProfile';
+import type { ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
 import twoFactorService from '../../services/twoFactorService';
 import type { TwoFactorSetup, TwoFactorStatus } from '../../types/entities/twoFactor';
 import { profileKeys } from './profileKeys';

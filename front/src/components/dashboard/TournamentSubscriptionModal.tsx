@@ -5,12 +5,10 @@
 
 import React, { useState, useCallback, memo } from 'react';
 import './TournamentSubscriptionModal.css';
-import {
-  createSubscriptionIntent,
-  getSubscriptionPlan,
-  formatPrice,
-  type SubscriptionPlan
-} from '../../services/api/subscription';
+import { createSubscriptionIntent } from '../../services/api/subscription';
+import { getSubscriptionPlan } from '../../utils/subscriptionPlan';
+import { formatPrice } from '../../utils/pricing';
+import type { ApiSubscriptionPlan as SubscriptionPlan } from '../../types/api/subscription';
 
 interface TournamentSubscriptionModalProps {
   onClose: () => void;
@@ -100,7 +98,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
             <div className="plan-features">
               <h4>Fonctionnalités incluses :</h4>
               <ul className="features-list">
-                {plan.features.map((feature, index) => (
+                {plan.features.map((feature: string, index: number) => (
                   <li key={index} className="feature-item">
                     <span className="feature-icon">✓</span>
                     <span className="feature-text">{feature}</span>

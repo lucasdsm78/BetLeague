@@ -3,13 +3,9 @@
 
 import http, { type ApiResponse } from '../http';
 import type { ApiInvitationReceived } from '../../types/api/leagues';
+import type { ApiInvitationActionResponse } from '../../types/api/invitations';
 
-// DTO local : peut être déplacé dans types/api/leagues.ts ou types/api/invitations.ts plus tard
-export interface InvitationActionResponse {
-  message: string;
-  success: boolean;
-  error?: string;
-}
+export type InvitationActionResponse = ApiInvitationActionResponse;
 
 export async function getReceivedInvitations(): Promise<ApiInvitationReceived[]> {
   const res: ApiResponse<ApiInvitationReceived[]> = await http.get('/invitations?is_received=true');

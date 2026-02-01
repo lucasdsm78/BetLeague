@@ -2,21 +2,7 @@
 // API module: profile/user (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
-import type { ApiUserProfile } from '../../types/api/profile';
-
-export interface ApiUpdateUserPayload {
-  pseudo?: string;
-  email?: string;
-}
-
-export interface ApiUpdateUserResponse {
-  message?: string;
-  user?: ApiUserProfile;
-  // certains back renvoient directement le user
-  id?: number;
-  email?: string;
-  pseudo?: string;
-}
+import type { ApiUpdateUserPayload, ApiUpdateUserResponse, ApiUserProfile } from '../../types/api/profile';
 
 export async function updateUserProfile(payload: ApiUpdateUserPayload): Promise<ApiUserProfile> {
   const res: ApiResponse<ApiUpdateUserResponse | ApiUserProfile> = await http.put('/auth/user', payload);
@@ -42,4 +28,3 @@ export async function updateUserProfile(payload: ApiUpdateUserPayload): Promise<
     is_two_factor_enabled: !!user.is_two_factor_enabled,
   };
 }
-

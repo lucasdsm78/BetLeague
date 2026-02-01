@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import './BTLPurchaseModal.css';
-import { getAllPacks, createPurchaseIntent, formatPrice, calculateBonusPercentage, type Pack } from '../../services/api/packs';
+import { getAllPacks, createPurchaseIntent } from '../../services/api/packs';
+import { formatPrice, calculateBonusPercentage } from '../../utils/pricing';
+import type { ApiPack as Pack } from '../../types/api/packs';
 
 interface BTLPurchaseModalProps {
   onClose: () => void;

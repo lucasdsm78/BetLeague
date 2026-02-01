@@ -1,4 +1,4 @@
-import type { ApiUserSearchResult } from '../../types/api/leagues';
+import type { ApiUserSearchResult } from '../../types/api/users';
 import type { UserSearchResult } from '../../types/entities/userSearch';
 
 export function mapApiUserSearchResultToUi(api: ApiUserSearchResult): UserSearchResult {
@@ -8,4 +8,3 @@ export function mapApiUserSearchResultToUi(api: ApiUserSearchResult): UserSearch
     email: String((api as any).email || ''),
   };
 }
-
