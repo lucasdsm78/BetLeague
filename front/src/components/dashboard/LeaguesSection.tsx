@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import leagueApiService from '../../services/leagueApiService';
 import secureApiClient from '../../services/secureApiClient';
+import { getLeagueDetails } from '../../services/api/leagues';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
@@ -463,25 +463,21 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
     const handleEditLeague = useCallback(async (league: LeagueSummary) => {
         try {
-            const result = await leagueApiService.getLeagueDetails(league.id);
-            if (result.success && result.data) {
-                const startDate = result.data.start_date > 9999999999
-                    ? Math.floor(result.data.start_date / 1000)
-                    : Math.floor(result.data.start_date);
+            const data = await getLeagueDetails(league.id);
+            const startDate = data.start_date > 9999999999
+                ? Math.floor(data.start_date / 1000)
+                : Math.floor(data.start_date);
 
-                setSelectedLeagueForEdit({
-                    id: result.data.id,
-                    name: result.data.name,
-                    isStarted: result.data.is_started,
-                    maxPlayers: result.data.max_players,
-                    isFree: result.data.is_free,
-                    nbBtl: result.data.nb_btl,
-                    startDate: startDate
-                });
-                setIsEditModalOpen(true);
-            } else {
-                showError('Erreur', 'Impossible de charger les détails de la ligue');
-            }
+            setSelectedLeagueForEdit({
+                id: data.id,
+                name: data.name,
+                isStarted: data.is_started,
+                maxPlayers: data.max_players,
+                isFree: data.is_free,
+                nbBtl: (data as any).nb_btl,
+                startDate: startDate
+            });
+            setIsEditModalOpen(true);
         } catch (err) {
             console.error('Failed to load league details:', err);
             showError('Erreur', 'Erreur lors du chargement des détails de la ligue');

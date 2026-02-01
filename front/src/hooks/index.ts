@@ -15,13 +15,7 @@ export {
   useSessionMonitor,
 } from './useAuth';
 
-// API hooks
-export {
-  useApi,
-  useApiQuery,
-  useApiMutation,
-  apiCacheUtils,
-} from './useApi';
+// API hooks (supprimés: legacy, remplacés par React Query)
 
 // Form hooks
 export {
@@ -63,12 +57,6 @@ export type {
   UseAuthReturn,
   UseAuthOptions,
 } from './useAuth';
-
-export type {
-  UseApiState,
-  UseApiOptions,
-  UseApiReturn,
-} from './useApi';
 
 export type {
   FormState,

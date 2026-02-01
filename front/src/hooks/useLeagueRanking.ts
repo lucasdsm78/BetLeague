@@ -3,9 +3,9 @@
  * Optimisé pour React, TypeScript et mobile avec sécurité renforcée
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getLeagueRanking } from '../services/api/leagues';
 import type { RankingEntry, RankingData } from '../types/ranking';
-import leagueApiService from '../services/leagueApiService';
 
 interface UseLeagueRankingReturn {
   ranking: RankingData | null;
@@ -52,18 +52,14 @@ export const useLeagueRanking = (leagueId: number | null): UseLeagueRankingRetur
 
     const task = (async () => {
       try {
-        const response = await leagueApiService.getLeagueRanking(leagueId);
+        const data = await getLeagueRanking(leagueId);
 
-        if (!response.success) {
-          throw new Error(response.error || 'Erreur lors du chargement du classement');
-        }
-
-        if (!response.data || !Array.isArray(response.data)) {
+        if (!Array.isArray(data)) {
           throw new Error('Format de données invalide');
         }
 
         // Validation et sécurisation des données
-        const validatedEntries: RankingEntry[] = response.data.map((entry: any, index: number) => ({
+        const validatedEntries: RankingEntry[] = data.map((entry: any, index: number) => ({
           position: typeof entry.position === 'number' ? entry.position : index + 1,
           pseudo: String(entry.pseudo || 'Joueur anonyme').slice(0, 50),
           nb_btl: Math.max(0, Number(entry.nb_btl) || 0),

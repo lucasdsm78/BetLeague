@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useState } from 'react';
-import './LeaguesSection.css'; // Réutilise la même charte visuelle (onglets, cartes, empty-state)
-import leagueApiService from '../../services/leagueApiService';
+import './LeaguesSection.css';
+import { getReceivedInvitations, updateInvitation } from '../../services/api/invitations';
 
 interface InvitationUI {
   id: number;
@@ -52,20 +52,16 @@ const InvitationsSection: React.FC = memo(() => {
     setLoading(true);
     setError('');
     try {
-      const result = await leagueApiService.getReceivedInvitations();
-      if (result.success && result.data) {
-        const mapped: InvitationUI[] = (result.data as any[]).map((inv: any) => ({
-          id: Number(inv.id),
-          leagueName: String(inv.league?.name || ''),
-          inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
-          inviteDate: String(new Date(inv.league?.start_date || Date.now()).toISOString()),
-          members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
-          maxMembers: Number(inv.league?.max_players || 0),
-        }));
-        setInvitations(mapped);
-      } else {
-        setInvitations([]);
-      }
+      const data = await getReceivedInvitations();
+      const mapped: InvitationUI[] = (data as any[]).map((inv: any) => ({
+        id: Number(inv.id),
+        leagueName: String(inv.league?.name || ''),
+        inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
+        inviteDate: String(new Date(inv.league?.start_date || Date.now()).toISOString()),
+        members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
+        maxMembers: Number(inv.league?.max_players || 0),
+      }));
+      setInvitations(mapped);
     } catch (e: any) {
       setError(e?.message || "Erreur lors du chargement des invitations");
       setInvitations([]);
@@ -80,14 +76,10 @@ const InvitationsSection: React.FC = memo(() => {
 
   const handleAccept = useCallback(async (invitation: InvitationUI) => {
     try {
-      const res = await leagueApiService.updateInvitation(invitation.id, true);
-      if (res.success) {
-        setSuccessMessage(res.message || 'Invitation acceptée');
-        setTimeout(() => setSuccessMessage(''), 4000);
-        loadReceived();
-      } else {
-        setError(res.error || "Erreur lors de l'acceptation de l'invitation");
-      }
+      const res = await updateInvitation(invitation.id, true);
+      setSuccessMessage(res.message || 'Invitation acceptée');
+      setTimeout(() => setSuccessMessage(''), 4000);
+      loadReceived();
     } catch (e: any) {
       setError(e?.message || "Erreur lors de l'acceptation de l'invitation");
     }
@@ -95,14 +87,10 @@ const InvitationsSection: React.FC = memo(() => {
 
   const handleDecline = useCallback(async (invitation: InvitationUI) => {
     try {
-      const res = await leagueApiService.updateInvitation(invitation.id, false);
-      if (res.success) {
-        setSuccessMessage(res.message || 'Invitation refusée');
-        setTimeout(() => setSuccessMessage(''), 3000);
-        loadReceived();
-      } else {
-        setError(res.error || "Erreur lors du refus de l'invitation");
-      }
+      const res = await updateInvitation(invitation.id, false);
+      setSuccessMessage(res.message || 'Invitation refusée');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      loadReceived();
     } catch (e: any) {
       setError(e?.message || "Erreur lors du refus de l'invitation");
     }
