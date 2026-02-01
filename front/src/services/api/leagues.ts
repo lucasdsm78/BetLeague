@@ -119,12 +119,29 @@ export async function inviteUserToLeague(leagueId: number, userId: number): Prom
 
 // Fonctions API "lite" existantes
 export async function getParticipatedLeagues(): Promise<LeagueSummaryApi[]> {
-  const res: ApiResponse<ApiParticipatedLeaguesResponse> = await http.get('/leagues/participated');
+  const res: ApiResponse<any> = await http.get('/leagues/participated');
   if (!res.success) {
     throw new Error(res.error || 'Impossible de récupérer les ligues');
   }
-  // endpoints legacy renvoient l'ancien shape "lite"
-  return ((res.data as any)?.leagues ?? []) as LeagueSummaryApi[];
+
+  const data: any = res.data ?? {};
+
+  // 1) Nouveau format (paginé) : { leagues: [...], total_count, page, page_size }
+  if (Array.isArray(data?.leagues)) {
+    return data.leagues as LeagueSummaryApi[];
+  }
+
+  // 2) Format alternatif rencontré : { items: [...] }
+  if (Array.isArray(data?.items)) {
+    return data.items as LeagueSummaryApi[];
+  }
+
+  // 3) Legacy: backend renvoyait parfois directement un array
+  if (Array.isArray(data)) {
+    return data as LeagueSummaryApi[];
+  }
+
+  return [];
 }
 
 export async function getLeagueBalanceAmount(leagueId: number): Promise<number> {

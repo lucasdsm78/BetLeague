@@ -41,6 +41,7 @@ class DBInvitation(Base):
             user_id=self.user_id,
             user_sender_id=self.user_sender_id,
             league_id=self.league_id if self.league_id else None,
+            tournament_id=self.tournament_id if self.tournament_id else None,
             status=InvitationStatus.from_str(self.status),
             created_at=self.created_at,
             updated_at=self.updated_at,

@@ -14,11 +14,16 @@ export interface LeaguesPage {
  * Mapper de pagination (API -> UI)
  */
 export function mapLeaguesPage(api: ApiLeaguesPage): LeaguesPage {
-  const leagues: LeagueSummary[] = (api.items ?? []).map((l: ApiLeagueSummary) => mapApiLeagueSummaryToUi(l));
+  const anyApi: any = api as any;
 
-  const page = Number(api.page) || 1;
-  const pageSize = Number(api.page_size) || leagues.length || 10;
-  const total = Number(api.total) || 0;
+  // Backend actuel: { leagues: [...] }
+  // Ancien/compat: { items: [...] }
+  const rawLeagues = (anyApi.leagues ?? anyApi.items ?? []) as ApiLeagueSummary[];
+  const leagues: LeagueSummary[] = rawLeagues.map((l: ApiLeagueSummary) => mapApiLeagueSummaryToUi(l));
+
+  const page = Number(anyApi.page) || 1;
+  const pageSize = Number(anyApi.page_size ?? anyApi.pageSize) || leagues.length || 10;
+  const total = Number(anyApi.total_count ?? anyApi.total ?? anyApi.totalCount) || 0;
   const hasMore = page * pageSize < total;
 
   return {
