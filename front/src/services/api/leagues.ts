@@ -10,31 +10,16 @@ import type {
   ApiLeagueRankingRow,
   ApiLeagueBalancesBulkResponse,
   ApiLeagueBalanceResponse,
-} from '../../types/api/leagues';
+  ApiParticipatedLeaguesResponse,
+  ApiLeagueUpdateRequest,
+  ApiLeagueUpdateResponse,
+  ApiLeagueNameAvailabilityResponse,
+  ApiLeagueLeaveResponse,
+  ApiLeagueJoinResponse,
+} from '../../types/api';
 
 // Compat API légère (utilisée dans quelques endroits)
-export interface LeagueSummaryApi {
-  id: number;
-  name: string;
-  start_date?: number;
-  is_started?: boolean;
-  nb_players_remaining?: number;
-}
-
-export interface ParticipatedLeaguesResponse {
-  leagues: LeagueSummaryApi[];
-}
-
-export interface LeagueBalanceResponse {
-  nb_btl: number;
-}
-
-// DTO local (réponse update invitation) : à migrer ensuite dans src/types/api/leagues.ts si on veut.
-export interface InvitationActionResponse {
-  message: string;
-  success: boolean;
-  error?: string;
-}
+export type LeagueSummaryApi = { id: number; name: string; start_date?: number; is_started?: boolean; nb_players_remaining?: number };
 
 export async function createLeague(payload: ApiLeagueCreateRequest): Promise<ApiLeagueMessageResponse> {
   const res: ApiResponse<ApiLeagueMessageResponse> = await http.post('/league/create', payload);
@@ -81,11 +66,11 @@ export async function joinLeague(leagueId: number): Promise<ApiLeagueMessageResp
   return (res.data ?? {}) as ApiLeagueMessageResponse;
 }
 
-export async function leaveLeague(leagueId: number): Promise<{ message: string }> {
+export async function leaveLeague(leagueId: number): Promise<ApiLeagueLeaveResponse> {
   if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
-  const res: ApiResponse<{ message: string }> = await http.delete(`/league/${leagueId}/player/delete`);
+  const res: ApiResponse<ApiLeagueLeaveResponse> = await http.delete(`/league/${leagueId}/player/delete`);
   if (!res.success) throw new Error(res.error || 'Erreur lors de la désinscription de la ligue');
-  return (res.data ?? { message: '' }) as { message: string };
+  return (res.data ?? { message: '' }) as ApiLeagueLeaveResponse;
 }
 
 export async function getLeagueRanking(leagueId: number): Promise<ApiLeagueRankingRow[]> {
@@ -134,38 +119,19 @@ export async function inviteUserToLeague(leagueId: number, userId: number): Prom
 
 // Fonctions API "lite" existantes
 export async function getParticipatedLeagues(): Promise<LeagueSummaryApi[]> {
-  const res: ApiResponse<ParticipatedLeaguesResponse> = await http.get('/leagues/participated');
+  const res: ApiResponse<ApiParticipatedLeaguesResponse> = await http.get('/leagues/participated');
   if (!res.success) {
     throw new Error(res.error || 'Impossible de récupérer les ligues');
   }
-  return (res.data?.leagues ?? []);
+  // endpoints legacy renvoient l'ancien shape "lite"
+  return ((res.data as any)?.leagues ?? []) as LeagueSummaryApi[];
 }
 
 export async function getLeagueBalanceAmount(leagueId: number): Promise<number> {
   return getLeagueBalance(leagueId);
 }
 
-export interface UpdateLeagueData {
-  name: string;
-  max_players: number;
-  start_date: number; // timestamp ms
-}
-
-export interface UpdateLeagueResponse {
-  message: string;
-  league?: {
-    id: number;
-    name: string;
-    max_players: number;
-    is_private: boolean;
-    is_free: boolean;
-    nb_btl?: number;
-    start_date: number;
-    is_started: boolean;
-  };
-}
-
-export function validateLeagueUpdateData(data: UpdateLeagueData): void {
+export function validateLeagueUpdateData(data: ApiLeagueUpdateRequest): void {
   const name = String((data as any)?.name ?? '').trim();
   if (!name) throw new Error('Le nom de la ligue est requis');
   if (name.length < 3) throw new Error('Le nom doit contenir au moins 3 caractères');
@@ -188,11 +154,12 @@ export function validateLeagueUpdateData(data: UpdateLeagueData): void {
   }
 }
 
-export async function updateLeague(leagueId: number, data: UpdateLeagueData): Promise<UpdateLeagueResponse> {
+export async function updateLeague(leagueId: number, data: ApiLeagueUpdateRequest): Promise<ApiLeagueUpdateResponse> {
   if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
+  // validation conservée (UI locale)
   validateLeagueUpdateData(data);
 
-  const response: ApiResponse<UpdateLeagueResponse> = await http.put(`/league/${leagueId}`, data);
+  const response: ApiResponse<ApiLeagueUpdateResponse> = await http.put(`/league/${leagueId}`, data);
 
   if (!response.success) {
     let errorMessage = 'Échec de la mise à jour de la ligue';
@@ -221,12 +188,12 @@ export async function updateLeague(leagueId: number, data: UpdateLeagueData): Pr
     throw new Error(errorMessage);
   }
 
-  return response.data as UpdateLeagueResponse;
+  return response.data as ApiLeagueUpdateResponse;
 }
 
 export async function checkLeagueNameAvailability(name: string): Promise<boolean> {
   try {
-    const response: ApiResponse<{ available: boolean }> = await http.get(
+    const response: ApiResponse<ApiLeagueNameAvailabilityResponse> = await http.get(
       `/league/check-name?name=${encodeURIComponent(name)}`
     );
 

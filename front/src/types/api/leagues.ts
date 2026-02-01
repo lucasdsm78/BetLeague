@@ -53,10 +53,34 @@ export interface ApiLeagueBalancesBulkResponse {
   forbidden: number[];
 }
 
-export interface ApiUserSearchResult {
-  id: number;
-  pseudo: string;
-  email: string;
+export interface ApiParticipatedLeaguesResponse {
+  leagues: ApiLeagueSummary[];
+}
+
+export interface ApiLeagueUpdateRequest {
+  name: string;
+  max_players: number;
+  start_date: number;
+}
+
+export interface ApiLeagueUpdateResponse {
+  message: string;
+  league?: ApiLeagueSummary & {
+    start_date: number;
+    is_started: boolean;
+  };
+}
+
+export interface ApiLeagueNameAvailabilityResponse {
+  available: boolean;
+}
+
+export interface ApiLeagueLeaveResponse {
+  message: string;
+}
+
+export interface ApiLeagueJoinResponse {
+  message: string;
 }
 
 export interface ApiLeagueRankingRow {

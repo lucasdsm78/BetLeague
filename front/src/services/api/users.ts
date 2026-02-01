@@ -2,15 +2,9 @@
 // API module: users
 
 import http, { type ApiResponse } from '../http';
-import type { ApiUserSearchResult } from '../../types/api/leagues';
+import type { ApiUsersSearchResponse } from '../../types/api/users';
 import type { UserSearchResult } from '../../types/entities/userSearch';
 import { mapApiUserSearchResultToUi } from '../mappers/userSearchMapper';
-
-export interface ApiUsersSearchResponse {
-  users: ApiUserSearchResult[];
-  total: number;
-  query: string;
-}
 
 export async function searchUsers(query: string): Promise<UserSearchResult[]> {
   const trimmed = String(query ?? '').trim();

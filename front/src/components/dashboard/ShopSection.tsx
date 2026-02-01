@@ -5,7 +5,7 @@ import BTLPurchaseModal from './BTLPurchaseModal';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
-import { getSubscriptionPlan } from '../../services/api/subscription';
+import { getSubscriptionPlan } from '../../utils/subscriptionPlan';
 
 type ShopTabType = 'packs' | 'subscription';
 
@@ -207,7 +207,7 @@ const ShopSection: React.FC = memo(() => {
               </div>
 
               <ul className="subscription-features">
-                {subscriptionPlan.features.map((feature, index) => (
+                {subscriptionPlan.features.map((feature: string, index: number) => (
                   <li key={index}>
                     <span className="feature-check">✓</span>
                     {feature}

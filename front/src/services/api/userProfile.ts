@@ -2,19 +2,7 @@
 // API module: user profile (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
-import type { ApiUserProfile } from '../../types/api/profile';
-
-export interface ApiUpdateProfileData {
-  pseudo?: string;
-  email?: string;
-}
-
-export interface ApiUpdateProfileResponse {
-  message: string;
-  token_auth?: string;
-  refresh_token?: string;
-  user?: ApiUserProfile;
-}
+import type { ApiUserProfile, ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
 
 export async function updateProfile(data: ApiUpdateProfileData): Promise<ApiUpdateProfileResponse> {
   const res: ApiResponse<ApiUpdateProfileResponse> = await http.put('/auth/user', data);
@@ -48,4 +36,3 @@ export async function getCurrentUserProfile(): Promise<ApiUserProfile> {
   }
   return res.data as ApiUserProfile;
 }
-
