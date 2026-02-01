@@ -351,12 +351,18 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
         async with self._session_factory() as session:
             async with session.begin():
                 invitation_repo  = InvitationRepositoryImpl(session)
+                league_repo = LeagueRepositoryImpl(session)
 
                 invitation = await invitation_repo.find_by_id(invitation_id)
                 if not invitation:
                     raise InvitationNotFoundError
 
-                # check if the user is the owner of the league
+                league = await league_repo.find_by_id(invitation.league_id)
+                if not league:
+                    raise LeagueNotFoundError
+
+                if league.user.id != invitation.user_sender_id:
+                    raise UserNotOwnerLeaguedError
 
                 await invitation_repo.delete(invitation.id)
 
