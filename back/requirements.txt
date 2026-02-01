@@ -1,6 +1,7 @@
 fastapi~=0.115.6
 sqlmodel
 sqlalchemy~=2.0.36
+alembic~=1.13.3
 psycopg2
 uvicorn[standard]
 pydantic~=2.10.3
