@@ -68,6 +68,10 @@ class InvitationUpdateResponse(BaseModel):
     message: str = "The invitation is well updated."
 
 
+class InvitationDeleteResponse(BaseModel):
+    message: str = "The invitation is well deleted."
+
+
 class LeagueUpdateResponse(BaseModel):
     message: str = "The league is well updated."
 
