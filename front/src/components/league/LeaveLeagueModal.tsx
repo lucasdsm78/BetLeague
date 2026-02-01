@@ -5,7 +5,8 @@
 
 import React, { useState, useCallback, useEffect, memo } from 'react';
 import { leaveLeague } from '../../services/api/leagues';
-import userProfileService from '../../services/userProfileService';
+import { getCurrentUserProfile } from '../../services/api/userProfile';
+import { useAuthStore } from '../../store/authStore';
 import './LeaveLeagueModal.css';
 
 interface LeaveLeagueModalProps {
@@ -75,13 +76,21 @@ const LeaveLeagueModal: React.FC<LeaveLeagueModalProps> = memo(({
       const data = await leaveLeague(leagueId);
 
       // si pas throw => succès
-      // Rafraîchir le profil utilisateur pour récupérer le solde BTL mis à jour
-      const profileResult = await userProfileService.fetchCurrentUserProfile();
-
-      if (profileResult.success && profileResult.data) {
-        console.log('✅ User profile refreshed. New BTL balance:', (profileResult.data as any).nb_btl);
-      } else {
-        console.warn('⚠️ Failed to refresh user profile, but league exit was successful');
+      // Rafraîchir le profil utilisateur (solde BTL) après la désinscription
+      try {
+        const profile = await getCurrentUserProfile();
+        const authStore = useAuthStore.getState();
+        if (authStore.user) {
+          authStore.updateUser({
+            ...authStore.user,
+            ...profile,
+            id: String((profile as any).id),
+            btlBalance: (profile as any).nb_btl,
+          } as any);
+        }
+      } catch (e) {
+        // non bloquant
+        console.warn('⚠️ Failed to refresh user profile, but league exit was successful', e);
       }
 
       if (onLeaveSuccess) {
