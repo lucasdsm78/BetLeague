@@ -564,7 +564,7 @@
   }
 
   .desktop-logout-btn {
-    display: flex;
+    display: inline-flex;
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
   }
@@ -900,3 +900,35 @@
     display: inline-flex;
   }
 }
+
+/* Notifications Header */
+.header-notifications {
+  display: none;
+}
+
+.mobile-notifications {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .header-center {
+    display: block;
+  }
+
+  .user-info {
+    display: flex;
+  }
+
+  .desktop-logout-btn {
+    display: inline-flex;
+  }
+
+  .header-notifications {
+    display: block;
+  }
+
+  .mobile-notifications {
+    display: none;
+  }
+}
+
