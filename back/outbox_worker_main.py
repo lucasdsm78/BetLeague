@@ -13,6 +13,8 @@ try:
 except Exception:  # pragma: no cover
     orjson = None
 
+from infrastructure.logging_config import setup_logging
+
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
 
@@ -42,6 +44,7 @@ def load_config() -> WorkerConfig:
 
 
 async def main() -> None:
+    setup_logging(environment=os.getenv("ENVIRONMENT", "dev"))
     config = load_config()
 
     worker_id = os.getenv("OUTBOX_WORKER_ID", "local")

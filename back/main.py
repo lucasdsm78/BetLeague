@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from dependency_injections import get_settings
+from infrastructure.logging_config import setup_logging
+
 from presentation.user.user_router import router as user_router
 from presentation.league.league_router import router as league_router
 from presentation.match.match_router import router as match_router
@@ -14,6 +16,7 @@ from presentation.realtime.notifications_stream_router import router as realtime
 from infrastructure.postgresql.init_models import init_models
 
 settings = get_settings()
+setup_logging(environment=getattr(settings, 'environment', 'dev'), json_logs=bool(getattr(settings, 'json_logs', False)))
 app = FastAPI()
 
 # Enhanced CORS Middleware for OPTIONS requests

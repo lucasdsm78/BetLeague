@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+import json
+import logging
+import os
+from datetime import datetime, timezone
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(payload, separators=(",", ":"))
+
+
+def setup_logging(*, environment: str = "dev", json_logs: bool | None = None) -> None:
+    if json_logs is None:
+        json_logs = os.getenv("JSON_LOGS", "false").lower() in {"1", "true", "yes"}
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO if environment == "prod" else logging.INFO)
+
+    for h in list(root.handlers):
+        root.removeHandler(h)
+
+    handler = logging.StreamHandler()
+    if json_logs:
+        handler.setFormatter(JsonFormatter())
+    else:
+        handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+
+    root.addHandler(handler)
+
+    if environment == "prod":
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+        logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+        logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+        logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+
