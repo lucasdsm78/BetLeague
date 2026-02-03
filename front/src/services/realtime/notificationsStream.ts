@@ -12,22 +12,30 @@ export type NotificationsStreamHandlers = {
 };
 
 const DEFAULT_RECONNECT_MS = 2500;
+const MAX_RECONNECT_MS = 30_000;
 
 const normalizeApiBase = (rawBase: string): string => {
   const b = rawBase.replace(/\/$/, '');
   return b.endsWith('/api') ? b : `${b}/api`;
 };
 
+const jitter = (ms: number) => {
+  const j = Math.floor(Math.random() * 250);
+  return ms + j;
+};
+
 export class NotificationsStream {
   private abortController: AbortController | null = null;
   private reconnectTimer: number | null = null;
   private reconnectMs: number;
+  private retries = 0;
 
   constructor(reconnectMs = DEFAULT_RECONNECT_MS) {
     this.reconnectMs = reconnectMs;
   }
 
   stop() {
+    this.retries = 0;
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -60,7 +68,24 @@ export class NotificationsStream {
           signal: this.abortController?.signal,
         });
 
+        if (res.status === 401 || res.status === 403) {
+          // Auth invalide: stop net, pas de retry agressif (le refresh token flow doit reprendre)
+          this.stop();
+          handlers.onError?.(new Error(`Stream auth ${res.status}`));
+          return;
+        }
+
+        if (res.status === 429) {
+          const retryAfter = Number(res.headers.get('Retry-After') || '0');
+          handlers.onError?.(new Error('Stream rate-limited'));
+          this.scheduleReconnect(Math.max(1000, retryAfter * 1000));
+          return;
+        }
+
         if (!res.ok || !res.body) throw new Error(`Stream HTTP ${res.status}`);
+
+        // reset backoff dès que c'est OK
+        this.retries = 0;
 
         handlers.onConnected?.();
 
@@ -106,11 +131,22 @@ export class NotificationsStream {
       } finally {
         // auto-reconnect (best effort)
         if (!this.abortController?.signal.aborted) {
-          this.reconnectTimer = window.setTimeout(() => this.start(handlers), this.reconnectMs);
+          this.scheduleReconnect();
         }
       }
     };
 
     void run();
+  }
+
+  private scheduleReconnect(overrideDelayMs?: number) {
+    const base = overrideDelayMs ?? this.reconnectMs;
+    const exp = Math.min(MAX_RECONNECT_MS, base * Math.pow(2, this.retries));
+    const delay = jitter(exp);
+    this.retries = Math.min(this.retries + 1, 10);
+    this.reconnectTimer = window.setTimeout(() => {
+      // Note: on ne rappelle pas stop() ici, start() s’en charge
+      this.start({});
+    }, delay);
   }
 }
