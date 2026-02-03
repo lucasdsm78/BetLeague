@@ -87,6 +87,7 @@ from application.events.event_bus import InProcessDomainEventBus, DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
+from application.events.outbox_event_bus import OutboxDomainEventBus
 
 jwt_auth = JwtBearer()
 
@@ -236,17 +237,58 @@ def domain_event_bus_singleton() -> InProcessDomainEventBus:
 
 
 def domain_event_bus_dependency(
-    notification_uc: NotificationCommandUseCase = Depends(notification_command_usecase),
+    session: AsyncSession = Depends(get_async_session),
 ) -> DomainEventBus:
-    bus = domain_event_bus_singleton()
+    # Bus transactionnel: écrit dans l'outbox dans la MÊME session
+    return OutboxDomainEventBus(session)
 
+
+class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
+    def __init__(self, session_factory: Callable[[], AsyncSession]):
+        self._session_factory = session_factory
+
+    async def create(self, notification):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).create(notification)
+
+    async def list_by_user(self, user_id: int, limit: int, cursor):
+        async with self._session_factory() as session:
+            return await NotificationRepositoryImpl(session).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
+
+    async def unread_count(self, user_id: int) -> int:
+        async with self._session_factory() as session:
+            return await NotificationRepositoryImpl(session).unread_count(user_id=user_id)
+
+    async def mark_read(self, user_id: int, notification_id: int, read_at: int) -> None:
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).mark_read(user_id=user_id, notification_id=notification_id, read_at=read_at)
+
+    async def mark_all_read(self, user_id: int, read_at: int) -> int:
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).mark_all_read(user_id=user_id, read_at=read_at)
+
+
+def outbox_handler_bus_dependency(
+    notification_uc: NotificationCommandUseCase | None = None,
+) -> InProcessDomainEventBus:
+    if notification_uc is None:
+        # Utilisation hors FastAPI (scripts): on résout manuellement.
+        sf = get_session_factory()
+        notification_uc = NotificationCommandUseCaseImpl(
+            notification_repository=_OutOfFastAPINotificationRepositoryProxy(sf),
+            realtime_publisher=notification_realtime_publisher_dependency(),
+            session_factory=sf,
+        )
+    bus = domain_event_bus_singleton()
     if not getattr(bus, '_betleague_handlers_registered', False):
         bus.subscribe(
             LeagueInvitationCreated,
             OnLeagueInvitationCreatedCreateNotification(notification_uc),
         )
         setattr(bus, '_betleague_handlers_registered', True)
-
     return bus
 
 

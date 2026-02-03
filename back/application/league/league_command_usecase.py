@@ -27,7 +27,6 @@ from domain.league.repository.league_repository import LeagueRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
-from domain.notification.model.notification import NotificationType
 from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl

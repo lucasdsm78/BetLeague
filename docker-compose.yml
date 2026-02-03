@@ -107,5 +107,27 @@ services:
         condition: service_healthy
     restart: always
 
+  outbox_worker:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    container_name: outbox_worker
+    command: python outbox_worker_main.py
+    volumes:
+      - ./back:/app
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+      OUTBOX_BATCH_SIZE: 50
+      OUTBOX_POLL_INTERVAL_MS: 250
+      OUTBOX_MAX_POLL_INTERVAL_MS: 5000
+      OUTBOX_JITTER_MS: 150
+      OUTBOX_WORKER_ID: outbox_worker_1
+      OUTBOX_LOCK_TTL_MS: 120000
+    depends_on:
+      - db
+      - backend
+    restart: always
+
 volumes:
   db_data:
