@@ -40,7 +40,6 @@ type TabId =
   | 'invitations'
   | 'tournaments'
   | 'tickets'
-  | 'notifications'
   | 'shop'
   | 'profile';
 
@@ -95,13 +94,6 @@ const TABS: Readonly<Record<TabId, TabConfig>> = {
     icon: '👤',
     path: '/profile',
     securityLevel: 'high'
-  },
-  notifications: {
-    id: 'notifications',
-    label: 'Notifications',
-    icon: '🔔',
-    path: '/notifications',
-    securityLevel: 'low'
   }
 } as const;
 
@@ -402,11 +394,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
 
           <div className="header-right">
-            {/* Notifications (single instance) */}
-            <div className="header-notifications">
-              <div className="mobile-notifications">
-                <NotificationsHeaderButton />
-              </div>
+            {/* Notifications (single instance => single SSE) */}
+            <div className="notifications-header-slot">
+              <NotificationsHeaderButton />
             </div>
 
             {/* Desktop User Info */}
