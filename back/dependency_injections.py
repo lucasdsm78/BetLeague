@@ -192,7 +192,35 @@ def user_command_usecase(
 
 
 def notification_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> NotificationRepository:
-    return NotificationRepositoryImpl(session)
+    # IMPORTANT: NotificationCommandUseCaseImpl ouvre sa propre session via session_factory et commit dessus.
+    # Si on injecte ici un repository lié à une autre session (FastAPI request session), les updates ne seront
+    # jamais commités -> compteur unread incohérent après refresh.
+    sf = get_session_factory()
+    class _Repo(NotificationRepository):
+        async def create(self, notification):
+            async with sf() as s:
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).create(notification)
+
+        async def list_by_user(self, user_id: int, limit: int, cursor):
+            async with sf() as s:
+                return await NotificationRepositoryImpl(s).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
+
+        async def unread_count(self, user_id: int) -> int:
+            async with sf() as s:
+                return await NotificationRepositoryImpl(s).unread_count(user_id=user_id)
+
+        async def mark_read(self, user_id: int, notification_id: int, read_at: int) -> None:
+            async with sf() as s:
+                async with s.begin():
+                    await NotificationRepositoryImpl(s).mark_read(user_id=user_id, notification_id=notification_id, read_at=read_at)
+
+        async def mark_all_read(self, user_id: int, read_at: int) -> int:
+            async with sf() as s:
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).mark_all_read(user_id=user_id, read_at=read_at)
+
+    return _Repo()
 
 
 def notifications_hub() -> NotificationsHub:

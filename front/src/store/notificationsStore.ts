@@ -83,17 +83,21 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markRead: async (id: number) => {
     await markNotificationRead(id);
+    // Re-sync avec le backend (source de vérité) pour éviter les compteurs incohérents après refresh.
+    const unread = await getUnreadCount();
     set({
-      items: get().items.map((n) => (n.id === id ? { ...n, read_at: Date.now() } : n)),
-      unreadCount: Math.max(0, get().unreadCount - 1),
+      items: get().items.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? Date.now() } : n)),
+      unreadCount: unread.count,
     });
   },
 
   markAllRead: async () => {
     await markAllNotificationsRead();
+    // Re-sync complet: après read-all, on recharge unread-count (doit être 0) et on marque localement.
+    const unread = await getUnreadCount();
     set({
       items: get().items.map((n) => (n.read_at ? n : { ...n, read_at: Date.now() })),
-      unreadCount: 0,
+      unreadCount: unread.count,
     });
   },
 }));
