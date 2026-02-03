@@ -26,7 +26,10 @@ class NotificationsHub(NotificationRealtimePublisher):
     """
 
     def __init__(self):
-        self._queues: DefaultDict[int, "asyncio.Queue[str]"] = defaultdict(asyncio.Queue)
+        # Pub/sub in-memory: 1 *liste de queues* par user (1 queue par connexion SSE).
+        # Important: si plusieurs connexions sont ouvertes (ex: cloche desktop + mobile),
+        # chaque connexion doit recevoir tous les messages (broadcast), pas se les partager.
+        self._user_queues: DefaultDict[int, list["asyncio.Queue[str]"]] = defaultdict(list)
         self._connections: DefaultDict[int, int] = defaultdict(int)
 
     async def publish_to_user(self, user_id: int, notification: Notification) -> None:
@@ -34,12 +37,29 @@ class NotificationsHub(NotificationRealtimePublisher):
             "type": "notification.created",
             "notification": _notification_to_wire(notification),
         }
-        await self._queues[user_id].put(json.dumps(payload))
+        msg = json.dumps(payload)
+        queues = list(self._user_queues.get(user_id, []))
+        # broadcast best-effort
+        for q in queues:
+            try:
+                q.put_nowait(msg)
+            except Exception:
+                # ignore if a queue is closed/full
+                pass
 
     async def subscribe(self, user_id: int) -> AsyncIterator[str]:
-        queue = self._queues[user_id]
-        while True:
-            yield await queue.get()
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        self._user_queues[user_id].append(queue)
+        try:
+            while True:
+                yield await queue.get()
+        finally:
+            try:
+                self._user_queues[user_id].remove(queue)
+            except ValueError:
+                pass
+            if not self._user_queues.get(user_id):
+                self._user_queues.pop(user_id, None)
 
     def connection_count(self, user_id: int) -> int:
         return int(self._connections.get(user_id, 0))

@@ -402,8 +402,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
 
           <div className="header-right">
+            {/* Notifications (single instance) */}
             <div className="header-notifications">
-              <NotificationsHeaderButton />
+              <div className="mobile-notifications">
+                <NotificationsHeaderButton />
+              </div>
             </div>
 
             {/* Desktop User Info */}
@@ -430,9 +433,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
             {/* Mobile Header Actions */}
             <div className="mobile-header-actions">
-              <div className="mobile-notifications">
-                <NotificationsHeaderButton />
-              </div>
+              {/* Notifications are rendered once above; CSS handles visibility */}
 
               {/* Shop Button */}
               <button
