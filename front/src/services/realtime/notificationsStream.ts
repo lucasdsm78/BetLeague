@@ -1,8 +1,8 @@
 import enhancedAuthService from '../authService.enhanced';
-import type { NotificationItem } from '../api/notifications';
+
 
 type StreamMessage =
-  | { type: 'notification.created'; notification: NotificationItem }
+  | { type: 'notification.created'; notification: Record<string, unknown> }
   | { type: string; [k: string]: unknown };
 
 export type NotificationsStreamHandlers = {
@@ -12,6 +12,11 @@ export type NotificationsStreamHandlers = {
 };
 
 const DEFAULT_RECONNECT_MS = 2500;
+
+const normalizeApiBase = (rawBase: string): string => {
+  const b = rawBase.replace(/\/$/, '');
+  return b.endsWith('/api') ? b : `${b}/api`;
+};
 
 export class NotificationsStream {
   private abortController: AbortController | null = null;
@@ -44,10 +49,9 @@ export class NotificationsStream {
           return;
         }
 
-        const baseURL = (process.env.REACT_APP_API_URL || 'http://localhost:8001')
-          .replace(/\/$/, '');
+        const apiBase = normalizeApiBase(process.env.REACT_APP_API_URL || 'http://localhost:8001');
 
-        const res = await fetch(`${baseURL}/api/realtime/notifications/stream`, {
+        const res = await fetch(`${apiBase}/realtime/notifications/stream`, {
           method: 'GET',
           headers: {
             'X-Authentication': `Bearer ${token}`,
