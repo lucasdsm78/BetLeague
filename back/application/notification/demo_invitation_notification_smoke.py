@@ -23,22 +23,21 @@ if BACK_DIR not in sys.path:
 
 from sqlalchemy import text
 
-from dependency_injections import get_session_factory, domain_event_bus_dependency
+from dependency_injections import get_session_factory, domain_event_bus_dependency, outbox_handler_bus_dependency
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
 from application.league.league_command_usecase import LeagueCommandUseCaseImpl
+from application.events.outbox_processor import OutboxProcessor
 from domain.notification.model.notification import NotificationType
 
 
 async def main() -> None:
     session_factory = get_session_factory()
 
-    # Force l'initialisation du bus + subscriptions (handler notifications)
-    # On passe une session factory pour que NotificationCommandUseCase soit résolu via DI.
-    _ = domain_event_bus_dependency()
+    handler_bus = outbox_handler_bus_dependency()
 
     async with session_factory() as session:
         async with session.begin():
@@ -86,10 +85,10 @@ async def main() -> None:
 
             owner_email = owner_row.email
 
-    # Exécute via usecase (publie l’event, handler crée la notif)
+    # Exécute via usecase (écrit l’event en outbox)
     async with session_factory() as session:
         async with session.begin():
-            event_bus = domain_event_bus_dependency()
+            event_bus = domain_event_bus_dependency(session=session)
             uc = LeagueCommandUseCaseImpl(
                 league_repository=LeagueRepositoryImpl(session),
                 user_repository=UserRepositoryImpl(session),
@@ -99,6 +98,11 @@ async def main() -> None:
                 event_bus=event_bus,
             )
             await uc.invite_user(league_id=league_id, user_id=invited_user_id, user_owner_email=owner_email)
+
+    processor = OutboxProcessor(session_factory=session_factory, handler_bus=handler_bus, batch_size=50)
+    processed = await processor.run_once()
+    if processed < 1:
+        raise SystemExit('❌ Aucun message outbox traité (attendu >= 1)')
 
     # Vérifie notification
     async with session_factory() as session:
