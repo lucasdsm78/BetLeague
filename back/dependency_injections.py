@@ -237,10 +237,15 @@ def domain_event_bus_singleton() -> InProcessDomainEventBus:
 
 
 def domain_event_bus_dependency(
-    session: AsyncSession = Depends(get_async_session),
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> DomainEventBus:
-    # Bus transactionnel: écrit dans l'outbox dans la MÊME session
-    return OutboxDomainEventBus(session)
+    class _Bus(DomainEventBus):
+        async def publish(self, event):
+            async with session_factory() as session:
+                async with session.begin():
+                    await OutboxDomainEventBus(session).publish(event)
+
+    return _Bus()
 
 
 class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
