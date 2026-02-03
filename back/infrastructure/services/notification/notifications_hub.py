@@ -27,6 +27,7 @@ class NotificationsHub(NotificationRealtimePublisher):
 
     def __init__(self):
         self._queues: DefaultDict[int, "asyncio.Queue[str]"] = defaultdict(asyncio.Queue)
+        self._connections: DefaultDict[int, int] = defaultdict(int)
 
     async def publish_to_user(self, user_id: int, notification: Notification) -> None:
         payload = {
@@ -40,3 +41,14 @@ class NotificationsHub(NotificationRealtimePublisher):
         while True:
             yield await queue.get()
 
+    def connection_count(self, user_id: int) -> int:
+        return int(self._connections.get(user_id, 0))
+
+    def register_connection(self, user_id: int) -> None:
+        self._connections[user_id] += 1
+
+    def unregister_connection(self, user_id: int) -> None:
+        if self._connections.get(user_id, 0) <= 1:
+            self._connections.pop(user_id, None)
+        else:
+            self._connections[user_id] -= 1

@@ -7,7 +7,7 @@ settings = Settings()
 
 engine = create_async_engine(
     settings.sqlalchemy_database_url,
-    echo=True,
+    echo=bool(getattr(settings, 'sqlalchemy_echo', False)),
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10
