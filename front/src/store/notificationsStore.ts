@@ -74,11 +74,20 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   pushFromRealtime: (n: NotificationItem) => {
     const items = get().items;
     const updated = uniqueById([n, ...items]);
-    const wasUnread = n.read_at == null;
-    set({
-      items: updated,
-      unreadCount: get().unreadCount + (wasUnread ? 1 : 0),
-    });
+    set({ items: updated });
+
+    // Le compteur peut être incohérent si plusieurs streams SSE sont ouverts (desktop + mobile)
+    // et/ou si des events arrivent en rafale. On re-synchronise avec la source de vérité.
+    void (async () => {
+      try {
+        const unread = await getUnreadCount();
+        set({ unreadCount: unread.count });
+      } catch {
+        // fallback best-effort: si backend indispo, on incrémente localement
+        const wasUnread = n.read_at == null;
+        if (wasUnread) set({ unreadCount: get().unreadCount + 1 });
+      }
+    })();
   },
 
   markRead: async (id: number) => {
