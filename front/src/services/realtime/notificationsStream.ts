@@ -29,6 +29,7 @@ export class NotificationsStream {
   private reconnectTimer: number | null = null;
   private reconnectMs: number;
   private retries = 0;
+  private handlers: NotificationsStreamHandlers | null = null;
 
   constructor(reconnectMs = DEFAULT_RECONNECT_MS) {
     this.reconnectMs = reconnectMs;
@@ -36,6 +37,7 @@ export class NotificationsStream {
 
   stop() {
     this.retries = 0;
+    this.handlers = null;
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -47,7 +49,17 @@ export class NotificationsStream {
   }
 
   start(handlers: NotificationsStreamHandlers) {
-    this.stop();
+    // Stocke les handlers pour les reconnexions
+    this.handlers = handlers;
+    // Stop sans effacer handlers (on veut les conserver)
+    if (this.reconnectTimer) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
     this.abortController = new AbortController();
 
     const run = async () => {
@@ -70,7 +82,12 @@ export class NotificationsStream {
 
         if (res.status === 401 || res.status === 403) {
           // Auth invalide: stop net, pas de retry agressif (le refresh token flow doit reprendre)
-          this.stop();
+          // Stop définitivement (handlers conservés au besoin, mais pas d'auto-reconnect)
+          this.abortController?.abort();
+          this.abortController = null;
+          this.reconnectTimer && window.clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+          this.retries = 0;
           handlers.onError?.(new Error(`Stream auth ${res.status}`));
           return;
         }
@@ -140,13 +157,16 @@ export class NotificationsStream {
   }
 
   private scheduleReconnect(overrideDelayMs?: number) {
+    const handlers = this.handlers;
+    if (!handlers) return;
+
     const base = overrideDelayMs ?? this.reconnectMs;
     const exp = Math.min(MAX_RECONNECT_MS, base * Math.pow(2, this.retries));
     const delay = jitter(exp);
     this.retries = Math.min(this.retries + 1, 10);
     this.reconnectTimer = window.setTimeout(() => {
       // Note: on ne rappelle pas stop() ici, start() s’en charge
-      this.start({});
+      this.start(handlers);
     }, delay);
   }
 }
