@@ -2,7 +2,6 @@ from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
-import socket
 from contextlib import asynccontextmanager
 
 from dependency_injections import get_settings
@@ -29,22 +28,6 @@ _uvicorn_logger = logging.getLogger("uvicorn.error")
 async def lifespan(app: FastAPI):
     # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
     init_models()
-
-    # Dev-only: diagnostic connectivité Redis (DNS + TCP)
-    if getattr(settings, "environment", "dev") != "prod" and getattr(settings, "redis_url", None):
-        try:
-            socket.setdefaulttimeout(2)
-            ip = socket.gethostbyname("redis")
-            _uvicorn_logger.info(f"redis.dns_ok ip={ip}")
-        except Exception as e:
-            _uvicorn_logger.warning(f"redis.dns_fail err={type(e).__name__}:{e}")
-
-        try:
-            s = socket.create_connection(("redis", 6379), timeout=2)
-            s.close()
-            _uvicorn_logger.info("redis.tcp_ok")
-        except Exception as e:
-            _uvicorn_logger.warning(f"redis.tcp_fail err={type(e).__name__}:{e}")
 
     yield
 

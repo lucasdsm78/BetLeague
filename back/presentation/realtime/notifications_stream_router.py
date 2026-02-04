@@ -9,12 +9,10 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from dependency_injections import current_user, get_settings, redis_notifications_subscriber_dependency, notifications_hub
-from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
 from infrastructure.services.notification.threaded_redis_pubsub import ThreadedRedisPubSubSubscriber
 
 router = APIRouter(prefix="/api/realtime", tags=["realtime"])
 
-_rate_limiter = SlidingWindowRateLimiter(limit=30, window_s=60)
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +32,6 @@ async def notifications_stream(
     user_id = int(user["id"])
 
     client_ip = request.client.host if request.client else "unknown"
-    wanted_limit = int(getattr(settings, "sse_rate_limit_per_minute", 30))
-    _rate_limiter._limit = max(1, wanted_limit)
-    rl = _rate_limiter.allow(f"{client_ip}:{user_id}")
-    if not rl.allowed:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Trop de tentatives de connexion SSE",
-            headers={"Retry-After": str(rl.retry_after_s)},
-        )
-
     max_conn = int(getattr(settings, "sse_max_connections_per_user", 2))
     # hub peut être un NotificationsHub (in-memory) ou juste pour compter; on garde le même check
     if hasattr(hub, "connection_count") and hub.connection_count(user_id) >= max_conn:
@@ -67,11 +55,6 @@ async def notifications_stream(
                 channel_prefix = getattr(settings, "notifications_redis_channel_prefix", "betleague:notifications:user:")
                 channel = f"{channel_prefix}{user_id}"
                 redis_url = getattr(settings, "redis_url", None)
-                if getattr(settings, "environment", "dev") != "prod":
-                    logger.info(
-                        f"notifications.sse_mode channel={channel}",
-                        extra={"user_id": user_id, "mode": "redis", "channel": channel},
-                    )
                 if not redis_url:
                     raise HTTPException(status_code=500, detail="Redis non configuré")
 
@@ -85,8 +68,6 @@ async def notifications_stream(
                         break
                     try:
                         payload = await asyncio.wait_for(it.__anext__(), timeout=max(1, heartbeat_s))
-                        if getattr(settings, "environment", "dev") != "prod":
-                            logger.info("notifications.sse_send", extra={"user_id": user_id})
                         yield _sse("message", payload).encode("utf-8")
                         last_emit = time.time()
                     except StopAsyncIteration:

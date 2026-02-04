@@ -42,17 +42,6 @@ def setup_logging(*, environment: str = "dev", json_logs: bool | None = None) ->
     root.addHandler(handler)
 
     if environment != "prod":
-        # Logs ciblés notifications (diagnostic)
-        for name in (
-            "application.notification",
-            "infrastructure.services.notification",
-            "back.application.notification",
-            "back.infrastructure.services.notification",
-            "presentation.realtime.notifications_stream_router",
-            "infrastructure.services.notification.threaded_redis_pubsub",
-        ):
-            logging.getLogger(name).setLevel(logging.DEBUG)
-
         # Réduire le bruit en dev
         logging.getLogger("uvicorn.access").setLevel(logging.INFO)
         logging.getLogger("uvicorn.error").setLevel(logging.INFO)
