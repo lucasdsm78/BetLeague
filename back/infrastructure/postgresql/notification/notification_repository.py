@@ -4,7 +4,7 @@ import base64
 import json
 from typing import Optional
 
-from sqlalchemy import desc, select, func, update
+from sqlalchemy import desc, select, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.notification.model.notification import Notification
@@ -84,3 +84,9 @@ class NotificationRepositoryImpl(NotificationRepository):
         res = await self._session.execute(stmt)
         return int(res.rowcount or 0)
 
+    async def delete(self, user_id: int, notification_id: int) -> None:
+        stmt = delete(DBNotification).where(
+            DBNotification.id == notification_id,
+            DBNotification.user_id == user_id,
+        )
+        await self._session.execute(stmt)

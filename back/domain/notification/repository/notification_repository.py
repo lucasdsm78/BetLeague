@@ -27,3 +27,6 @@ class NotificationRepository(ABC):
     async def mark_all_read(self, user_id: int, read_at: int) -> int:
         raise NotImplementedError
 
+    @abstractmethod
+    async def delete(self, user_id: int, notification_id: int) -> None:
+        raise NotImplementedError

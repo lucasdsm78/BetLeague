@@ -39,3 +39,8 @@ export async function markAllNotificationsRead() {
   if (!res.success) throw new Error(res.error || 'Erreur mark all read');
   return res.data as { updated: number };
 }
+
+export async function deleteNotification(notificationId: number) {
+  const res = await http.delete<void>(`/notifications/${notificationId}`);
+  if (!res.success) throw new Error(res.error || 'Erreur suppression notification');
+}

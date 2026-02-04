@@ -76,3 +76,8 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             updated = await self._notification_repository.mark_all_read(user_id=user_id, read_at=read_at)
             await session.commit()
         return updated
+
+    async def delete(self, *, user_id: int, notification_id: int) -> None:
+        async with self._session_factory() as session:
+            await self._notification_repository.delete(user_id=user_id, notification_id=notification_id)
+            await session.commit()
