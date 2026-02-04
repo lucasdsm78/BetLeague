@@ -14,7 +14,7 @@ class OnLeagueInvitationCreatedCreateNotification:
         try:
             await self._notification_uc.create(
                 user_id=event.invited_user_id,
-                type=NotificationType.LEAGUE_INVITATION_RECEIVED,
+                type=NotificationType.LEAGUE_INVITATION,
                 title="Nouvelle invitation",
                 message=f"{event.sender_pseudo} t'a invité à rejoindre la ligue {event.league_name}.",
                 data={

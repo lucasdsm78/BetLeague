@@ -127,6 +127,8 @@ function getNotificationIcon(type: NotificationType): React.FC<IconProps> {
       return XCircleIcon;
     case 'league_invitation':
       return MailIcon;
+    case 'league_invitation_accepted':
+      return CheckCircleIcon;
     case 'match_result':
       return SoccerIcon;
     case 'league_started':
@@ -137,6 +139,9 @@ function getNotificationIcon(type: NotificationType): React.FC<IconProps> {
       return MegaphoneIcon;
     case 'account_update':
       return UserIcon;
+    case 'ticket_created':
+      return CalendarIcon;
+    case 'generic':
     default:
       return CalendarIcon;
   }
@@ -150,6 +155,8 @@ function getNotificationStyle(type: NotificationType): string {
       return styles.typeLoss;
     case 'league_invitation':
       return styles.typeInvite;
+    case 'league_invitation_accepted':
+      return styles.typeLeague;
     case 'match_result':
       return styles.typeMatch;
     case 'league_started':
@@ -159,6 +166,9 @@ function getNotificationStyle(type: NotificationType): string {
       return styles.typeSystem;
     case 'account_update':
       return styles.typeAccount;
+    case 'ticket_created':
+      return styles.typeMatch;
+    case 'generic':
     default:
       return '';
   }

@@ -6,10 +6,17 @@ from typing import Any, Mapping, Optional
 
 
 class NotificationType(StrEnum):
-    GENERIC = "GENERIC"
-    LEAGUE_INVITATION_ACCEPTED = "LEAGUE_INVITATION_ACCEPTED"
-    LEAGUE_INVITATION_RECEIVED = "LEAGUE_INVITATION_RECEIVED"
-    TICKET_CREATED = "TICKET_CREATED"
+    LEAGUE_INVITATION = "league_invitation"
+    LEAGUE_INVITATION_ACCEPTED = "league_invitation_accepted"
+    BET_WON = "bet_won"
+    BET_LOST = "bet_lost"
+    MATCH_RESULT = "match_result"
+    LEAGUE_STARTED = "league_started"
+    LEAGUE_ENDED = "league_ended"
+    SYSTEM_ANNOUNCEMENT = "system_announcement"
+    ACCOUNT_UPDATE = "account_update"
+    TICKET_CREATED = "ticket_created"
+    GENERIC = "generic"
 
 
 @dataclass(frozen=True, slots=True)

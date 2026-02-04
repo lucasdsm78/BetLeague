@@ -1,6 +1,9 @@
 from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+import logging
+import socket
+from contextlib import asynccontextmanager
 
 from dependency_injections import get_settings
 from infrastructure.logging_config import setup_logging
@@ -17,7 +20,36 @@ from infrastructure.postgresql.init_models import init_models
 
 settings = get_settings()
 setup_logging(environment=getattr(settings, 'environment', 'dev'), json_logs=bool(getattr(settings, 'json_logs', False)))
-app = FastAPI()
+
+logger = logging.getLogger(__name__)
+_uvicorn_logger = logging.getLogger("uvicorn.error")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
+    init_models()
+
+    # Dev-only: diagnostic connectivité Redis (DNS + TCP)
+    if getattr(settings, "environment", "dev") != "prod" and getattr(settings, "redis_url", None):
+        try:
+            socket.setdefaulttimeout(2)
+            ip = socket.gethostbyname("redis")
+            _uvicorn_logger.info(f"redis.dns_ok ip={ip}")
+        except Exception as e:
+            _uvicorn_logger.warning(f"redis.dns_fail err={type(e).__name__}:{e}")
+
+        try:
+            s = socket.create_connection(("redis", 6379), timeout=2)
+            s.close()
+            _uvicorn_logger.info("redis.tcp_ok")
+        except Exception as e:
+            _uvicorn_logger.warning(f"redis.tcp_fail err={type(e).__name__}:{e}")
+
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Enhanced CORS Middleware for OPTIONS requests
 class CORSOptionsMiddleware(BaseHTTPMiddleware):
@@ -71,13 +103,6 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,  # Cache preflight for 1 hour
 )
-
-@app.on_event("startup")
-async def startup():
-    # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
-    init_models()
-    # IMPORTANT: les tables ne sont plus créées via create_all.
-    # Utilisez Alembic pour versionner et appliquer les migrations.
 
 # Health check endpoint
 @app.get("/health")

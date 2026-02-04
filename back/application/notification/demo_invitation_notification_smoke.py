@@ -110,9 +110,9 @@ async def main() -> None:
         unread = await notif_repo.unread_count(user_id=invited_user_id)
         items, _ = await notif_repo.list_by_user(user_id=invited_user_id, limit=50, cursor=None)
 
-    has = any(n.type == NotificationType.LEAGUE_INVITATION_RECEIVED for n in items)
+    has = any(n.type == NotificationType.LEAGUE_INVITATION for n in items)
     if not has:
-        raise SystemExit('❌ Notification LEAGUE_INVITATION_RECEIVED introuvable pour user invité')
+        raise SystemExit('❌ Notification LEAGUE_INVITATION introuvable pour user invité')
 
     print('✅ OK: invitation crée une notification. Unread=', unread)
 
