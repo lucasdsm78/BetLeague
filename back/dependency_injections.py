@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
@@ -52,6 +54,8 @@ from typing import Iterator, AsyncGenerator, Callable
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm.session import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 
 from infrastructure.config import Settings
 from infrastructure.postgresql.database import AsyncSessionLocal
@@ -77,7 +81,6 @@ from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
-from sqlalchemy.ext.asyncio import AsyncSession
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
@@ -88,6 +91,10 @@ from domain.league.events.league_invitation_created import LeagueInvitationCreat
 from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
 from application.events.outbox_event_bus import OutboxDomainEventBus
+from infrastructure.services.notification.redis_notification_realtime import (
+    RedisNotificationRealtimePublisher,
+    RedisNotificationSubscriber,
+)
 
 jwt_auth = JwtBearer()
 
@@ -235,7 +242,35 @@ def _notifications_hub_singleton() -> NotificationsHub:
 
 
 def notification_realtime_publisher_dependency() -> NotificationRealtimePublisher:
+    settings = get_settings()
+    if getattr(settings, "notifications_realtime_driver", "memory") == "redis":
+        r = redis_client_singleton()
+        if r is not None:
+            return RedisNotificationRealtimePublisher(
+                redis=r,
+                channel_prefix=getattr(settings, "notifications_redis_channel_prefix", "betleague:notifications:user:"),
+            )
     return notifications_hub()
+
+
+@lru_cache()
+def redis_client_singleton() -> Redis | None:
+    settings = get_settings()
+    if not getattr(settings, "redis_url", None):
+        return None
+    return Redis.from_url(settings.redis_url, decode_responses=False)
+
+
+def redis_notifications_subscriber_dependency() -> RedisNotificationSubscriber | None:
+    settings = get_settings()
+    if getattr(settings, "notifications_realtime_driver", "memory") != "redis":
+        return None
+    if not getattr(settings, "redis_url", None):
+        return None
+    return RedisNotificationSubscriber(
+        redis_url=settings.redis_url,
+        channel_prefix=getattr(settings, "notifications_redis_channel_prefix", "betleague:notifications:user:"),
+    )
 
 
 def notification_command_usecase(
@@ -304,6 +339,11 @@ class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
         async with self._session_factory() as session:
             async with session.begin():
                 return await NotificationRepositoryImpl(session).mark_all_read(user_id=user_id, read_at=read_at)
+
+    async def delete(self, user_id: int, notification_id: int) -> None:
+        async with self._session_factory() as session:
+            async with session.begin():
+                await NotificationRepositoryImpl(session).delete(user_id=user_id, notification_id=notification_id)
 
 
 def outbox_handler_bus_dependency(

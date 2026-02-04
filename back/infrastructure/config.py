@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -6,6 +7,10 @@ class Settings(BaseSettings):
     environment: str = "dev"  # dev|prod
     sqlalchemy_echo: bool = False
     json_logs: bool = False
+    redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
+    notifications_realtime_driver: str = Field(default="memory", validation_alias="NOTIFICATIONS_REALTIME_DRIVER")  # memory|redis
+    notifications_redis_channel_prefix: str = "betleague:notifications:user:"
+
     sse_max_connections_per_user: int = 2
     sse_rate_limit_per_minute: int = 30  # nouvelles connexions SSE / minute / (ip,user)
     sse_idle_timeout_seconds: int = 60 * 15  # coupe un stream après N secondes (reconnect côté client)

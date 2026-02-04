@@ -24,7 +24,9 @@ def setup_logging(*, environment: str = "dev", json_logs: bool | None = None) ->
         json_logs = os.getenv("JSON_LOGS", "false").lower() in {"1", "true", "yes"}
 
     root = logging.getLogger()
-    root.setLevel(logging.INFO if environment == "prod" else logging.INFO)
+    # En dev: root DEBUG pour éviter qu'une config Uvicorn ne filtre nos DEBUG.
+    # En prod: root INFO.
+    root.setLevel(logging.DEBUG if environment != "prod" else logging.INFO)
 
     for h in list(root.handlers):
         root.removeHandler(h)
@@ -35,11 +37,30 @@ def setup_logging(*, environment: str = "dev", json_logs: bool | None = None) ->
     else:
         handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
 
+    # Le handler accepte DEBUG en dev, INFO en prod.
+    handler.setLevel(logging.DEBUG if environment != "prod" else logging.INFO)
     root.addHandler(handler)
+
+    if environment != "prod":
+        # Logs ciblés notifications (diagnostic)
+        for name in (
+            "application.notification",
+            "infrastructure.services.notification",
+            "back.application.notification",
+            "back.infrastructure.services.notification",
+            "presentation.realtime.notifications_stream_router",
+            "infrastructure.services.notification.threaded_redis_pubsub",
+        ):
+            logging.getLogger(name).setLevel(logging.DEBUG)
+
+        # Réduire le bruit en dev
+        logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+        logging.getLogger("uvicorn.error").setLevel(logging.INFO)
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+        logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 
     if environment == "prod":
         logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
         logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
         logging.getLogger("uvicorn.access").setLevel(logging.INFO)
         logging.getLogger("uvicorn.error").setLevel(logging.INFO)
-

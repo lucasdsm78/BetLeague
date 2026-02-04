@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Mapping
+import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,10 @@ from application.notification.notification_command_usecase import NotificationCo
 from domain.notification.model.notification import Notification, NotificationType
 from domain.notification.repository.notification_repository import NotificationRepository
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
+from infrastructure.config import Settings
+
+logger = logging.getLogger(__name__)
+_settings = Settings()
 
 
 def _now_ms() -> int:
@@ -49,9 +54,17 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             read_at=None,
         )
 
-        async with self._session_factory() as session:
-            created = await self._notification_repository.create(notification)
-            await session.commit()
+        created = await self._notification_repository.create(notification)
+
+        if getattr(_settings, "environment", "dev") != "prod":
+            logger.info(
+                "notifications.created",
+                extra={
+                    "user_id": user_id,
+                    "notification_id": created.id,
+                    "notification_type": str(created.type),
+                },
+            )
 
         try:
             await self._realtime_publisher.publish_to_user(user_id, created)
@@ -62,22 +75,16 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
 
     async def mark_read(self, *, user_id: int, notification_id: int) -> None:
         read_at = _now_ms()
-        async with self._session_factory() as session:
-            await self._notification_repository.mark_read(
-                user_id=user_id,
-                notification_id=notification_id,
-                read_at=read_at,
-            )
-            await session.commit()
+        await self._notification_repository.mark_read(
+            user_id=user_id,
+            notification_id=notification_id,
+            read_at=read_at,
+        )
 
     async def mark_all_read(self, *, user_id: int) -> int:
         read_at = _now_ms()
-        async with self._session_factory() as session:
-            updated = await self._notification_repository.mark_all_read(user_id=user_id, read_at=read_at)
-            await session.commit()
+        updated = await self._notification_repository.mark_all_read(user_id=user_id, read_at=read_at)
         return updated
 
     async def delete(self, *, user_id: int, notification_id: int) -> None:
-        async with self._session_factory() as session:
-            await self._notification_repository.delete(user_id=user_id, notification_id=notification_id)
-            await session.commit()
+        await self._notification_repository.delete(user_id=user_id, notification_id=notification_id)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from dataclasses import asdict
 from typing import Any, AsyncIterator, DefaultDict
 
@@ -9,6 +10,8 @@ from collections import defaultdict
 
 from domain.notification.model.notification import Notification
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
+
+logger = logging.getLogger(__name__)
 
 
 def _notification_to_wire(notification: Notification) -> dict[str, Any]:
@@ -19,16 +22,12 @@ def _notification_to_wire(notification: Notification) -> dict[str, Any]:
 
 
 class NotificationsHub(NotificationRealtimePublisher):
-    """Hub in-memory: 1 queue par user.
+    """Hub in-memory: broadcast multi-connexions.
 
-    Simple, rapide, et OK tant qu'on a un seul process/instance.
-    Pour du scale horizontal: redis pub/sub ou rabbitmq.
+    1 queue par connexion SSE (donc plusieurs queues par user). publish() broadcast vers toutes.
     """
 
     def __init__(self):
-        # Pub/sub in-memory: 1 *liste de queues* par user (1 queue par connexion SSE).
-        # Important: si plusieurs connexions sont ouvertes (ex: cloche desktop + mobile),
-        # chaque connexion doit recevoir tous les messages (broadcast), pas se les partager.
         self._user_queues: DefaultDict[int, list["asyncio.Queue[str]"]] = defaultdict(list)
         self._connections: DefaultDict[int, int] = defaultdict(int)
 
@@ -39,6 +38,19 @@ class NotificationsHub(NotificationRealtimePublisher):
         }
         msg = json.dumps(payload)
         queues = list(self._user_queues.get(user_id, []))
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "notifications.publish",
+                extra={
+                    "user_id": user_id,
+                    "notification_id": notification.id,
+                    "notification_type": str(notification.type),
+                    "queues": len(queues),
+                    "connections": self.connection_count(user_id),
+                },
+            )
+
         # broadcast best-effort
         for q in queues:
             try:
@@ -47,19 +59,26 @@ class NotificationsHub(NotificationRealtimePublisher):
                 # ignore if a queue is closed/full
                 pass
 
+    def open_queue(self, user_id: int) -> "asyncio.Queue[str]":
+        q: asyncio.Queue[str] = asyncio.Queue()
+        self._user_queues[user_id].append(q)
+        return q
+
+    def close_queue(self, user_id: int, q: "asyncio.Queue[str]") -> None:
+        try:
+            self._user_queues[user_id].remove(q)
+        except ValueError:
+            pass
+        if not self._user_queues.get(user_id):
+            self._user_queues.pop(user_id, None)
+
     async def subscribe(self, user_id: int) -> AsyncIterator[str]:
-        queue: asyncio.Queue[str] = asyncio.Queue()
-        self._user_queues[user_id].append(queue)
+        q = self.open_queue(user_id)
         try:
             while True:
-                yield await queue.get()
+                yield await q.get()
         finally:
-            try:
-                self._user_queues[user_id].remove(queue)
-            except ValueError:
-                pass
-            if not self._user_queues.get(user_id):
-                self._user_queues.pop(user_id, None)
+            self.close_queue(user_id, q)
 
     def connection_count(self, user_id: int) -> int:
         return int(self._connections.get(user_id, 0))

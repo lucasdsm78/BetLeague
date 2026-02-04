@@ -52,6 +52,13 @@ services:
       timeout: 3s
       retries: 3
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
   backend:
     build:
       context: back
@@ -65,9 +72,12 @@ services:
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+      REDIS_URL: "redis://redis:6379/0"
+      NOTIFICATIONS_REALTIME_DRIVER: "redis"
     depends_on:
       - db
       - rabbitmq
+      - redis
 
   scrapper:
     build: ../ScrapperBet
@@ -118,6 +128,8 @@ services:
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+      REDIS_URL: "redis://redis:6379/0"
+      NOTIFICATIONS_REALTIME_DRIVER: "redis"
       OUTBOX_BATCH_SIZE: 50
       OUTBOX_POLL_INTERVAL_MS: 250
       OUTBOX_MAX_POLL_INTERVAL_MS: 5000
@@ -127,6 +139,7 @@ services:
     depends_on:
       - db
       - backend
+      - redis
     restart: always
 
 volumes:
