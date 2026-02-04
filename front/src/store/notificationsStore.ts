@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getUnreadCount, listNotifications, markAllNotificationsRead, markNotificationRead } from '../services/api/notifications';
+import { deleteNotification, getUnreadCount, listNotifications, markAllNotificationsRead, markNotificationRead } from '../services/api/notifications';
 import type { NotificationItem } from '../services/api/notifications';
 
 type NotificationsState = {
@@ -14,6 +14,7 @@ type NotificationsState = {
   pushFromRealtime: (n: NotificationItem) => void;
   markRead: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteOne: (id: number) => Promise<void>;
 };
 
 function uniqueById(items: NotificationItem[]) {
@@ -108,6 +109,42 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       items: get().items.map((n) => (n.read_at ? n : { ...n, read_at: Date.now() })),
       unreadCount: unread.count,
     });
+  },
+
+  deleteOne: async (id: number) => {
+    const current = get().items;
+    const target = current.find((n) => n.id === id);
+    if (!target) return;
+
+    // Optimistic UI
+    const wasUnread = target.read_at == null;
+    set({
+      items: current.filter((n) => n.id !== id),
+      unreadCount: Math.max(0, get().unreadCount - (wasUnread ? 1 : 0)),
+    });
+
+    try {
+      await deleteNotification(id);
+    } catch (e) {
+      // rollback best-effort
+      set({ items: uniqueById([target, ...get().items]) });
+      // resync compteur (source de vérité)
+      try {
+        const unread = await getUnreadCount();
+        set({ unreadCount: unread.count });
+      } catch {
+        // ignore
+      }
+      throw e;
+    }
+
+    // resync compteur pour éviter divergence
+    try {
+      const unread = await getUnreadCount();
+      set({ unreadCount: unread.count });
+    } catch {
+      // ignore
+    }
   },
 }));
 

@@ -41,7 +41,27 @@
   gap: 10px;
 }
 
+.rowWrap {
+  position: relative;
+}
+
+.rowBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18));
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-left: 14px;
+  padding-right: 14px;
+  overflow: hidden;
+}
+
 .item {
+  position: relative;
+  width: 100%;
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
@@ -50,6 +70,9 @@
   color: #e5e7eb;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+  transition: transform 140ms ease;
+  touch-action: pan-y; /* autorise le scroll vertical sans lag */
 }
 
 .item:active {
@@ -118,3 +141,39 @@
   }
 }
 
+.dismissed {
+  opacity: 0;
+  transform: translateX(-160px) !important;
+}
+
+.deleteFallback {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(2, 6, 23, 0.25);
+  color: rgba(229, 231, 235, 0.85);
+  font-size: 20px;
+  line-height: 32px;
+  cursor: pointer;
+  opacity: 0.0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .rowWrap:hover .deleteFallback {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .deleteFallback {
+    opacity: 0;
+    pointer-events: none;
+  }
+}

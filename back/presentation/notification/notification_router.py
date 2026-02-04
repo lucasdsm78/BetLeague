@@ -75,3 +75,12 @@ async def mark_all_read(
     updated = await uc.mark_all_read(user_id=user_id)
     return MarkAllReadResponse(updated=updated)
 
+
+@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_notification(
+    notification_id: int,
+    user: dict = Depends(current_user),
+    uc: NotificationCommandUseCase = Depends(notification_command_usecase),
+):
+    user_id = int(user["id"])
+    await uc.delete(user_id=user_id, notification_id=notification_id)
