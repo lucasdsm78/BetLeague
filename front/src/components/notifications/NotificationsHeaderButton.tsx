@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { NotificationsBell } from './NotificationsBell';
 import { NotificationsDrawer } from './NotificationsDrawer';
 
-export function NotificationsHeaderButton() {
-  const [open, setOpen] = useState(false);
+export const NotificationsHeaderButton = memo(function NotificationsHeaderButton() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleOpen = useCallback(() => {
+    setIsOpen(true);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
   return (
     <>
-      <NotificationsBell onClick={() => setOpen(true)} />
-      <NotificationsDrawer isOpen={open} onClose={() => setOpen(false)} />
+      <NotificationsBell onClick={handleOpen} />
+      <NotificationsDrawer isOpen={isOpen} onClose={handleClose} />
     </>
   );
-}
+});
