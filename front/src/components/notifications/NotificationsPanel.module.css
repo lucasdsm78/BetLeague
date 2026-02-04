@@ -1,179 +1,708 @@
+/* NotificationsPanel - Sports Betting Theme */
+
+/* ============================================================================
+   Panel Container
+   ============================================================================ */
+
 .panel {
-  width: min(680px, 100%);
+  width: 100%;
+  max-width: 640px;
   margin: 0 auto;
   padding: 16px;
 }
 
+/* ============================================================================
+   Header
+   ============================================================================ */
+
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0;
 }
 
 .title {
   margin: 0;
   font-size: 18px;
-  font-weight: 900;
-  color: #e5e7eb;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
   margin: 4px 0 0;
-  font-size: 12px;
-  color: rgba(229, 231, 235, 0.72);
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.8);
 }
 
-.action {
-  height: 36px;
+.markAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
   padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(17, 24, 39, 0.6);
-  color: #e5e7eb;
-  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.08);
+  color: #4ade80;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 100ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
+.markAllBtn:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.markAllBtn:active {
+  transform: scale(0.97);
+}
+
+.markAllIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================================================
+   List
+   ============================================================================ */
 
 .list {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+/* ============================================================================
+   Row Wrapper & Swipe Background
+   ============================================================================ */
 
 .rowWrap {
   position: relative;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .rowBg {
   position: absolute;
   inset: 0;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.15) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18));
-  border: 1px solid rgba(239, 68, 68, 0.25);
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-left: 14px;
-  padding-right: 14px;
-  overflow: hidden;
+  padding-right: 20px;
+  gap: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
 }
+
+.rowBgIcon {
+  width: 18px;
+  height: 18px;
+  color: #f87171;
+}
+
+.rowBgText {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f87171;
+}
+
+/* ============================================================================
+   Notification Item
+   ============================================================================ */
 
 .item {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   width: 100%;
+  padding: 14px;
   text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.1);
   border-radius: 14px;
-  background: rgba(17, 24, 39, 0.55);
-  padding: 12px;
-  color: #e5e7eb;
+  background: rgba(30, 41, 59, 0.5);
+  color: #e2e8f0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
   will-change: transform;
-  transition: transform 140ms ease;
-  touch-action: pan-y; /* autorise le scroll vertical sans lag */
+  transition:
+    transform 120ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.item:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(148, 163, 184, 0.15);
 }
 
 .item:active {
-  transform: translateY(1px);
+  transform: scale(0.99);
 }
 
+.item:focus-visible {
+  outline: 2px solid var(--color-primary-500, #22c55e);
+  outline-offset: 2px;
+}
+
+/* Unread State */
 .unread {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.06) 0%,
+    rgba(30, 41, 59, 0.5) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.unread:hover {
   border-color: rgba(34, 197, 94, 0.35);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15), 0 12px 24px rgba(0, 0, 0, 0.28);
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.1) 0%,
+    rgba(30, 41, 59, 0.6) 100%
+  );
+}
+
+/* Dismissed (swipe delete) */
+.dismissed {
+  opacity: 0;
+  transform: translateX(-100%) scale(0.95) !important;
+  transition: all 150ms ease-out !important;
+}
+
+/* ============================================================================
+   Icon Wrapper & Type Icons
+   ============================================================================ */
+
+.iconWrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.08);
+  flex-shrink: 0;
+}
+
+.typeIcon {
+  width: 20px;
+  height: 20px;
+  color: rgba(148, 163, 184, 0.7);
+  transition: color 150ms ease;
+}
+
+.unreadDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.9);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+/* ============================================================================
+   Type-Specific Styles
+   ============================================================================ */
+
+/* Win - Gold/Trophy */
+.typeWin .iconWrap {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+}
+.typeWin .typeIcon {
+  color: #fbbf24;
+}
+
+/* Loss - Red */
+.typeLoss .iconWrap {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(185, 28, 28, 0.06) 100%);
+}
+.typeLoss .typeIcon {
+  color: #f87171;
+}
+
+/* Invitation - Blue */
+.typeInvite .iconWrap {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%);
+}
+.typeInvite .typeIcon {
+  color: #60a5fa;
+}
+
+/* Match Result - Green */
+.typeMatch .iconWrap {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.06) 100%);
+}
+.typeMatch .typeIcon {
+  color: #4ade80;
+}
+
+/* League Events - Purple */
+.typeLeague .iconWrap {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(147, 51, 234, 0.06) 100%);
+}
+.typeLeague .typeIcon {
+  color: #c084fc;
+}
+
+/* System Announcement - Orange */
+.typeSystem .iconWrap {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(234, 88, 12, 0.06) 100%);
+}
+.typeSystem .typeIcon {
+  color: #fb923c;
+}
+
+/* Account Update - Cyan */
+.typeAccount .iconWrap {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(8, 145, 178, 0.06) 100%);
+}
+.typeAccount .typeIcon {
+  color: #22d3ee;
+}
+
+/* ============================================================================
+   Content
+   ============================================================================ */
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .itemTop {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  align-items: baseline;
 }
 
 .itemTitle {
-  font-weight: 900;
   font-size: 14px;
-  line-height: 1.2;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+
+.unread .itemTitle {
+  color: #ffffff;
 }
 
 .itemTime {
   font-size: 11px;
-  color: rgba(229, 231, 235, 0.6);
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.6);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .itemMsg {
-  margin-top: 6px;
+  margin: 0;
   font-size: 13px;
-  color: rgba(229, 231, 235, 0.9);
-  line-height: 1.35;
+  line-height: 1.45;
+  color: rgba(203, 213, 225, 0.85);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
+
+/* ============================================================================
+   Delete Fallback Button (Desktop Hover)
+   ============================================================================ */
+
+.deleteFallback {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(30, 41, 59, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.deleteIcon {
+  width: 16px;
+  height: 16px;
+  color: rgba(148, 163, 184, 0.7);
+  transition: color 150ms ease;
+}
+
+.deleteFallback:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.deleteFallback:hover .deleteIcon {
+  color: #f87171;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rowWrap:hover .deleteFallback {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .rowWrap:hover .item {
+    padding-right: 52px;
+  }
+}
+
+/* ============================================================================
+   Footer & Load More
+   ============================================================================ */
 
 .footer {
   display: flex;
   justify-content: center;
-  padding: 8px 0;
+  padding: 16px 0 8px;
 }
 
 .loadMore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
+  max-width: 280px;
   height: 44px;
-  max-width: 320px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(22, 163, 74, 0.08));
-  color: #e5e7eb;
-  font-weight: 900;
+  border-radius: 12px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%);
+  color: #4ade80;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 100ms ease,
+    opacity 150ms ease;
 }
 
-.end {
-  font-size: 12px;
-  color: rgba(229, 231, 235, 0.6);
+.loadMore:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(22, 163, 74, 0.1) 100%);
+  border-color: rgba(34, 197, 94, 0.35);
 }
+
+.loadMore:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.loadMore:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(74, 222, 128, 0.2);
+  border-top-color: #4ade80;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.endText {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.5);
+}
+
+/* ============================================================================
+   Empty State
+   ============================================================================ */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 20px;
+  color: rgba(148, 163, 184, 0.4);
+}
+
+.emptyTitle {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.5);
+  max-width: 260px;
+}
+
+/* ============================================================================
+   Skeleton Loading
+   ============================================================================ */
+
+.skeleton {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 14px;
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.skeletonIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.06) 0%,
+    rgba(148, 163, 184, 0.12) 50%,
+    rgba(148, 163, 184, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  flex-shrink: 0;
+}
+
+.skeletonContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.06) 0%,
+    rgba(148, 163, 184, 0.12) 50%,
+    rgba(148, 163, 184, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================================
+   Responsive - Mobile
+   ============================================================================ */
 
 @media (max-width: 480px) {
   .panel {
     padding: 12px;
   }
+
+  .header {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+
   .title {
     font-size: 16px;
   }
-}
 
-.dismissed {
-  opacity: 0;
-  transform: translateX(-160px) !important;
-}
+  .subtitle {
+    font-size: 12px;
+  }
 
-.deleteFallback {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(2, 6, 23, 0.25);
-  color: rgba(229, 231, 235, 0.85);
-  font-size: 20px;
-  line-height: 32px;
-  cursor: pointer;
-  opacity: 0.0;
-  pointer-events: none;
-}
+  .markAllBtn {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
 
-@media (hover: hover) {
-  .rowWrap:hover .deleteFallback {
-    opacity: 1;
-    pointer-events: auto;
+  .markAllBtn span {
+    display: none;
+  }
+
+  .list {
+    gap: 6px;
+  }
+
+  .item {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .iconWrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .typeIcon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .unreadDot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .itemTitle {
+    font-size: 13px;
+  }
+
+  .itemTime {
+    font-size: 10px;
+  }
+
+  .itemMsg {
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+  }
+
+  .empty {
+    padding: 40px 16px;
+  }
+
+  .emptyIcon {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+  }
+
+  .emptyTitle {
+    font-size: 15px;
+  }
+
+  .emptyText {
+    font-size: 13px;
+  }
+
+  .loadMore {
+    height: 42px;
+    font-size: 13px;
   }
 }
 
-@media (max-width: 768px) {
-  .deleteFallback {
-    opacity: 0;
-    pointer-events: none;
+/* Very small screens */
+@media (max-width: 360px) {
+  .panel {
+    padding: 10px;
+  }
+
+  .item {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .iconWrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .typeIcon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .itemTitle {
+    font-size: 12px;
+  }
+
+  .itemMsg {
+    font-size: 11px;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .loadMore,
+  .markAllBtn,
+  .deleteFallback,
+  .skeleton,
+  .skeletonIcon,
+  .skeletonLine {
+    animation: none;
+    transition: none;
+  }
+
+  .unreadDot {
+    animation: none;
+  }
+
+  .dismissed {
+    transition: opacity 100ms ease !important;
+    transform: translateX(0) !important;
   }
 }
