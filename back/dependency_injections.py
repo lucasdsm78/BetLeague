@@ -257,6 +257,7 @@ def redis_client_singleton() -> Redis | None:
     settings = get_settings()
     if not getattr(settings, "redis_url", None):
         return None
+    # redis_url doit inclure l'user ACL (ex: redis://notif:password@redis:6379/0)
     return Redis.from_url(
         settings.redis_url,
         decode_responses=False,
