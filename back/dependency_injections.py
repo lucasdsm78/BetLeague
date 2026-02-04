@@ -93,7 +93,6 @@ from domain.services.notification.notification_realtime_publisher import Notific
 from application.events.outbox_event_bus import OutboxDomainEventBus
 from infrastructure.services.notification.redis_notification_realtime import (
     RedisNotificationRealtimePublisher,
-    RedisNotificationSubscriber,
 )
 
 jwt_auth = JwtBearer()
@@ -258,18 +257,13 @@ def redis_client_singleton() -> Redis | None:
     settings = get_settings()
     if not getattr(settings, "redis_url", None):
         return None
-    return Redis.from_url(settings.redis_url, decode_responses=False)
-
-
-def redis_notifications_subscriber_dependency() -> RedisNotificationSubscriber | None:
-    settings = get_settings()
-    if getattr(settings, "notifications_realtime_driver", "memory") != "redis":
-        return None
-    if not getattr(settings, "redis_url", None):
-        return None
-    return RedisNotificationSubscriber(
-        redis_url=settings.redis_url,
-        channel_prefix=getattr(settings, "notifications_redis_channel_prefix", "betleague:notifications:user:"),
+    return Redis.from_url(
+        settings.redis_url,
+        decode_responses=False,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+        health_check_interval=30,
+        retry_on_timeout=True,
     )
 
 

@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     sqlalchemy_echo: bool = False
     json_logs: bool = False
     redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
+    redis_socket_connect_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_CONNECT_TIMEOUT_S")
+    redis_socket_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_TIMEOUT_S")
+    redis_health_check_interval_s: int = Field(default=30, validation_alias="REDIS_HEALTH_CHECK_INTERVAL_S")
     notifications_realtime_driver: str = Field(default="memory", validation_alias="NOTIFICATIONS_REALTIME_DRIVER")  # memory|redis
     notifications_redis_channel_prefix: str = "betleague:notifications:user:"
 
