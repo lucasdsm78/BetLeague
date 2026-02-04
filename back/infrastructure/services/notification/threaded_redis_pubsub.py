@@ -31,7 +31,13 @@ class ThreadedRedisPubSubSubscriber:
         stop = asyncio.Event()
 
         def _run() -> None:
-            r = redis.Redis.from_url(self._redis_url)
+            r = redis.Redis.from_url(
+                self._redis_url,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+                health_check_interval=30,
+                retry_on_timeout=True,
+            )
             # IMPORTANT: on n'ignore pas les subscribe messages pour détecter l'ACK.
             pubsub = r.pubsub(ignore_subscribe_messages=False)
             try:

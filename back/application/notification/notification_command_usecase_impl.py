@@ -9,10 +9,8 @@ from application.notification.notification_command_usecase import NotificationCo
 from domain.notification.model.notification import Notification, NotificationType
 from domain.notification.repository.notification_repository import NotificationRepository
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
-from infrastructure.config import Settings
 
 logger = logging.getLogger(__name__)
-_settings = Settings()
 
 
 def _now_ms() -> int:
@@ -55,16 +53,6 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
         )
 
         created = await self._notification_repository.create(notification)
-
-        if getattr(_settings, "environment", "dev") != "prod":
-            logger.info(
-                "notifications.created",
-                extra={
-                    "user_id": user_id,
-                    "notification_id": created.id,
-                    "notification_type": str(created.type),
-                },
-            )
 
         try:
             await self._realtime_publisher.publish_to_user(user_id, created)

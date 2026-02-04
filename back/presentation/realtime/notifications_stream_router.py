@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from dependency_injections import current_user, get_settings, redis_notifications_subscriber_dependency, notifications_hub
+from dependency_injections import current_user, get_settings, notifications_hub
 from infrastructure.services.notification.threaded_redis_pubsub import ThreadedRedisPubSubSubscriber
 
 router = APIRouter(prefix="/api/realtime", tags=["realtime"])
@@ -26,7 +26,6 @@ async def notifications_stream(
     request: Request,
     user: dict = Depends(current_user),
     settings=Depends(get_settings),
-    redis_sub=Depends(redis_notifications_subscriber_dependency),
     hub=Depends(notifications_hub),
 ):
     user_id = int(user["id"])
@@ -51,7 +50,7 @@ async def notifications_stream(
             idle_timeout_s = int(getattr(settings, "sse_idle_timeout_seconds", 900))
             last_emit = time.time()
 
-            if redis_sub is not None:
+            if getattr(settings, "notifications_realtime_driver", "memory") == "redis":
                 channel_prefix = getattr(settings, "notifications_redis_channel_prefix", "betleague:notifications:user:")
                 channel = f"{channel_prefix}{user_id}"
                 redis_url = getattr(settings, "redis_url", None)
