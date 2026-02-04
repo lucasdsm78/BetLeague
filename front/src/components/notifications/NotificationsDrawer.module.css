@@ -1,71 +1,67 @@
+/* NotificationsDrawer - Sports Betting Theme */
+
+/* ============================================================================
+   Root Container
+   ============================================================================ */
+
 .root {
   position: fixed;
   inset: 0;
   z-index: 2500;
+  isolation: isolate;
 }
+
+/* ============================================================================
+   Backdrop
+   ============================================================================ */
 
 .backdrop {
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+  animation: fadeIn 200ms ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================================================
+   Drawer Panel
+   ============================================================================ */
 
 .drawer {
   position: absolute;
   top: 0;
   right: 0;
   height: 100%;
-  width: min(92vw, 420px);
-  background: rgba(17, 24, 39, 0.92);
-  color: #e5e7eb;
-  border-left: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  width: min(94vw, 420px);
   display: flex;
   flex-direction: column;
-  animation: slideIn 160ms ease-out;
-}
-
-.drawerHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.drawerTitle {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-}
-
-.close {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(2, 6, 23, 0.25);
-  color: #e5e7eb;
-  cursor: pointer;
-  font-size: 22px;
-  line-height: 36px;
-}
-
-.content {
-  flex: 1;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.98) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  );
+  border-left: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow:
+    -20px 0 60px rgba(0, 0, 0, 0.4),
+    -8px 0 20px rgba(0, 0, 0, 0.2);
+  animation: slideIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  outline: none;
 }
 
 @keyframes slideIn {
   from {
-    transform: translateX(12px);
-    opacity: 0.75;
+    transform: translateX(100%);
+    opacity: 0.8;
   }
   to {
     transform: translateX(0);
@@ -73,9 +69,228 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #052e16;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.markAllBtn,
+.closeBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(30, 41, 59, 0.5);
+  color: rgba(148, 163, 184, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 100ms ease;
+}
+
+.markAllBtn svg,
+.closeBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.markAllBtn:hover {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.closeBtn:hover {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}
+
+.markAllBtn:active,
+.closeBtn:active {
+  transform: scale(0.95);
+}
+
+.markAllBtn:focus-visible,
+.closeBtn:focus-visible {
+  outline: 2px solid var(--color-primary-500, #22c55e);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Content Area
+   ============================================================================ */
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+/* ============================================================================
+   Responsive - Mobile
+   ============================================================================ */
+
+@media (max-width: 480px) {
   .drawer {
-    animation: none;
+    width: 100%;
+    border-left: none;
+  }
+
+  .header {
+    padding: 14px 16px;
+    /* Safe area for notch/dynamic island */
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .markAllBtn svg,
+  .closeBtn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .content {
+    /* Safe area for bottom home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
+/* Very small screens */
+@media (max-width: 360px) {
+  .header {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: none;
+  }
+
+  .drawer {
+    animation: none;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    transition: none;
+  }
+}
+
+/* ============================================================================
+   Safe Area Support (iOS)
+   ============================================================================ */
+
+@supports (padding: env(safe-area-inset-top)) {
+  .header {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
