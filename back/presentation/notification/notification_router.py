@@ -4,12 +4,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, status
 
-from application.notification.notification_models import (
+from application.notification.notification_query_model import (
     NotificationListResponse,
     NotificationReadModel,
     UnreadCountResponse,
-    MarkAllReadResponse,
 )
+from application.notification.notification_command_model import MarkAllReadResponse
 from application.notification.notification_query_usecase import NotificationQueryUseCase
 from application.notification.notification_command_usecase import NotificationCommandUseCase
 from dependency_injections import current_user, notification_query_usecase, notification_command_usecase

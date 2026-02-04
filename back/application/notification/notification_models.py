@@ -1,30 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+"""Compat: ce fichier est conservé pour rétro-compatibilité.
 
-from pydantic import BaseModel, Field
+Historique: les modèles étaient tous dans `notification_models.py`.
+On les a séparés en:
+- `notification_query_model.py`
+- `notification_command_model.py`
+"""
 
-
-class NotificationReadModel(BaseModel):
-    id: int
-    user_id: int
-    type: str
-    title: str
-    message: str
-    data: dict[str, Any] = Field(default_factory=dict)
-    created_at: int
-    read_at: Optional[int] = None
-
-
-class NotificationListResponse(BaseModel):
-    items: list[NotificationReadModel]
-    next_cursor: Optional[str] = None
-
-
-class UnreadCountResponse(BaseModel):
-    count: int
-
-
-class MarkAllReadResponse(BaseModel):
-    updated: int
-
+from application.notification.notification_query_model import (  # noqa: F401
+    NotificationReadModel,
+    NotificationListResponse,
+    UnreadCountResponse,
+)
+from application.notification.notification_command_model import MarkAllReadResponse  # noqa: F401
