@@ -59,6 +59,8 @@ class ThreadedRedisPubSubSubscriber:
                         text = str(data)
                     # push vers l'event loop (best-effort si la queue est pleine)
                     try:
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug("redis.pubsub_message", extra={"channel": self._channel})
                         loop.call_soon_threadsafe(queue.put_nowait, text)
                     except Exception:
                         pass
