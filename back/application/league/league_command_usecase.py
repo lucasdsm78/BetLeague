@@ -10,6 +10,8 @@ from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, \
     LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse
+from application.events.event_bus import DomainEventBus
+from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -79,12 +81,14 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             session_factory: Callable[[], AsyncSession],
             league_players_repository: LeaguePlayersRepository,
             invitation_repository: InvitationRepository,
+            event_bus: DomainEventBus,
     ):
         self.league_repository: LeagueRepository = league_repository
         self._session_factory = session_factory
         self.user_repository: UserRepository = user_repository
         self.league_players_repository: LeaguePlayersRepository = league_players_repository
         self.invitation_repository: InvitationRepository = invitation_repository
+        self._event_bus: DomainEventBus = event_bus
 
     async def create_league(
             self,
@@ -310,6 +314,16 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     status=InvitationStatus.pending
                 )
                 await invitation_repo.add(invitation)
+
+                await self._event_bus.publish(
+                    LeagueInvitationCreated(
+                        league_id=league.id,
+                        league_name=league.name,
+                        invited_user_id=user.id,
+                        sender_user_id=user_owner.id,
+                        sender_pseudo=user_owner.pseudo,
+                    )
+                )
 
         return LeagueInviteResponse()
 

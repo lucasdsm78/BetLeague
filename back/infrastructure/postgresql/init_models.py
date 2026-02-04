@@ -13,6 +13,8 @@ from infrastructure.postgresql.tournament.db_tournament_stage import DBTournamen
 from infrastructure.postgresql.tournament.db_tournament_player import DBTournamentPlayer  # noqa: F401
 from infrastructure.postgresql.tournament.db_tournament_match import DBTournamentMatch  # noqa: F401
 from infrastructure.postgresql.tournament_subscription.db_tournament_subscription import DBTournamentSubscription  # noqa: F401
+from infrastructure.postgresql.notification.db_notification import DBNotification  # noqa: F401
+from infrastructure.postgresql.outbox.db_outbox_message import DBOutboxMessage  # noqa: F401
 
 
 def init_models() -> None:

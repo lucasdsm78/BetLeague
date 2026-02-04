@@ -16,6 +16,10 @@ from application.user.user_command_usecase import UserCommandUseCase, UserComman
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase, TournamentCommandUseCaseImpl
 from application.tournament.tournament_query_usecase import TournamentQueryUseCase, TournamentQueryUseCaseImpl
+from application.notification.notification_command_usecase import NotificationCommandUseCase
+from application.notification.notification_command_usecase_impl import NotificationCommandUseCaseImpl
+from application.notification.notification_query_usecase import NotificationQueryUseCase
+from application.notification.notification_query_usecase_impl import NotificationQueryUseCaseImpl
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
@@ -41,6 +45,7 @@ from domain.user.model.user import User
 from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
+from domain.notification.repository.notification_repository import NotificationRepository
 
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
@@ -73,11 +78,16 @@ from infrastructure.services.authentication.manager_token import JwtManagerToken
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
 from sqlalchemy.ext.asyncio import AsyncSession
-from contextlib import asynccontextmanager
-
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
+from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
+from infrastructure.services.notification.notifications_hub import NotificationsHub
+from application.events.event_bus import InProcessDomainEventBus, DomainEventBus
+from domain.league.events.league_invitation_created import LeagueInvitationCreated
+from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
+from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
+from application.events.outbox_event_bus import OutboxDomainEventBus
 
 jwt_auth = JwtBearer()
 
@@ -181,19 +191,157 @@ def user_command_usecase(
     )
 
 
+def notification_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> NotificationRepository:
+    sf = get_session_factory()
+    class _Repo(NotificationRepository):
+        async def create(self, notification):
+            async with sf() as s:
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).create(notification)
+
+        async def list_by_user(self, user_id: int, limit: int, cursor):
+            async with sf() as s:
+                return await NotificationRepositoryImpl(s).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
+
+        async def unread_count(self, user_id: int) -> int:
+            async with sf() as s:
+                return await NotificationRepositoryImpl(s).unread_count(user_id=user_id)
+
+        async def mark_read(self, user_id: int, notification_id: int, read_at: int) -> None:
+            async with sf() as s:
+                async with s.begin():
+                    await NotificationRepositoryImpl(s).mark_read(user_id=user_id, notification_id=notification_id, read_at=read_at)
+
+        async def mark_all_read(self, user_id: int, read_at: int) -> int:
+            async with sf() as s:
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).mark_all_read(user_id=user_id, read_at=read_at)
+
+        async def delete(self, user_id: int, notification_id: int) -> None:
+            async with sf() as s:
+                async with s.begin():
+                    await NotificationRepositoryImpl(s).delete(user_id=user_id, notification_id=notification_id)
+
+    return _Repo()
+
+
+def notifications_hub() -> NotificationsHub:
+    return _notifications_hub_singleton()
+
+
+@lru_cache()
+def _notifications_hub_singleton() -> NotificationsHub:
+    return NotificationsHub()
+
+
+def notification_realtime_publisher_dependency() -> NotificationRealtimePublisher:
+    return notifications_hub()
+
+
+def notification_command_usecase(
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+    notification_repository: NotificationRepository = Depends(notification_repository_dependency),
+    realtime_publisher: NotificationRealtimePublisher = Depends(notification_realtime_publisher_dependency),
+) -> NotificationCommandUseCase:
+    return NotificationCommandUseCaseImpl(
+        notification_repository=notification_repository,
+        realtime_publisher=realtime_publisher,
+        session_factory=session_factory,
+    )
+
+
+def notification_query_usecase(
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+    notification_repository: NotificationRepository = Depends(notification_repository_dependency),
+) -> NotificationQueryUseCase:
+    return NotificationQueryUseCaseImpl(
+        notification_repository=notification_repository,
+        session_factory=session_factory,
+    )
+
+
+@lru_cache()
+def domain_event_bus_singleton() -> InProcessDomainEventBus:
+    bus = InProcessDomainEventBus()
+    return bus
+
+
+def domain_event_bus_dependency(
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> DomainEventBus:
+    class _Bus(DomainEventBus):
+        async def publish(self, event):
+            async with session_factory() as session:
+                async with session.begin():
+                    await OutboxDomainEventBus(session).publish(event)
+
+    return _Bus()
+
+
+class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
+    def __init__(self, session_factory: Callable[[], AsyncSession]):
+        self._session_factory = session_factory
+
+    async def create(self, notification):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).create(notification)
+
+    async def list_by_user(self, user_id: int, limit: int, cursor):
+        async with self._session_factory() as session:
+            return await NotificationRepositoryImpl(session).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
+
+    async def unread_count(self, user_id: int) -> int:
+        async with self._session_factory() as session:
+            return await NotificationRepositoryImpl(session).unread_count(user_id=user_id)
+
+    async def mark_read(self, user_id: int, notification_id: int, read_at: int) -> None:
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).mark_read(user_id=user_id, notification_id=notification_id, read_at=read_at)
+
+    async def mark_all_read(self, user_id: int, read_at: int) -> int:
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).mark_all_read(user_id=user_id, read_at=read_at)
+
+
+def outbox_handler_bus_dependency(
+    notification_uc: NotificationCommandUseCase | None = None,
+) -> InProcessDomainEventBus:
+    if notification_uc is None:
+        # Utilisation hors FastAPI (scripts): on résout manuellement.
+        sf = get_session_factory()
+        notification_uc = NotificationCommandUseCaseImpl(
+            notification_repository=_OutOfFastAPINotificationRepositoryProxy(sf),
+            realtime_publisher=notification_realtime_publisher_dependency(),
+            session_factory=sf,
+        )
+    bus = domain_event_bus_singleton()
+    if not getattr(bus, '_betleague_handlers_registered', False):
+        bus.subscribe(
+            LeagueInvitationCreated,
+            OnLeagueInvitationCreatedCreateNotification(notification_uc),
+        )
+        setattr(bus, '_betleague_handlers_registered', True)
+    return bus
+
+
 def league_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         league_repository: LeagueRepository = Depends(league_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
         league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
         invitation_repository: InvitationRepository = Depends(invitation_repository_dependency),
+        event_bus: DomainEventBus = Depends(domain_event_bus_dependency),
 ) -> LeagueCommandUseCase:
     return LeagueCommandUseCaseImpl(
         session_factory=session_factory,
         league_repository=league_repository,
         user_repository=user_repository,
         league_players_repository=league_players_repository,
-        invitation_repository=invitation_repository
+        invitation_repository=invitation_repository,
+        event_bus=event_bus,
     )
 
 def league_query_usecase(
@@ -445,4 +593,3 @@ async def verify_tournament_subscription(
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=UserNotSubscribedError.message)
 
     return user
-

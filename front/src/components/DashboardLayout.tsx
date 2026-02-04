@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore';
 import { useGlobalToast } from '../toast/ToastProvider';
 import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import LogoutModal from './auth/LogoutModal';
+import { NotificationsHeaderButton } from './notifications/NotificationsHeaderButton';
 import './Dashboard.css';
 
 // Simple sanitization function
@@ -33,7 +34,14 @@ interface TabConfig {
   readonly securityLevel?: 'low' | 'medium' | 'high';
 }
 
-type TabId = 'matches' | 'leagues' | 'invitations' | 'tournaments' | 'tickets' | 'shop' | 'profile';
+type TabId =
+  | 'matches'
+  | 'leagues'
+  | 'invitations'
+  | 'tournaments'
+  | 'tickets'
+  | 'shop'
+  | 'profile';
 
 // Immutable tabs configuration for security
 const TABS: Readonly<Record<TabId, TabConfig>> = {
@@ -386,6 +394,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
 
           <div className="header-right">
+            {/* Notifications (single instance => single SSE) */}
+            <div className="notifications-header-slot">
+              <NotificationsHeaderButton />
+            </div>
+
             {/* Desktop User Info */}
             <div className="user-info desktop-only">
               <span className="user-name" title={sanitizedUserName}>
@@ -410,6 +423,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
             {/* Mobile Header Actions */}
             <div className="mobile-header-actions">
+              {/* Notifications are rendered once above; CSS handles visibility */}
+
               {/* Shop Button */}
               <button
                 className="mobile-shop-btn"
