@@ -5,9 +5,15 @@ save ""
 appendonly no
 
 requirepass __REDIS_PASSWORD__
-# ACL: autorise pub/sub et toutes commandes/keys/channels (réseau interne Docker uniquement)
-# user default on >__REDIS_PASSWORD__ +@all ~* &*
-user default on >__REDIS_PASSWORD__ +ping +hello +client|id +client|setinfo +subscribe +psubscribe +unsubscribe +punsubscribe +publish +pubsub +auth +quit ~&* &betleague:notifications:user:*
+
+# Désactive l'utilisateur default (évite d'utiliser implicitement default en prod)
+user default off
+
+# User applicatif minimaliste: uniquement Pub/Sub + healthcheck, et uniquement sur les channels de notifications
+user notif on >__REDIS_PASSWORD__ +ping +hello +client|id +client|setinfo +auth +quit +publish +subscribe +psubscribe +unsubscribe +punsubscribe +pubsub &betleague:notifications:user:*
+
+# User admin compatible avec les clients modernes
+# user admin on >__REDIS_PASSWORD__ +@all +hello +client|id +client|setinfo ~* &*
 
 maxmemory 256mb
 maxmemory-policy allkeys-lru
