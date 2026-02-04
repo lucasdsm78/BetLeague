@@ -564,7 +564,7 @@
   }
 
   .desktop-logout-btn {
-    display: flex;
+    display: inline-flex;
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
   }
@@ -877,7 +877,10 @@
   margin: 0.75rem 0;
 }
 
-/* --- nettoyage: l'ancien bloc "Mobile Bottom Navigation" en double est supprimé --- */
+/* Notifications (cloche) */
+.notifications-header-slot {
+  display: block;
+}
 
 /* Responsive switches */
 @media (min-width: 1024px) {

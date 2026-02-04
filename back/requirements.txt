@@ -27,3 +27,4 @@ stripe
 orjson
 uvloop
 httpx
+greenlet>=3.0.0

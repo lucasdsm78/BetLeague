@@ -282,6 +282,22 @@ const AppRouter: React.FC = () => {
           }
         />
 
+        {/* Supprimé: route /notifications (accès via cloche) */}
+        {/*
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <NotificationsPage />
+                </Suspense>
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        */}
+
         {/* Redirect unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
