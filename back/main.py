@@ -15,6 +15,7 @@ from presentation.tournament.tournament_router import router as tournament_route
 from presentation.purchase.purchase_router import router as purchase_router
 from presentation.notification.notification_router import router as notification_router
 from presentation.realtime.notifications_stream_router import router as realtime_router
+from presentation.push_subscription.push_subscription_router import router as push_router
 from infrastructure.postgresql.init_models import init_models
 
 settings = get_settings()
@@ -103,3 +104,4 @@ app.include_router(tournament_router)
 app.include_router(purchase_router)
 app.include_router(notification_router)
 app.include_router(realtime_router)
+app.include_router(push_router)

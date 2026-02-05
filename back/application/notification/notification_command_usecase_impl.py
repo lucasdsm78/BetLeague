@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Optional, TYPE_CHECKING
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,9 @@ from application.notification.notification_command_usecase import NotificationCo
 from domain.notification.model.notification import Notification, NotificationType
 from domain.notification.repository.notification_repository import NotificationRepository
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
+
+if TYPE_CHECKING:
+    from application.push_subscription.push_subscription_usecase import PushSubscriptionUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +29,12 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
         notification_repository: NotificationRepository,
         realtime_publisher: NotificationRealtimePublisher,
         session_factory: Callable[[], AsyncSession],
+        push_subscription_uc: Optional["PushSubscriptionUseCase"] = None,
     ):
         self._notification_repository = notification_repository
         self._realtime_publisher = realtime_publisher
         self._session_factory = session_factory
+        self._push_uc = push_subscription_uc
 
     async def create(
         self,
@@ -58,6 +63,25 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             await self._realtime_publisher.publish_to_user(user_id, created)
         except Exception:
             pass
+
+        if self._push_uc is not None:
+            try:
+                await self._push_uc.send_to_user(
+                    user_id=user_id,
+                    title=title,
+                    body=message,
+                    icon="/icons/notification-icon.svg",
+                    badge="/icons/badge-icon.svg",
+                    tag=f"notification-{created.id}",
+                    data={
+                        "notification_id": created.id,
+                        "type": str(type),
+                        **dict(data),
+                    },
+                    url="/notifications",
+                )
+            except Exception as e:
+                logger.warning("Push notification failed", extra={"error": str(e), "user_id": user_id})
 
         return created
 
