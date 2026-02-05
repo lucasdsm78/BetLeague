@@ -623,7 +623,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
             <div className="account-info">
               <div className="info-row" style={{ alignItems: 'center', gap: '12px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="info-label">Notifications</div>
+                  <div className="info-label">Notifications push</div>
                   <div className="info-value" style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
                     Reçois des alertes pour les invitations, résultats et activité importante de tes ligues.
                   </div>
