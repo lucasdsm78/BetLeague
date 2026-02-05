@@ -12,6 +12,8 @@ from application.league.league_command_model import LeagueCreateModel, LeagueFre
     LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse
 from application.events.event_bus import DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
+from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
+from domain.league.events.league_invitation_refused import LeagueInvitationRefused
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -351,11 +353,35 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if user.id != invitation.user_id:
                     raise UserNotInvitationLeaguedError
 
+                league = await league_repo.find_by_id(invitation.league_id)
+                if not league:
+                    raise LeagueNotFoundError
+
                 if action:
                     invitation.status = InvitationStatus.accepted
                     await self.join_league(league_id=invitation.league_id, email=email)
+
+                    await self._event_bus.publish(
+                        LeagueInvitationAccepted(
+                            league_id=league.id,
+                            league_name=league.name,
+                            invited_user_id=user.id,
+                            invited_user_pseudo=user.pseudo,
+                            sender_user_id=invitation.user_sender_id,
+                        )
+                    )
                 else:
                     invitation.status = InvitationStatus.refused
+
+                    await self._event_bus.publish(
+                        LeagueInvitationRefused(
+                            league_id=league.id,
+                            league_name=league.name,
+                            invited_user_id=user.id,
+                            invited_user_pseudo=user.pseudo,
+                            sender_user_id=invitation.user_sender_id,
+                        )
+                    )
 
                 await invitation_repo.delete(invitation.id)
 

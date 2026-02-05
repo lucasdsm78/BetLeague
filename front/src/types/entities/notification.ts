@@ -20,6 +20,7 @@ export type NotificationType =
   // Invitations de ligue
   | 'league_invitation'
   | 'league_invitation_accepted'
+  | 'league_invitation_refused'
   // Resultats de paris
   | 'bet_won'
   | 'bet_lost'

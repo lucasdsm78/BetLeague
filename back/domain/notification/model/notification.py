@@ -8,6 +8,7 @@ from typing import Any, Mapping, Optional
 class NotificationType(StrEnum):
     LEAGUE_INVITATION = "league_invitation"
     LEAGUE_INVITATION_ACCEPTED = "league_invitation_accepted"
+    LEAGUE_INVITATION_REFUSED = "league_invitation_refused"
     BET_WON = "bet_won"
     BET_LOST = "bet_lost"
     MATCH_RESULT = "match_result"
@@ -32,4 +33,3 @@ class Notification:
 
     def is_read(self) -> bool:
         return self.read_at is not None
-

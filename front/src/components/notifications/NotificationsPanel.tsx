@@ -129,6 +129,8 @@ function getNotificationIcon(type: NotificationType): React.FC<IconProps> {
       return MailIcon;
     case 'league_invitation_accepted':
       return CheckCircleIcon;
+    case 'league_invitation_refused':
+      return XCircleIcon;
     case 'match_result':
       return SoccerIcon;
     case 'league_started':
@@ -157,6 +159,8 @@ function getNotificationStyle(type: NotificationType): string {
       return styles.typeInvite;
     case 'league_invitation_accepted':
       return styles.typeLeague;
+    case 'league_invitation_refused':
+      return styles.typeLoss;
     case 'match_result':
       return styles.typeMatch;
     case 'league_started':

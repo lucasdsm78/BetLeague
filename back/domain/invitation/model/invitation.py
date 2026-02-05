@@ -17,6 +17,7 @@ class Invitation:
             updated_at: Optional[int] = None
     ):
         self.user_id: int = user_id
+        self.user_sender_id: int = user_sender_id
         self.user_sender: int = user_sender_id
         self.league_id: Optional[int] = league_id
         self.tournament_id: Optional[int] = tournament_id
