@@ -283,3 +283,22 @@
 .profileVariant .statusActive {
   color: var(--success-color);
 }
+
+.compact {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.compact .content {
+  gap: 0;
+}
+
+.compact .toggle {
+  margin-left: 0;
+}
+
+.compact .error,
+.compact .helpText {
+  padding-left: 0;
+}
