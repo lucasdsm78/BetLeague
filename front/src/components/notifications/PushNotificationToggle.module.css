@@ -236,3 +236,42 @@
     transition: none;
   }
 }
+
+.profileVariant {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.profileVariant .iconWrapper {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.profileVariant .label {
+  color: var(--text-primary);
+}
+
+.profileVariant .status,
+.profileVariant .helpText {
+  color: var(--text-secondary);
+}
+
+.profileVariant .toggleTrack {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.profileVariant .toggle:hover:not(:disabled) .toggleTrack {
+  border-color: color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+
+.profileVariant .icon {
+  color: color-mix(in srgb, var(--text-primary) 60%, transparent);
+}
+
+.profileVariant .error {
+  color: var(--danger-color);
+}
+
+.profileVariant:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 14%, var(--border-color));
+}

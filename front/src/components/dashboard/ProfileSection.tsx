@@ -8,8 +8,9 @@ import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import type { TwoFactorSetup } from '../../types/entities/twoFactor';
+import PushNotificationToggle from '../notifications/PushNotificationToggle';
 
-type TabType = 'overview' | 'account' | 'security';
+type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
 interface ProfileStatsProps {
   nbWin: number;
@@ -558,6 +559,12 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
           Compte
         </button>
         <button
+          className={`tab-button ${activeTab === 'preferences' ? 'active' : ''}`}
+          onClick={() => setActiveTab('preferences')}
+        >
+          Préférences
+        </button>
+        <button
           className={`tab-button ${activeTab === 'security' ? 'active' : ''}`}
           onClick={() => setActiveTab('security')}
         >
@@ -608,6 +615,23 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
 
         {activeTab === 'account' && (
           <AccountInfo pseudo={profile.pseudo} email={profile.email} onRefresh={refetch} />
+        )}
+
+        {activeTab === 'preferences' && (
+          <div className="settings-section">
+            <h3>Préférences</h3>
+            <div className="account-info">
+              <div className="info-row" style={{ alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="info-label">Notifications push</div>
+                  <div className="info-value" style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+                    Reçois des alertes pour les invitations, résultats et activité importante de tes ligues.
+                  </div>
+                </div>
+              </div>
+              <PushNotificationToggle variant="profile" />
+            </div>
+          </div>
         )}
 
         {activeTab === 'security' && (
