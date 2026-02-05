@@ -7,6 +7,7 @@ import React, { useState, memo, useEffect } from 'react';
 import { initializeServices } from './services';
 import { initializeStores } from './store';
 import SecurityUtils from './utils/security';
+import { InstallPrompt } from './components/pwa/InstallPrompt';
 import './styles/App.css';
 
 
@@ -188,6 +189,7 @@ function App(): React.JSX.Element {
       <div className="container">
         <HomeScreen />
       </div>
+      <InstallPrompt />
     </div>
   );
 }
