@@ -11,10 +11,12 @@ import styles from './PushNotificationToggle.module.css';
 
 interface PushNotificationToggleProps {
   className?: string;
+  variant?: 'default' | 'profile';
 }
 
 export const PushNotificationToggle = memo(function PushNotificationToggle({
   className,
+  variant = 'default',
 }: PushNotificationToggleProps) {
   const {
     isSupported,
@@ -33,7 +35,7 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
   // Permission denied - show blocked message
   if (permission === 'denied') {
     return (
-      <div className={`${styles.container} ${className ?? ''}`}>
+      <div className={`${styles.container} ${variant === 'profile' ? styles.profileVariant : ''} ${className ?? ''}`}>
         <div className={styles.content}>
           <div className={styles.iconWrapper}>
             <svg className={styles.iconBlocked} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -54,7 +56,7 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
   }
 
   return (
-    <div className={`${styles.container} ${className ?? ''}`}>
+    <div className={`${styles.container} ${variant === 'profile' ? styles.profileVariant : ''} ${className ?? ''}`}>
       <div className={styles.content}>
         <div className={styles.iconWrapper}>
           <svg

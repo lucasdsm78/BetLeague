@@ -2,7 +2,6 @@ import { memo, useCallback, useRef, useState } from 'react';
 import styles from './NotificationsPanel.module.css';
 import { useNotificationsStore } from '../../store/notificationsStore';
 import type { NotificationType } from '../../types/entities/notification';
-import { PushNotificationToggle } from './PushNotificationToggle';
 
 // ============================================================================
 // Utils
@@ -411,7 +410,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({
           <SkeletonItem />
           <SkeletonItem />
         </div>
-        <PushNotificationToggle className={styles.pushToggle} />
+        {/* Préférences push déplacées dans Profil > Préférences */}
       </section>
     );
   }
@@ -429,7 +428,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({
           </header>
         )}
         <EmptyState />
-        <PushNotificationToggle className={styles.pushToggle} />
+        {/* Préférences push déplacées dans Profil > Préférences */}
       </section>
     );
   }
@@ -497,8 +496,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({
         ) : null}
       </div>
 
-      {/* Push Notifications Toggle */}
-      <PushNotificationToggle className={styles.pushToggle} />
+      {/* Préférences push déplacées dans Profil > Préférences */}
     </section>
   );
 });
