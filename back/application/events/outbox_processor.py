@@ -17,6 +17,7 @@ from domain.utils.domain_event import DomainEvent
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_started import LeagueStarted
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 
 
@@ -46,6 +47,12 @@ def _deserialize(event_name: str, payload: dict) -> DomainEvent:
             invited_user_id=int(payload["invited_user_id"]),
             invited_user_pseudo=str(payload["invited_user_pseudo"]),
             sender_user_id=int(payload["sender_user_id"]),
+        )
+
+    if event_name == "league.started" or payload.get("event_name") == "league.started":
+        return LeagueStarted(
+            league_id=int(payload["league_id"]),
+            league_name=str(payload["league_name"]),
         )
 
     raise ValueError(f"Event non supporté: {event_name}")
