@@ -12,11 +12,13 @@ import styles from './PushNotificationToggle.module.css';
 interface PushNotificationToggleProps {
   className?: string;
   variant?: 'default' | 'profile';
+  compact?: boolean;
 }
 
 export const PushNotificationToggle = memo(function PushNotificationToggle({
   className,
   variant = 'default',
+  compact = false,
 }: PushNotificationToggleProps) {
   const {
     isSupported,
@@ -34,6 +36,9 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
 
   // Permission denied - show blocked message
   if (permission === 'denied') {
+    if (compact) {
+      return null;
+    }
     return (
       <div className={`${styles.container} ${variant === 'profile' ? styles.profileVariant : ''} ${className ?? ''}`}>
         <div className={styles.content}>
@@ -56,33 +61,37 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
   }
 
   return (
-    <div className={`${styles.container} ${variant === 'profile' ? styles.profileVariant : ''} ${className ?? ''}`}>
+    <div className={`${styles.container} ${compact ? styles.compact : ''} ${variant === 'profile' ? styles.profileVariant : ''} ${className ?? ''}`}>
       <div className={styles.content}>
-        <div className={styles.iconWrapper}>
-          <svg
-            className={`${styles.icon} ${isSubscribed ? styles.iconActive : ''}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          {isSubscribed && (
-            <span className={styles.activeDot} aria-hidden="true" />
-          )}
-        </div>
-        <div className={styles.info}>
-          <span className={styles.label}>Notifications push</span>
-          <span className={`${styles.status} ${isSubscribed ? styles.statusActive : ''}`}>
-            {isLoading
-              ? 'Chargement...'
-              : isSubscribed
-              ? 'Activées'
-              : ''}
-          </span>
-        </div>
+        {!compact && (
+          <div className={styles.iconWrapper}>
+            <svg
+              className={`${styles.icon} ${isSubscribed ? styles.iconActive : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {isSubscribed && (
+              <span className={styles.activeDot} aria-hidden="true" />
+            )}
+          </div>
+        )}
+        {!compact && (
+          <div className={styles.info}>
+            <span className={styles.label}>Notifications push</span>
+            <span className={`${styles.status} ${isSubscribed ? styles.statusActive : ''}`}>
+              {isLoading
+                ? 'Chargement...'
+                : isSubscribed
+                ? 'Activées'
+                : ''}
+            </span>
+          </div>
+        )}
         <button
           className={`${styles.toggle} ${isSubscribed ? styles.toggleActive : ''}`}
           onClick={toggle}
