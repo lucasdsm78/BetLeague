@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, status, Request, HTTPException
 
 from dependency_injections import current_user, push_subscription_usecase
 from application.push_subscription.push_subscription_usecase import PushSubscriptionUseCase
@@ -23,14 +23,33 @@ async def get_vapid_public_key(
     return VapidPublicKeyResponse(public_key=public_key)
 
 
+_SUBSCRIBE_BUCKET: dict[tuple[str, int], list[int]] = {}
+
+
+def _rate_limit_subscribe(*, ip: str, user_id: int, limit: int = 10, window_s: int = 60) -> None:
+    import time
+
+    now = int(time.time())
+    key = (ip, user_id)
+    arr = _SUBSCRIBE_BUCKET.get(key, [])
+    arr = [t for t in arr if (now - t) <= window_s]
+    if len(arr) >= limit:
+        raise HTTPException(status_code=429, detail="Trop de tentatives, réessaie plus tard")
+    arr.append(now)
+    _SUBSCRIBE_BUCKET[key] = arr
+
+
 @router.post("/subscribe", status_code=status.HTTP_204_NO_CONTENT)
 async def subscribe(
+    request: Request,
     body: PushSubscribeRequest,
     user: dict = Depends(current_user),
     user_agent: str | None = Header(default=None, alias="User-Agent"),
     uc: PushSubscriptionUseCase = Depends(push_subscription_usecase),
 ):
     user_id = int(user["id"])
+    ip = request.client.host if request.client else "unknown"
+    _rate_limit_subscribe(ip=ip, user_id=user_id)
     await uc.subscribe(
         user_id=user_id,
         endpoint=body.endpoint,
@@ -64,17 +83,6 @@ async def get_status(
     user: dict = Depends(current_user),
     uc: PushSubscriptionUseCase = Depends(push_subscription_usecase),
 ):
-    from infrastructure.postgresql.push_subscription.push_subscription_repository import PushSubscriptionRepositoryImpl
-    from dependency_injections import get_session_factory
-
     user_id = int(user["id"])
-    session_factory = get_session_factory()
-
-    async with session_factory() as session:
-        repo = PushSubscriptionRepositoryImpl(session)
-        subscriptions = await repo.find_by_user_id(user_id)
-
-    return PushSubscriptionStatusResponse(
-        subscribed=len(subscriptions) > 0,
-        subscription_count=len(subscriptions),
-    )
+    subscribed, count = await uc.get_status(user_id=user_id)
+    return PushSubscriptionStatusResponse(subscribed=subscribed, subscription_count=count)

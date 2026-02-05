@@ -22,14 +22,49 @@ export interface VapidKeyResponse {
 let swRegistration: ServiceWorkerRegistration | null = null;
 
 /**
+ * Convert VAPID public key from base64 URL to Uint8Array
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+  const b64 = btoa(String.fromCharCode(...Array.from(bytes)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function isProbablyIos(): boolean {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua);
+}
+
+function isStandalonePwa(): boolean {
+  // iOS Safari
+  // @ts-ignore
+  return (window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+/**
  * Check if push notifications are supported in the browser
  */
 export function isPushSupported(): boolean {
-  return (
+  const basic = (
     'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window
   );
+  if (!basic) return false;
+
+  // iOS: Web Push uniquement sur PWA installée (sinon UX frustrante)
+  if (isProbablyIos() && !isStandalonePwa()) return false;
+  return true;
 }
 
 /**
@@ -98,20 +133,6 @@ export async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegis
     console.error('[Push] Failed to get service worker registration:', error);
     return null;
   }
-}
-
-/**
- * Convert VAPID public key from base64 URL to Uint8Array
- */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
 }
 
 /**
@@ -204,7 +225,6 @@ export async function subscribeToPush(): Promise<boolean> {
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     });
 
-    // Extract keys
     const rawKey = subscription.getKey('p256dh');
     const rawAuth = subscription.getKey('auth');
 
@@ -213,11 +233,9 @@ export async function subscribeToPush(): Promise<boolean> {
       return false;
     }
 
-    // Convert to base64
-    const p256dh = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawKey))));
-    const auth = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(rawAuth))));
+    const p256dh = toBase64Url(new Uint8Array(rawKey));
+    const auth = toBase64Url(new Uint8Array(rawAuth));
 
-    // Send to backend
     const response = await http.post('/push/subscribe', {
       endpoint: subscription.endpoint,
       keys: { p256dh, auth },
@@ -286,6 +304,9 @@ export async function unsubscribeAll(): Promise<boolean> {
   }
 }
 
+// Prevent double message listeners
+let _swMessageListenerAttached = false;
+
 /**
  * Initialize push notifications service
  * Call this on app startup
@@ -299,17 +320,19 @@ export async function initPushService(): Promise<void> {
   // Register service worker
   await registerServiceWorker();
 
-  // Listen for messages from service worker
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
-      // Dispatch custom event for React to handle
-      window.dispatchEvent(
-        new CustomEvent('push-notification-click', {
-          detail: event.data.data,
-        })
-      );
-    }
-  });
+  if (!_swMessageListenerAttached) {
+    _swMessageListenerAttached = true;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+        // Dispatch custom event for React to handle
+        window.dispatchEvent(
+          new CustomEvent('push-notification-click', {
+            detail: event.data.data,
+          })
+        );
+      }
+    });
+  }
 }
 
 // Export singleton-style service

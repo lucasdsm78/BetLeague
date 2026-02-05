@@ -75,6 +75,19 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Safe internal URL function
+function safeInternalUrl(url) {
+  if (!url) return '/';
+  try {
+    // force URL relative to origin
+    const u = new URL(url, self.location.origin);
+    if (u.origin !== self.location.origin) return '/';
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return '/';
+  }
+}
+
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -86,13 +99,11 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  // Determine URL to open
-  let targetUrl = data.url || '/notifications';
+  // Determine URL to open (safe internal only)
+  let targetUrl = safeInternalUrl(data.url) || '/';
 
   // Make absolute URL
-  if (!targetUrl.startsWith('http')) {
-    targetUrl = new URL(targetUrl, self.location.origin).href;
-  }
+  targetUrl = new URL(targetUrl, self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
