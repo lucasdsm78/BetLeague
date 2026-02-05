@@ -1,26 +1,51 @@
 /* eslint-disable no-restricted-globals */
 
 /**
- * BetLeague Service Worker for Push Notifications
- * Handles background push events and notification clicks
+ * BetLeague Service Worker
+ * PWA Caching + Push Notifications
  */
 
-const CACHE_NAME = 'betleague-v1';
+const CACHE_VERSION = 'v1';
+const STATIC_CACHE = `betleague-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `betleague-dynamic-${CACHE_VERSION}`;
+
 const DEFAULT_ICON = '/icons/notification-icon.svg';
 const DEFAULT_BADGE = '/icons/badge-icon.svg';
 
-// Install event - cache essential assets
+// Static assets to cache on install
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icons/icon.svg',
+  '/icons/icon-maskable.svg',
+  '/icons/notification-icon.svg',
+  '/icons/badge-icon.svg',
+];
+
+// ============================================================================
+// Install - Cache static assets
+// ============================================================================
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => {
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Cache failed:', err);
+      });
+    })
+  );
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// ============================================================================
+// Activate - Clean old caches
+// ============================================================================
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name.startsWith('betleague-') && name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
           .map((name) => caches.delete(name))
       );
     })
@@ -28,21 +53,51 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Push event - display notification
+// ============================================================================
+// Fetch - Network first, cache fallback
+// ============================================================================
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET, API, SSE, and non-http
+  if (request.method !== 'GET') return;
+  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.includes('/stream')) return;
+  if (!url.protocol.startsWith('http')) return;
+
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+          return new Response('Offline', { status: 503 });
+        });
+      })
+  );
+});
+
+// ============================================================================
+// Push - Display notification
+// ============================================================================
 self.addEventListener('push', (event) => {
-  if (!event.data) {
-    console.warn('[SW] Push event without data');
-    return;
-  }
+  if (!event.data) return;
 
   let payload;
   try {
     payload = event.data.json();
-  } catch (e) {
-    payload = {
-      title: 'BetLeague',
-      body: event.data.text(),
-    };
+  } catch {
+    payload = { title: 'BetLeague', body: event.data.text() };
   }
 
   const {
@@ -70,16 +125,15 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Safe internal URL function
+// ============================================================================
+// Notification Click
+// ============================================================================
 function safeInternalUrl(url) {
   if (!url) return '/';
   try {
-    // force URL relative to origin
     const u = new URL(url, self.location.origin);
     if (u.origin !== self.location.origin) return '/';
     return u.pathname + u.search + u.hash;
@@ -88,46 +142,38 @@ function safeInternalUrl(url) {
   }
 }
 
-// Notification click event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const action = event.action;
+  if (event.action === 'close') return;
+
   const data = event.notification.data || {};
-
-  if (action === 'close') {
-    return;
-  }
-
-  // Determine URL to open (safe internal only)
-  let targetUrl = safeInternalUrl(data.url) || '/';
-
-  // Make absolute URL
-  targetUrl = new URL(targetUrl, self.location.origin).href;
+  let targetUrl = new URL(safeInternalUrl(data.url) || '/notifications', self.location.origin).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if already open
-      for (const client of clientList) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            data: data,
-          });
+          client.postMessage({ type: 'NOTIFICATION_CLICK', data });
           return client.focus();
         }
       }
-      // Open new window
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
+      return self.clients.openWindow?.(targetUrl);
     })
   );
 });
 
-// Message event - handle messages from main thread
+// ============================================================================
+// Message handler
+// ============================================================================
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+  if (!event.data) return;
+  switch (event.data.type) {
+    case 'SKIP_WAITING':
+      self.skipWaiting();
+      break;
+    case 'CLEAR_CACHE':
+      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+      break;
   }
 });
