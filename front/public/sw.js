@@ -148,7 +148,7 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'close') return;
 
   const data = event.notification.data || {};
-  let targetUrl = new URL(safeInternalUrl(data.url) || '/notifications', self.location.origin).href;
+  let targetUrl = new URL(safeInternalUrl(data.url) || '/', self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
