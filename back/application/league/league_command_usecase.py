@@ -14,6 +14,7 @@ from application.events.event_bus import DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_started import LeagueStarted
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
@@ -183,15 +184,23 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
-                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
-                if (
-                        league.nb_players_remaining != 0 and
-                        league.nb_players_remaining - 1 <= MIN_PLAYERS
-                        and unixtimestamp > league.start_date
-                ):
+                # Démarrage ligue: quand suffisamment de joueurs ont rejoint.
+                # On évalue la transition sur l'état "après" join.
+                was_started = bool(league.is_started)
+                next_remaining = int(league.nb_players_remaining) - 1
+
+                league.nb_players_remaining = next_remaining
+                if (not league.is_started) and next_remaining <= MIN_PLAYERS:
                     league.is_started = True
 
-                league.nb_players_remaining -= 1
+                if not was_started and league.is_started:
+                    await self._event_bus.publish(
+                        LeagueStarted(
+                            league_id=league.id,
+                            league_name=league.name,
+                        )
+                    )
+
                 if not league.is_free and league.nb_btl is not None:
                     user.nb_btl -= league.nb_btl
 
@@ -296,15 +305,23 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     if league.nb_btl is None or user.nb_btl < league.nb_btl:
                         raise LeagueNbBtlIsNotEnoughError
 
-                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
-                if (
-                        league.nb_players_remaining != 0 and
-                        league.nb_players_remaining - 1 <= MIN_PLAYERS
-                        and unixtimestamp > league.start_date
-                ):
+                # Ici: on "réserve" une place à l'invitation (comportement existant).
+                # On applique la même règle de démarrage (seuil joueurs) sur l'état après décrément.
+                was_started = bool(league.is_started)
+                next_remaining = int(league.nb_players_remaining) - 1
+
+                league.nb_players_remaining = next_remaining
+                if (not league.is_started) and next_remaining <= MIN_PLAYERS:
                     league.is_started = True
 
-                league.nb_players_remaining -= 1
+                if not was_started and league.is_started:
+                    await self._event_bus.publish(
+                        LeagueStarted(
+                            league_id=league.id,
+                            league_name=league.name,
+                        )
+                    )
+
                 if not league.is_free and league.nb_btl is not None:
                     user.nb_btl -= league.nb_btl
 

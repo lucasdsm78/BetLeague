@@ -96,9 +96,11 @@ from application.events.event_bus import InProcessDomainEventBus, DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_started import LeagueStarted
 from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
 from application.notification.handlers.league_invitation_accepted_notification_handler import OnLeagueInvitationAcceptedCreateNotification
 from application.notification.handlers.league_invitation_refused_notification_handler import OnLeagueInvitationRefusedCreateNotification
+from application.notification.handlers.league_started_notification_handler import OnLeagueStartedCreateNotification
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
 from application.events.outbox_event_bus import OutboxDomainEventBus
 from infrastructure.services.notification.redis_notification_realtime import (
@@ -401,6 +403,10 @@ def outbox_handler_bus_dependency(
         bus.subscribe(
             LeagueInvitationRefused,
             OnLeagueInvitationRefusedCreateNotification(notification_uc),
+        )
+        bus.subscribe(
+            LeagueStarted,
+            OnLeagueStartedCreateNotification(notification_uc),
         )
         setattr(bus, '_betleague_handlers_registered', True)
     return bus
