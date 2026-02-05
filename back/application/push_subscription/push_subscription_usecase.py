@@ -44,3 +44,7 @@ class PushSubscriptionUseCase(ABC):
         url: Optional[str] = None,
     ) -> int:
         raise NotImplementedError
+
+    @abstractmethod
+    async def get_status(self, *, user_id: int) -> tuple[bool, int]:
+        raise NotImplementedError

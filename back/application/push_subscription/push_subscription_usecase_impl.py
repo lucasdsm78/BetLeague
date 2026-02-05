@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from typing import Any, Callable, Optional
+import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,9 @@ from application.push_subscription.push_subscription_usecase import PushSubscrip
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+logger = logging.getLogger(__name__)
 
 
 class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
@@ -67,6 +71,10 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
     async def get_vapid_public_key(self) -> str:
         return self._push_service.get_vapid_public_key()
 
+    async def get_status(self, *, user_id: int) -> tuple[bool, int]:
+        subs = await self._repo.find_by_user_id(user_id)
+        return (len(subs) > 0, len(subs))
+
     async def send_to_user(
         self,
         *,
@@ -99,7 +107,7 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
             payload["url"] = url
 
         success_count = 0
-        failed_endpoints: list[int] = []
+        expired_sub_ids: list[int] = []
 
         for sub in subscriptions:
             try:
@@ -113,14 +121,17 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
                     success_count += 1
                     await self._repo.update_last_used(sub.id, _now_ms())
                 else:
-                    failed_endpoints.append(sub.id)
-            except Exception:
-                pass
+                    expired_sub_ids.append(sub.id)
+            except Exception as e:
+                logger.warning(
+                    "push.send_failed",
+                    extra={"user_id": user_id, "subscription_id": sub.id, "error": str(e)},
+                )
 
-        for sub_id in failed_endpoints:
+        for sub_id in expired_sub_ids:
             try:
                 await self._repo.delete_by_id(sub_id)
             except Exception:
-                pass
+                logger.warning("push.delete_expired_failed", extra={"subscription_id": sub_id})
 
         return success_count
