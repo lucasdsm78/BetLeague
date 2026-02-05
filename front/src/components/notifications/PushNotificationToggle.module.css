@@ -284,6 +284,12 @@
   color: var(--success-color);
 }
 
+.profileVariant .toggleActive .toggleTrack {
+  background: linear-gradient(135deg, var(--success-color), color-mix(in srgb, var(--success-color) 80%, #000));
+  border-color: transparent;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--success-color) 45%, transparent);
+}
+
 .compact {
   padding: 0;
   background: transparent;
