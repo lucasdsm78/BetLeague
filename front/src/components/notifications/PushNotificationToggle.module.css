@@ -93,6 +93,10 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+.statusActive {
+  color: #00ff88;
+}
+
 /* Toggle Switch */
 .toggle {
   position: relative;
@@ -274,4 +278,8 @@
 
 .profileVariant:hover {
   border-color: color-mix(in srgb, var(--text-primary) 14%, var(--border-color));
+}
+
+.profileVariant .statusActive {
+  color: var(--success-color);
 }

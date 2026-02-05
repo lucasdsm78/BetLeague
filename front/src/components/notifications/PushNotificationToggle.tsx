@@ -75,12 +75,12 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
         </div>
         <div className={styles.info}>
           <span className={styles.label}>Notifications push</span>
-          <span className={styles.status}>
+          <span className={`${styles.status} ${isSubscribed ? styles.statusActive : ''}`}>
             {isLoading
               ? 'Chargement...'
               : isSubscribed
               ? 'Activées'
-              : 'Désactivées'}
+              : ''}
           </span>
         </div>
         <button
@@ -96,11 +96,6 @@ export const PushNotificationToggle = memo(function PushNotificationToggle({
         </button>
       </div>
       {error && <span className={styles.error}>{error}</span>}
-      {!isSubscribed && !error && (
-        <span className={styles.helpText}>
-          Recevez des alertes même quand l'app est fermée
-        </span>
-      )}
     </div>
   );
 });
