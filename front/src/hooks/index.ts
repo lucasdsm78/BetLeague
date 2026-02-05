@@ -37,6 +37,14 @@ export {
 // Re-export legacy hooks (will be updated later)
 export { default as useFormSecurity } from './useFormSecurity';
 
+// Push notifications
+export {
+  usePushNotifications,
+  type PushNotificationState,
+  type PushNotificationActions,
+  type UsePushNotificationsReturn,
+} from './usePushNotifications';
+
 // Hook composition utilities
 import { useAuth as useAuthHook } from './useAuth';
 import { useGlobalToast } from '../toast/ToastProvider';

@@ -22,6 +22,8 @@ from application.notification.notification_command_usecase import NotificationCo
 from application.notification.notification_command_usecase_impl import NotificationCommandUseCaseImpl
 from application.notification.notification_query_usecase import NotificationQueryUseCase
 from application.notification.notification_query_usecase_impl import NotificationQueryUseCaseImpl
+from application.push_subscription.push_subscription_usecase import PushSubscriptionUseCase
+from application.push_subscription.push_subscription_usecase_impl import PushSubscriptionUseCaseImpl
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
@@ -48,6 +50,8 @@ from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from domain.notification.repository.notification_repository import NotificationRepository
+from domain.push_subscription.repository.push_subscription_repository import PushSubscriptionRepository
+from domain.services.push.web_push_service import WebPushService
 
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
@@ -85,6 +89,8 @@ from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
+from infrastructure.postgresql.push_subscription.push_subscription_repository import PushSubscriptionRepositoryImpl
+from infrastructure.services.push.web_push_service import WebPushServiceImpl
 from infrastructure.services.notification.notifications_hub import NotificationsHub
 from application.events.event_bus import InProcessDomainEventBus, DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
@@ -273,10 +279,23 @@ def notification_command_usecase(
     notification_repository: NotificationRepository = Depends(notification_repository_dependency),
     realtime_publisher: NotificationRealtimePublisher = Depends(notification_realtime_publisher_dependency),
 ) -> NotificationCommandUseCase:
+    push_uc = None
+    settings = get_settings()
+    if settings.vapid_private_key and settings.vapid_public_key:
+        try:
+            push_uc = PushSubscriptionUseCaseImpl(
+                push_subscription_repository=_PushSubscriptionRepositoryProxy(session_factory),
+                web_push_service=web_push_service_singleton(),
+                session_factory=session_factory,
+            )
+        except Exception:
+            pass
+
     return NotificationCommandUseCaseImpl(
         notification_repository=notification_repository,
         realtime_publisher=realtime_publisher,
         session_factory=session_factory,
+        push_subscription_uc=push_uc,
     )
 
 
@@ -347,10 +366,23 @@ def outbox_handler_bus_dependency(
     if notification_uc is None:
         # Utilisation hors FastAPI (scripts): on résout manuellement.
         sf = get_session_factory()
+        push_uc = None
+        settings = get_settings()
+        if settings.vapid_private_key and settings.vapid_public_key:
+            try:
+                push_uc = PushSubscriptionUseCaseImpl(
+                    push_subscription_repository=_PushSubscriptionRepositoryProxy(sf),
+                    web_push_service=web_push_service_singleton(),
+                    session_factory=sf,
+                )
+            except Exception:
+                pass
+
         notification_uc = NotificationCommandUseCaseImpl(
             notification_repository=_OutOfFastAPINotificationRepositoryProxy(sf),
             realtime_publisher=notification_realtime_publisher_dependency(),
             session_factory=sf,
+            push_subscription_uc=push_uc,
         )
     bus = domain_event_bus_singleton()
     if not getattr(bus, '_betleague_handlers_registered', False):
@@ -628,3 +660,70 @@ async def verify_tournament_subscription(
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=UserNotSubscribedError.message)
 
     return user
+
+
+class _PushSubscriptionRepositoryProxy(PushSubscriptionRepository):
+
+    def __init__(self, session_factory: Callable[[], AsyncSession]):
+        self._session_factory = session_factory
+
+    async def create(self, subscription):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await PushSubscriptionRepositoryImpl(session).create(subscription)
+
+    async def find_by_endpoint(self, endpoint: str):
+        async with self._session_factory() as session:
+            return await PushSubscriptionRepositoryImpl(session).find_by_endpoint(endpoint)
+
+    async def find_by_user_id(self, user_id: int):
+        async with self._session_factory() as session:
+            return await PushSubscriptionRepositoryImpl(session).find_by_user_id(user_id)
+
+    async def delete_by_endpoint(self, endpoint: str):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await PushSubscriptionRepositoryImpl(session).delete_by_endpoint(endpoint)
+
+    async def delete_by_user_id(self, user_id: int):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await PushSubscriptionRepositoryImpl(session).delete_by_user_id(user_id)
+
+    async def update_last_used(self, subscription_id: int, last_used_at: int):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await PushSubscriptionRepositoryImpl(session).update_last_used(subscription_id, last_used_at)
+
+    async def delete_by_id(self, subscription_id: int):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await PushSubscriptionRepositoryImpl(session).delete_by_id(subscription_id)
+
+
+def push_subscription_repository_dependency(
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> PushSubscriptionRepository:
+    return _PushSubscriptionRepositoryProxy(session_factory)
+
+
+@lru_cache()
+def web_push_service_singleton() -> WebPushService:
+    settings = get_settings()
+    return WebPushServiceImpl(settings=settings)
+
+
+def web_push_service_dependency() -> WebPushService:
+    return web_push_service_singleton()
+
+
+def push_subscription_usecase(
+    session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+    push_subscription_repository: PushSubscriptionRepository = Depends(push_subscription_repository_dependency),
+    web_push_service: WebPushService = Depends(web_push_service_dependency),
+) -> PushSubscriptionUseCase:
+    return PushSubscriptionUseCaseImpl(
+        push_subscription_repository=push_subscription_repository,
+        web_push_service=web_push_service,
+        session_factory=session_factory,
+    )
