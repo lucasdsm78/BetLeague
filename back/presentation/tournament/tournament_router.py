@@ -7,7 +7,7 @@ from application.tournament.tournament_command_model import (
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
     SchedulerSuccessfulyRunResponse,
-    TournamentPlayerDeletedResponse, TournamentInviteResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
@@ -29,7 +29,7 @@ from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse
 
-from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 
 router = APIRouter(prefix="/api", tags=["tournament"])
 
@@ -499,3 +499,29 @@ async def invite_user_to_tournament(
         )
 
     return invitation
+
+@router.delete(
+    "/tournament/invitation/{invitation_id}",
+    response_model=InvitationDeleteResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Delete invitation to a league",
+)
+async def delete_invitation(
+        invitation_id: int,
+        tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, current_user.get('email'))
+    except InvitationNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la suppression d'une l'invitation à un tournoi"
+        )
+
+    return delete_invitation_result
