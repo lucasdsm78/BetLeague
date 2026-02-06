@@ -59,7 +59,7 @@ class TournamentCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_invitation(self, invitation_id: int, user_email: str):
+    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
         raise NotImplementedError
 
 
@@ -483,22 +483,17 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
         return TournamentInviteResponse()
 
-    async def delete_invitation(self, invitation_id: int, user_email: str):
+    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
         async with self._session_factory() as session:
-            async with session.begin():
-                invitation_repo  = InvitationRepositoryImpl(session)
-                user_repo = UserRepositoryImpl(session)
+             async with session.begin():
+                 invitation_repo  = InvitationRepositoryImpl(session)
 
-                user = await user_repo.find_by_email(user_email)
-                if not user:
-                    raise UserNotFoundError
+                 deleted = await invitation_repo.delete_tournament_invitation_if_owner(
+                     invitation_id=invitation_id,
+                     owner_user_id=int(owner_user_id),
+                 )
 
-                deleted = await invitation_repo.delete_tournament_invitation_if_owner(
-                    invitation_id=invitation_id,
-                    owner_user_id=int(user.id),
-                )
-
-                if not deleted:
-                    raise InvitationNotFoundError
+                 if not deleted:
+                     raise InvitationNotFoundError
 
         return InvitationDeleteResponse()
