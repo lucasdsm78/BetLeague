@@ -513,16 +513,11 @@ async def delete_invitation(
         _: None = Depends(verify_tournament_subscription)
 ):
     try:
-        delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, current_user.get('email'))
+        delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, int(current_user.get('id')))
     except InvitationNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
-        )
-    except UserNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message,
         )
     except Exception as e:
         raise HTTPException(
