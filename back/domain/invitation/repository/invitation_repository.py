@@ -35,7 +35,7 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete(self, invitation_id: int):
+    async def delete_tournament_invitation_if_owner(self, *, invitation_id: int, owner_user_id: int) -> bool:
         raise NotImplementedError
 
     @abstractmethod

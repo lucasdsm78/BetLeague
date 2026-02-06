@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict
 from sqlalchemy import select
+from sqlalchemy import delete
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,7 @@ from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from infrastructure.postgresql.invitation.db_invitation import DBInvitation
 from infrastructure.postgresql.league.db_league import DBLeague
+from infrastructure.postgresql.tournament.db_tournament import DBTournament
 
 class InvitationRepositoryImpl(InvitationRepository):
     def __init__(self, session: AsyncSession):
@@ -50,7 +52,7 @@ class InvitationRepositoryImpl(InvitationRepository):
         try:
             result = await self.session.execute(
                 select(DBInvitation).where(
-                    DBInvitation.tournament_id == user_id,
+                    DBInvitation.tournament_id == tournament_id,
                     DBInvitation.user_id == user_id
                 )
             )
@@ -106,15 +108,17 @@ class InvitationRepositoryImpl(InvitationRepository):
 
         return grouped_invitations
 
-    async def delete(self, invitation_id: int):
-        try:
-            result = await self.session.execute(
-                select(DBInvitation).where(DBInvitation.id == invitation_id)
-            )
-            invitation = result.scalar_one()
-            await self.session.delete(invitation)
-        except:
-            raise
+    async def delete_tournament_invitation_if_owner(self, *, invitation_id: int, owner_user_id: int) -> bool:
+        exists_subq = (
+            select(1)
+            .where(DBTournament.id == DBInvitation.tournament_id)
+            .where(DBTournament.user_id == owner_user_id)
+            .exists()
+        )
+
+        stmt = delete(DBInvitation).where(DBInvitation.id == invitation_id).where(exists_subq)
+        res = await self.session.execute(stmt)
+        return bool(res.rowcount and res.rowcount > 0)
 
     async def begin(self):
         await self.session.begin()
