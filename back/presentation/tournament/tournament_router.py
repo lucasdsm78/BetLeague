@@ -509,7 +509,8 @@ async def invite_user_to_tournament(
 async def delete_invitation(
         invitation_id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, current_user.get('email'))
@@ -517,6 +518,11 @@ async def delete_invitation(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
         )
     except Exception as e:
         raise HTTPException(

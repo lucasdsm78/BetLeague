@@ -499,6 +499,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 )
 
                 if not deleted:
-                    raise TournamentNotOwnerLeaguedError
+                    raise InvitationNotFoundError
 
         return InvitationDeleteResponse()
