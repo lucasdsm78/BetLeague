@@ -6,6 +6,7 @@ import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
 import { getSubscriptionPlan } from '../../utils/subscriptionPlan';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 type ShopTabType = 'packs' | 'subscription';
 
@@ -14,12 +15,15 @@ const ShopSection: React.FC = memo(() => {
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
   const [isTournamentSubscriptionModalOpen, setIsTournamentSubscriptionModalOpen] = useState(false);
   const [showSubscriptionSuccessModal, setShowSubscriptionSuccessModal] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [showPackPurchaseSuccessModal, setShowPackPurchaseSuccessModal] = useState(false);
   const [showPackPurchaseCancelledModal, setShowPackPurchaseCancelledModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { data: profile, refetch } = useProfileMeQuery();
-  const { user, updateUser } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const toast = useGlobalToast();
   const subscriptionPlan = getSubscriptionPlan();
 
   // Detect subscription success from URL
@@ -27,16 +31,54 @@ const ShopSection: React.FC = memo(() => {
     const subscriptionStatus = searchParams.get('subscription');
 
     if (subscriptionStatus === 'success') {
-      updateUser({ isTournamentSubscriber: true });
-      setShowSubscriptionSuccessModal(true);
-      refetch();
+      // Stripe a redirigé, mais la source de vérité reste le backend.
+      void (async () => {
+        try {
+          const res = await refetch();
+          const isSub = Boolean(res.data?.is_tournament_subscriber);
+          updateUser({ isTournamentSubscriber: isSub });
+
+          if (isSub) {
+            toast.showSuccess('Abonnement activé', 'Tu peux maintenant accéder aux tournois.');
+            navigate('/tournaments', { replace: true });
+          } else {
+            // Webhook en retard: fallback UX (pas de flash car on reste sur /shop)
+            toast.showInfo('Paiement reçu', "Nous finalisons ton abonnement. Réessaie dans quelques secondes.");
+            setShowSubscriptionSuccessModal(true);
+          }
+        } catch {
+          // best effort
+          setShowSubscriptionSuccessModal(true);
+        }
+      })();
       searchParams.delete('subscription');
       setSearchParams(searchParams, { replace: true });
     } else if (subscriptionStatus === 'cancelled') {
       searchParams.delete('subscription');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams, refetch]);
+  }, [searchParams, setSearchParams, refetch, updateUser, toast, navigate]);
+
+  const handleGoToTournamentsFromModal = useCallback(async () => {
+    if (isCheckingSubscription) return;
+    setIsCheckingSubscription(true);
+    try {
+      const res = await refetch();
+      const isSub = Boolean(res.data?.is_tournament_subscriber);
+      updateUser({ isTournamentSubscriber: isSub });
+      if (isSub) {
+        setShowSubscriptionSuccessModal(false);
+        toast.showSuccess('Abonnement activé', 'Accès aux tournois débloqué.');
+        navigate('/tournaments');
+      } else {
+        toast.showInfo('Activation en cours', "Toujours en cours. Réessaie dans quelques secondes.");
+      }
+    } catch {
+      toast.showError('Erreur', "Impossible de vérifier l'abonnement.");
+    } finally {
+      setIsCheckingSubscription(false);
+    }
+  }, [isCheckingSubscription, refetch, updateUser, toast, navigate]);
 
   // Detect pack purchase success/cancel from URL
   useEffect(() => {
@@ -67,8 +109,7 @@ const ShopSection: React.FC = memo(() => {
 
   const handlePurchaseComplete = useCallback(() => {
     setIsBTLPurchaseModalOpen(false);
-    // Ne plus refetch ici: le paiement n'est pas encore confirmé.
-  }, [refetch]);
+  }, []);
 
   const handleOpenTournamentSubscription = useCallback(() => {
     setIsTournamentSubscriptionModalOpen(true);
@@ -376,12 +417,10 @@ const ShopSection: React.FC = memo(() => {
             <div className="modal-footer">
               <button
                 className="btn btn-primary"
-                onClick={() => {
-                  setShowSubscriptionSuccessModal(false);
-                  navigate('/tournaments');
-                }}
+                onClick={handleGoToTournamentsFromModal}
+                disabled={isCheckingSubscription}
               >
-                Accéder aux tournois
+                {isCheckingSubscription ? 'Vérification...' : 'Accéder aux tournois'}
               </button>
             </div>
           </div>
