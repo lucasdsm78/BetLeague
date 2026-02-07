@@ -504,7 +504,7 @@ async def invite_user_to_tournament(
     "/tournament/invitation/{invitation_id}",
     response_model=InvitationDeleteResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Delete invitation to a league",
+    summary="Delete invitation to a tournament",
 )
 async def delete_invitation(
         invitation_id: int,
