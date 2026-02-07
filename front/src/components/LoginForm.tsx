@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, memo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
 import { AuthError } from 'services/authService.enhanced';
 import type { User } from 'types';
@@ -163,6 +163,8 @@ FormButton.displayName = 'FormButton';
 
 const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromRegister = (location.state as { fromRegister?: boolean })?.fromRegister === true;
   const { login, error: authError } = useEnhancedAuth({
     autoRefresh: true,
     onAuthChange: (isAuthenticated) => {
@@ -356,6 +358,16 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
           {!twoFA.required ? 'Bon retour sur BetLeague ! Connectez-vous pour accéder à vos ligues.' : 'Saisissez votre code 2FA pour finaliser la connexion.'}
         </p>
       </div>
+      {/* Bandeau succès inscription */}
+      {fromRegister && !twoFA.required && (
+        <div className="success-banner" role="status" aria-live="polite">
+          <div className="success-content">
+            <span className="success-icon" aria-hidden="true">&#10003;</span>
+            <span className="success-text">Inscription réussie ! Connectez-vous avec vos identifiants.</span>
+          </div>
+        </div>
+      )}
+
       {/* Bandeau information challenge 2FA */}
       {twoFA.required && !twoFA.error && (
         <div className="info-banner" role="status" aria-live="polite">

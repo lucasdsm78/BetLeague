@@ -7,6 +7,7 @@ import React, { useState, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { AuthError } from '../services/authService.enhanced';
+import { useGlobalToast } from '../toast/ToastProvider';
 import type { User } from '../types';
 
 // Types
@@ -216,14 +217,10 @@ FormButton.displayName = 'FormButton';
 
 const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegister }) => {
   const navigate = useNavigate();
+  const toast = useGlobalToast();
   const { register } = useEnhancedAuth({
-    autoRefresh: true,
-    activityTracking: true,
-    onAuthChange: (isAuthenticated) => {
-      if (isAuthenticated) {
-        navigate('/matches', { replace: true });
-      }
-    }
+    autoRefresh: false,
+    activityTracking: false,
   });
   const [formData, setFormData] = useState<FormData>({
     pseudo: '',
@@ -364,12 +361,17 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
         acceptTerms: true
       });
 
-      // Call onRegister callback with user data
       if (result && onRegister) {
         onRegister({ user: result });
       }
 
-      // Navigation will be handled by onAuthChange callback
+      toast.showSuccess(
+        'Inscription réussie',
+        'Votre compte a été créé avec succès. Connectez-vous pour commencer.',
+        6000
+      );
+
+      navigate('/login', { replace: true, state: { fromRegister: true } });
     } catch (error) {
       let message = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
 
@@ -389,7 +391,7 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
     } finally {
       setIsLoading(false);
     }
-  }, [formData, register, validateForm, onRegister]);
+  }, [formData, register, validateForm, onRegister, toast, navigate]);
 
   const handleBackClick = useCallback(() => {
     // Reset form state when going back

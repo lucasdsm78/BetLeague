@@ -218,7 +218,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
     }
   }, [storeLogin, setLoading, setError, storeClearError, onError]);
 
-  // Enhanced register function
+  // Enhanced register function - ne connecte PAS automatiquement
   const register = useCallback(async (credentials: RegisterForm): Promise<User> => {
     try {
       setLoading(true);
@@ -231,7 +231,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
       if (onError) { onError(authError); }
       throw authError;
     } finally { setLoading(false); }
-  }, [storeLogin, setLoading, setError, storeClearError, onError]);
+  }, [setLoading, setError, storeClearError, onError]);
 
   // Enhanced logout function
   const logout = useCallback(async (): Promise<void> => {
