@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import './ShopSection.css';
 import BTLPurchaseModal from './BTLPurchaseModal';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
@@ -17,8 +17,9 @@ const ShopSection: React.FC = memo(() => {
   const [showPackPurchaseSuccessModal, setShowPackPurchaseSuccessModal] = useState(false);
   const [showPackPurchaseCancelledModal, setShowPackPurchaseCancelledModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { data: profile, refetch } = useProfileMeQuery();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const subscriptionPlan = getSubscriptionPlan();
 
   // Detect subscription success from URL
@@ -26,6 +27,7 @@ const ShopSection: React.FC = memo(() => {
     const subscriptionStatus = searchParams.get('subscription');
 
     if (subscriptionStatus === 'success') {
+      updateUser({ isTournamentSubscriber: true });
       setShowSubscriptionSuccessModal(true);
       refetch();
       searchParams.delete('subscription');
@@ -374,9 +376,12 @@ const ShopSection: React.FC = memo(() => {
             <div className="modal-footer">
               <button
                 className="btn btn-primary"
-                onClick={() => setShowSubscriptionSuccessModal(false)}
+                onClick={() => {
+                  setShowSubscriptionSuccessModal(false);
+                  navigate('/tournaments');
+                }}
               >
-                Commencer à jouer
+                Accéder aux tournois
               </button>
             </div>
           </div>
