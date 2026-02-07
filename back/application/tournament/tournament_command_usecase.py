@@ -10,7 +10,7 @@ from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
-    TournamentPlayerDeletedResponse, TournamentInviteResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse
 )
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
@@ -31,9 +31,10 @@ from infrastructure.postgresql.tournament.tournament_match_repository import Tou
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
-from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
+
 
 
 class TournamentCommandUseCase(ABC):
@@ -55,6 +56,10 @@ class TournamentCommandUseCase(ABC):
 
     @abstractmethod
     async def leave_tournament(self, tournament_id: int, user_id: int) -> TournamentPlayerDeletedResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
         raise NotImplementedError
 
 
@@ -477,3 +482,18 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 await invitation_repo.add(invitation)
 
         return TournamentInviteResponse()
+
+    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
+        async with self._session_factory() as session:
+             async with session.begin():
+                 invitation_repo  = InvitationRepositoryImpl(session)
+
+                 deleted = await invitation_repo.delete_tournament_invitation_if_owner(
+                     invitation_id=invitation_id,
+                     owner_user_id=int(owner_user_id),
+                 )
+
+                 if not deleted:
+                     raise InvitationNotFoundError
+
+        return InvitationDeleteResponse()
