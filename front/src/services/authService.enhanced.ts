@@ -138,19 +138,13 @@ class EnhancedAuthService {
       throw error;
     }
   }
-  async register(credentials:RegisterForm):Promise<{user:User;token:string}>{
+  async register(credentials:RegisterForm):Promise<{user:User}>{
     try {
       const response=await this.makeRequest<any>('/auth/register',{method:'POST',body:JSON.stringify({ pseudo:credentials.pseudo, email:credentials.email, password:credentials.password })});
-      if(!response.token_auth || !response.uuid) throw new AuthError('Invalid registration response',500,'INVALID_RESPONSE');
+      if(!response.uuid) throw new AuthError('Invalid registration response',500,'INVALID_RESPONSE');
       const user:User={id:response.uuid,email:credentials.email,pseudo:credentials.pseudo,username:credentials.pseudo};
-      let expiresAt=Date.now()+24*60*60*1000;
-      if(response.token_expiration){ try { const parsed=new Date(response.token_expiration).getTime(); if(!isNaN(parsed)) expiresAt=parsed; } catch{} }
-      if(response.token_auth){ try{ const tokenPayload=JSON.parse(atob(response.token_auth.split('.')[1])); if(tokenPayload.exp) expiresAt=tokenPayload.exp*1000;}catch{} }
-      const refreshToken=response.refresh_token || response.refreshToken;
-      const tokenPair:TokenPair={accessToken:response.token_auth, refreshToken: refreshToken || undefined, expiresAt};
-      this.storeTokenPair(tokenPair);
-      useAuthStore.getState().login(user, tokenPair.accessToken);
-      return {user, token:tokenPair.accessToken};
+      // Ne pas stocker le token ni auto-connecter : l'utilisateur doit se connecter explicitement
+      return {user};
     } catch(error){ console.error('❌ Registration failed:',error); throw error instanceof AuthError?error:new AuthError('Registration failed'); }
   }
   async validateToken():Promise<{user:User}>{ const token=this.getCurrentAccessToken(); if(!token) throw new AuthError('No token available',401,'NO_TOKEN'); try { const tokenPayload=JSON.parse(atob(token.split('.')[1])); const user={ id:tokenPayload.id||tokenPayload.user_id, email:tokenPayload.sub||tokenPayload.email, username:tokenPayload.username||tokenPayload.pseudo, pseudo:tokenPayload.pseudo }; return {user}; } catch(err){ throw new AuthError('Invalid token format',401,'INVALID_TOKEN'); } }

@@ -889,6 +889,34 @@
   font-size: var(--text-base);
 }
 
+/* Success banner */
+.success-banner {
+  background-color: var(--color-success-50);
+  border: 1px solid var(--color-success-500);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  animation: slideIn 0.4s ease-out;
+}
+
+.success-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.success-text {
+  color: var(--color-success-700);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.success-icon {
+  color: var(--color-success-600);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
 /* Required asterisk */
 .required-asterisk {
   color: var(--color-error-500);
