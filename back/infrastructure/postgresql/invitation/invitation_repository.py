@@ -16,6 +16,11 @@ class InvitationRepositoryImpl(InvitationRepository):
     def __init__(self, session: AsyncSession):
         self.session: AsyncSession = session
 
+    async def delete(self, invitation_id: int) -> bool:
+        stmt = delete(DBInvitation).where(DBInvitation.id == invitation_id)
+        res = await self.session.execute(stmt)
+        return bool(res.rowcount and res.rowcount > 0)
+
     async def add(self, invitation: Invitation):
         invitation_db = DBInvitation.from_entity(invitation)
         try:

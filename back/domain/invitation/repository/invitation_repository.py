@@ -12,6 +12,10 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def delete(self, invitation_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_id(self, invitation_id: int) -> Optional[Invitation]:
         raise NotImplementedError
 
