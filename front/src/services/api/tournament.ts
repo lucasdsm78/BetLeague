@@ -9,6 +9,7 @@ import type {
   Tournament,
   TournamentStagesResponse,
   MyTournamentsResponse,
+  CreatedTournamentsResponse,
   StageMatchesResponse,
   TournamentsFinishedResponse,
   TournamentMatchOption,
@@ -80,6 +81,21 @@ export async function getStageMatches(tournamentId: number, stageType: string): 
   const response: ApiResponse<StageMatchesResponse> = await http.get(`/tournament/${tournamentId}/stage/${stageType}/matches`);
   if (!response.success) throw new Error(response.error || 'Impossible de récupérer les matchs de tournoi');
   return response.data as StageMatchesResponse;
+}
+
+export async function getMyCreatedTournaments(page = 1, pageSize = 10): Promise<CreatedTournamentsResponse> {
+  const response: ApiResponse<CreatedTournamentsResponse> = await http.get(
+    `/tournaments/my/created?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`
+  );
+  if (!response.success) {
+    const status = response.status;
+    const detail = response.error || response.message;
+    if (status === 402) {
+      throw new Error(detail || "Abonnement tournoi requis pour accéder à vos tournois créés.");
+    }
+    throw new Error(detail || 'Impossible de récupérer vos tournois créés');
+  }
+  return response.data as CreatedTournamentsResponse;
 }
 
 export async function getFinishedTournaments(page = 1, pageSize = 10): Promise<TournamentsFinishedResponse> {
