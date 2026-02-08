@@ -8,7 +8,9 @@ import {
   getTournamentStages,
   getTournaments,
   joinTournament,
+  leaveTournament,
 } from '../../services/api/tournament';
+import { secureApiClient } from '../../services/secureApiClient';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
@@ -92,6 +94,51 @@ export function useJoinTournamentMutation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tournamentKeys.availableList });
       qc.invalidateQueries({ queryKey: tournamentKeys.myList });
+    },
+  });
+}
+
+export function useLeaveTournamentMutation() {
+  const qc = useQueryClient();
+
+  type Context = {
+    previousData: [readonly unknown[], MyTournamentsResponse | undefined][];
+  };
+
+  return useMutation<{ message: string }, Error, { tournamentId: number }, Context>({
+    mutationFn: ({ tournamentId }) => leaveTournament(tournamentId),
+    onMutate: async ({ tournamentId }) => {
+      await qc.cancelQueries({ queryKey: tournamentKeys.myList });
+
+      const previousData = qc.getQueriesData<MyTournamentsResponse>({
+        queryKey: tournamentKeys.myList,
+      });
+
+      qc.setQueriesData<MyTournamentsResponse>(
+        { queryKey: tournamentKeys.myList },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            tournaments: old.tournaments.filter((t) => t.id !== tournamentId),
+            total_count: Math.max(0, old.total_count - 1),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        for (const [queryKey, data] of context.previousData) {
+          if (data) qc.setQueryData(queryKey, data);
+        }
+      }
+    },
+    onSettled: () => {
+      secureApiClient.clearCache();
+      qc.invalidateQueries({ queryKey: tournamentKeys.myList });
+      qc.invalidateQueries({ queryKey: tournamentKeys.availableList });
     },
   });
 }

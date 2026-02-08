@@ -1,0 +1,367 @@
+/* ============================================
+   LEAVE TOURNAMENT MODAL
+   ============================================ */
+
+/* Overlay */
+.leave-tournament-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: leaveTournamentFadeIn 0.3s ease;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Content */
+.leave-tournament-content {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: leaveTournamentSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.leave-tournament-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.leave-tournament-title-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.leave-tournament-warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.leave-tournament-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0;
+  color: #ef4444;
+  line-height: 1.2;
+}
+
+.leave-tournament-close-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  color: #ef4444;
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.leave-tournament-close-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  transform: scale(1.05);
+}
+
+.leave-tournament-close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Body */
+.leave-tournament-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.leave-tournament-message {
+  margin: 0 0 1.25rem 0;
+  font-size: 1rem;
+  color: #1f2937;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.leave-tournament-message strong {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.leave-tournament-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Error */
+.leave-tournament-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  border-radius: 12px;
+  color: #ef4444;
+  animation: leaveTournamentShake 0.4s ease;
+}
+
+.leave-tournament-error-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.leave-tournament-error-message {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Actions */
+.leave-tournament-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+/* Buttons */
+.leave-tournament-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  min-height: 48px;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.leave-tournament-btn-cancel {
+  background: transparent;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.leave-tournament-btn-cancel:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #6b7280;
+  color: #1f2937;
+}
+
+.leave-tournament-btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.leave-tournament-btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.leave-tournament-btn-danger:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.leave-tournament-btn-danger:disabled,
+.leave-tournament-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.leave-tournament-btn-icon {
+  font-size: 1.125rem;
+}
+
+/* Spinner */
+.leave-tournament-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: leaveTournamentSpin 0.8s linear infinite;
+}
+
+/* Animations */
+@keyframes leaveTournamentFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes leaveTournamentSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes leaveTournamentShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes leaveTournamentSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  .leave-tournament-overlay {
+    padding: 0.5rem;
+  }
+
+  .leave-tournament-content {
+    max-width: 100%;
+    max-height: 95vh;
+  }
+
+  .leave-tournament-header {
+    padding: 1.25rem;
+  }
+
+  .leave-tournament-title {
+    font-size: 1.25rem;
+  }
+
+  .leave-tournament-body {
+    padding: 1.25rem;
+  }
+
+  .leave-tournament-actions {
+    padding: 1.25rem;
+    flex-direction: column;
+  }
+
+  .leave-tournament-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .leave-tournament-hint {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ============================================
+   DARK MODE
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  .leave-tournament-content {
+    background: #1f2937;
+  }
+
+  .leave-tournament-header {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+  }
+
+  .leave-tournament-message {
+    color: #f9fafb;
+  }
+
+  .leave-tournament-hint {
+    color: #d1d5db;
+  }
+
+  .leave-tournament-actions {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .leave-tournament-btn-cancel {
+    color: #d1d5db;
+    border-color: #374151;
+  }
+
+  .leave-tournament-btn-cancel:hover:not(:disabled) {
+    background: #111827;
+    border-color: #d1d5db;
+    color: #f9fafb;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.leave-tournament-btn:focus-visible,
+.leave-tournament-close-btn:focus-visible {
+  outline: 3px solid #ef4444;
+  outline-offset: 2px;
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .leave-tournament-overlay,
+  .leave-tournament-content,
+  .leave-tournament-error,
+  .leave-tournament-btn,
+  .leave-tournament-close-btn {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .leave-tournament-spinner {
+    animation: none;
+    border: 2px solid white;
+    border-radius: 0;
+  }
+}
