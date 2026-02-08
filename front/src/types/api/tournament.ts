@@ -130,4 +130,18 @@ export interface TournamentPlayerBalance {
   nb_btl: number;
 }
 
-// (supprimé) Alias pour compatibilité : MyTournament existe déjà comme interface ci-dessus.
+export interface CreatedTournament {
+  id: number;
+  uuid: string;
+  name: string;
+  is_private: boolean;
+  start_date: number;
+  end_date: number;
+}
+
+export interface CreatedTournamentsResponse {
+  tournaments: CreatedTournament[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
