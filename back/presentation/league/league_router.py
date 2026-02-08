@@ -426,6 +426,12 @@ async def update_invitation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
+    except InvitationNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotInvitationLeaguedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except LeagueParticipantFoundError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
     except UserNotOwnerLeaguedError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

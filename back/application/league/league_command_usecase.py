@@ -375,8 +375,25 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueNotFoundError
 
                 if action:
-                    invitation.status = InvitationStatus.accepted
-                    await self.join_league(league_id=invitation.league_id, email=email)
+                    if await players_repo.find_participation(league_id=league.id, user_id=user.id):
+                        invitation.status = InvitationStatus.accepted
+                    else:
+                        invitation.status = InvitationStatus.accepted
+
+                        if league.nb_players_remaining == 0:
+                            raise LeagueMaxPlayersError
+
+                        if not league.is_free:
+                            if league.nb_btl is None or user.nb_btl < league.nb_btl:
+                                raise LeagueNbBtlIsNotEnoughError
+
+                        if not league.is_free and league.nb_btl is not None:
+                            user.nb_btl -= league.nb_btl
+                            await user_repo.update(user)
+
+                        await players_repo.join_league(
+                            LeaguePlayers(user_id=user.id, league_id=league.id)
+                        )
 
                     await self._event_bus.publish(
                         LeagueInvitationAccepted(
