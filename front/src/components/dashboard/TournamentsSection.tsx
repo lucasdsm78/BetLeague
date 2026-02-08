@@ -8,13 +8,14 @@ import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
 import MyTournaments from './MyTournaments';
+import MyCreatedTournaments from './MyCreatedTournaments';
 import FinishedTournaments from './FinishedTournaments';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useAvailableTournamentsQuery, useJoinTournamentMutation } from '../../hooks/queries/useTournamentQueries';
 import type { Tournament } from '../../types/api/tournament';
 import './TournamentsSection.css';
 
-type TournamentTab = 'available' | 'my-tournaments' | 'finished-tournaments';
+type TournamentTab = 'available' | 'my-tournaments' | 'my-created' | 'finished-tournaments';
 
 const TournamentsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TournamentTab>('available');
@@ -47,7 +48,7 @@ const TournamentsSection: React.FC = () => {
 
   const handleTournamentCreated = useCallback(() => {
     showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
-    setActiveTab('my-tournaments');
+    setActiveTab('my-created');
   }, [showInfo]);
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
@@ -115,6 +116,16 @@ const TournamentsSection: React.FC = () => {
         >
           <span className="tab-icon" aria-hidden="true">🏅</span>
           <span className="tab-label">Mes tournois rejoints</span>
+        </button>
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'my-created' ? 'tab-active' : ''}`}
+          onClick={() => setActiveTab('my-created')}
+          role="tab"
+          aria-selected={activeTab === 'my-created'}
+        >
+          <span className="tab-icon" aria-hidden="true">{'\u2696\uFE0F'}</span>
+          <span className="tab-label">Mes tournois créés</span>
         </button>
         <button
           type="button"
@@ -212,6 +223,11 @@ const TournamentsSection: React.FC = () => {
         {/* My Tournaments Tab */}
         {activeTab === 'my-tournaments' && (
           <MyTournaments />
+        )}
+
+        {/* My Created Tournaments Tab */}
+        {activeTab === 'my-created' && (
+          <MyCreatedTournaments />
         )}
 
         {/* Finished Tournaments Tab */}
