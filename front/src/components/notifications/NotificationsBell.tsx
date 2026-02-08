@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, memo, useCallback } from 'react';
+import { useMemo, memo, useCallback } from 'react';
 import styles from './NotificationsBell.module.css';
 import { useNotificationsStore } from '../../store/notificationsStore';
-import { NotificationsStream } from '../../services/realtime/notificationsStream';
-import type { NotificationItem } from '../../services/api/notifications';
 
 interface NotificationsBellProps {
   onClick?: () => void;
@@ -10,29 +8,6 @@ interface NotificationsBellProps {
 
 export const NotificationsBell = memo(function NotificationsBell({ onClick }: NotificationsBellProps) {
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
-  const hydrate = useNotificationsStore((s) => s.hydrate);
-  const pushFromRealtime = useNotificationsStore((s) => s.pushFromRealtime);
-
-  const streamRef = useRef<NotificationsStream | null>(null);
-
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
-
-  useEffect(() => {
-    const stream = new NotificationsStream();
-    streamRef.current = stream;
-
-    stream.start({
-      onMessage: (msg) => {
-        if (msg.type === 'notification.created' && 'notification' in msg) {
-          pushFromRealtime(msg.notification as NotificationItem);
-        }
-      },
-    });
-
-    return () => stream.stop();
-  }, [pushFromRealtime]);
 
   const handleClick = useCallback(() => {
     onClick?.();
