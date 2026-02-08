@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createTournament,
   getFinishedTournaments,
+  getMyCreatedTournaments,
   getMyTournaments,
   getStageMatches,
   getTournamentStages,
@@ -9,10 +10,9 @@ import {
   joinTournament,
 } from '../../services/api/tournament';
 import type {
-  MyTournament,
+  CreatedTournamentsResponse,
   MyTournamentsResponse,
   StageMatchesResponse,
-  Tournament,
   TournamentCreateRequest,
   TournamentCreateResponse,
   TournamentStagesResponse,
@@ -33,6 +33,14 @@ export function useMyTournamentsQuery(page: number, pageSize: number, options?: 
   return useQuery<MyTournamentsResponse, Error>({
     queryKey: tournamentKeys.my(page, pageSize),
     queryFn: () => getMyTournaments(page, pageSize),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useMyCreatedTournamentsQuery(page: number, pageSize: number, options?: { enabled?: boolean }) {
+  return useQuery<CreatedTournamentsResponse, Error>({
+    queryKey: tournamentKeys.myCreated(page, pageSize),
+    queryFn: () => getMyCreatedTournaments(page, pageSize),
     enabled: options?.enabled ?? true,
   });
 }
@@ -71,6 +79,7 @@ export function useCreateTournamentMutation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tournamentKeys.availableList });
       qc.invalidateQueries({ queryKey: tournamentKeys.myList });
+      qc.invalidateQueries({ queryKey: tournamentKeys.myCreatedList });
       qc.invalidateQueries({ queryKey: tournamentKeys.finishedList });
     },
   });
