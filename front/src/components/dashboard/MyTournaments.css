@@ -358,6 +358,40 @@
   transition: transform 0.3s ease;
 }
 
+/* Card Actions */
+.my-tournament-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.btn-leave-tournament {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  white-space: nowrap;
+}
+
+.btn-leave-tournament:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+.btn-leave-tournament:active {
+  transform: translateY(0);
+}
+
 /* Card Body */
 .my-tournament-card-body {
   padding-top: 0.5rem;
@@ -547,7 +581,17 @@
     font-size: 1.375rem;
   }
 
+  .my-tournament-card-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
   .btn-view-stages {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-leave-tournament {
     width: 100%;
     justify-content: center;
   }
@@ -610,6 +654,11 @@
   }
 
   .btn-view-stages {
+    padding: 0.675rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-leave-tournament {
     padding: 0.675rem 1rem;
     font-size: 0.875rem;
   }
@@ -736,6 +785,7 @@
   .my-tournament-card,
   .pagination-btn,
   .btn-view-stages,
+  .btn-leave-tournament,
   .stat-item {
     transition: none;
   }
@@ -800,6 +850,7 @@
   .my-tournament-card::before,
   .my-tournaments-header::before,
   .btn-view-stages,
+  .btn-leave-tournament,
   .my-tournaments-pagination {
     display: none;
   }

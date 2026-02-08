@@ -98,6 +98,35 @@ export async function getMyCreatedTournaments(page = 1, pageSize = 10): Promise<
   return response.data as CreatedTournamentsResponse;
 }
 
+export async function leaveTournament(tournamentId: number): Promise<{ message: string }> {
+  if (!Number.isInteger(tournamentId) || tournamentId <= 0) {
+    throw new Error('ID de tournoi invalide');
+  }
+
+  const response: ApiResponse<{ message: string }> = await http.delete(
+    `/tournament/${tournamentId}/player/me`
+  );
+
+  if (!response.success) {
+    const status = response.status;
+    const detail = response.error || response.message;
+
+    if (status === 401) {
+      throw new Error(detail || 'Le tournoi a déjà commencé ou session expirée.');
+    }
+    if (status === 402) {
+      throw new Error(detail || "Abonnement tournoi requis.");
+    }
+    if (status === 404) {
+      throw new Error(detail || 'Tournoi ou utilisateur introuvable.');
+    }
+
+    throw new Error(detail || 'Impossible de quitter le tournoi');
+  }
+
+  return (response.data ?? { message: '' }) as { message: string };
+}
+
 export async function getFinishedTournaments(page = 1, pageSize = 10): Promise<TournamentsFinishedResponse> {
   const response: ApiResponse<TournamentsFinishedResponse> = await http.get(`/tournaments/my/finished?page=${page}&page_size=${pageSize}`);
   if (!response.success) throw new Error(response.error || 'Impossible de récupérer les tournois terminés');

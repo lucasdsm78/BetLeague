@@ -411,7 +411,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 if not tournament_player:
                     raise TournamentPlayerNotFoundError
 
-                if tournament_player.user.id != user_id:
+                if tournament_player.user_id != user_id:
                     raise TournamentNotThePlayerError
 
                 tournament.current_players -= 1

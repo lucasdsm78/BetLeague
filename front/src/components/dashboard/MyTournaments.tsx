@@ -4,9 +4,10 @@
  */
 
 import React, { memo, useState, useCallback } from 'react';
-import { useMyTournamentsQuery } from '../../hooks/queries/useTournamentQueries';
+import { useMyTournamentsQuery, useLeaveTournamentMutation } from '../../hooks/queries/useTournamentQueries';
 import type { MyTournament } from '../../types/api/tournament';
 import TournamentStages from './TournamentStages';
+import LeaveTournamentModal from './LeaveTournamentModal';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './MyTournaments.css';
 
@@ -14,7 +15,9 @@ const MyTournaments: React.FC = memo(() => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
-  const { showError } = useGlobalToast();
+  const [tournamentToLeave, setTournamentToLeave] = useState<MyTournament | null>(null);
+  const [leaveError, setLeaveError] = useState('');
+  const { showError, showSuccess } = useGlobalToast();
 
   const myQuery = useMyTournamentsQuery(page, pageSize);
   const tournaments = myQuery.data?.tournaments ?? [];
@@ -36,8 +39,36 @@ const MyTournaments: React.FC = memo(() => {
   }, [page, totalCount, pageSize]);
 
   const handleViewStages = useCallback((tournamentId: number) => {
-    setSelectedTournamentId(selectedTournamentId === tournamentId ? null : tournamentId);
-  }, [selectedTournamentId]);
+    setSelectedTournamentId(prev => prev === tournamentId ? null : tournamentId);
+  }, []);
+
+  const leaveMutation = useLeaveTournamentMutation();
+
+  const handleOpenLeaveModal = useCallback((tournament: MyTournament) => {
+    setLeaveError('');
+    setTournamentToLeave(tournament);
+  }, []);
+
+  const handleCloseLeaveModal = useCallback(() => {
+    if (!leaveMutation.isPending) {
+      setTournamentToLeave(null);
+      setLeaveError('');
+    }
+  }, [leaveMutation.isPending]);
+
+  const handleConfirmLeave = useCallback(async () => {
+    if (!tournamentToLeave || leaveMutation.isPending) return;
+
+    setLeaveError('');
+
+    try {
+      await leaveMutation.mutateAsync({ tournamentId: tournamentToLeave.id });
+      showSuccess('Tournoi quitté', `Vous avez quitté le tournoi ${tournamentToLeave.name}`);
+      setTournamentToLeave(null);
+    } catch (err: any) {
+      setLeaveError(err?.message || 'Impossible de quitter le tournoi');
+    }
+  }, [tournamentToLeave, leaveMutation, showSuccess]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -109,15 +140,24 @@ const MyTournaments: React.FC = memo(() => {
                       )}
                     </div>
 
-                    <button
-                      className="btn-view-stages"
-                      onClick={() => handleViewStages(tournament.id)}
-                    >
-                      <span className="btn-icon">
-                        {selectedTournamentId === tournament.id ? '▼' : '▶'}
-                      </span>
-                      {selectedTournamentId === tournament.id ? 'Masquer les étapes' : 'Voir les étapes'}
-                    </button>
+                    <div className="my-tournament-card-actions">
+                      <button
+                        className="btn-view-stages"
+                        onClick={() => handleViewStages(tournament.id)}
+                      >
+                        <span className="btn-icon">
+                          {selectedTournamentId === tournament.id ? '▼' : '▶'}
+                        </span>
+                        {selectedTournamentId === tournament.id ? 'Masquer les étapes' : 'Voir les étapes'}
+                      </button>
+                      <button
+                        className="btn-leave-tournament"
+                        onClick={() => handleOpenLeaveModal(tournament)}
+                      >
+                        <span className="btn-icon">🚪</span>
+                        Quitter
+                      </button>
+                    </div>
                   </div>
 
                   {/* Card Body */}
@@ -191,6 +231,15 @@ const MyTournaments: React.FC = memo(() => {
           </>
         )}
       </div>
+
+      {/* Leave Tournament Modal */}
+      <LeaveTournamentModal
+        tournament={tournamentToLeave}
+        isLeaving={leaveMutation.isPending}
+        error={leaveError}
+        onClose={handleCloseLeaveModal}
+        onConfirm={handleConfirmLeave}
+      />
     </div>
   );
 });
