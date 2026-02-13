@@ -338,7 +338,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-.stat-label {
+.profile-section .stat-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -347,7 +347,7 @@
   margin-bottom: 0.5rem;
 }
 
-.stat-value {
+.profile-section .stat-value {
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -936,7 +936,7 @@
     padding: 1.25rem 1rem;
   }
 
-  .stat-value {
+  .profile-section .stat-value {
     font-size: 1.75rem;
   }
 
@@ -1041,11 +1041,11 @@
     padding: 1rem;
   }
 
-  .stat-value {
+  .profile-section .stat-value {
     font-size: 1.5rem;
   }
 
-  .stat-label {
+  .profile-section .stat-label {
     font-size: 0.7rem;
   }
 }
