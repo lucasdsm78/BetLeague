@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy import select, exists, func
 import pytz
@@ -9,7 +9,7 @@ from application.ticket.ticket_command_model import MatchChoiceData
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
-from infrastructure.postgresql.match.db_match import DBMatch
+from infrastructure.postgresql.match.db_match import DBMatch, unixtimestamp
 
 
 class MatchRepositoryImpl(MatchRepository):
@@ -143,6 +143,69 @@ class MatchRepositoryImpl(MatchRepository):
         result = await self.session.execute(stmt)
         db_matches = result.scalars().all()
         return [db.to_entity() for db in db_matches]
+
+    async def find_by_api_fixture_id(self, api_fixture_id: int) -> Optional[Match]:
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id == api_fixture_id)
+        )
+        db_match = result.scalar_one_or_none()
+        return db_match.to_entity() if db_match else None
+
+    async def upsert_by_api_fixture_id(self, match: Match) -> Match:
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id == match.api_fixture_id)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.home_team = match.home_team
+            existing.away_team = match.away_team
+            existing.time = match.time
+            existing.cote_home = match.cote_home
+            existing.cote_draw = match.cote_draw
+            existing.cote_away = match.cote_away
+            existing.league_name = match.league_name
+            existing.league_id = match.league_id
+            existing.logo_home = match.logo_home
+            existing.logo_away = match.logo_away
+            existing.score_home = match.score_home
+            existing.score_away = match.score_away
+            existing.status = match.status.value if hasattr(match.status, 'value') else str(match.status)
+            existing.sport = match.sport.value if hasattr(match.sport, 'value') else str(match.sport)
+            existing.season = match.season
+            existing.winner = match.winner
+            existing.updated_at = unixtimestamp()
+            await self.session.flush()
+            return existing.to_entity()
+        else:
+            db_match = DBMatch.from_entity(match)
+            self.session.add(db_match)
+            await self.session.flush()
+            return db_match.to_entity()
+
+    async def find_active_fixture_ids(self) -> List[int]:
+        now = datetime.utcnow()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO', 'CANC', 'ABD', 'PST')
+
+        result = await self.session.execute(
+            select(DBMatch.api_fixture_id)
+            .where(
+                DBMatch.api_fixture_id.isnot(None),
+                DBMatch.time >= start_of_day,
+                DBMatch.time <= end_of_day,
+                DBMatch.status.notin_(finished_statuses),
+            )
+        )
+        return [row[0] for row in result.all()]
+
+    async def bulk_update_scores(self, updates: list[dict]) -> None:
+        def _do_bulk(sess):
+            sess.bulk_update_mappings(DBMatch, updates)
+
+        await self.session.run_sync(_do_bulk)
 
     async def begin(self):
         await self.session.begin()

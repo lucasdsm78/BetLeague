@@ -33,6 +33,8 @@ from domain.purchase.repository.purchase_repository import PurchaseRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
+from domain.match.model.sport import Sport
+from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
@@ -85,6 +87,11 @@ from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
+from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
+from infrastructure.services.api_sports.football_fetch_service import ApiSportsFootballFetchService
+from infrastructure.services.api_sports.match_fetch_router import MultiSportMatchFetchRouter
+from infrastructure.services.api_sports.score_service import ApiSportsScoreService
+from application.match.match_fetch_usecase import MatchFetchUseCase, MatchFetchUseCaseImpl
 from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
@@ -146,6 +153,38 @@ def totp_service() -> TOTPService:
 
 def match_score_api(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
     return MatchScoreApiImpl(settings=settings)
+
+
+@lru_cache()
+def _api_sports_football_client() -> ApiSportsBaseClient:
+    settings = get_settings()
+    return ApiSportsBaseClient(
+        base_url=settings.api_sports_football_url,
+        api_key=settings.api_sports_key,
+    )
+
+
+def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+    client = _api_sports_football_client()
+    football_service = ApiSportsFootballFetchService(client=client)
+    return MultiSportMatchFetchRouter(services={
+        Sport.FOOTBALL: football_service,
+    })
+
+
+def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+    client = _api_sports_football_client()
+    return ApiSportsScoreService(client=client)
+
+
+def match_fetch_usecase_dep(
+        match_fetch_api_dependency: MatchFetchApi = Depends(match_fetch_api_dep),
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> MatchFetchUseCase:
+    return MatchFetchUseCaseImpl(
+        match_fetch_api=match_fetch_api_dependency,
+        session_factory=session_factory,
+    )
 
 
 def user_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> UserRepository:
@@ -517,7 +556,7 @@ def match_query_usecase(
 def match_command_usecase(
         match_repository: MatchRepository = Depends(match_repository_dependency),
         settings: Settings = Depends(get_settings),
-        match_score_api_dependency: MatchScoreApi = Depends(match_score_api),
+        match_score_api_dependency: MatchScoreApi = Depends(match_score_api_v2),
         publisher: RabbitMQPublisherScoreService = Depends(rabbitmq_dependency_score_service),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchCommandUseCase:

@@ -22,7 +22,7 @@ python-Levenshtein
 PyJWT
 pytz
 asyncpg
-celery
+celery[redis]>=5.3.0
 stripe
 orjson
 uvloop

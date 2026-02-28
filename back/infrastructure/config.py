@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     vapid_public_key: str = Field(default="", validation_alias="VAPID_PUBLIC_KEY")
     vapid_claims_email: str = Field(default="contact@betleague.app", validation_alias="VAPID_CLAIMS_EMAIL")
     vapid_ttl: int = Field(default=86400, validation_alias="VAPID_TTL")
+    api_sports_key: str = Field(default="", validation_alias="API_SPORTS_KEY")
+    api_sports_football_url: str = Field(default="https://v3.football.api-sports.io", validation_alias="API_SPORTS_FOOTBALL_URL")
+    api_sports_basketball_url: str = Field(default="https://v1.basketball.api-sports.io", validation_alias="API_SPORTS_BASKETBALL_URL")
+    api_sports_rugby_url: str = Field(default="https://v1.rugby.api-sports.io", validation_alias="API_SPORTS_RUGBY_URL")
+    api_sports_hockey_url: str = Field(default="https://v1.hockey.api-sports.io", validation_alias="API_SPORTS_HOCKEY_URL")
+    api_sports_baseball_url: str = Field(default="https://v1.baseball.api-sports.io", validation_alias="API_SPORTS_BASEBALL_URL")
+    celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")
+    celery_result_backend: str = Field(default="redis://localhost:6379/2", validation_alias="CELERY_RESULT_BACKEND")
 
     class Config:
         env_file = ".env"

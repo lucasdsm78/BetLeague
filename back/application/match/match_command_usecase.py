@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Callable, List, Dict, Any
 
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from application.match.match_command_model import NoMatchScoreUpdatedResponse, MatchScoreUpdatedResponse
 from domain.match.event.match_winner_updated_event import MatchWinnerUpdatedEvent, MatchUpdatedEvent
 from domain.match.model.match_possibility import MatchPossibility
+from domain.match.model.match_status import MatchStatus
 from domain.match.repository.match_repository import MatchRepository
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
@@ -16,11 +18,17 @@ from infrastructure.config import Settings
 from datetime import datetime
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 
+logger = logging.getLogger(__name__)
+
 
 class MatchCommandUseCase(ABC):
 
     @abstractmethod
     async def check_scores(self, token: str, from_date: datetime, to_date: datetime):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def check_scores_v2(self):
         raise NotImplementedError
 
 
@@ -109,6 +117,57 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
 
                 if to_update:
                     await repo.bulk_update_winner(to_update)
+                    for ev in events:
+                        await self.publisher.publish_match_winner_updated(ev)
+                    return MatchScoreUpdatedResponse()
+
+                return NoMatchScoreUpdatedResponse()
+
+    async def check_scores_v2(self):
+        await self.publisher.connect()
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = MatchRepositoryImpl(session=session)
+
+                fixture_ids = await repo.find_active_fixture_ids()
+                if not fixture_ids:
+                    return NoMatchScoreUpdatedResponse()
+
+                api_results = await self.match_score_api.get_live_scores(fixture_ids)
+                if not api_results:
+                    return NoMatchScoreUpdatedResponse()
+
+                to_update = []
+                events = []
+
+                for result in api_results:
+                    match = await repo.find_by_api_fixture_id(result["api_fixture_id"])
+                    if not match:
+                        continue
+
+                    match.score_home = result.get("score_home")
+                    match.score_away = result.get("score_away")
+                    try:
+                        match.status = MatchStatus.from_str(result.get("status", "NS"))
+                    except Exception:
+                        match.status = MatchStatus.NOT_STARTED
+
+                    new_winner = match.determine_winner()
+
+                    to_update.append({
+                        "id": match.id,
+                        "score_home": match.score_home,
+                        "score_away": match.score_away,
+                        "status": match.status.value,
+                        "winner": new_winner,
+                    })
+
+                    if match.status.is_finished() and new_winner and match.winner != new_winner:
+                        events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
+
+                if to_update:
+                    await repo.bulk_update_scores(to_update)
                     for ev in events:
                         await self.publisher.publish_match_winner_updated(ev)
                     return MatchScoreUpdatedResponse()
