@@ -137,6 +137,48 @@ services:
 #        condition: service_healthy
 #    restart: always
 
+  celery_worker:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    container_name: celery_worker
+    command: celery -A infrastructure.celery.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./back:/app
+    env_file:
+      - back/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+      REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    restart: always
+
+  celery_beat:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    container_name: celery_beat
+    command: celery -A infrastructure.celery.celery_app beat --loglevel=info
+    volumes:
+      - ./back:/app
+    env_file:
+      - back/.env
+    environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
+      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
+      REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+    depends_on:
+      - redis
+    restart: always
+
   outbox_worker:
     build:
       context: back

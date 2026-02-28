@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,14 @@ class MatchReadModel(BaseModel):
     time: datetime
     created_at: int
     updated_at: int
+    sport: str = "football"
+    league_name: Optional[str] = None
+    logo_home: Optional[str] = None
+    logo_away: Optional[str] = None
+    score_home: Optional[int] = None
+    score_away: Optional[int] = None
+    status: str = "NS"
+    winner: Optional[str] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -34,7 +42,15 @@ class MatchReadModel(BaseModel):
             cote_away=match.cote_away,
             time=match.time,
             created_at=match.created_at,
-            updated_at=match.updated_at
+            updated_at=match.updated_at,
+            sport=match.sport.value if hasattr(match.sport, 'value') else str(match.sport),
+            league_name=match.league_name,
+            logo_home=match.logo_home,
+            logo_away=match.logo_away,
+            score_home=match.score_home,
+            score_away=match.score_away,
+            status=match.status.value if hasattr(match.status, 'value') else str(match.status),
+            winner=match.winner,
         )
 
 

@@ -44,6 +44,22 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_api_fixture_id(self, api_fixture_id: int) -> Optional[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def upsert_by_api_fixture_id(self, match: Match) -> Match:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_active_fixture_ids(self) -> List[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def bulk_update_scores(self, updates: list[dict]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def begin(self):
         raise NotImplementedError
 
