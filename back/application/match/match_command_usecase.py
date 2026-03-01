@@ -129,42 +129,51 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
         async with self._session_factory() as session:
             async with session.begin():
                 repo = MatchRepositoryImpl(session=session)
-
-                fixture_ids = await repo.find_active_fixture_ids()
-                if not fixture_ids:
-                    return NoMatchScoreUpdatedResponse()
-
-                api_results = await self.match_score_api.get_live_scores(fixture_ids)
-                if not api_results:
-                    return NoMatchScoreUpdatedResponse()
-
                 to_update = []
                 events = []
 
-                for result in api_results:
-                    match = await repo.find_by_api_fixture_id(result["api_fixture_id"])
-                    if not match:
-                        continue
-
-                    match.score_home = result.get("score_home")
-                    match.score_away = result.get("score_away")
-                    try:
-                        match.status = MatchStatus.from_str(result.get("status", "NS"))
-                    except Exception:
-                        match.status = MatchStatus.NOT_STARTED
-
+                finished_no_winner = await repo.find_finished_without_winner()
+                for match in finished_no_winner:
                     new_winner = match.determine_winner()
+                    if new_winner:
+                        to_update.append({
+                            "id": match.id,
+                            "score_home": match.score_home,
+                            "score_away": match.score_away,
+                            "status": match.status.value,
+                            "winner": new_winner,
+                        })
+                        if match.winner != new_winner:
+                            events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
 
-                    to_update.append({
-                        "id": match.id,
-                        "score_home": match.score_home,
-                        "score_away": match.score_away,
-                        "status": match.status.value,
-                        "winner": new_winner,
-                    })
+                fixture_ids = await repo.find_active_fixture_ids()
+                if fixture_ids:
+                    api_results = await self.match_score_api.get_live_scores(fixture_ids)
 
-                    if match.status.is_finished() and new_winner and match.winner != new_winner:
-                        events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
+                    for result in api_results:
+                        match = await repo.find_by_api_fixture_id(result["api_fixture_id"])
+                        if not match:
+                            continue
+
+                        match.score_home = result.get("score_home")
+                        match.score_away = result.get("score_away")
+                        try:
+                            match.status = MatchStatus.from_str(result.get("status", "NS"))
+                        except Exception:
+                            match.status = MatchStatus.NOT_STARTED
+
+                        new_winner = match.determine_winner()
+
+                        to_update.append({
+                            "id": match.id,
+                            "score_home": match.score_home,
+                            "score_away": match.score_away,
+                            "status": match.status.value,
+                            "winner": new_winner,
+                        })
+
+                        if match.status.is_finished() and new_winner and match.winner != new_winner:
+                            events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
 
                 if to_update:
                     await repo.bulk_update_scores(to_update)
