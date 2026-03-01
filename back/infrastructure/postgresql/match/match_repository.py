@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
-from sqlalchemy import select, exists, func
+from sqlalchemy import select, exists, func, or_
 import pytz
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -194,12 +194,32 @@ class MatchRepositoryImpl(MatchRepository):
             select(DBMatch.api_fixture_id)
             .where(
                 DBMatch.api_fixture_id.isnot(None),
-                DBMatch.time >= start_of_day,
-                DBMatch.time <= end_of_day,
-                DBMatch.status.notin_(finished_statuses),
+                or_(
+                    # Today's matches that are not yet finished (live or upcoming)
+                    (DBMatch.time >= start_of_day)
+                    & (DBMatch.time <= end_of_day)
+                    & DBMatch.status.notin_(finished_statuses),
+                    # Any finished match with no winner yet
+                    DBMatch.status.in_(finished_statuses)
+                    & (DBMatch.winner.is_(None)),
+                ),
             )
         )
         return [row[0] for row in result.all()]
+
+    async def find_finished_without_winner(self) -> List[Match]:
+        finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO')
+
+        result = await self.session.execute(
+            select(DBMatch)
+            .where(
+                DBMatch.status.in_(finished_statuses),
+                DBMatch.winner.is_(None),
+                DBMatch.score_home.isnot(None),
+                DBMatch.score_away.isnot(None),
+            )
+        )
+        return [row.to_entity() for row in result.scalars().all()]
 
     async def bulk_update_scores(self, updates: list[dict]) -> None:
         def _do_bulk(sess):

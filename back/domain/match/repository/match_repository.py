@@ -56,6 +56,10 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_finished_without_winner(self) -> List[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def bulk_update_scores(self, updates: list[dict]) -> None:
         raise NotImplementedError
 

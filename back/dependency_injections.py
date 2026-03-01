@@ -166,7 +166,8 @@ def _api_sports_football_client() -> ApiSportsBaseClient:
 
 def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
     client = _api_sports_football_client()
-    football_service = ApiSportsFootballFetchService(client=client)
+    league_ids = frozenset(int(x) for x in settings.api_sports_league_ids.split(","))
+    football_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
     return MultiSportMatchFetchRouter(services={
         Sport.FOOTBALL: football_service,
     })

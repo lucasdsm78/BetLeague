@@ -49,5 +49,11 @@ yarn-error.log*
 .env.development
 .env.production
 
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat-schedule.dir
+celerybeat-schedule.bak
+
 # Fichiers de cache
 .eslintcache
