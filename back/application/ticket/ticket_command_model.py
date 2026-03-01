@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class MatchChoiceData(BaseModel):
     match_id: int
-    choice: str
+    match_odd_id: int
 
 
 class TicketCreateModel(BaseModel):

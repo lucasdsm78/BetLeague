@@ -9,6 +9,7 @@ from domain.match.event.match_winner_updated_event import MatchWinnerUpdatedEven
 from domain.match.model.match_possibility import MatchPossibility
 from domain.match.model.match_status import MatchStatus
 from domain.match.repository.match_repository import MatchRepository
+from domain.match.service.odds_result_calculator import calculate_result
 from domain.services.match_score_api.match_score_api import MatchScoreApi
 from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
@@ -16,6 +17,7 @@ from domain.token.token_exception import TokenInvalidError
 from domain.utils.are_similar import are_similar
 from infrastructure.config import Settings
 from datetime import datetime
+from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 
 logger = logging.getLogger(__name__)
@@ -129,8 +131,11 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
         async with self._session_factory() as session:
             async with session.begin():
                 repo = MatchRepositoryImpl(session=session)
+                odd_repo = MatchOddRepositoryImpl(session=session)
                 to_update = []
                 events = []
+                # map match_id -> (score_home, score_away) for finished matches
+                finished_scores: Dict[int, tuple] = {}
 
                 finished_no_winner = await repo.find_finished_without_winner()
                 for match in finished_no_winner:
@@ -143,6 +148,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                             "status": match.status.value,
                             "winner": new_winner,
                         })
+                        finished_scores[match.id] = (match.score_home, match.score_away)
                         if match.winner != new_winner:
                             events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
 
@@ -172,11 +178,30 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                             "winner": new_winner,
                         })
 
-                        if match.status.is_finished() and new_winner and match.winner != new_winner:
-                            events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
+                        if match.status.is_finished() and new_winner:
+                            finished_scores[match.id] = (match.score_home, match.score_away)
+                            if match.winner != new_winner:
+                                events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
 
                 if to_update:
                     await repo.bulk_update_scores(to_update)
+
+                # Resolve pending odds for all newly-finished matches
+                if finished_scores:
+                    pending_odds = await odd_repo.find_pending_by_match_ids(list(finished_scores.keys()))
+                    if pending_odds:
+                        odd_updates = []
+                        for odd in pending_odds:
+                            scores = finished_scores.get(odd.match_id)
+                            if scores is None or scores[0] is None or scores[1] is None:
+                                continue
+                            result_val = calculate_result(odd.bet_type, odd.value, scores[0], scores[1])
+                            odd_updates.append({"id": odd.id, "result": result_val})
+                        if odd_updates:
+                            await odd_repo.bulk_update_results(odd_updates)
+                            logger.info(f"Resolved {len(odd_updates)} pending odds results")
+
+                if to_update or finished_scores:
                     for ev in events:
                         await self.publisher.publish_match_winner_updated(ev)
                     return MatchScoreUpdatedResponse()

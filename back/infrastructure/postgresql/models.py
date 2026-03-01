@@ -1,4 +1,5 @@
 from infrastructure.postgresql.match.db_match import DBMatch  # noqa: F401
+from infrastructure.postgresql.match.db_match_odd import DBMatchOdd  # noqa: F401
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices  # noqa: F401
 from infrastructure.postgresql.ticket.db_ticket import DBTicket  # noqa: F401
 from infrastructure.postgresql.user.db_user import DBUser  # noqa: F401

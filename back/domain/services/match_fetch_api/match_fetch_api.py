@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import List
+from typing import List, Tuple
 
 from domain.match.model.match import Match
+from domain.match.model.match_odd import MatchOdd
 from domain.match.model.sport import Sport
 
 
@@ -14,5 +15,5 @@ class MatchFetchApi(ABC):
             sport: Sport,
             date_from: date,
             date_to: date,
-    ) -> List[Match]:
+    ) -> List[Tuple[Match, List[MatchOdd]]]:
         raise NotImplementedError

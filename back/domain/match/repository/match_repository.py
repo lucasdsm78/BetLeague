@@ -8,10 +8,6 @@ from domain.match.model.match import Match
 class MatchRepository(ABC):
 
     @abstractmethod
-    async def find_match(self, home_team: str, away_team: str, cote_home: float, cote_draw: float, cote_away: float) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
     async def find_by_id(self, match_id: int) -> Optional[Match]:
         raise NotImplementedError
 

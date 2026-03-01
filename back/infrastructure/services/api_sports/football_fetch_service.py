@@ -1,11 +1,13 @@
 import asyncio
 import logging
 from datetime import date, datetime, timedelta
-from typing import Dict, FrozenSet, List, Optional, Tuple
+from typing import FrozenSet, List, Optional, Tuple
 
 import shortuuid
 
+from domain.match.model.bet_type import BetType
 from domain.match.model.match import Match
+from domain.match.model.match_odd import MatchOdd
 from domain.match.model.match_status import MatchStatus
 from domain.match.model.sport import Sport
 from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
@@ -13,6 +15,7 @@ from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
 
 logger = logging.getLogger(__name__)
 
+# Top 5 European leagues (API-Sports IDs)
 DEFAULT_LEAGUE_IDS: FrozenSet[int] = frozenset({
     39,   # Premier League (England)
     61,   # Ligue 1 (France)
@@ -22,6 +25,19 @@ DEFAULT_LEAGUE_IDS: FrozenSet[int] = frozenset({
 })
 
 _REQUEST_DELAY = 7.0  # seconds between odds requests (< 10 req/min)
+
+# Mapping API-Sports bet ID → BetType
+_API_BET_ID_TO_TYPE = {
+    1: BetType.MATCH_WINNER,
+    5: BetType.GOALS_OVER_UNDER,
+    8: BetType.BOTH_TEAMS_SCORE,
+    10: BetType.EXACT_SCORE,
+    12: BetType.DOUBLE_CHANCE,
+    21: BetType.ODD_EVEN,
+    38: BetType.EXACT_GOALS_NUMBER,
+}
+
+_SUPPORTED_BET_IDS = frozenset(_API_BET_ID_TO_TYPE.keys())
 
 
 class ApiSportsFootballFetchService(MatchFetchApi):
@@ -39,11 +55,12 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             sport: Sport,
             date_from: date,
             date_to: date,
-    ) -> List[Match]:
-        matches: List[Match] = []
+    ) -> List[Tuple[Match, List[MatchOdd]]]:
+        results: List[Tuple[Match, List[MatchOdd]]] = []
         current = date_from
 
         while current <= date_to:
+            # 1. Fetch fixtures for this day, keep only target leagues
             data = await self._client.get(
                 "/fixtures",
                 params={"date": current.isoformat()}
@@ -58,61 +75,66 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                 except Exception as e:
                     logger.warning(f"Failed to parse fixture: {e}")
 
+            # 2. Fetch odds sequentially (respect 10 req/min rate limit)
             day_kept = 0
             for i, m in enumerate(day_matches):
-                odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
-                if odds:
-                    m.cote_home, m.cote_draw, m.cote_away = odds
-                    matches.append(m)
+                all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                if all_odds:
+                    results.append((m, all_odds))
                     day_kept += 1
-                # Delay between requests (skip after last one)
                 if i < len(day_matches) - 1:
                     await asyncio.sleep(_REQUEST_DELAY)
 
             logger.info(
                 f"Day {current}: {len(day_matches)} top-league fixtures, "
                 f"{day_kept} with odds, "
-                f"{len(matches)} kept total"
+                f"{len(results)} kept total"
             )
             current = current + timedelta(days=1)
 
-        logger.info(f"Fetched {len(matches)} football fixtures with odds from {date_from} to {date_to}")
-        return matches
+        logger.info(f"Fetched {len(results)} football fixtures with odds from {date_from} to {date_to}")
+        return results
 
-    async def _fetch_odds_for_fixture(self, fixture_id: int) -> Optional[Tuple[float, float, float]]:
+    async def _fetch_odds_for_fixture(self, fixture_id: int) -> List[MatchOdd]:
         data = await self._client.get(
             "/odds",
-            params={"fixture": str(fixture_id), "bet": "1"},
+            params={"fixture": str(fixture_id)},
         )
+
+        all_odds: List[MatchOdd] = []
 
         for item in data.get("response", []):
             bookmakers = item.get("bookmakers", [])
             if not bookmakers:
                 continue
 
-            # Take first bookmaker that has Match Winner odds
             bets = bookmakers[0].get("bets", [])
-            if not bets:
-                continue
 
-            values = bets[0].get("values", [])
-            home = draw = away = 0.0
-            for v in values:
-                try:
-                    odd = float(v.get("odd", 0))
-                except (ValueError, TypeError):
+            for bet in bets:
+                bet_id = bet.get("id")
+                if bet_id not in _SUPPORTED_BET_IDS:
                     continue
-                if v.get("value") == "Home":
-                    home = odd
-                elif v.get("value") == "Draw":
-                    draw = odd
-                elif v.get("value") == "Away":
-                    away = odd
 
-            if home > 0 and draw > 0 and away > 0:
-                return home, draw, away
+                bet_type = _API_BET_ID_TO_TYPE[bet_id]
+                bet_name = bet.get("name", "")
 
-        return None
+                for v in bet.get("values", []):
+                    try:
+                        odd_value = float(v.get("odd", 0))
+                    except (ValueError, TypeError):
+                        continue
+                    if odd_value <= 0:
+                        continue
+
+                    all_odds.append(MatchOdd(
+                        match_id=0,  # set after match upsert
+                        bet_type=bet_type,
+                        bet_name=bet_name,
+                        value=str(v.get("value", "")),
+                        odd=odd_value,
+                    ))
+
+        return all_odds
 
     @staticmethod
     def _parse_fixture(fixture: dict) -> Optional[Match]:
@@ -144,9 +166,6 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             uuid=shortuuid.uuid(),
             home_team=home_team.get("name", "Unknown"),
             away_team=away_team.get("name", "Unknown"),
-            cote_home=0.0,
-            cote_draw=0.0,
-            cote_away=0.0,
             time=kick_off,
             sport=Sport.FOOTBALL,
             league_name=league.get("name"),

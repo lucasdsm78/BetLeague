@@ -1,7 +1,8 @@
 from datetime import date
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from domain.match.model.match import Match
+from domain.match.model.match_odd import MatchOdd
 from domain.match.model.sport import Sport
 from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
 
@@ -16,7 +17,7 @@ class MultiSportMatchFetchRouter(MatchFetchApi):
             sport: Sport,
             date_from: date,
             date_to: date,
-    ) -> List[Match]:
+    ) -> List[Tuple[Match, List[MatchOdd]]]:
         service = self._services.get(sport)
         if not service:
             raise ValueError(f"No fetch service registered for sport: {sport.value}")
