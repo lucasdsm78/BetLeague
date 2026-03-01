@@ -17,28 +17,6 @@ class MatchRepositoryImpl(MatchRepository):
     def __init__(self, session: AsyncSession):
         self.session: AsyncSession = session
 
-    async def find_match(
-            self,
-            home_team: str,
-            away_team: str,
-            cote_home: float,
-            cote_draw: float,
-            cote_away: float
-    ) -> bool:
-        try:
-            query = select(DBMatch).where(
-                DBMatch.home_team == home_team,
-                DBMatch.away_team == away_team,
-                DBMatch.cote_home == cote_home,
-                DBMatch.cote_draw == cote_draw,
-                DBMatch.cote_away == cote_away
-            )
-            result = await self.session.execute(query)
-            match_exists = result.scalar_one_or_none() is not None
-            return match_exists
-        except:
-            raise
-
     async def count_upcoming_matches(self) -> int:
         now = datetime.utcnow()
         stmt = select(func.count()).select_from(DBMatch).where(DBMatch.time > now)
@@ -161,9 +139,6 @@ class MatchRepositoryImpl(MatchRepository):
             existing.home_team = match.home_team
             existing.away_team = match.away_team
             existing.time = match.time
-            existing.cote_home = match.cote_home
-            existing.cote_draw = match.cote_draw
-            existing.cote_away = match.cote_away
             existing.league_name = match.league_name
             existing.league_id = match.league_id
             existing.logo_home = match.logo_home

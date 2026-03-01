@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, Index
+from sqlalchemy import Column, Integer, String, DateTime, BigInteger, Index
 from sqlalchemy.orm import relationship
 
 from domain.match.model.match import Match
@@ -23,9 +23,6 @@ class DBMatch(Base):
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
     home_team: Union[str, Column] = Column(String, nullable=False)
     away_team: Union[str, Column] = Column(String, nullable=False)
-    cote_home: Union[float, Column] = Column(Float, nullable=False)
-    cote_draw: Union[float, Column] = Column(Float, nullable=False)
-    cote_away: Union[float, Column] = Column(Float, nullable=False)
     time: Union[datetime, Column] = Column(DateTime, nullable=False)
     # Store timestamps as BigInteger (ms)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
@@ -56,9 +53,6 @@ class DBMatch(Base):
             uuid=self.uuid,
             home_team=self.home_team,
             away_team=self.away_team,
-            cote_home=self.cote_home,
-            cote_draw=self.cote_draw,
-            cote_away=self.cote_away,
             winner=self.winner,
             time=self.time,
             created_at=self.created_at,
@@ -84,9 +78,6 @@ class DBMatch(Base):
         match_db_to_update.home_team = match.home_team
         match_db_to_update.away_team = match.away_team
         match_db_to_update.winner = match.winner
-        match_db_to_update.cote_home = match.cote_home
-        match_db_to_update.cote_draw = match.cote_draw
-        match_db_to_update.cote_away = match.cote_away
         match_db_to_update.time = match.time
         match_db_to_update.sport = match.sport.value if hasattr(match.sport, 'value') else str(match.sport)
         match_db_to_update.league_name = match.league_name

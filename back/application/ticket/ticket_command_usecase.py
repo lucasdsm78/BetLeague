@@ -33,6 +33,7 @@ from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
+from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
@@ -107,6 +108,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
     ) -> None:
         mc_repo    = MatchChoicesRepositoryImpl(session)
         match_repo = MatchRepositoryImpl(session)
+        odd_repo   = MatchOddRepositoryImpl(session)
 
         if updated:
             await mc_repo.delete_by_ticket_id(ticket_id)
@@ -122,30 +124,21 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         if already_started:
             raise MatchAlreadyStartedError
 
-        def normalize_choice(choice: str) -> str:
-            c = (choice or '').strip()
-            mapping = {
-                'home': '1',
-                'draw': 'N',
-                'away': '2',
-                '1': '1',
-                '2': '2',
-                'N': 'N',
-                'n': 'N',
-            }
-            return mapping.get(c, c)
-
         for choice_data in match_choices_data:
             match = await match_repo.find_by_id(choice_data.match_id)
             if not match:
                 raise MatchNotFoundError
 
-            normalized = normalize_choice(choice_data.choice)
+            odd = await odd_repo.find_by_id(choice_data.match_odd_id)
+            if not odd or odd.match_id != match.id:
+                raise MatchNotFoundError
+
             mc = MatchChoice(
                 match_id=match.id,
                 ticket_id=ticket_id,
-                choice=normalized,
+                choice=odd.value,
                 status=MatchChoiceStatus.pending,
+                match_odd_id=choice_data.match_odd_id,
             )
             await mc_repo.create(mc)
 
@@ -246,7 +239,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
                 choice_data_list = [
-                    MatchChoiceData(match_id=mc.match_id, choice=mc.choice)
+                    MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
                     for mc in choices
                 ]
 
@@ -326,7 +319,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 else:
                     existing_choices = await match_choices_repo.find_all_by_ticket_id(ticket.id)
                     choice_data = [
-                        MatchChoiceData(match_id=mc.match_id, choice=mc.choice)
+                        MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
                         for mc in existing_choices
                     ]
 
@@ -435,21 +428,20 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             async with session.begin():
                 match_repo = MatchRepositoryImpl(session)
                 mc_repo    = MatchChoicesRepositoryImpl(session)
+                odd_repo   = MatchOddRepositoryImpl(session)
 
                 match = await match_repo.find_by_id(match_id)
                 if not match:
                     raise MatchNotFoundError
 
                 pending_choices = await mc_repo.get_match_choices_pending_by_match_id(match_id)
+                any_updated = False
 
                 for choice in pending_choices:
-                    is_correct = await match_repo.is_correct_score(
-                        choice=choice.choice,
-                        match_id=match.id
-                    )
-
-                    if not isinstance(is_correct, bool):
-                        continue
+                    odd = await odd_repo.find_by_id(choice.match_odd_id)
+                    if not odd or odd.result is None:
+                        continue  # Not yet resolved, skip
+                    is_correct = (odd.result == "WIN")
 
                     new_status = MatchChoiceStatus.correct if is_correct else MatchChoiceStatus.wrong
                     await mc_repo.mark_choice_status(choice.id, new_status)
@@ -460,10 +452,9 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                         event_type="MatchChoiceStatusUpdatedEvent"
                     )
                     await self.publisher.publish_match_choice_status_updated(event)
+                    any_updated = True
 
-                    return MatchChoiceUpdatedResponse()
-
-                return NoMatchChoiceUpdatedResponse()
+                return MatchChoiceUpdatedResponse() if any_updated else NoMatchChoiceUpdatedResponse()
 
     async def check_ticket_status(self, token: str, ticket_id: int):
         if token != self.settings.secret_key_token:
