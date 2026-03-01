@@ -23,12 +23,11 @@ class TicketRepositoryImpl(TicketRepository):
     def __init__(self, session: AsyncSession):
         self.session: AsyncSession = session
 
-    async def create(self, ticket: Ticket):
+    async def create(self, ticket: Ticket) -> int:
         ticket_db = DBTicket.from_entity(ticket)
-        try:
-            self.session.add(ticket_db)
-        except:
-            raise
+        self.session.add(ticket_db)
+        await self.session.flush()
+        return ticket_db.id
 
     async def find_by_id(self, ticket_id: int) -> Ticket:
         q = (
@@ -79,12 +78,11 @@ class TicketRepositoryImpl(TicketRepository):
             .where(DBTicket.uuid == ticket_uuid)
         )
 
-        try:
-            result = await self.session.execute(q)
-            ticket_db = result.unique().scalar_one_or_none()
-            return ticket_db.to_entity()
-        except NoResultFound:
-            raise TicketNotFoundError
+        result = await self.session.execute(q)
+        ticket_db = result.unique().scalar_one_or_none()
+        if ticket_db is None:
+            return None
+        return ticket_db.to_entity()
 
     async def find_by_player_match(self, user_id: int, tournament_match_id: int) -> Optional[Ticket]:
         result = await self.session.execute(
@@ -205,25 +203,26 @@ class TicketRepositoryImpl(TicketRepository):
             .values(**user_values)
         )
 
-        # 3) Même chose pour league_players
-        lp_values = {}
-        if wrong_count > 0:
-            lp_values["nb_lose"] = DBLeaguePlayers.nb_lose + 1
-        else:
-            lp_values.update({
-                "nb_win": DBLeaguePlayers.nb_win + 1,
-                "nb_btl": DBLeaguePlayers.nb_btl + gain,
-                "btl_from_tickets": DBLeaguePlayers.btl_from_tickets + gain,
-            })
+        # 3) Même chose pour league_players (seulement si le ticket appartient à une ligue)
+        if league_id is not None:
+            lp_values = {}
+            if wrong_count > 0:
+                lp_values["nb_lose"] = DBLeaguePlayers.nb_lose + 1
+            else:
+                lp_values.update({
+                    "nb_win": DBLeaguePlayers.nb_win + 1,
+                    "nb_btl": DBLeaguePlayers.nb_btl + gain,
+                    "btl_from_tickets": DBLeaguePlayers.btl_from_tickets + gain,
+                })
 
-        await self.session.execute(
-            update(DBLeaguePlayers)
-            .where(
-                DBLeaguePlayers.league_id == league_id,
-                DBLeaguePlayers.user_id   == user_id
+            await self.session.execute(
+                update(DBLeaguePlayers)
+                .where(
+                    DBLeaguePlayers.league_id == league_id,
+                    DBLeaguePlayers.user_id   == user_id
+                )
+                .values(**lp_values)
             )
-            .values(**lp_values)
-        )
 
     async def begin(self):
         await self.session.begin()

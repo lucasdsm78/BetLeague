@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Header, status
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
@@ -28,7 +28,7 @@ router = APIRouter(
     "/ticket/create",
     response_model=TicketCreateResponse,
     summary="Create a ticket to bet",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_ticket(
         league_id: int,
@@ -78,6 +78,12 @@ async def create_ticket(
     except MiseSuperiorToNbBtlError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message,
+        )
+
+    except MatchAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
         )
 
@@ -317,16 +323,17 @@ async def create_tournament_ticket(
     status_code=status.HTTP_200_OK,
 )
 async def check_match_choices_by_match_id(
-        token: str,
         match_id: int,
+        authorization: str = Header(...),
         ticket_command_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
 ):
+    token = authorization.removeprefix("Bearer ").strip()
     try:
         return await ticket_command_usecase.check_match_choices_by_match_id(token=token, match_id=match_id)
 
     except TokenInvalidError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 

@@ -1,6 +1,6 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, update, func, case
+from sqlalchemy import select, update, delete, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
@@ -41,15 +41,14 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
         result = await self.session.execute(query)
         return [DBMatchChoices.to_entity(db) for db in result.scalars().all()]
 
-    async def delete_by_ticket_id(self, ticket_id: int):
-        try:
-            query = select(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
-            result = await self.session.execute(query)
-            match_choices = result.scalars().all()
-            for match_choice in match_choices:
-                await self.session.delete(match_choice)
-        except:
-            raise
+    async def delete_by_ticket_id(self, ticket_id: int) -> None:
+        await self.session.execute(
+            delete(DBMatchChoices).where(DBMatchChoices.ticket_id == ticket_id)
+        )
+
+    async def bulk_create(self, match_choices: List[MatchChoice]) -> None:
+        db_objects = [DBMatchChoices.from_entity(mc) for mc in match_choices]
+        self.session.add_all(db_objects)
 
     async def update(self, match_choice: MatchChoice):
         try:
