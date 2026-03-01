@@ -1,23 +1,22 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MatchChoiceData(BaseModel):
-    match_id: int
-    match_odd_id: int
+    match_id: int = Field(..., gt=0)
+    match_odd_id: int = Field(..., gt=0)
 
 
 class TicketCreateModel(BaseModel):
-    match_choices: List[MatchChoiceData]
-    mise: int
-    gain: Optional[int]
+    match_choices: List[MatchChoiceData] = Field(..., min_length=1, max_length=20)
+    mise: int = Field(..., ge=1)
 
 
 class TicketUpdateModel(BaseModel):
-    match_choices: Optional[List[MatchChoiceData]]
-    mise: Optional[int] = None
-    gain: Optional[int] = None
+    match_choices: Optional[List[MatchChoiceData]] = Field(None, min_length=1, max_length=20)
+    mise: Optional[int] = Field(None, ge=1)
+    # gain supprimé — calculé server-side
 
 
 class TicketCreateResponse(BaseModel):

@@ -33,6 +33,14 @@ class MatchOddRepositoryImpl(MatchOddRepository):
         row = result.scalar_one_or_none()
         return row.to_entity() if row else None
 
+    async def find_all_by_ids(self, odd_ids: List[int]) -> List[MatchOdd]:
+        if not odd_ids:
+            return []
+        result = await self.session.execute(
+            select(DBMatchOdd).where(DBMatchOdd.id.in_(odd_ids))
+        )
+        return [row.to_entity() for row in result.scalars().all()]
+
     async def find_pending_by_match_ids(self, match_ids: List[int]) -> List[MatchOdd]:
         if not match_ids:
             return []

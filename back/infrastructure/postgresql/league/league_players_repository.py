@@ -99,6 +99,21 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         except:
             raise
 
+    async def get_participation_locked(self, league_id: int, user_id: int) -> LeaguePlayers:
+        query = (
+            select(DBLeaguePlayers)
+            .where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id == user_id,
+            )
+            .with_for_update()
+        )
+        result = await self.session.execute(query)
+        lp = result.scalar_one_or_none()
+        if lp is None:
+            raise LeagueParticipantNotFoundError
+        return lp.to_entity()
+
     async def get_balances_by_league_ids(self, user_id: int, league_ids: List[int]) -> Dict[int, float]:
         if not league_ids:
             return {}
