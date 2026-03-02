@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from sqlalchemy.orm import joinedload, selectinload
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,7 +107,8 @@ class TicketRepositoryImpl(TicketRepository):
         bet_db = result.scalar_one_or_none()
         return bet_db.to_entity() if bet_db else None
 
-    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[DBTicket]:
+    async def find_all_in_progress_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[DBTicket]:
+        offset = (page - 1) * page_size
         query = (
             select(DBTicket)
             .where(
@@ -115,21 +116,30 @@ class TicketRepositoryImpl(TicketRepository):
                 DBTicket.status == TicketStatus.pending.value
             )
             .options(
-                # Charger la ligue associée à chaque ticket
                 selectinload(DBTicket.league),
                 selectinload(DBTicket.tournament_match),
-                # Charger en cascade : pour chaque ticket, toutes ses choices
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)
             )
-            .order_by(DBTicket.id)  # ou tout autre ordre voulu
+            .order_by(DBTicket.id)
+            .offset(offset)
+            .limit(page_size)
         )
 
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def find_all_finished_by_user_id(self, user_id: int) -> List[DBTicket]:
-        # 1. Construire la requête avec eager-loading
+    async def count_in_progress_by_user_id(self, user_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count(DBTicket.id)).where(
+                DBTicket.user_id == user_id,
+                DBTicket.status == TicketStatus.pending.value
+            )
+        )
+        return result.scalar_one()
+
+    async def find_all_finished_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[DBTicket]:
+        offset = (page - 1) * page_size
         query = (
             select(DBTicket)
             .where(
@@ -137,21 +147,27 @@ class TicketRepositoryImpl(TicketRepository):
                 DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value])
             )
             .options(
-                # Charger la ligue associée à chaque ticket
                 selectinload(DBTicket.league),
                 selectinload(DBTicket.tournament_match),
-                # Charger en cascade : pour chaque ticket, toutes ses choices
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)
-                # ^ ici, DBMatchChoices.match est la relation vers DBMatch
             )
             .order_by(DBTicket.id.desc())
+            .offset(offset)
+            .limit(page_size)
         )
 
-        # 2. Exécuter en mode async
         result = await self.session.execute(query)
-        # 3. Scalar() renvoie des instances DBTicket (eager-loaded)
         return result.scalars().all()
+
+    async def count_finished_by_user_id(self, user_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count(DBTicket.id)).where(
+                DBTicket.user_id == user_id,
+                DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value])
+            )
+        )
+        return result.scalar_one()
 
 
     async def update(self, ticket: Ticket):

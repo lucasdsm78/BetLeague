@@ -62,10 +62,9 @@ class MatchFetchUseCaseImpl(MatchFetchUseCase):
                     count += 1
 
                     if odds:
-                        await odd_repo.delete_by_match_id(upserted.id)
                         for o in odds:
                             o.match_id = upserted.id
-                        await odd_repo.save_many(odds)
+                        await odd_repo.upsert_many_for_match(upserted.id, odds)
 
         logger.info(f"Upserted {count} {sport.value} matches (with odds) for {date_from} to {date_to}")
         return count

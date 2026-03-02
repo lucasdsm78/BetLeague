@@ -215,9 +215,9 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 raise MatchAlreadyStartedError
 
             if ticket.league_id is not None:
-                league_player = await uow.league_players_repo.get_participation(
-                    ticket.league_id,
-                    ticket.user.id
+                league_player = await uow.league_players_repo.get_participation_locked(
+                    league_id=ticket.league_id,
+                    user_id=ticket.user.id
                 )
 
                 if league_player is None:
@@ -274,16 +274,16 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 else ticket.mise
             )
 
-            # Validate BTL balance if mise increases
-            if ticket_update_model.mise is not None and ticket_update_model.mise > ticket.mise:
+            # Adjust BTL balance when mise changes
+            if ticket_update_model.mise is not None and ticket_update_model.mise != ticket.mise:
                 mise_diff = ticket_update_model.mise - ticket.mise
                 if ticket.league_id is not None:
                     league_player = await uow.league_players_repo.get_participation_locked(
                         league_id=ticket.league_id, user_id=user.id
                     )
-                    if mise_diff > league_player.nb_btl:
+                    if mise_diff > 0 and mise_diff > league_player.nb_btl:
                         raise MiseSuperiorToNbBtlError
-                    league_player.nb_btl -= mise_diff
+                    league_player.nb_btl -= mise_diff  # Deducts if positive, refunds if negative
                     await uow.league_players_repo.update(league_player)
 
             if ticket_update_model.match_choices:
