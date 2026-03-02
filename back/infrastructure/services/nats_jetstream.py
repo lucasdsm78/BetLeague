@@ -106,10 +106,12 @@ class JetStreamPublisher:
             self._js = self._nc.jetstream()
 
     async def ensure_stream(self) -> None:
-        """Crée le stream si absent (one-shot).
+        """S'assure que le stream existe (one-shot).
 
-        On le fait au runtime pour simplifier Docker compose/dev. En prod, tu peux le
-        provisionner via IaC.
+        Par défaut en dev, on peut auto-créer le stream.
+        Si l'infra provisionne déjà (nats-box / nats-server.conf), mets:
+          NATS_PROVISIONED_STREAMS=1
+        pour ne jamais modifier le broker depuis l'app.
         """
         if self._stream_ready:
             return
@@ -118,6 +120,7 @@ class JetStreamPublisher:
         if self._js is None:
             raise RuntimeError("JetStream client not initialized")
 
+        provisioned = os.getenv("NATS_PROVISIONED_STREAMS", "0").strip() in {"1", "true", "TRUE", "yes", "YES"}
         subjects = load_nats_subjects(subject_prefix=self._settings.subject_prefix)
 
         # Double-check under lock to avoid concurrent stream_info/add_stream
@@ -127,7 +130,20 @@ class JetStreamPublisher:
 
             try:
                 await self._js.stream_info(self._settings.stream)
-            except Exception:
+            except Exception as e:
+                if provisioned:
+                    print(
+                        _dumps(
+                            {
+                                "event": "jetstream.publisher.stream_missing",
+                                "stream": self._settings.stream,
+                                "error": str(e),
+                                "hint": "Le stream doit exister (provision nats-box / nats-server.conf).",
+                            }
+                        )
+                    )
+                    raise
+
                 try:
                     await self._js.add_stream(
                         name=self._settings.stream,
@@ -137,7 +153,7 @@ class JetStreamPublisher:
                         max_msgs=int(os.getenv("NATS_MAX_MSGS", "-1")),
                         max_bytes=int(os.getenv("NATS_MAX_BYTES", "-1")),
                         max_age=int(os.getenv("NATS_MAX_AGE_SECONDS", "0")),
-                        duplicates=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
+                        duplicate_window=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
                     )
                     print(
                         _dumps(
@@ -148,13 +164,13 @@ class JetStreamPublisher:
                             }
                         )
                     )
-                except Exception as e:
+                except Exception as e2:
                     print(
                         _dumps(
                             {
                                 "event": "jetstream.publisher.stream_create_error",
                                 "stream": self._settings.stream,
-                                "error": str(e),
+                                "error": str(e2),
                             }
                         )
                     )

@@ -99,27 +99,36 @@ async def main() -> None:
 
     js = nc.jetstream()
 
-    # Ensure main stream exists (dev)
+    # Streams are provisioned by infra (nats-box / nats config). We only validate presence.
     try:
         await js.stream_info(stream)
-    except Exception:
-        subjects = load_nats_subjects(subject_prefix=subject_prefix)
-        await js.add_stream(name=stream, subjects=subjects)
-
-    # Ensure DLQ stream exists (dev)
-    try:
-        await js.stream_info(dlq_stream)
-    except Exception:
-        await js.add_stream(name=dlq_stream, subjects=[f"{dlq_subject_prefix}.>"])
+    except Exception as e:
         print(
             _dumps(
                 {
-                    "event": "jetstream.consumer.dlq_stream_created",
-                    "stream": dlq_stream,
-                    "subjects": [f"{dlq_subject_prefix}.>"],
+                    "event": "jetstream.consumer.stream_missing",
+                    "stream": stream,
+                    "error": str(e),
+                    "hint": "Provisionne les streams via nats-box (service nats_provision) ou nats-server.conf (stream_configs).",
                 }
             )
         )
+        raise
+
+    try:
+        await js.stream_info(dlq_stream)
+    except Exception as e:
+        print(
+            _dumps(
+                {
+                    "event": "jetstream.consumer.dlq_stream_missing",
+                    "stream": dlq_stream,
+                    "error": str(e),
+                    "hint": "Provisionne la DLQ via nats-box (service nats_provision) ou nats-server.conf (stream_configs).",
+                }
+            )
+        )
+        raise
 
     bus = outbox_handler_bus_dependency()
 
