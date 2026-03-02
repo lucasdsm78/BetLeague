@@ -12,6 +12,8 @@ except Exception:  # pragma: no cover
 
 from nats.aio.client import Client as NATS
 
+from infrastructure.services.nats_subjects import load_nats_subjects
+
 
 @dataclass(frozen=True, slots=True)
 class JetStreamSettings:
@@ -116,7 +118,7 @@ class JetStreamPublisher:
         if self._js is None:
             raise RuntimeError("JetStream client not initialized")
 
-        subjects = [f"{self._settings.subject_prefix}.>"]
+        subjects = load_nats_subjects(subject_prefix=self._settings.subject_prefix)
 
         # Double-check under lock to avoid concurrent stream_info/add_stream
         async with self._lock:
