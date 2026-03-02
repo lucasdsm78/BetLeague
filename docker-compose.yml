@@ -26,16 +26,36 @@ services:
     image: nats:2.10-alpine
     container_name: nats
     command:
-      - "-js"
-      - "--store_dir"
-      - "/data"
-      - "-m"
-      - "8222"
+      - "-c"
+      - "/etc/nats/nats-server.conf"
     ports:
       - "4222:4222"
       - "8222:8222"
     volumes:
       - nats_data:/data
+      - ./back/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+
+  jetstream_provision:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    container_name: jetstream_provision
+    command: python scripts/provision_jetstream_streams.py
+    volumes:
+      - ./back:/app
+    env_file:
+      - back/.env
+    environment:
+      PYTHONPATH: /app
+      NATS_URL: "nats://nats:4222"
+      NATS_STREAM: "BETLEAGUE"
+      NATS_SUBJECT_PREFIX: "betleague"
+      NATS_DLQ_STREAM: "BETLEAGUE_DLQ"
+      NATS_DLQ_SUBJECT_PREFIX: "betleague.dlq"
+      NATS_STREAM_SUBJECTS: "betleague.league.* , betleague.ticket.* , betleague.match.*"
+    depends_on:
+      - nats
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -148,11 +168,13 @@ services:
       OUTBOX_JITTER_MS: 150
       OUTBOX_WORKER_ID: outbox_worker_1
       OUTBOX_LOCK_TTL_MS: 120000
+      NATS_PROVISIONED_STREAMS: "1"
     depends_on:
       - db
       - backend
       - redis
       - nats
+      - jetstream_provision
     restart: always
 
   # Consumer de démo (optionnel) : affiche les événements JetStream
@@ -177,8 +199,10 @@ services:
       NATS_DLQ_STREAM: "BETLEAGUE_DLQ"
       NATS_DLQ_SUBJECT_PREFIX: "betleague.dlq"
       NATS_MAX_DELIVER: 10
+      NATS_PROVISIONED_STREAMS: "1"
     depends_on:
       - nats
+      - jetstream_provision
     restart: unless-stopped
 
 volumes:
