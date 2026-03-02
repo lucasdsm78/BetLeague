@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 
 
@@ -32,10 +31,6 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
-        raise NotImplementedError
-
-    @abstractmethod
     async def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
         raise NotImplementedError
 
@@ -56,6 +51,15 @@ class TicketRepository(ABC):
             wrong_count: int,
             pending_count: int,
             gain: float
+    ) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def resolve_status(
+            self,
+            ticket_id: int,
+            wrong_count: int,
+            pending_count: int,
     ) -> bool:
         raise NotImplementedError
 

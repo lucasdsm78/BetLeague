@@ -145,7 +145,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     match_choice_summaries=match_choice_summaries
                 )
 
-    async def get_tickets_in_progress(self, email: str) -> TicketsInProgressResponse:
+    async def get_tickets_in_progress(self, email: str, page: int = 1, page_size: int = 20) -> TicketsInProgressResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 user_repo          = UserRepositoryImpl(session)
@@ -156,9 +156,10 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 if not user:
                     raise UserNotFoundError
 
-                db_tickets = await ticket_repo.find_all_in_progress_by_user_id(user.id)
+                total = await ticket_repo.count_in_progress_by_user_id(user.id)
+                db_tickets = await ticket_repo.find_all_in_progress_by_user_id(user.id, page, page_size)
 
-                result = TicketsInProgressResponse()
+                result = TicketsInProgressResponse(total=total, page=page, page_size=page_size)
                 if not db_tickets:
                     return result
 
@@ -217,9 +218,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 return result
 
-    async def get_tickets_finished(self, email: str) -> TicketsFinishedResponse:
-        result = TicketsFinishedResponse()
-
+    async def get_tickets_finished(self, email: str, page: int = 1, page_size: int = 20) -> TicketsFinishedResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 user_repo   = UserRepositoryImpl(session)
@@ -230,7 +229,10 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 if not user:
                     raise UserNotFoundError
 
-                db_tickets = await ticket_repo.find_all_finished_by_user_id(user.id)
+                total = await ticket_repo.count_finished_by_user_id(user.id)
+                result = TicketsFinishedResponse(total=total, page=page, page_size=page_size)
+
+                db_tickets = await ticket_repo.find_all_finished_by_user_id(user.id, page, page_size)
                 if not db_tickets:
                     return result
 

@@ -1,5 +1,5 @@
 from typing import List, Dict
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -149,6 +149,30 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             league_player_db = DBLeaguePlayers.from_entity(league_player, _league_player)
         except:
             raise
+
+    async def apply_ticket_win(self, league_id: int, user_id: int, gain: float) -> None:
+        await self.session.execute(
+            update(DBLeaguePlayers)
+            .where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id == user_id,
+            )
+            .values(
+                nb_win=DBLeaguePlayers.nb_win + 1,
+                nb_btl=DBLeaguePlayers.nb_btl + gain,
+                btl_from_tickets=DBLeaguePlayers.btl_from_tickets + gain,
+            )
+        )
+
+    async def apply_ticket_lose(self, league_id: int, user_id: int) -> None:
+        await self.session.execute(
+            update(DBLeaguePlayers)
+            .where(
+                DBLeaguePlayers.league_id == league_id,
+                DBLeaguePlayers.user_id == user_id,
+            )
+            .values(nb_lose=DBLeaguePlayers.nb_lose + 1)
+        )
 
     async def begin(self):
         await self.session.begin()
