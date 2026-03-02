@@ -1,32 +1,18 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, List, Dict, Any
-
-from sqlalchemy.ext.asyncio.session import AsyncSession
+from typing import Callable, Dict
 
 from application.match.match_command_model import NoMatchScoreUpdatedResponse, MatchScoreUpdatedResponse
-from domain.match.event.match_winner_updated_event import MatchWinnerUpdatedEvent, MatchUpdatedEvent
-from domain.match.model.match_possibility import MatchPossibility
+from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.match.model.match_status import MatchStatus
-from domain.match.repository.match_repository import MatchRepository
 from domain.match.service.odds_result_calculator import calculate_result
+from domain.match.unit_of_work import MatchScoreUnitOfWork
 from domain.services.match_score_api.match_score_api import MatchScoreApi
-from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
-from domain.token.token_exception import TokenInvalidError
-from domain.utils.are_similar import are_similar
-from infrastructure.config import Settings
-from datetime import datetime
-from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
-from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 
 logger = logging.getLogger(__name__)
 
 
 class MatchCommandUseCase(ABC):
-
-    @abstractmethod
-    async def check_scores(self, token: str, from_date: datetime, to_date: datetime):
-        raise NotImplementedError
 
     @abstractmethod
     async def check_scores_v2(self):
@@ -37,177 +23,91 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
 
     def __init__(
             self,
-            match_repository: MatchRepository,
             match_score_api: MatchScoreApi,
-            settings: Settings,
-            session_factory: Callable[[], AsyncSession],
-            publisher: RabbitMQPublisherScoreService,
-            similarity_threshold: int = 70,
+            uow_factory: Callable[[], MatchScoreUnitOfWork],
     ):
-        self.match_repository: MatchRepository = match_repository
-        self.settings: Settings = settings
         self.match_score_api: MatchScoreApi = match_score_api
-        self.publisher: RabbitMQPublisherScoreService = publisher
-        self._session_factory = session_factory
-        self._similarity_threshold = similarity_threshold
-
-
-    async def check_scores(self, token: str, from_date: datetime, to_date: datetime):
-        if token != self.settings.secret_key_token:
-            raise TokenInvalidError()
-
-        await self.publisher.connect()
-
-        async with self._session_factory() as session:
-            async with session.begin():
-                repo = MatchRepositoryImpl(session=session)
-
-                matches = await repo.get_matches_from_dates(from_date, to_date)
-                if not matches:
-                    return NoMatchScoreUpdatedResponse()
-
-                api_matches: List[Dict[str, Any]] = await self.match_score_api.get_matches_finished(from_date, to_date)
-                if not api_matches:
-                    return NoMatchScoreUpdatedResponse()
-
-                to_update = []
-                events = []
-
-                for m in matches:
-                    matched_api = next(
-                        (
-                            api_m for api_m in api_matches
-                            if (are_similar(api_m["home"], m.home_team, self._similarity_threshold) and
-                                are_similar(api_m["away"], m.away_team, self._similarity_threshold))
-                               or  # Try reversed team order in case they're swapped
-                               (are_similar(api_m["home"], m.away_team, self._similarity_threshold) and
-                                are_similar(api_m["away"], m.home_team, self._similarity_threshold))
-                        ),
-                        None
-                    )
-                    if not matched_api:
-                        continue
-
-                    # Check if teams were matched in reverse order
-                    teams_reversed = (
-                            are_similar(matched_api["home"], m.away_team, self._similarity_threshold) and
-                            are_similar(matched_api["away"], m.home_team, self._similarity_threshold)
-                    )
-
-                    api_winner = matched_api.get("winner")
-
-                    # Adjust winner based on whether teams were matched in reverse
-                    if teams_reversed:
-                        if api_winner == MatchPossibility.home_team_winner.value:
-                            new_w = "1"  # Away win because teams are reversed
-                        elif api_winner == MatchPossibility.away_team_winner.value:
-                            new_w = "2"  # Home win because teams are reversed
-                        else:
-                            new_w = "N"
-                    else:
-                        if api_winner == MatchPossibility.home_team_winner.value:
-                            new_w = "1"
-                        elif api_winner == MatchPossibility.away_team_winner.value:
-                            new_w = "2"
-                        else:
-                            new_w = "N"
-
-                    if m.winner != new_w:
-                        to_update.append({"id": m.id, "winner": new_w})
-                        events.append(MatchUpdatedEvent(match_id=m.id, event_type="MatchUpdatedEvent"))
-
-                if to_update:
-                    await repo.bulk_update_winner(to_update)
-                    for ev in events:
-                        await self.publisher.publish_match_winner_updated(ev)
-                    return MatchScoreUpdatedResponse()
-
-                return NoMatchScoreUpdatedResponse()
+        self._uow_factory = uow_factory
 
     async def check_scores_v2(self):
-        await self.publisher.connect()
+        async with self._uow_factory() as uow:
+            to_update = []
+            events: list[MatchResultResolvedEvent] = []
+            finished_scores: Dict[int, tuple] = {}
 
-        async with self._session_factory() as session:
-            async with session.begin():
-                repo = MatchRepositoryImpl(session=session)
-                odd_repo = MatchOddRepositoryImpl(session=session)
-                to_update = []
-                events = []
-                # map match_id -> (score_home, score_away) for finished matches
-                finished_scores: Dict[int, tuple] = {}
+            finished_no_winner = await uow.match_repo.find_finished_without_winner()
+            for match in finished_no_winner:
+                new_winner = match.determine_winner()
+                if new_winner:
+                    to_update.append({
+                        "id": match.id,
+                        "score_home": match.score_home,
+                        "score_away": match.score_away,
+                        "status": match.status.value,
+                        "winner": new_winner,
+                    })
+                    finished_scores[match.id] = (match.score_home, match.score_away)
+                    if match.winner != new_winner:
+                        events.append(MatchResultResolvedEvent(match_id=match.id))
 
-                finished_no_winner = await repo.find_finished_without_winner()
-                for match in finished_no_winner:
+            fixture_ids = await uow.match_repo.find_active_fixture_ids()
+            if fixture_ids:
+                api_results = await self.match_score_api.get_live_scores(fixture_ids)
+
+                api_fixture_ids = [r["api_fixture_id"] for r in api_results]
+                matches_by_fixture = await uow.match_repo.find_all_by_api_fixture_ids(api_fixture_ids)
+                match_dict = {m.api_fixture_id: m for m in matches_by_fixture}
+
+                for result in api_results:
+                    match = match_dict.get(result["api_fixture_id"])
+                    if not match:
+                        continue
+
+                    match.score_home = result.get("score_home")
+                    match.score_away = result.get("score_away")
+                    try:
+                        match.status = MatchStatus.from_str(result.get("status", "NS"))
+                    except Exception:
+                        match.status = MatchStatus.NOT_STARTED
+
                     new_winner = match.determine_winner()
-                    if new_winner:
-                        to_update.append({
-                            "id": match.id,
-                            "score_home": match.score_home,
-                            "score_away": match.score_away,
-                            "status": match.status.value,
-                            "winner": new_winner,
-                        })
+
+                    to_update.append({
+                        "id": match.id,
+                        "score_home": match.score_home,
+                        "score_away": match.score_away,
+                        "status": match.status.value,
+                        "winner": new_winner,
+                    })
+
+                    if match.status.is_finished() and new_winner:
                         finished_scores[match.id] = (match.score_home, match.score_away)
                         if match.winner != new_winner:
-                            events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
+                            events.append(MatchResultResolvedEvent(match_id=match.id))
 
-                fixture_ids = await repo.find_active_fixture_ids()
-                if fixture_ids:
-                    api_results = await self.match_score_api.get_live_scores(fixture_ids)
+            if to_update:
+                await uow.match_repo.bulk_update_scores(to_update)
 
-                    # Bulk fetch all matches by fixture IDs (1 query instead of N)
-                    api_fixture_ids = [r["api_fixture_id"] for r in api_results]
-                    matches_by_fixture = await repo.find_all_by_api_fixture_ids(api_fixture_ids)
-                    match_dict = {m.api_fixture_id: m for m in matches_by_fixture}
-
-                    for result in api_results:
-                        match = match_dict.get(result["api_fixture_id"])
-                        if not match:
+            if finished_scores:
+                pending_odds = await uow.match_odd_repo.find_pending_by_match_ids(list(finished_scores.keys()))
+                if pending_odds:
+                    odd_updates = []
+                    for odd in pending_odds:
+                        scores = finished_scores.get(odd.match_id)
+                        if scores is None or scores[0] is None or scores[1] is None:
                             continue
+                        result_val = calculate_result(odd.bet_type, odd.value, scores[0], scores[1])
+                        odd_updates.append({"id": odd.id, "result": result_val})
+                    if odd_updates:
+                        await uow.match_odd_repo.bulk_update_results(odd_updates)
+                        logger.info(f"Resolved {len(odd_updates)} pending odds results")
 
-                        match.score_home = result.get("score_home")
-                        match.score_away = result.get("score_away")
-                        try:
-                            match.status = MatchStatus.from_str(result.get("status", "NS"))
-                        except Exception:
-                            match.status = MatchStatus.NOT_STARTED
+            for ev in events:
+                await uow.outbox_bus.publish(ev)
 
-                        new_winner = match.determine_winner()
+            await uow.commit()
 
-                        to_update.append({
-                            "id": match.id,
-                            "score_home": match.score_home,
-                            "score_away": match.score_away,
-                            "status": match.status.value,
-                            "winner": new_winner,
-                        })
+            if to_update or finished_scores:
+                return MatchScoreUpdatedResponse()
 
-                        if match.status.is_finished() and new_winner:
-                            finished_scores[match.id] = (match.score_home, match.score_away)
-                            if match.winner != new_winner:
-                                events.append(MatchUpdatedEvent(match_id=match.id, event_type="MatchUpdatedEvent"))
-
-                if to_update:
-                    await repo.bulk_update_scores(to_update)
-
-                # Resolve pending odds for all newly-finished matches
-                if finished_scores:
-                    pending_odds = await odd_repo.find_pending_by_match_ids(list(finished_scores.keys()))
-                    if pending_odds:
-                        odd_updates = []
-                        for odd in pending_odds:
-                            scores = finished_scores.get(odd.match_id)
-                            if scores is None or scores[0] is None or scores[1] is None:
-                                continue
-                            result_val = calculate_result(odd.bet_type, odd.value, scores[0], scores[1])
-                            odd_updates.append({"id": odd.id, "result": result_val})
-                        if odd_updates:
-                            await odd_repo.bulk_update_results(odd_updates)
-                            logger.info(f"Resolved {len(odd_updates)} pending odds results")
-
-                if to_update or finished_scores:
-                    for ev in events:
-                        await self.publisher.publish_match_winner_updated(ev)
-                    return MatchScoreUpdatedResponse()
-
-                return NoMatchScoreUpdatedResponse()
+            return NoMatchScoreUpdatedResponse()

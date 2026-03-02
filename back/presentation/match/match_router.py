@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -64,7 +66,7 @@ async def check_scores(
         settings: Settings = Depends(get_settings),
 ):
     try:
-        if token != settings.secret_key_token:
+        if not hmac.compare_digest(token, settings.secret_key_token):
             raise TokenInvalidError()
         return await match_command_usecase.check_scores_v2()
     except TokenInvalidError as e:
@@ -91,7 +93,7 @@ async def fetch_matches(
         match_fetch_usecase: MatchFetchUseCase = Depends(match_fetch_usecase_dep),
         settings: Settings = Depends(get_settings),
 ):
-    if token != settings.secret_key_token:
+    if not hmac.compare_digest(token, settings.secret_key_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token invalide")
 
     try:

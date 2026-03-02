@@ -1,3 +1,4 @@
+import hmac
 from abc import abstractmethod, ABC
 from decimal import Decimal
 from typing import List, Callable
@@ -384,7 +385,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         return TicketCreateResponse(ticket_id=ticket_id)
 
     async def check_match_choices_by_match_id(self, token: str, match_id: int):
-        if token != self.settings.secret_key_token:
+        if not hmac.compare_digest(token, self.settings.secret_key_token):
             raise TokenInvalidError
 
         async with self._uow_factory() as uow:
@@ -430,7 +431,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             return MatchChoiceUpdatedResponse()
 
     async def check_ticket_status(self, token: str, ticket_id: int):
-        if token != self.settings.secret_key_token:
+        if not hmac.compare_digest(token, self.settings.secret_key_token):
             raise TokenInvalidError
 
         async with self._uow_factory() as uow:

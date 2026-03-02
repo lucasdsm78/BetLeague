@@ -37,21 +37,6 @@ services:
     depends_on:
       - db
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: password
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics status && nc -z localhost 5672"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -91,12 +76,10 @@ services:
       - back/.env
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       NOTIFICATIONS_REALTIME_DRIVER: "redis"
     depends_on:
       - db
-      - rabbitmq
       - redis
 
 #  scrapper:
@@ -113,30 +96,6 @@ services:
 #      - backend
 #      - db
 #
-#  score_consumer:
-#    build:
-#      context: back
-#      dockerfile: consumer_match_choice.Dockerfile
-#    container_name: score_consumer
-#    env_file:
-#      - back/.env
-#    depends_on:
-#      rabbitmq:
-#        condition: service_healthy
-#    restart: always
-#
-#  match_choice_consumer:
-#    build:
-#      context: back
-#      dockerfile: consumer_ticket.Dockerfile
-#    container_name: match_choice_consumer
-#    env_file:
-#      - back/.env
-#    depends_on:
-#      rabbitmq:
-#        condition: service_healthy
-#    restart: always
-
   celery_worker:
     build:
       context: back
@@ -150,14 +109,12 @@ services:
     environment:
       PYTHONPATH: /app
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       CELERY_BROKER_URL: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/1"
       CELERY_RESULT_BACKEND: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/2"
     depends_on:
       - db
       - redis
-      - rabbitmq
     restart: always
 
   celery_beat:
@@ -173,7 +130,6 @@ services:
     environment:
       PYTHONPATH: /app
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       CELERY_BROKER_URL: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/1"
       CELERY_RESULT_BACKEND: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/2"
@@ -193,7 +149,6 @@ services:
       - back/.env
     environment:
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-      RABBITMQ_URL: "amqp://user:password@rabbitmq:5672/"
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       NOTIFICATIONS_REALTIME_DRIVER: "redis"
       OUTBOX_BATCH_SIZE: 50
