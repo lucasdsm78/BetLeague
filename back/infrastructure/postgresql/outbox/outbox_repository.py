@@ -91,6 +91,17 @@ class OutboxRepositoryImpl:
         )
         await self._session.execute(stmt)
 
+    async def mark_processed_batch(self, *, message_ids: list[int], processed_at: int) -> int:
+        if not message_ids:
+            return 0
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id.in_(message_ids))
+            .values(processed_at=processed_at, locked_at=None, locked_by=None)
+        )
+        res = await self._session.execute(stmt)
+        return int(res.rowcount or 0)
+
     async def mark_failed(self, *, message_id: int, attempts: int, last_error: str) -> None:
         stmt = (
             update(DBOutboxMessage)
@@ -111,3 +122,19 @@ class OutboxRepositoryImpl:
             )
         )
         await self._session.execute(stmt)
+
+    async def mark_failed_increment_attempts_batch(self, *, message_ids: list[int], last_error: str) -> int:
+        if not message_ids:
+            return 0
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id.in_(message_ids))
+            .values(
+                attempts=(func.coalesce(DBOutboxMessage.attempts, 0) + 1),
+                last_error=last_error,
+                locked_at=None,
+                locked_by=None,
+            )
+        )
+        res = await self._session.execute(stmt)
+        return int(res.rowcount or 0)

@@ -12,11 +12,20 @@ except Exception:  # pragma: no cover
 from nats.aio.client import Client as NATS
 from nats.js.api import ConsumerConfig
 
+from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
+from dependency_injections import outbox_handler_bus_dependency
+
 
 def _dumps(obj: dict) -> str:
     if orjson is not None:
         return orjson.dumps(obj).decode("utf-8")
     return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+
+def _loads(data: bytes) -> dict:
+    if orjson is not None:
+        return orjson.loads(data)
+    return json.loads(data.decode("utf-8"))
 
 
 async def main() -> None:
@@ -28,90 +37,168 @@ async def main() -> None:
     # Subscribe to all BetLeague events by default
     subject = os.getenv("NATS_SUBJECT", f"{subject_prefix}.>")
 
-    print(_dumps({
-        "event": "jetstream.consumer.start",
-        "nats_url": url,
-        "stream": stream,
-        "subject": subject,
-        "durable": durable,
-        "orjson": bool(orjson is not None),
-    }))
+    # Failure strategy
+    max_deliver = int(os.getenv("NATS_MAX_DELIVER", "10"))
+    # DLQ is implemented as a subject prefix inside the main stream to avoid subject overlap errors.
+    dlq_subject_prefix = os.getenv("NATS_DLQ_SUBJECT_PREFIX", f"{subject_prefix}.dlq")
+
+    print(
+        _dumps(
+            {
+                "event": "jetstream.consumer.start",
+                "nats_url": url,
+                "stream": stream,
+                "subject": subject,
+                "durable": durable,
+                "orjson": bool(orjson is not None),
+                "max_deliver": max_deliver,
+                "dlq_subject_prefix": dlq_subject_prefix,
+            }
+        )
+    )
 
     nc = NATS()
     try:
         await nc.connect(servers=[url])
     except Exception as e:
-        print(_dumps({
-            "event": "jetstream.consumer.connect_error",
-            "error": str(e),
-            "nats_url": url,
-        }))
+        print(
+            _dumps(
+                {
+                    "event": "jetstream.consumer.connect_error",
+                    "error": str(e),
+                    "nats_url": url,
+                }
+            )
+        )
         raise
 
     js = nc.jetstream()
 
-    # Ensure stream exists (safe in dev; in prod, provision via IaC)
+    # Ensure main stream exists (dev)
     try:
         await js.stream_info(stream)
     except Exception:
-        try:
-            await js.add_stream(name=stream, subjects=[f"{subject_prefix}.>"])
-            print(_dumps({
-                "event": "jetstream.consumer.stream_created",
-                "stream": stream,
-                "subjects": [f"{subject_prefix}.>"],
-            }))
-        except Exception as e:
-            print(_dumps({
-                "event": "jetstream.consumer.stream_create_error",
-                "error": str(e),
-                "stream": stream,
-            }))
-            raise
+        await js.add_stream(name=stream, subjects=[f"{subject_prefix}.>"])
+
+    bus = outbox_handler_bus_dependency()
+
+    async def _publish_to_dlq(*, original_subject: str, payload: dict, error: str, num_delivered: int | None) -> None:
+        # Route DLQ by original subject for readability.
+        dlq_subject = f"{dlq_subject_prefix}.{original_subject}".replace("*", "STAR").replace(">", "GT")
+        envelope = {
+            "original_subject": original_subject,
+            "num_delivered": num_delivered,
+            "error": error,
+            "payload": payload,
+        }
+        data = orjson.dumps(envelope) if orjson is not None else json.dumps(envelope).encode("utf-8")
+        await js.publish(dlq_subject, data)
 
     async def handler(msg):
+        num_delivered = None
         try:
-            if orjson is not None:
-                payload = orjson.loads(msg.data)
-            else:
-                payload = json.loads(msg.data.decode("utf-8"))
+            if getattr(msg, "metadata", None) is not None:
+                num_delivered = getattr(msg.metadata, "num_delivered", None)
         except Exception:
-            payload = {"raw": msg.data.decode("utf-8", errors="replace")}
+            num_delivered = None
 
-        print(_dumps({
-            "event": "jetstream.consumer.message",
-            "subject": msg.subject,
-            "payload": payload,
-        }))
-        await msg.ack()
+        try:
+            payload = _loads(msg.data)
+            decoded = decode_domain_event(payload)
+
+            await bus.publish(decoded.event)
+
+            print(
+                _dumps(
+                    {
+                        "event": "jetstream.consumer.processed",
+                        "subject": msg.subject,
+                        "event_name": decoded.event_name,
+                        "num_delivered": num_delivered,
+                    }
+                )
+            )
+            await msg.ack()
+
+        except JetStreamEventDecodeError as e:
+            # Permanent failure: send to DLQ and ack
+            err = str(e)
+            await _publish_to_dlq(
+                original_subject=msg.subject,
+                payload={"raw": msg.data.decode("utf-8", errors="replace")},
+                error=err,
+                num_delivered=num_delivered,
+            )
+            print(
+                _dumps(
+                    {
+                        "event": "jetstream.consumer.dlq.decode_error",
+                        "subject": msg.subject,
+                        "error": err,
+                        "num_delivered": num_delivered,
+                    }
+                )
+            )
+            await msg.ack()
+
+        except Exception as e:
+            err = str(e)
+            # Retry until max_deliver; then DLQ and ack
+            if num_delivered is not None and num_delivered >= max_deliver:
+                await _publish_to_dlq(
+                    original_subject=msg.subject,
+                    payload=_loads(msg.data) if msg.data else {},
+                    error=err,
+                    num_delivered=num_delivered,
+                )
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.consumer.dlq.max_deliver",
+                            "subject": msg.subject,
+                            "error": err,
+                            "num_delivered": num_delivered,
+                        }
+                    )
+                )
+                await msg.ack()
+            else:
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.consumer.nak",
+                            "subject": msg.subject,
+                            "error": err,
+                            "num_delivered": num_delivered,
+                        }
+                    )
+                )
+                await msg.nak()
 
     cfg = ConsumerConfig(
         durable_name=durable,
         ack_wait=int(os.getenv("NATS_ACK_WAIT_SECONDS", "30")),
         max_ack_pending=int(os.getenv("NATS_MAX_ACK_PENDING", "1024")),
+        max_deliver=max_deliver,
     )
 
-    try:
-        await js.subscribe(
-            subject,
-            durable=durable,
-            manual_ack=True,
-            config=cfg,
-            cb=handler,
+    await js.subscribe(
+        subject,
+        durable=durable,
+        manual_ack=True,
+        config=cfg,
+        cb=handler,
+    )
+
+    print(
+        _dumps(
+            {
+                "event": "jetstream.consumer.subscribed",
+                "subject": subject,
+                "durable": durable,
+            }
         )
-        print(_dumps({
-            "event": "jetstream.consumer.subscribed",
-            "subject": subject,
-            "durable": durable,
-        }))
-    except Exception as e:
-        print(_dumps({
-            "event": "jetstream.consumer.subscribe_error",
-            "error": str(e),
-            "subject": subject,
-            "durable": durable,
-        }))
-        raise
+    )
 
     stop = asyncio.Event()
 

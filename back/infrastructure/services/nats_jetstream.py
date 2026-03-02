@@ -57,6 +57,7 @@ class JetStreamPublisher:
         self._js = None
         self._lock = asyncio.Lock()
         self._boot_logged = False
+        self._stream_ready = False
 
     @property
     def settings(self) -> JetStreamSettings:
@@ -65,13 +66,17 @@ class JetStreamPublisher:
     async def connect(self) -> None:
         async with self._lock:
             if not self._boot_logged:
-                print(_dumps({
-                    "event": "jetstream.publisher.start",
-                    "nats_url": self._settings.url,
-                    "stream": self._settings.stream,
-                    "subject_prefix": self._settings.subject_prefix,
-                    "orjson": bool(orjson is not None),
-                }))
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.publisher.start",
+                            "nats_url": self._settings.url,
+                            "stream": self._settings.stream,
+                            "subject_prefix": self._settings.subject_prefix,
+                            "orjson": bool(orjson is not None),
+                        }
+                    )
+                )
                 self._boot_logged = True
 
             if self._nc.is_connected:
@@ -85,55 +90,81 @@ class JetStreamPublisher:
                     reconnect_time_wait=0.5,
                 )
             except Exception as e:
-                print(_dumps({
-                    "event": "jetstream.publisher.connect_error",
-                    "nats_url": self._settings.url,
-                    "error": str(e),
-                }))
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.publisher.connect_error",
+                            "nats_url": self._settings.url,
+                            "error": str(e),
+                        }
+                    )
+                )
                 raise
 
             self._js = self._nc.jetstream()
 
     async def ensure_stream(self) -> None:
-        """Crée le stream si absent.
+        """Crée le stream si absent (one-shot).
 
         On le fait au runtime pour simplifier Docker compose/dev. En prod, tu peux le
         provisionner via IaC.
         """
-        await self.connect()
-        assert self._js is not None
+        if self._stream_ready:
+            return
 
-        subjects = [f"{self._settings.subject_prefix}.>" ]
-        try:
-            await self._js.stream_info(self._settings.stream)
-        except Exception:
+        await self.connect()
+        if self._js is None:
+            raise RuntimeError("JetStream client not initialized")
+
+        subjects = [f"{self._settings.subject_prefix}.>"]
+
+        # Double-check under lock to avoid concurrent stream_info/add_stream
+        async with self._lock:
+            if self._stream_ready:
+                return
+
             try:
-                await self._js.add_stream(
-                    name=self._settings.stream,
-                    subjects=subjects,
-                    storage=os.getenv("NATS_STORAGE", "file"),
-                    retention=os.getenv("NATS_RETENTION", "limits"),
-                    max_msgs=int(os.getenv("NATS_MAX_MSGS", "-1")),
-                    max_bytes=int(os.getenv("NATS_MAX_BYTES", "-1")),
-                    max_age=int(os.getenv("NATS_MAX_AGE_SECONDS", "0")),
-                    duplicates=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
-                )
-                print(_dumps({
-                    "event": "jetstream.publisher.stream_created",
-                    "stream": self._settings.stream,
-                    "subjects": subjects,
-                }))
-            except Exception as e:
-                print(_dumps({
-                    "event": "jetstream.publisher.stream_create_error",
-                    "stream": self._settings.stream,
-                    "error": str(e),
-                }))
-                raise
+                await self._js.stream_info(self._settings.stream)
+            except Exception:
+                try:
+                    await self._js.add_stream(
+                        name=self._settings.stream,
+                        subjects=subjects,
+                        storage=os.getenv("NATS_STORAGE", "file"),
+                        retention=os.getenv("NATS_RETENTION", "limits"),
+                        max_msgs=int(os.getenv("NATS_MAX_MSGS", "-1")),
+                        max_bytes=int(os.getenv("NATS_MAX_BYTES", "-1")),
+                        max_age=int(os.getenv("NATS_MAX_AGE_SECONDS", "0")),
+                        duplicates=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
+                    )
+                    print(
+                        _dumps(
+                            {
+                                "event": "jetstream.publisher.stream_created",
+                                "stream": self._settings.stream,
+                                "subjects": subjects,
+                            }
+                        )
+                    )
+                except Exception as e:
+                    print(
+                        _dumps(
+                            {
+                                "event": "jetstream.publisher.stream_create_error",
+                                "stream": self._settings.stream,
+                                "error": str(e),
+                            }
+                        )
+                    )
+                    raise
+
+            self._stream_ready = True
 
     async def publish_event(self, *, event_name: str, payload: dict, message_id: str | None = None) -> None:
+        # Assume ensure_stream() called once at startup by processor; keep safety here too.
         await self.ensure_stream()
-        assert self._js is not None
+        if self._js is None:
+            raise RuntimeError("JetStream client not initialized")
 
         subject = event_name_to_subject(event_name, subject_prefix=self._settings.subject_prefix)
         data = _encode(payload)
@@ -145,12 +176,16 @@ class JetStreamPublisher:
         try:
             await self._js.publish(subject, data, headers=headers)
         except Exception as e:
-            print(_dumps({
-                "event": "jetstream.publisher.publish_error",
-                "subject": subject,
-                "stream": self._settings.stream,
-                "error": str(e),
-            }))
+            print(
+                _dumps(
+                    {
+                        "event": "jetstream.publisher.publish_error",
+                        "subject": subject,
+                        "stream": self._settings.stream,
+                        "error": str(e),
+                    }
+                )
+            )
             raise
 
     async def close(self) -> None:
