@@ -72,9 +72,27 @@ async def _wait_for_streams() -> None:
     else:
         print(json.dumps(boot, separators=(",", ":")))
 
+    last_state: str | None = None
+    last_error: str | None = None
+
     nc = NATS()
     try:
-        await nc.connect(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+        try:
+            await nc.connect(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+        except Exception as e:
+            last_state = "nats_unreachable"
+            last_error = str(e)
+            err = {
+                "event": "outbox.jetstream.wait_for_streams.connect_error",
+                "nats_url": url,
+                "error": last_error,
+            }
+            if orjson is not None:
+                print(orjson.dumps(err).decode("utf-8"))
+            else:
+                print(json.dumps(err, separators=(",", ":")))
+            raise
+
         js = nc.jetstream()
 
         while True:
@@ -96,9 +114,46 @@ async def _wait_for_streams() -> None:
                     print(json.dumps(ok, separators=(",", ":")))
                 return
 
-            except NotFoundError:
+            except NotFoundError as e:
+                last_state = "stream_missing"
+                last_error = str(e)
                 if time.time() - started >= timeout_s:
+                    timeout = {
+                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                        "nats_url": url,
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    }
+                    if orjson is not None:
+                        print(orjson.dumps(timeout).decode("utf-8"))
+                    else:
+                        print(json.dumps(timeout, separators=(",", ":")))
                     raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
+                await asyncio.sleep(poll_s)
+
+            except Exception as e:
+                last_state = "unknown_error"
+                last_error = str(e)
+                if time.time() - started >= timeout_s:
+                    timeout = {
+                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                        "nats_url": url,
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    }
+                    if orjson is not None:
+                        print(orjson.dumps(timeout).decode("utf-8"))
+                    else:
+                        print(json.dumps(timeout, separators=(",", ":")))
+                    raise
                 await asyncio.sleep(poll_s)
 
     finally:

@@ -39,7 +39,7 @@ def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> 
       2) mêmes subjects que le stream principal (load_nats_subjects)
 
     Dans tous les cas, on exclut le préfixe DLQ pour éviter que le consumer normal
-    consomme les messages parking.
+    consome les messages parking.
     """
     raw = os.getenv("NATS_CONSUMER_SUBJECTS", "").strip()
     if raw:
@@ -56,6 +56,9 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
     timeout_s = float(os.getenv("NATS_PROVISION_WAIT_TIMEOUT_SECONDS", "20"))
     poll_s = float(os.getenv("NATS_PROVISION_WAIT_POLL_SECONDS", "0.25"))
     started = time.time()
+
+    last_state: str | None = None
+    last_error: str | None = None
 
     print(
         _dumps(
@@ -84,9 +87,46 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
                 )
             )
             return
-        except NotFoundError:
+
+        except NotFoundError as e:
+            last_state = "stream_missing"
+            last_error = str(e)
             if time.time() - started >= timeout_s:
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.consumer.wait_for_streams.timeout",
+                            "stream": stream,
+                            "dlq_stream": dlq_stream,
+                            "timeout_s": timeout_s,
+                            "last_state": last_state,
+                            "last_error": last_error,
+                            "duration_ms": int((time.time() - started) * 1000),
+                        }
+                    )
+                )
                 raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
+            await asyncio.sleep(poll_s)
+
+        except Exception as e:
+            # Exemple: NATS unreachable, auth, etc.
+            last_state = "unknown_error"
+            last_error = str(e)
+            if time.time() - started >= timeout_s:
+                print(
+                    _dumps(
+                        {
+                            "event": "jetstream.consumer.wait_for_streams.timeout",
+                            "stream": stream,
+                            "dlq_stream": dlq_stream,
+                            "timeout_s": timeout_s,
+                            "last_state": last_state,
+                            "last_error": last_error,
+                            "duration_ms": int((time.time() - started) * 1000),
+                        }
+                    )
+                )
+                raise
             await asyncio.sleep(poll_s)
 
 
