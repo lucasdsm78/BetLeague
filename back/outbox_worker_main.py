@@ -4,6 +4,7 @@ import asyncio
 import os
 import random
 import signal
+import time
 from dataclasses import dataclass
 
 import json
@@ -18,6 +19,8 @@ from infrastructure.logging_config import setup_logging
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
 from application.events.outbox_jetstream_processor import build_jetstream_outbox_processor
+from nats.aio.client import Client as NATS
+from nats.js.errors import NotFoundError
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +47,67 @@ def load_config() -> WorkerConfig:
     )
 
 
+async def _wait_for_streams() -> None:
+    if os.getenv("OUTBOX_DISPATCH_MODE", "local").strip().lower() != "jetstream":
+        return
+
+    url = os.getenv("NATS_URL", "nats://nats:4222")
+    stream = os.getenv("NATS_STREAM", "BETLEAGUE")
+    dlq_stream = os.getenv("NATS_DLQ_STREAM", f"{stream}_DLQ")
+
+    timeout_s = float(os.getenv("NATS_PROVISION_WAIT_TIMEOUT_SECONDS", "20"))
+    poll_s = float(os.getenv("NATS_PROVISION_WAIT_POLL_SECONDS", "0.25"))
+
+    started = time.time()
+    boot = {
+        "event": "outbox.jetstream.wait_for_streams.start",
+        "nats_url": url,
+        "stream": stream,
+        "dlq_stream": dlq_stream,
+        "timeout_s": timeout_s,
+        "poll_s": poll_s,
+    }
+    if orjson is not None:
+        print(orjson.dumps(boot).decode("utf-8"))
+    else:
+        print(json.dumps(boot, separators=(",", ":")))
+
+    nc = NATS()
+    try:
+        await nc.connect(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+        js = nc.jetstream()
+
+        while True:
+            try:
+                await js.stream_info(stream)
+                # DLQ: on attend aussi si elle est configurée
+                if dlq_stream:
+                    await js.stream_info(dlq_stream)
+
+                ok = {
+                    "event": "outbox.jetstream.wait_for_streams.ready",
+                    "stream": stream,
+                    "dlq_stream": dlq_stream,
+                    "duration_ms": int((time.time() - started) * 1000),
+                }
+                if orjson is not None:
+                    print(orjson.dumps(ok).decode("utf-8"))
+                else:
+                    print(json.dumps(ok, separators=(",", ":")))
+                return
+
+            except NotFoundError:
+                if time.time() - started >= timeout_s:
+                    raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
+                await asyncio.sleep(poll_s)
+
+    finally:
+        try:
+            await nc.drain()
+        finally:
+            await nc.close()
+
+
 async def main() -> None:
     setup_logging(environment=os.getenv("ENVIRONMENT", "dev"))
     config = load_config()
@@ -51,6 +115,9 @@ async def main() -> None:
     dispatch_mode = os.getenv("OUTBOX_DISPATCH_MODE", "local").strip().lower()
     if dispatch_mode not in {"local", "jetstream"}:
         dispatch_mode = "local"
+
+    # Wait provisioning (jetstream_provision service)
+    await _wait_for_streams()
 
     worker_id = os.getenv("OUTBOX_WORKER_ID", "local")
     lock_ttl_ms = int(os.getenv("OUTBOX_LOCK_TTL_MS", "120000"))
