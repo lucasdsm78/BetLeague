@@ -17,6 +17,7 @@ from infrastructure.logging_config import setup_logging
 
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
+from application.events.outbox_jetstream_processor import build_jetstream_outbox_processor
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,12 +48,17 @@ async def main() -> None:
     setup_logging(environment=os.getenv("ENVIRONMENT", "dev"))
     config = load_config()
 
+    dispatch_mode = os.getenv("OUTBOX_DISPATCH_MODE", "local").strip().lower()
+    if dispatch_mode not in {"local", "jetstream"}:
+        dispatch_mode = "local"
+
     worker_id = os.getenv("OUTBOX_WORKER_ID", "local")
     lock_ttl_ms = int(os.getenv("OUTBOX_LOCK_TTL_MS", "120000"))
 
     boot = {
         "event": "outbox.worker.start",
         "worker_id": worker_id,
+        "dispatch_mode": dispatch_mode,
         "batch_size": config.batch_size,
         "poll_interval_ms": config.poll_interval_ms,
         "max_poll_interval_ms": config.max_poll_interval_ms,
@@ -65,12 +71,16 @@ async def main() -> None:
         print(json.dumps(boot, separators=(",", ":")))
 
     session_factory = get_session_factory()
-    handler_bus = outbox_handler_bus_dependency()
-    processor = OutboxProcessor(
-        session_factory=session_factory,
-        handler_bus=handler_bus,
-        batch_size=config.batch_size,
-    )
+
+    if dispatch_mode == "jetstream":
+        processor = build_jetstream_outbox_processor(session_factory=session_factory)
+    else:
+        handler_bus = outbox_handler_bus_dependency()
+        processor = OutboxProcessor(
+            session_factory=session_factory,
+            handler_bus=handler_bus,
+            batch_size=config.batch_size,
+        )
 
     stop_event = asyncio.Event()
     stop_task = asyncio.create_task(stop_event.wait())
@@ -90,19 +100,28 @@ async def main() -> None:
 
     sleep_ms = config.poll_interval_ms
 
-    while not stop_event.is_set():
-        try:
-            processed = await processor.run_once()
-            if processed > 0:
-                sleep_ms = config.poll_interval_ms
-            else:
-                sleep_ms = min(int(sleep_ms * 1.5), config.max_poll_interval_ms)
+    try:
+        while not stop_event.is_set():
+            try:
+                processed = await processor.run_once()
+                if processed > 0:
+                    sleep_ms = config.poll_interval_ms
+                else:
+                    sleep_ms = min(int(sleep_ms * 1.5), config.max_poll_interval_ms)
 
-        except Exception:
-            sleep_ms = min(int(sleep_ms * 2), config.max_poll_interval_ms)
+            except Exception:
+                sleep_ms = min(int(sleep_ms * 2), config.max_poll_interval_ms)
 
-        jitter = random.randint(0, config.jitter_ms) if config.jitter_ms > 0 else 0
-        await asyncio.wait({stop_task}, timeout=(sleep_ms + jitter) / 1000)
+            jitter = random.randint(0, config.jitter_ms) if config.jitter_ms > 0 else 0
+            await asyncio.wait({stop_task}, timeout=(sleep_ms + jitter) / 1000)
+    finally:
+        # Drain/close si le processor le supporte (JetStream)
+        close = getattr(processor, "close", None)
+        if callable(close):
+            try:
+                await close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
