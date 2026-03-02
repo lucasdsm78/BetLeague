@@ -28,6 +28,10 @@ class MatchChoiceRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def bulk_mark_choice_status(self, updates: List[tuple[int, MatchChoiceStatus]]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_all_by_ticket_ids(self, ticket_ids: List[int]) -> List[MatchChoice]:
         raise NotImplementedError
 
@@ -35,6 +39,7 @@ class MatchChoiceRepository(ABC):
     async def update(self, match_choice: MatchChoice) -> Optional[MatchChoice]:
         raise NotImplementedError
 
+    @abstractmethod
     async def count_wrong_and_pending_by_ticket(
             self,
             ticket_id: int

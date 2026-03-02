@@ -11,7 +11,6 @@ from domain.match.model.match_status import MatchStatus
 from domain.match.repository.match_repository import MatchRepository
 from domain.match.service.odds_result_calculator import calculate_result
 from domain.services.match_score_api.match_score_api import MatchScoreApi
-from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
 from domain.token.token_exception import TokenInvalidError
 from domain.utils.are_similar import are_similar
@@ -156,8 +155,13 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                 if fixture_ids:
                     api_results = await self.match_score_api.get_live_scores(fixture_ids)
 
+                    # Bulk fetch all matches by fixture IDs (1 query instead of N)
+                    api_fixture_ids = [r["api_fixture_id"] for r in api_results]
+                    matches_by_fixture = await repo.find_all_by_api_fixture_ids(api_fixture_ids)
+                    match_dict = {m.api_fixture_id: m for m in matches_by_fixture}
+
                     for result in api_results:
-                        match = await repo.find_by_api_fixture_id(result["api_fixture_id"])
+                        match = match_dict.get(result["api_fixture_id"])
                         if not match:
                             continue
 

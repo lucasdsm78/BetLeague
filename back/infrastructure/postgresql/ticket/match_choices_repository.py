@@ -82,6 +82,17 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
         )
         await self.session.execute(stmt)
 
+    async def bulk_mark_choice_status(self, updates: list[tuple[int, MatchChoiceStatus]]) -> None:
+        if not updates:
+            return
+        for choice_id, status in updates:
+            await self.session.execute(
+                update(DBMatchChoices)
+                .where(DBMatchChoices.id == choice_id)
+                .values(status=status.value)
+                .execution_options(synchronize_session=False)
+            )
+        await self.session.flush()
 
     async def count_wrong_and_pending_by_ticket(
             self,

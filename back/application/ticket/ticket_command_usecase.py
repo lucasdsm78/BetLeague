@@ -2,21 +2,18 @@ from abc import abstractmethod, ABC
 from decimal import Decimal
 from typing import List, Callable
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import shortuuid
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse, NoMatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse, \
     TicketUpdateResponse, MatchChoiceData, TicketUpdateModel, NoTicketUpdatedResponse, TicketUpdatedResponse
-from domain.league.exception.league_exception import LeagueNotFoundError, LeagueParticipantNotFoundError, \
+from domain.league.exception.league_exception import LeagueNotFoundError, \
     NbBTLHasReached0, LeagueNotStartedError
-from domain.league.repository.league_players_repository import LeaguePlayersRepository
-from domain.league.repository.league_repository import LeagueRepository
 from domain.match.exception.match_exception import MatchNotFoundError
+from domain.match.repository.match_odd_repository import MatchOddRepository
 from domain.match.repository.match_repository import MatchRepository
-from domain.services.rabbitmq.publisher import RabbitMQPublisher
-from domain.ticket.event.match_choice_status_updated_event import MatchChoiceStatusUpdatedEvent
-from domain.ticket.exception.ticket_exception import GainNotEqualsError, TicketNotFoundError, NotTicketOwnerError, \
+from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, \
      MatchAlreadyStartedError, MiseSuperiorToNbBtlError
 from domain.ticket.exception.duplicate_match_choice_error import DuplicateMatchChoiceError
 from domain.ticket.model.match_choice import MatchChoice
@@ -24,24 +21,14 @@ from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
-from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.ticket.service.ticket_domain_service import TicketDomainService
+from domain.ticket.unit_of_work import TicketUnitOfWork
 from domain.token.token_exception import TokenInvalidError
-from domain.tournament import TournamentPlayersRepository, TournamentRepository
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentNotStartedError, TournamentMatchNotFoundError, TournamentPlayerNotFoundError
+from domain.tournament.model.tournament_status import TournamentStatus
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
-from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
-from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
-from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
-from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
-from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
-from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
-from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
-from infrastructure.postgresql.tournament import TournamentPlayersRepositoryImpl, TournamentRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
-from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 from domain.league.exception.league_exception import LeagueParticipantFoundError
 
@@ -77,41 +64,21 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
     def __init__(
             self,
-            session_factory: Callable[[], AsyncSession],
-            ticket_repository: TicketRepository,
-            league_repository: LeagueRepository,
-            user_repository: UserRepository,
-            match_choices_repository: MatchChoiceRepository,
-            match_repository: MatchRepository,
-            league_players_repository: LeaguePlayersRepository,
-            tournament_repository: TournamentRepository,
-            tournament_players_repository: TournamentPlayersRepository,
+            uow_factory: Callable[[], TicketUnitOfWork],
             settings: Settings,
-            publisher: RabbitMQPublisher
     ):
-        self.ticket_repository: TicketRepository = ticket_repository
-        self._session_factory = session_factory
-        self.user_repository: UserRepository = user_repository
-        self.league_repository: LeagueRepository = league_repository
-        self.match_choices_repository: MatchChoiceRepository = match_choices_repository
-        self.match_repository: MatchRepository = match_repository
-        self.league_players_repository: LeaguePlayersRepository = league_players_repository
-        self.settings: Settings = settings
-        self.tournament_repository: TournamentRepository = tournament_repository
-        self.tournament_players_repository: TournamentPlayersRepository = tournament_players_repository
-        self.publisher: RabbitMQPublisher = publisher
+        self._uow_factory = uow_factory
+        self.settings = settings
 
     async def _process_match_choices(
             self,
-            session: AsyncSession,
+            mc_repo: MatchChoiceRepository,
+            match_repo: MatchRepository,
+            odd_repo: MatchOddRepository,
             updated: bool,
             ticket_id: int,
             match_choices_data: List[MatchChoiceData],
     ) -> None:
-        mc_repo    = MatchChoicesRepositoryImpl(session)
-        match_repo = MatchRepositoryImpl(session)
-        odd_repo   = MatchOddRepositoryImpl(session)
-
         if updated:
             await mc_repo.delete_by_ticket_id(ticket_id)
 
@@ -166,132 +133,119 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             ticket_create_model: TicketCreateModel,
             email: str
     ) -> TicketCreateResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo    = UserRepositoryImpl(session)
-                league_repo  = LeagueRepositoryImpl(session)
-                players_repo = LeaguePlayersRepositoryImpl(session)
-                ticket_repo  = TicketRepositoryImpl(session)
-                odd_repo     = MatchOddRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            league = await uow.league_repo.find_by_id(league_id)
+            if not league:
+                raise LeagueNotFoundError
 
-                league = await league_repo.find_by_id(league_id)
-                if not league:
-                    raise LeagueNotFoundError
+            # SELECT FOR UPDATE — prevents concurrent double-spending on BTL balance
+            league_player = await uow.league_players_repo.get_participation_locked(
+                league_id=league.id, user_id=user.id
+            )
 
-                # SELECT FOR UPDATE — prevents concurrent double-spending on BTL balance
-                league_player = await players_repo.get_participation_locked(
-                    league_id=league.id, user_id=user.id
+            if league_player.nb_btl == 0:
+                raise NbBTLHasReached0
+            if ticket_create_model.mise > league_player.nb_btl:
+                raise MiseSuperiorToNbBtlError
+            if not league.is_started:
+                raise LeagueNotStartedError
+
+            # Gain calculated server-side — never trust the client
+            odd_ids = [cd.match_odd_id for cd in ticket_create_model.match_choices]
+            odds = await uow.match_odd_repo.find_all_by_ids(odd_ids)
+            odd_values = [Decimal(str(o.odd)) for o in odds]
+            gain = TicketDomainService.calculate_gain(odd_values, ticket_create_model.mise)
+
+            uuid = shortuuid.uuid()
+            ticket = Ticket(
+                uuid=uuid,
+                gain=gain,
+                league_id=league.id,
+                mise=ticket_create_model.mise,
+                status=TicketStatus.pending,
+                user=UserSummary(
+                    id=user.id, email=user.email, pseudo=user.pseudo
                 )
+            )
+            ticket_id = await uow.ticket_repo.create(ticket)
 
-                if league_player.nb_btl == 0:
-                    raise NbBTLHasReached0
-                if ticket_create_model.mise > league_player.nb_btl:
-                    raise MiseSuperiorToNbBtlError
-                if not league.is_started:
-                    raise LeagueNotStartedError
+            league_player.nb_btl -= ticket_create_model.mise
+            await uow.league_players_repo.update(league_player)
 
-                # Gain calculated server-side — never trust the client
-                odd_ids = [cd.match_odd_id for cd in ticket_create_model.match_choices]
-                odds = await odd_repo.find_all_by_ids(odd_ids)
-                odd_values = [Decimal(str(o.odd)) for o in odds]
-                gain = TicketDomainService.calculate_gain(odd_values, ticket_create_model.mise)
+            await self._process_match_choices(
+                mc_repo=uow.match_choice_repo,
+                match_repo=uow.match_repo,
+                odd_repo=uow.match_odd_repo,
+                updated=False,
+                ticket_id=ticket_id,
+                match_choices_data=ticket_create_model.match_choices,
+            )
 
-                uuid = shortuuid.uuid()
-                ticket = Ticket(
-                    uuid=uuid,
-                    gain=gain,
-                    league_id=league.id,
-                    mise=ticket_create_model.mise,
-                    status=TicketStatus.pending,
-                    user=UserSummary(
-                        id=user.id, email=user.email, pseudo=user.pseudo
-                    )
-                )
-                # flush to get ticket.id without an extra round-trip
-                ticket_id = await ticket_repo.create(ticket)
-
-                league_player.nb_btl -= ticket_create_model.mise
-                await players_repo.update(league_player)
-
-                await self._process_match_choices(
-                    session=session,
-                    updated=False,
-                    ticket_id=ticket_id,
-                    match_choices_data=ticket_create_model.match_choices
-                )
+            await uow.commit()
 
         return TicketCreateResponse(ticket_id=ticket_id)
 
     async def remove_ticket(self, email: str, ticket_id: int) -> TicketRemoveResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo           = UserRepositoryImpl(session)
-                ticket_repo         = TicketRepositoryImpl(session)
-                match_repo          = MatchRepositoryImpl(session)
-                match_choices_repo  = MatchChoicesRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            ticket = await uow.ticket_repo.find_by_id(ticket_id)
 
-                ticket = await ticket_repo.find_by_id(ticket_id)
+            if ticket.user.id != user.id:
+                raise NotTicketOwnerError
 
-                if ticket.user.id != user.id:
-                    raise NotTicketOwnerError
+            mise_to_refund = int(ticket.mise or 0)
+            if mise_to_refund <= 0:
+                mise_to_refund = 0
 
-                mise_to_refund = int(ticket.mise or 0)
-                if mise_to_refund <= 0:
-                    mise_to_refund = 0
+            choices = await uow.match_choice_repo.find_all_by_ticket_id(ticket_id)
+            choice_data_list = [
+                MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
+                for mc in choices
+            ]
 
-                choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
-                choice_data_list = [
-                    MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
-                    for mc in choices
-                ]
+            if await uow.match_repo.exists_match_started_for_ticket(choice_data_list):
+                raise MatchAlreadyStartedError
 
-                if await match_repo.exists_match_started_for_ticket(choice_data_list):
-                    raise MatchAlreadyStartedError
+            if ticket.league_id is not None:
+                league_player = await uow.league_players_repo.get_participation(
+                    ticket.league_id,
+                    ticket.user.id
+                )
 
-                if ticket.league_id is not None:
-                    players_repo = LeaguePlayersRepositoryImpl(session)
-                    league_player = await players_repo.get_participation(
-                        ticket.league_id,
-                        ticket.user.id
-                    )
+                if league_player is None:
+                    raise LeagueParticipantFoundError
 
-                    if league_player is None:
-                        raise LeagueParticipantFoundError
+                if mise_to_refund > 0:
+                    league_player.nb_btl += mise_to_refund
+                await uow.league_players_repo.update(league_player)
 
-                    if mise_to_refund > 0:
-                        league_player.nb_btl += mise_to_refund
-                    await players_repo.update(league_player)
+            if ticket.tournament_match_id is not None:
+                tournament_match = await uow.tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                if tournament_match is None:
+                    raise TournamentMatchNotFoundError
 
-                if ticket.tournament_match_id is not None:
-                    tournament_players_repo = TournamentPlayersRepositoryImpl(session)
-                    tournament_match_repo = TournamentMatchRepositoryImpl(session)
+                tournament_player = await uow.tournament_players_repo.get_player(
+                    tournament_match.tournament_id,
+                    ticket.user.id
+                )
 
-                    tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
-                    if tournament_match is None:
-                        raise TournamentMatchNotFoundError
+                if tournament_player is None:
+                    raise TournamentPlayerNotFoundError
 
-                    tournament_player = await tournament_players_repo.get_player(
-                        tournament_match.tournament_id,
-                        ticket.user.id
-                    )
+                if mise_to_refund > 0:
+                    tournament_player.nb_btl += mise_to_refund
+                await uow.tournament_players_repo.update(tournament_player)
 
-                    if tournament_player is None:
-                        raise TournamentPlayerNotFoundError
-
-                    if mise_to_refund > 0:
-                        tournament_player.nb_btl += mise_to_refund
-                    await tournament_players_repo.update(tournament_player)
-
-                await match_choices_repo.delete_by_ticket_id(ticket.id)
-                await ticket_repo.delete(ticket.id)
+            await uow.match_choice_repo.delete_by_ticket_id(ticket.id)
+            await uow.ticket_repo.delete(ticket.id)
+            await uow.commit()
 
         return TicketRemoveResponse()
 
@@ -301,126 +255,131 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             ticket_id: int,
             ticket_update_model: TicketUpdateModel
     ) -> TicketUpdateResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo           = UserRepositoryImpl(session)
-                ticket_repo         = TicketRepositoryImpl(session)
-                match_choices_repo  = MatchChoicesRepositoryImpl(session)
-                odd_repo            = MatchOddRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            ticket = await uow.ticket_repo.find_by_id(ticket_id)
+            if not ticket:
+                raise TicketNotFoundError
 
-                ticket = await ticket_repo.find_by_id(ticket_id)
-                if not ticket:
-                    raise TicketNotFoundError
+            if ticket.user.id != user.id:
+                raise NotTicketOwnerError
 
-                if ticket.user.id != user.id:
-                    raise NotTicketOwnerError
+            mise_to_use = (
+                ticket_update_model.mise
+                if ticket_update_model.mise is not None
+                else ticket.mise
+            )
 
-                mise_to_use = (
-                    ticket_update_model.mise
-                    if ticket_update_model.mise is not None
-                    else ticket.mise
+            # Validate BTL balance if mise increases
+            if ticket_update_model.mise is not None and ticket_update_model.mise > ticket.mise:
+                mise_diff = ticket_update_model.mise - ticket.mise
+                if ticket.league_id is not None:
+                    league_player = await uow.league_players_repo.get_participation_locked(
+                        league_id=ticket.league_id, user_id=user.id
+                    )
+                    if mise_diff > league_player.nb_btl:
+                        raise MiseSuperiorToNbBtlError
+                    league_player.nb_btl -= mise_diff
+                    await uow.league_players_repo.update(league_player)
+
+            if ticket_update_model.match_choices:
+                choice_data = ticket_update_model.match_choices
+            else:
+                existing_choices = await uow.match_choice_repo.find_all_by_ticket_id(ticket.id)
+                choice_data = [
+                    MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
+                    for mc in existing_choices
+                ]
+
+            # Gain calculated server-side
+            odd_ids = [cd.match_odd_id for cd in choice_data]
+            odds = await uow.match_odd_repo.find_all_by_ids(odd_ids)
+            odd_values = [Decimal(str(o.odd)) for o in odds]
+            new_gain = TicketDomainService.calculate_gain(odd_values, mise_to_use)
+
+            if ticket_update_model.mise is not None:
+                ticket.mise = ticket_update_model.mise
+            ticket.gain = new_gain
+            await uow.ticket_repo.update(ticket)
+
+            if ticket_update_model.match_choices:
+                await self._process_match_choices(
+                    mc_repo=uow.match_choice_repo,
+                    match_repo=uow.match_repo,
+                    odd_repo=uow.match_odd_repo,
+                    updated=True,
+                    ticket_id=ticket.id,
+                    match_choices_data=ticket_update_model.match_choices,
                 )
 
-                if ticket_update_model.match_choices:
-                    choice_data = ticket_update_model.match_choices
-                else:
-                    existing_choices = await match_choices_repo.find_all_by_ticket_id(ticket.id)
-                    choice_data = [
-                        MatchChoiceData(match_id=mc.match_id, match_odd_id=mc.match_odd_id)
-                        for mc in existing_choices
-                    ]
-
-                # Gain calculated server-side
-                odd_ids = [cd.match_odd_id for cd in choice_data]
-                odds = await odd_repo.find_all_by_ids(odd_ids)
-                odd_values = [Decimal(str(o.odd)) for o in odds]
-                new_gain = TicketDomainService.calculate_gain(odd_values, mise_to_use)
-
-                if ticket_update_model.mise is not None:
-                    ticket.mise = ticket_update_model.mise
-                ticket.gain = new_gain
-                await ticket_repo.update(ticket)
-
-                if ticket_update_model.match_choices:
-                    await self._process_match_choices(
-                        session=session,
-                        updated=True,
-                        ticket_id=ticket.id,
-                        match_choices_data=ticket_update_model.match_choices
-                    )
+            await uow.commit()
 
         return TicketUpdateResponse()
 
 
     async def create_tournament_ticket(self, tournament_id: int, match_id: int, ticket_create_model: TicketCreateModel, email: str) -> TicketCreateResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo = UserRepositoryImpl(session)
-                tournament_player_repo = TournamentPlayersRepositoryImpl(session)
-                tournament_match_repo = TournamentMatchRepositoryImpl(session)
-                ticket_repo = TicketRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                odd_repo = MatchOddRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            tournament = await uow.tournament_repo.find_by_id(tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
-                if not tournament:
-                    raise TournamentNotFoundError
+            tournament_player = await uow.tournament_players_repo.get_player(tournament_id, user.id)
+            if not tournament_player or tournament_player.is_eliminated:
+                raise UserNotFoundError
 
-                tournament_player = await tournament_player_repo.get_player(tournament_id, user.id)
-                if not tournament_player or tournament_player.is_eliminated:
-                    raise UserNotFoundError
+            if tournament_player.nb_btl == 0:
+                raise NbBTLHasReached0
 
-                if tournament_player.nb_btl == 0:
-                    raise NbBTLHasReached0
+            if ticket_create_model.mise > tournament_player.nb_btl:
+                raise MiseSuperiorToNbBtlError
 
-                if ticket_create_model.mise > tournament_player.nb_btl:
-                    raise MiseSuperiorToNbBtlError
+            if tournament.status != TournamentStatus.IN_PROGRESS:
+                raise TournamentNotStartedError
 
-                if not tournament.status.IN_PROGRESS:
-                    raise TournamentNotStartedError
+            # Gain calculated server-side
+            odd_ids = [cd.match_odd_id for cd in ticket_create_model.match_choices]
+            odds = await uow.match_odd_repo.find_all_by_ids(odd_ids)
+            odd_values = [Decimal(str(o.odd)) for o in odds]
+            gain = TicketDomainService.calculate_gain(odd_values, ticket_create_model.mise)
 
-                # Gain calculated server-side
-                odd_ids = [cd.match_odd_id for cd in ticket_create_model.match_choices]
-                odds = await odd_repo.find_all_by_ids(odd_ids)
-                odd_values = [Decimal(str(o.odd)) for o in odds]
-                gain = TicketDomainService.calculate_gain(odd_values, ticket_create_model.mise)
+            match = await uow.tournament_match_repo.find_by_id(match_id)
+            if not match or match.tournament_id != tournament_id:
+                raise TournamentMatchNotFoundError
 
-                match = await tournament_match_repo.find_by_id(match_id)
-                if not match or match.tournament_id != tournament_id:
-                    raise ValueError("Match not found")
-
-                uuid = shortuuid.uuid()
-                ticket = Ticket(
-                    uuid=uuid,
-                    gain=gain,
-                    tournament_match_id=match.id,
-                    mise=ticket_create_model.mise,
-                    status=TicketStatus.pending,
-                    user=UserSummary(
-                        id=user.id, email=user.email, pseudo=user.pseudo
-                    )
+            uuid = shortuuid.uuid()
+            ticket = Ticket(
+                uuid=uuid,
+                gain=gain,
+                tournament_match_id=match.id,
+                mise=ticket_create_model.mise,
+                status=TicketStatus.pending,
+                user=UserSummary(
+                    id=user.id, email=user.email, pseudo=user.pseudo
                 )
+            )
 
-                # flush to get ticket.id without an extra round-trip
-                ticket_id = await ticket_repo.create(ticket)
+            ticket_id = await uow.ticket_repo.create(ticket)
 
-                tournament_player.nb_btl -= ticket_create_model.mise
-                await tournament_player_repo.update(tournament_player)
+            tournament_player.nb_btl -= ticket_create_model.mise
+            await uow.tournament_players_repo.update(tournament_player)
 
-                await self._process_match_choices(
-                    session=session,
-                    updated=False,
-                    ticket_id=ticket_id,
-                    match_choices_data=ticket_create_model.match_choices
-                )
+            await self._process_match_choices(
+                mc_repo=uow.match_choice_repo,
+                match_repo=uow.match_repo,
+                odd_repo=uow.match_odd_repo,
+                updated=False,
+                ticket_id=ticket_id,
+                match_choices_data=ticket_create_model.match_choices,
+            )
+
+            await uow.commit()
 
         return TicketCreateResponse(ticket_id=ticket_id)
 
@@ -428,65 +387,71 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
         if token != self.settings.secret_key_token:
             raise TokenInvalidError
 
-        await self.publisher.connect()
+        async with self._uow_factory() as uow:
+            match = await uow.match_repo.find_by_id(match_id)
+            if not match:
+                raise MatchNotFoundError
 
-        async with self._session_factory() as session:
-            async with session.begin():
-                match_repo = MatchRepositoryImpl(session)
-                mc_repo    = MatchChoicesRepositoryImpl(session)
-                odd_repo   = MatchOddRepositoryImpl(session)
+            pending_choices = await uow.match_choice_repo.get_match_choices_pending_by_match_id(match_id)
 
-                match = await match_repo.find_by_id(match_id)
-                if not match:
-                    raise MatchNotFoundError
+            if not pending_choices:
+                return NoMatchChoiceUpdatedResponse()
 
-                pending_choices = await mc_repo.get_match_choices_pending_by_match_id(match_id)
-                any_updated = False
+            # Bulk fetch odds: 1 query
+            odd_ids = [c.match_odd_id for c in pending_choices]
+            odds = await uow.match_odd_repo.find_all_by_ids(odd_ids)
+            odd_dict = {o.id: o for o in odds}
 
-                if pending_choices:
-                    # Bulk fetch: 1 query instead of N
-                    odd_ids = [c.match_odd_id for c in pending_choices]
-                    odds = await odd_repo.find_all_by_ids(odd_ids)
-                    odd_dict = {o.id: o for o in odds}
+            # Prepare bulk status updates + collect unique ticket_ids
+            status_updates: list[tuple[int, MatchChoiceStatus]] = []
+            updated_ticket_ids: set[int] = set()
 
-                    for choice in pending_choices:
-                        odd = odd_dict.get(choice.match_odd_id)
-                        if not odd or odd.result is None:
-                            continue  # Not yet resolved, skip
-                        is_correct = (odd.result == "WIN")
+            for choice in pending_choices:
+                odd = odd_dict.get(choice.match_odd_id)
+                if not odd or odd.result is None:
+                    continue
+                new_status = MatchChoiceStatus.correct if odd.result == "WIN" else MatchChoiceStatus.wrong
+                status_updates.append((choice.id, new_status))
+                updated_ticket_ids.add(choice.ticket_id)
 
-                        new_status = MatchChoiceStatus.correct if is_correct else MatchChoiceStatus.wrong
-                        await mc_repo.mark_choice_status(choice.id, new_status)
-                        await session.flush()
+            if not status_updates:
+                return NoMatchChoiceUpdatedResponse()
 
-                        event = MatchChoiceStatusUpdatedEvent(
-                            ticket_id=choice.ticket_id,
-                            event_type="MatchChoiceStatusUpdatedEvent"
-                        )
-                        await self.publisher.publish_match_choice_status_updated(event)
-                        any_updated = True
+            # Single bulk update + single flush
+            await uow.match_choice_repo.bulk_mark_choice_status(status_updates)
 
-                return MatchChoiceUpdatedResponse() if any_updated else NoMatchChoiceUpdatedResponse()
+            # 1 outbox event per unique ticket (deduplicated) — atomic with DB commit
+            for tid in updated_ticket_ids:
+                await uow.outbox_bus.publish(
+                    TicketChoicesResolvedEvent(ticket_id=tid, match_id=match_id)
+                )
+
+            await uow.commit()
+            return MatchChoiceUpdatedResponse()
 
     async def check_ticket_status(self, token: str, ticket_id: int):
         if token != self.settings.secret_key_token:
             raise TokenInvalidError
 
-        async with self._session_factory() as session:
-            async with session.begin():
-                ticket_repo    = TicketRepositoryImpl(session)
-                match_choices_repository  = MatchChoicesRepositoryImpl(session)
-                ticket = await ticket_repo.find_by_id(ticket_id)
-                wrong, pend = await match_choices_repository.count_wrong_and_pending_by_ticket(ticket_id)
-                await ticket_repo.apply_ticket_updates(
-                    ticket_id=ticket.id,
-                    user_id=ticket.user.id,
-                    league_id=ticket.league_id,
-                    wrong_count=wrong,
-                    pending_count=pend,
-                    gain=ticket.gain
-                )
-                if wrong > 0 or pend == 0:
-                    return TicketUpdatedResponse()
-                else:
-                    return NoTicketUpdatedResponse()
+        async with self._uow_factory() as uow:
+            # SELECT FOR UPDATE — serializes concurrent access to the same ticket
+            ticket = await uow.ticket_repo.find_by_id_for_update(ticket_id)
+            if ticket.status != TicketStatus.pending:
+                return TicketUpdatedResponse()  # Already resolved
+
+            wrong, pend = await uow.match_choice_repo.count_wrong_and_pending_by_ticket(ticket_id)
+            updated = await uow.ticket_repo.apply_ticket_updates(
+                ticket_id=ticket.id,
+                user_id=ticket.user.id,
+                league_id=ticket.league_id,
+                wrong_count=wrong,
+                pending_count=pend,
+                gain=ticket.gain,
+            )
+
+            await uow.commit()
+
+            if updated:
+                return TicketUpdatedResponse()
+            else:
+                return NoTicketUpdatedResponse()

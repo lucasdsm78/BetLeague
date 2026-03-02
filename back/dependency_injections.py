@@ -36,7 +36,6 @@ from domain.services.authentication.totp_service import TOTPService
 from domain.match.model.sport import Sport
 from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
 from domain.services.match_score_api.match_score_api import MatchScoreApi
-from domain.services.rabbitmq.publisher import RabbitMQPublisher
 from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
 from domain.services.stripe.stripe_service import StripeService
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
@@ -92,7 +91,6 @@ from infrastructure.services.api_sports.football_fetch_service import ApiSportsF
 from infrastructure.services.api_sports.match_fetch_router import MultiSportMatchFetchRouter
 from infrastructure.services.api_sports.score_service import ApiSportsScoreService
 from application.match.match_fetch_usecase import MatchFetchUseCase, MatchFetchUseCaseImpl
-from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
 from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
@@ -108,6 +106,8 @@ from application.notification.handlers.league_invitation_notification_handler im
 from application.notification.handlers.league_invitation_accepted_notification_handler import OnLeagueInvitationAcceptedCreateNotification
 from application.notification.handlers.league_invitation_refused_notification_handler import OnLeagueInvitationRefusedCreateNotification
 from application.notification.handlers.league_started_notification_handler import OnLeagueStartedCreateNotification
+from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from application.ticket.handlers.ticket_choices_resolved_handler import OnTicketChoicesResolvedCheckStatus
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
 from application.events.outbox_event_bus import OutboxDomainEventBus
 from infrastructure.services.notification.redis_notification_realtime import (
@@ -448,6 +448,10 @@ def outbox_handler_bus_dependency(
             LeagueStarted,
             OnLeagueStartedCreateNotification(notification_uc),
         )
+        bus.subscribe(
+            TicketChoicesResolvedEvent,
+            OnTicketChoicesResolvedCheckStatus(session_factory=sf),
+        )
         setattr(bus, '_betleague_handlers_registered', True)
     return bus
 
@@ -500,39 +504,18 @@ def ticket_query_usecase(
     )
 
 
-def rabbitmq_dependency(settings: Settings = Depends(get_settings)) -> RabbitMQPublisher:
-    return RabbitMQPublisherImpl(settings=settings)
-
-
 def rabbitmq_dependency_score_service(settings: Settings = Depends(get_settings)) -> RabbitMQPublisherScoreService:
     return RabbitMQPublisherScoreServiceImpl(settings=settings)
 
 
 def ticket_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
-        league_repository: LeagueRepository = Depends(league_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency),
-        ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
-        match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
-        match_repository: MatchRepository = Depends(match_repository_dependency),
-        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
-        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
-        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
-        publisher: RabbitMQPublisher = Depends(rabbitmq_dependency),
-        settings: Settings = Depends(get_settings)
+        settings: Settings = Depends(get_settings),
 ) -> TicketCommandUseCase:
+    from infrastructure.postgresql.ticket.ticket_unit_of_work import TicketUnitOfWorkImpl
     return TicketCommandUseCaseImpl(
-        league_repository=league_repository,
-        session_factory=session_factory,
-        user_repository=user_repository,
-        ticket_repository=ticket_repository,
-        tournament_repository=tournament_repository,
-        tournament_players_repository=tournament_players_repository,
-        match_choices_repository=match_choices_repository,
-        match_repository=match_repository,
-        league_players_repository=league_players_repository,
+        uow_factory=lambda: TicketUnitOfWorkImpl(session_factory=session_factory),
         settings=settings,
-        publisher=publisher
     )
 
 

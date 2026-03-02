@@ -36,6 +36,10 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_id_for_update(self, ticket_id: int) -> Optional[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def apply_ticket_updates(
             self,
             ticket_id: int,
@@ -44,7 +48,7 @@ class TicketRepository(ABC):
             wrong_count: int,
             pending_count: int,
             gain: float
-    ):
+    ) -> bool:
         raise NotImplementedError
 
     @abstractmethod
