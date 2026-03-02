@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import json
+import time
 
 try:
     import orjson  # type: ignore
@@ -11,6 +12,7 @@ except Exception:  # pragma: no cover
 
 from nats.aio.client import Client as NATS
 from nats.js.api import ConsumerConfig
+from nats.js.errors import NotFoundError
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
@@ -48,6 +50,44 @@ def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> 
 
     # Safety: never consume DLQ subjects in the main consumer.
     return [s for s in subjects if not s.startswith(dlq_subject_prefix)]
+
+
+async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
+    timeout_s = float(os.getenv("NATS_PROVISION_WAIT_TIMEOUT_SECONDS", "20"))
+    poll_s = float(os.getenv("NATS_PROVISION_WAIT_POLL_SECONDS", "0.25"))
+    started = time.time()
+
+    print(
+        _dumps(
+            {
+                "event": "jetstream.consumer.wait_for_streams.start",
+                "stream": stream,
+                "dlq_stream": dlq_stream,
+                "timeout_s": timeout_s,
+                "poll_s": poll_s,
+            }
+        )
+    )
+
+    while True:
+        try:
+            await js.stream_info(stream)
+            await js.stream_info(dlq_stream)
+            print(
+                _dumps(
+                    {
+                        "event": "jetstream.consumer.wait_for_streams.ready",
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    }
+                )
+            )
+            return
+        except NotFoundError:
+            if time.time() - started >= timeout_s:
+                raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
+            await asyncio.sleep(poll_s)
 
 
 async def main() -> None:
@@ -99,36 +139,8 @@ async def main() -> None:
 
     js = nc.jetstream()
 
-    # Streams are provisioned by infra (nats-box / nats config). We only validate presence.
-    try:
-        await js.stream_info(stream)
-    except Exception as e:
-        print(
-            _dumps(
-                {
-                    "event": "jetstream.consumer.stream_missing",
-                    "stream": stream,
-                    "error": str(e),
-                    "hint": "Provisionne les streams via nats-box (service nats_provision) ou nats-server.conf (stream_configs).",
-                }
-            )
-        )
-        raise
-
-    try:
-        await js.stream_info(dlq_stream)
-    except Exception as e:
-        print(
-            _dumps(
-                {
-                    "event": "jetstream.consumer.dlq_stream_missing",
-                    "stream": dlq_stream,
-                    "error": str(e),
-                    "hint": "Provisionne la DLQ via nats-box (service nats_provision) ou nats-server.conf (stream_configs).",
-                }
-            )
-        )
-        raise
+    # Wait provisioning (jetstream_provision service)
+    await _wait_for_streams(js=js, stream=stream, dlq_stream=dlq_stream)
 
     bus = outbox_handler_bus_dependency()
 
