@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger, Index
 from sqlalchemy.orm import relationship
 
 from domain.ticket.model.match_choice import MatchChoice
@@ -18,6 +18,10 @@ class DBMatchChoices(Base):
     choice: Union[str, Column] = Column(String, nullable=False)
     status: Union[str, Column] = Column(String, nullable=False)
     match_odd_id: Union[int, Column] = Column(Integer, ForeignKey('match_odds.id', ondelete="SET NULL"), nullable=True, index=True)
+
+    __table_args__ = (
+        Index("ix_match_choices_match_id_status", "match_id", "status"),
+    )
 
     def to_entity(self) -> MatchChoice:
             return MatchChoice(

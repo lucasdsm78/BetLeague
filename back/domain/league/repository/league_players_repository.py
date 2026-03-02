@@ -43,6 +43,14 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def apply_ticket_win(self, league_id: int, user_id: int, gain: float) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def apply_ticket_lose(self, league_id: int, user_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def begin(self):
         raise NotImplementedError
 

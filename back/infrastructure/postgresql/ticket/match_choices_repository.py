@@ -1,6 +1,6 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, update, delete, func, case, literal
+from sqlalchemy import select, update, delete, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
@@ -15,10 +15,7 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
 
     async def create(self, match_choice: MatchChoice):
         match_choice_db = DBMatchChoices.from_entity(match_choice)
-        try:
-            self.session.add(match_choice_db)
-        except:
-            raise
+        self.session.add(match_choice_db)
 
     async def find_all_by_ticket_id(self, ticket_id: int) -> List[MatchChoice]:
         q = (
@@ -51,13 +48,10 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
         self.session.add_all(db_objects)
 
     async def update(self, match_choice: MatchChoice):
-        try:
-            query = select(DBMatchChoices).where(DBMatchChoices.id == match_choice.id)
-            result = await self.session.execute(query)
-            _match_choice = result.scalar_one()
-            match_choice_db = DBMatchChoices.from_entity(match_choice, _match_choice)
-        except:
-            raise
+        query = select(DBMatchChoices).where(DBMatchChoices.id == match_choice.id)
+        result = await self.session.execute(query)
+        _match_choice = result.scalar_one()
+        DBMatchChoices.from_entity(match_choice, _match_choice)
 
     async def get_match_choices_pending_by_match_id(self, match_id: int) -> List[MatchChoice]:
         stmt = (

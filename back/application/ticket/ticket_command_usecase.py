@@ -441,18 +441,32 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 return TicketUpdatedResponse()  # Already resolved
 
             wrong, pend = await uow.match_choice_repo.count_wrong_and_pending_by_ticket(ticket_id)
-            updated = await uow.ticket_repo.apply_ticket_updates(
+            resolved = await uow.ticket_repo.resolve_status(
                 ticket_id=ticket.id,
-                user_id=ticket.user.id,
-                league_id=ticket.league_id,
                 wrong_count=wrong,
                 pending_count=pend,
-                gain=ticket.gain,
             )
+
+            if resolved:
+                is_win = wrong == 0
+                if is_win:
+                    await uow.user_repo.apply_ticket_win(ticket.user.id, ticket.gain)
+                else:
+                    await uow.user_repo.apply_ticket_lose(ticket.user.id)
+
+                if ticket.league_id is not None:
+                    if is_win:
+                        await uow.league_players_repo.apply_ticket_win(
+                            ticket.league_id, ticket.user.id, ticket.gain
+                        )
+                    else:
+                        await uow.league_players_repo.apply_ticket_lose(
+                            ticket.league_id, ticket.user.id
+                        )
 
             await uow.commit()
 
-            if updated:
+            if resolved:
                 return TicketUpdatedResponse()
             else:
                 return NoTicketUpdatedResponse()

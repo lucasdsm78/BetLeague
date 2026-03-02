@@ -1,21 +1,15 @@
-from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 from sqlalchemy.orm import joinedload, selectinload
 
 from sqlalchemy import select, update, func
-from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.ticket.exception.ticket_exception import TicketNotFoundError
-from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
-from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
-from infrastructure.postgresql.match.db_match_odd import DBMatchOdd
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
-from infrastructure.postgresql.user.db_user import DBUser
 
 
 class TicketRepositoryImpl(TicketRepository):
@@ -58,26 +52,6 @@ class TicketRepositoryImpl(TicketRepository):
         if not ticket_db:
             raise TicketNotFoundError
         return ticket_db.to_entity()
-
-    async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
-        try:
-            odd_ids = [mc.match_odd_id for mc in match_choices]
-            odd_result = await self.session.execute(
-                select(DBMatchOdd).where(DBMatchOdd.id.in_(odd_ids))
-            )
-            odd_dict = {o.id: o for o in odd_result.scalars().all()}
-
-            total_coefficient = Decimal("1.0")
-            for mc in match_choices:
-                db_odd = odd_dict.get(mc.match_odd_id)
-                if not db_odd:
-                    raise ValueError(f"MatchOdd introuvable avec l'id {mc.match_odd_id}")
-                total_coefficient *= Decimal(str(db_odd.odd))
-
-            gain_decimal = Decimal(str(mise)) * total_coefficient
-            return float(gain_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
-        except:
-            raise
 
     async def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
         q = (
@@ -171,24 +145,18 @@ class TicketRepositoryImpl(TicketRepository):
 
 
     async def update(self, ticket: Ticket):
-        try:
-            result = await self.session.execute(
-                select(DBTicket).where(DBTicket.id == ticket.id)
-            )
-            _ticket = result.scalar_one()
-            ticket_db = DBTicket.from_entity(ticket, _ticket)
-        except:
-            raise
+        result = await self.session.execute(
+            select(DBTicket).where(DBTicket.id == ticket.id)
+        )
+        _ticket = result.scalar_one()
+        DBTicket.from_entity(ticket, _ticket)
 
     async def delete(self, ticket_id: int):
-        try:
-            result = await self.session.execute(
-                select(DBTicket).where(DBTicket.id == ticket_id)
-            )
-            ticket = result.scalar_one()
-            await self.session.delete(ticket)
-        except:
-            raise
+        result = await self.session.execute(
+            select(DBTicket).where(DBTicket.id == ticket_id)
+        )
+        ticket = result.scalar_one()
+        await self.session.delete(ticket)
 
 
 
@@ -201,15 +169,21 @@ class TicketRepositoryImpl(TicketRepository):
             pending_count: int,
             gain: float
     ) -> bool:
-        # 1) Déterminer le nouveau statut
+        return await self.resolve_status(ticket_id, wrong_count, pending_count)
+
+    async def resolve_status(
+            self,
+            ticket_id: int,
+            wrong_count: int,
+            pending_count: int,
+    ) -> bool:
         if wrong_count > 0:
             new_status = TicketStatus.wrong.value
         elif pending_count == 0:
             new_status = TicketStatus.correct.value
         else:
-            return False  # choices encore en attente
+            return False
 
-        # 2) UPDATE idempotent : WHERE status = ‘PENDING’ empêche le double-traitement
         result = await self.session.execute(
             update(DBTicket)
             .where(
@@ -218,48 +192,7 @@ class TicketRepositoryImpl(TicketRepository):
             )
             .values(status=new_status)
         )
-        if result.rowcount == 0:
-            return False  # Déjà résolu — idempotent
-
-        # 3) Mettre à jour les compteurs de l’utilisateur
-        user_values = {}
-        if wrong_count > 0:
-            user_values["nb_lose"] = DBUser.nb_lose + 1
-        else:
-            user_values.update({
-                "nb_win":  DBUser.nb_win + 1,
-                "nb_btl":  DBUser.nb_btl + gain,
-                "btl_from_tickets": DBUser.btl_from_tickets + gain,
-            })
-
-        await self.session.execute(
-            update(DBUser)
-            .where(DBUser.id == user_id)
-            .values(**user_values)
-        )
-
-        # 4) Même chose pour league_players (seulement si le ticket appartient à une ligue)
-        if league_id is not None:
-            lp_values = {}
-            if wrong_count > 0:
-                lp_values["nb_lose"] = DBLeaguePlayers.nb_lose + 1
-            else:
-                lp_values.update({
-                    "nb_win": DBLeaguePlayers.nb_win + 1,
-                    "nb_btl": DBLeaguePlayers.nb_btl + gain,
-                    "btl_from_tickets": DBLeaguePlayers.btl_from_tickets + gain,
-                })
-
-            await self.session.execute(
-                update(DBLeaguePlayers)
-                .where(
-                    DBLeaguePlayers.league_id == league_id,
-                    DBLeaguePlayers.user_id   == user_id
-                )
-                .values(**lp_values)
-            )
-
-        return True
+        return result.rowcount > 0
 
     async def begin(self):
         await self.session.begin()
