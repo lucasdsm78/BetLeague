@@ -1,13 +1,22 @@
 import os
 import asyncio
 import signal
+import logging
+
+import uvloop
 from dotenv import load_dotenv
 
 from infrastructure.services.rabbitmq.match_score_updated_consumer import MatchWinnerConsumer
 
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 load_dotenv()
-AMQP_URL    = os.getenv("RABBITMQ_URL")
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+AMQP_URL = os.getenv("RABBITMQ_URL")
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", "4"))
+
 
 async def main():
     consumers = [
@@ -21,9 +30,12 @@ async def main():
         asyncio.get_running_loop().add_signal_handler(sig, stop.set)
 
     await stop.wait()
+    logger.info("[Main] Arrêt gracieux, fermeture des consumers...")
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+    logger.info("[Main] Tous les consumers fermés.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

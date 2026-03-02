@@ -129,6 +129,14 @@ class MatchRepositoryImpl(MatchRepository):
         db_match = result.scalar_one_or_none()
         return db_match.to_entity() if db_match else None
 
+    async def find_all_by_api_fixture_ids(self, api_fixture_ids: List[int]) -> List[Match]:
+        if not api_fixture_ids:
+            return []
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id.in_(api_fixture_ids))
+        )
+        return [db.to_entity() for db in result.scalars().all()]
+
     async def upsert_by_api_fixture_id(self, match: Match) -> Match:
         result = await self.session.execute(
             select(DBMatch).where(DBMatch.api_fixture_id == match.api_fixture_id)

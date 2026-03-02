@@ -44,6 +44,10 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_by_api_fixture_ids(self, api_fixture_ids: List[int]) -> List[Match]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def upsert_by_api_fixture_id(self, match: Match) -> Match:
         raise NotImplementedError
 

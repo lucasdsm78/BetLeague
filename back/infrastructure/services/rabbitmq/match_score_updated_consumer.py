@@ -1,9 +1,9 @@
 import asyncio
-import json
 import logging
 import os
 
 import aio_pika
+import orjson
 from dotenv import load_dotenv
 
 from application.ticket.ticket_command_usecase_factory import build_ticket_command_usecase
@@ -13,9 +13,9 @@ from infrastructure.config import Settings
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 load_dotenv()
-from dependency_injections import get_session, get_async_session
 
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", "4"))
+
 
 class MatchWinnerConsumer:
 
@@ -25,6 +25,7 @@ class MatchWinnerConsumer:
     def __init__(self, amqp_url: str):
         self.amqp_url = amqp_url
         self.settings = Settings()
+        self._usecase = build_ticket_command_usecase(settings=self.settings)
 
     async def start(self):
         connection = await aio_pika.connect_robust(self.amqp_url)
@@ -45,7 +46,7 @@ class MatchWinnerConsumer:
     async def _on_message(self, message: aio_pika.IncomingMessage):
         async with message.process(requeue=False):
             try:
-                raw = json.loads(message.body)
+                raw = orjson.loads(message.body)
                 event = MatchUpdatedEvent(**raw)
                 await self.handle_match_winner_updated(event)
                 logger.info("[Consumer] Message traité avec succès.")
@@ -54,19 +55,14 @@ class MatchWinnerConsumer:
 
     async def handle_match_winner_updated(self, event: MatchUpdatedEvent):
         logger.info(f"[Consumer] Traitement de MatchUpdatedEvent: match_id={event.match_id}")
-
-        async with get_async_session() as session:
-            try:
-                usecase = build_ticket_command_usecase(session, self.settings)
-                resp = await usecase.check_match_choices_by_match_id(
-                    token=os.getenv("SECRET_KEY_TOKEN"),
-                    match_id=event.match_id
-                )
-                logger.info(f"[Consumer] Résultat: {resp}")
-            except Exception:
-                logger.exception("[Consumer] Erreur dans use-case")
-            finally:
-                await session.close()
+        try:
+            resp = await self._usecase.check_match_choices_by_match_id(
+                token=os.getenv("SECRET_KEY_TOKEN"),
+                match_id=event.match_id,
+            )
+            logger.info(f"[Consumer] Résultat: {resp}")
+        except Exception:
+            logger.exception("[Consumer] Erreur dans use-case")
 
 
 async def main():

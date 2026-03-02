@@ -46,6 +46,19 @@ class TicketRepositoryImpl(TicketRepository):
             raise TicketNotFoundError
         return ticket_db.to_entity()
 
+    async def find_by_id_for_update(self, ticket_id: int) -> Ticket:
+        q = (
+            select(DBTicket)
+            .options(joinedload(DBTicket.user))
+            .where(DBTicket.id == ticket_id)
+            .with_for_update()
+        )
+        result = await self.session.execute(q)
+        ticket_db = result.scalar_one_or_none()
+        if not ticket_db:
+            raise TicketNotFoundError
+        return ticket_db.to_entity()
+
     async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
         try:
             odd_ids = [mc.match_odd_id for mc in match_choices]
@@ -171,22 +184,28 @@ class TicketRepositoryImpl(TicketRepository):
             wrong_count: int,
             pending_count: int,
             gain: float
-    ):
-        # 1) Mettre à jour le ticket
+    ) -> bool:
+        # 1) Déterminer le nouveau statut
         if wrong_count > 0:
             new_status = TicketStatus.wrong.value
         elif pending_count == 0:
             new_status = TicketStatus.correct.value
         else:
-            return  # rien à faire
+            return False  # choices encore en attente
 
-        await self.session.execute(
+        # 2) UPDATE idempotent : WHERE status = ‘PENDING’ empêche le double-traitement
+        result = await self.session.execute(
             update(DBTicket)
-            .where(DBTicket.id == ticket_id)
+            .where(
+                DBTicket.id == ticket_id,
+                DBTicket.status == TicketStatus.pending.value,
+            )
             .values(status=new_status)
         )
+        if result.rowcount == 0:
+            return False  # Déjà résolu — idempotent
 
-        # 2) Mettre à jour les compteurs de l’utilisateur
+        # 3) Mettre à jour les compteurs de l’utilisateur
         user_values = {}
         if wrong_count > 0:
             user_values["nb_lose"] = DBUser.nb_lose + 1
@@ -203,7 +222,7 @@ class TicketRepositoryImpl(TicketRepository):
             .values(**user_values)
         )
 
-        # 3) Même chose pour league_players (seulement si le ticket appartient à une ligue)
+        # 4) Même chose pour league_players (seulement si le ticket appartient à une ligue)
         if league_id is not None:
             lp_values = {}
             if wrong_count > 0:
@@ -223,6 +242,8 @@ class TicketRepositoryImpl(TicketRepository):
                 )
                 .values(**lp_values)
             )
+
+        return True
 
     async def begin(self):
         await self.session.begin()
