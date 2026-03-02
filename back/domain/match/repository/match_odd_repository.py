@@ -27,5 +27,11 @@ class MatchOddRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def upsert_many_for_match(self, match_id: int, odds: List[MatchOdd]) -> None:
+        """Upsert odds for a match: update existing by (match_id, bet_type, value),
+        insert new ones, and only delete stale odds that have no pending match_choices."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def delete_by_match_id(self, match_id: int) -> None:
         raise NotImplementedError

@@ -31,11 +31,11 @@ class TicketQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_tickets_in_progress(self, email: str) -> TicketsInProgressResponse:
+    async def get_tickets_in_progress(self, email: str, page: int = 1, page_size: int = 20) -> TicketsInProgressResponse:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_tickets_finished(self, email: str) -> TicketsFinishedResponse:
+    async def get_tickets_finished(self, email: str, page: int = 1, page_size: int = 20) -> TicketsFinishedResponse:
         raise NotImplementedError
 
 

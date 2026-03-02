@@ -1,6 +1,6 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, update, delete, func, case
+from sqlalchemy import select, update, delete, func, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
@@ -85,11 +85,17 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
     async def bulk_mark_choice_status(self, updates: list[tuple[int, MatchChoiceStatus]]) -> None:
         if not updates:
             return
-        for choice_id, status in updates:
+
+        # Group by status to issue one UPDATE per status value (typically 2: correct/wrong)
+        by_status: dict[str, list[int]] = {}
+        for choice_id, choice_status in updates:
+            by_status.setdefault(choice_status.value, []).append(choice_id)
+
+        for status_val, ids in by_status.items():
             await self.session.execute(
                 update(DBMatchChoices)
-                .where(DBMatchChoices.id == choice_id)
-                .values(status=status.value)
+                .where(DBMatchChoices.id.in_(ids))
+                .values(status=status_val)
                 .execution_options(synchronize_session=False)
             )
         await self.session.flush()
