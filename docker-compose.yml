@@ -11,21 +11,6 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
-#  frontend:
-#    build:
-#      context: front
-#      dockerfile: Dockerfile.dev
-#    container_name: react_frontend
-#    ports:
-#      - "3000:3000"
-#    volumes:
-#      - ./front:/app
-#      - /app/node_modules
-#    environment:
-#      - CHOKIDAR_USEPOLLING=true
-#    depends_on:
-#      - backend
-
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -36,6 +21,21 @@ services:
       - "8080:80"
     depends_on:
       - db
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats
+    command:
+      - "-js"
+      - "--store_dir"
+      - "/data"
+      - "-m"
+      - "8222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
 
   redis:
     image: redis:7-alpine
@@ -82,20 +82,6 @@ services:
       - db
       - redis
 
-#  scrapper:
-#    build: ../ScrapperBet
-#    container_name: scrapper_app
-#    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-#    volumes:
-#      - ../ScrapperBet:/app
-#    ports:
-#      - "8000:8000"
-#    environment:
-#      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
-#    depends_on:
-#      - backend
-#      - db
-#
   celery_worker:
     build:
       context: back
@@ -151,6 +137,10 @@ services:
       SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       NOTIFICATIONS_REALTIME_DRIVER: "redis"
+      OUTBOX_DISPATCH_MODE: "jetstream"
+      NATS_URL: "nats://nats:4222"
+      NATS_STREAM: "BETLEAGUE"
+      NATS_SUBJECT_PREFIX: "betleague"
       OUTBOX_BATCH_SIZE: 50
       OUTBOX_POLL_INTERVAL_MS: 250
       OUTBOX_MAX_POLL_INTERVAL_MS: 5000
@@ -161,7 +151,29 @@ services:
       - db
       - backend
       - redis
+      - nats
     restart: always
+
+  # Consumer de démo (optionnel) : affiche les événements JetStream
+  jetstream_consumer:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    container_name: jetstream_consumer
+    command: python jetstream_consumer_main.py
+    volumes:
+      - ./back:/app
+    env_file:
+      - back/.env
+    environment:
+      NATS_URL: "nats://nats:4222"
+      NATS_STREAM: "BETLEAGUE"
+      NATS_SUBJECT_PREFIX: "betleague"
+      NATS_DURABLE: "betleague_consumer"
+    depends_on:
+      - nats
+    restart: unless-stopped
 
 volumes:
   db_data:
+  nats_data:

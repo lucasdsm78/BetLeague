@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.postgresql.outbox.db_outbox_message import DBOutboxMessage
@@ -96,5 +96,18 @@ class OutboxRepositoryImpl:
             update(DBOutboxMessage)
             .where(DBOutboxMessage.id == message_id)
             .values(attempts=attempts, last_error=last_error, locked_at=None, locked_by=None)
+        )
+        await self._session.execute(stmt)
+
+    async def mark_failed_increment_attempts(self, *, message_id: int, last_error: str) -> None:
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id == message_id)
+            .values(
+                attempts=(func.coalesce(DBOutboxMessage.attempts, 0) + 1),
+                last_error=last_error,
+                locked_at=None,
+                locked_by=None,
+            )
         )
         await self._session.execute(stmt)
