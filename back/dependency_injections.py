@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from infrastructure.postgresql.match.match_score_unit_of_work import MatchScoreUnitOfWorkImpl
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
@@ -36,7 +36,7 @@ from domain.services.authentication.totp_service import TOTPService
 from domain.match.model.sport import Sport
 from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
 from domain.services.match_score_api.match_score_api import MatchScoreApi
-from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
+from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.services.stripe.stripe_service import StripeService
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
@@ -91,7 +91,7 @@ from infrastructure.services.api_sports.football_fetch_service import ApiSportsF
 from infrastructure.services.api_sports.match_fetch_router import MultiSportMatchFetchRouter
 from infrastructure.services.api_sports.score_service import ApiSportsScoreService
 from application.match.match_fetch_usecase import MatchFetchUseCase, MatchFetchUseCaseImpl
-from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
+from application.match.handlers.match_result_resolved_handler import OnMatchResultResolvedCheckChoices
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
 from infrastructure.postgresql.push_subscription.push_subscription_repository import PushSubscriptionRepositoryImpl
@@ -452,6 +452,10 @@ def outbox_handler_bus_dependency(
             TicketChoicesResolvedEvent,
             OnTicketChoicesResolvedCheckStatus(session_factory=sf),
         )
+        bus.subscribe(
+            MatchResultResolvedEvent,
+            OnMatchResultResolvedCheckChoices(session_factory=sf),
+        )
         setattr(bus, '_betleague_handlers_registered', True)
     return bus
 
@@ -504,10 +508,6 @@ def ticket_query_usecase(
     )
 
 
-def rabbitmq_dependency_score_service(settings: Settings = Depends(get_settings)) -> RabbitMQPublisherScoreService:
-    return RabbitMQPublisherScoreServiceImpl(settings=settings)
-
-
 def ticket_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         settings: Settings = Depends(get_settings),
@@ -538,18 +538,13 @@ def match_query_usecase(
 
 
 def match_command_usecase(
-        match_repository: MatchRepository = Depends(match_repository_dependency),
         settings: Settings = Depends(get_settings),
         match_score_api_dependency: MatchScoreApi = Depends(match_score_api_v2),
-        publisher: RabbitMQPublisherScoreService = Depends(rabbitmq_dependency_score_service),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchCommandUseCase:
     return MatchCommandUseCaseImpl(
-        match_repository=match_repository,
-        settings=settings,
         match_score_api=match_score_api_dependency,
-        publisher=publisher,
-        session_factory=session_factory,
+        uow_factory=lambda: MatchScoreUnitOfWorkImpl(session_factory=session_factory),
     )
 
 

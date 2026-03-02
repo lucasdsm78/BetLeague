@@ -18,6 +18,7 @@ from domain.league.events.league_invitation_created import LeagueInvitationCreat
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
 from domain.league.events.league_started import LeagueStarted
+from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 
@@ -59,6 +60,11 @@ def _deserialize(event_name: str, payload: dict) -> DomainEvent:
     if event_name == "ticket.choices.resolved" or payload.get("event_name") == "ticket.choices.resolved":
         return TicketChoicesResolvedEvent(
             ticket_id=int(payload["ticket_id"]),
+            match_id=int(payload["match_id"]),
+        )
+
+    if event_name == "match.result.resolved" or payload.get("event_name") == "match.result.resolved":
+        return MatchResultResolvedEvent(
             match_id=int(payload["match_id"]),
         )
 

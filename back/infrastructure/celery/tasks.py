@@ -120,7 +120,7 @@ async def _check_match_scores_async():
     from infrastructure.config import Settings
     from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
     from infrastructure.services.api_sports.score_service import ApiSportsScoreService
-    from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
+    from infrastructure.postgresql.match.match_score_unit_of_work import MatchScoreUnitOfWorkImpl
     from application.match.match_command_usecase import MatchCommandUseCaseImpl
 
     settings = Settings()
@@ -132,14 +132,10 @@ async def _check_match_scores_async():
     )
 
     score_api = ApiSportsScoreService(client=client)
-    publisher = RabbitMQPublisherScoreServiceImpl(settings=settings)
 
     usecase = MatchCommandUseCaseImpl(
-        match_repository=None,
         match_score_api=score_api,
-        settings=settings,
-        session_factory=session_factory,
-        publisher=publisher,
+        uow_factory=lambda: MatchScoreUnitOfWorkImpl(session_factory=session_factory),
     )
 
     try:
