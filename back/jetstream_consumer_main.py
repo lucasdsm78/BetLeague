@@ -14,6 +14,7 @@ from nats.js.api import ConsumerConfig
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
+from infrastructure.services.nats_subjects import load_nats_subjects
 
 
 def _dumps(obj: dict) -> str:
@@ -28,19 +29,42 @@ def _loads(data: bytes) -> dict:
     return json.loads(data.decode("utf-8"))
 
 
+def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> list[str]:
+    """Détermine les subjects auxquels le consumer doit s'abonner.
+
+    Priorité:
+      1) NATS_CONSUMER_SUBJECTS (CSV) si défini
+      2) mêmes subjects que le stream principal (load_nats_subjects)
+
+    Dans tous les cas, on exclut le préfixe DLQ pour éviter que le consumer normal
+    consomme les messages parking.
+    """
+    raw = os.getenv("NATS_CONSUMER_SUBJECTS", "").strip()
+    if raw:
+        parts = [p.strip() for p in raw.replace(";", ",").split(",")]
+        subjects = [p for p in parts if p]
+    else:
+        subjects = load_nats_subjects(subject_prefix=subject_prefix)
+
+    # Safety: never consume DLQ subjects in the main consumer.
+    return [s for s in subjects if not s.startswith(dlq_subject_prefix)]
+
+
 async def main() -> None:
     url = os.getenv("NATS_URL", "nats://localhost:4222")
     stream = os.getenv("NATS_STREAM", "BETLEAGUE")
     subject_prefix = os.getenv("NATS_SUBJECT_PREFIX", "betleague")
     durable = os.getenv("NATS_DURABLE", "betleague_consumer")
 
-    # Subscribe to all BetLeague events by default
-    subject = os.getenv("NATS_SUBJECT", f"{subject_prefix}.>")
-
     # Failure strategy
     max_deliver = int(os.getenv("NATS_MAX_DELIVER", "10"))
-    # DLQ is implemented as a subject prefix inside the main stream to avoid subject overlap errors.
+    dlq_stream = os.getenv("NATS_DLQ_STREAM", f"{stream}_DLQ")
     dlq_subject_prefix = os.getenv("NATS_DLQ_SUBJECT_PREFIX", f"{subject_prefix}.dlq")
+
+    consumer_subjects = _load_consumer_subjects(
+        subject_prefix=subject_prefix,
+        dlq_subject_prefix=dlq_subject_prefix,
+    )
 
     print(
         _dumps(
@@ -48,10 +72,11 @@ async def main() -> None:
                 "event": "jetstream.consumer.start",
                 "nats_url": url,
                 "stream": stream,
-                "subject": subject,
+                "subjects": consumer_subjects,
                 "durable": durable,
                 "orjson": bool(orjson is not None),
                 "max_deliver": max_deliver,
+                "dlq_stream": dlq_stream,
                 "dlq_subject_prefix": dlq_subject_prefix,
             }
         )
@@ -78,12 +103,27 @@ async def main() -> None:
     try:
         await js.stream_info(stream)
     except Exception:
-        await js.add_stream(name=stream, subjects=[f"{subject_prefix}.>"])
+        subjects = load_nats_subjects(subject_prefix=subject_prefix)
+        await js.add_stream(name=stream, subjects=subjects)
+
+    # Ensure DLQ stream exists (dev)
+    try:
+        await js.stream_info(dlq_stream)
+    except Exception:
+        await js.add_stream(name=dlq_stream, subjects=[f"{dlq_subject_prefix}.>"])
+        print(
+            _dumps(
+                {
+                    "event": "jetstream.consumer.dlq_stream_created",
+                    "stream": dlq_stream,
+                    "subjects": [f"{dlq_subject_prefix}.>"],
+                }
+            )
+        )
 
     bus = outbox_handler_bus_dependency()
 
     async def _publish_to_dlq(*, original_subject: str, payload: dict, error: str, num_delivered: int | None) -> None:
-        # Route DLQ by original subject for readability.
         dlq_subject = f"{dlq_subject_prefix}.{original_subject}".replace("*", "STAR").replace(">", "GT")
         envelope = {
             "original_subject": original_subject,
@@ -182,19 +222,21 @@ async def main() -> None:
         max_deliver=max_deliver,
     )
 
-    await js.subscribe(
-        subject,
-        durable=durable,
-        manual_ack=True,
-        config=cfg,
-        cb=handler,
-    )
+    # Subscribe to each subject pattern (no wildcard betleague.> to keep DLQ isolated)
+    for sub in consumer_subjects:
+        await js.subscribe(
+            sub,
+            durable=f"{durable}__{sub.replace('.', '_').replace('*', 'STAR').replace('>', 'GT')}",
+            manual_ack=True,
+            config=cfg,
+            cb=handler,
+        )
 
     print(
         _dumps(
             {
                 "event": "jetstream.consumer.subscribed",
-                "subject": subject,
+                "subjects": consumer_subjects,
                 "durable": durable,
             }
         )
