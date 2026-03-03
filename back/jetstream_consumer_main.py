@@ -42,6 +42,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
 
     last_state: str | None = None
     last_error: str | None = None
+    attempt = 0
 
     print(
         nats_dumps(
@@ -56,6 +57,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
     )
 
     while True:
+        attempt += 1
         try:
             await js.stream_info(stream)
             await js.stream_info(dlq_stream)
@@ -65,6 +67,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
                         "event": "jetstream.consumer.wait_for_streams.ready",
                         "stream": stream,
                         "dlq_stream": dlq_stream,
+                        "attempt": attempt,
                         "duration_ms": int((time.time() - started) * 1000),
                     }
                 )
@@ -82,6 +85,8 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
                             "stream": stream,
                             "dlq_stream": dlq_stream,
                             "timeout_s": timeout_s,
+                            "poll_s": poll_s,
+                            "attempt": attempt,
                             "last_state": last_state,
                             "last_error": last_error,
                             "duration_ms": int((time.time() - started) * 1000),
@@ -92,7 +97,6 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             await asyncio.sleep(poll_s)
 
         except Exception as e:
-            # Exemple: NATS unreachable, auth, etc.
             last_state = "unknown_error"
             last_error = str(e)
             if time.time() - started >= timeout_s:
@@ -103,6 +107,8 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
                             "stream": stream,
                             "dlq_stream": dlq_stream,
                             "timeout_s": timeout_s,
+                            "poll_s": poll_s,
+                            "attempt": attempt,
                             "last_state": last_state,
                             "last_error": last_error,
                             "duration_ms": int((time.time() - started) * 1000),
