@@ -68,6 +68,7 @@ async def _wait_for_streams() -> None:
 
     last_state: str | None = None
     last_error: str | None = None
+    attempt = 0
 
     nats_user = os.getenv("NATS_USER") or None
     nats_password = os.getenv("NATS_PASSWORD") or None
@@ -98,6 +99,7 @@ async def _wait_for_streams() -> None:
         js = nc.jetstream()
 
         while True:
+            attempt += 1
             try:
                 await js.stream_info(stream)
                 if dlq_stream:
@@ -109,6 +111,7 @@ async def _wait_for_streams() -> None:
                             "event": "outbox.jetstream.wait_for_streams.ready",
                             "stream": stream,
                             "dlq_stream": dlq_stream,
+                            "attempt": attempt,
                             "duration_ms": int((time.time() - started) * 1000),
                         }
                     )
@@ -119,20 +122,19 @@ async def _wait_for_streams() -> None:
                 last_state = "stream_missing"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    print(
-                        nats_dumps(
-                            {
-                                "event": "outbox.jetstream.wait_for_streams.timeout",
-                                "nats_url": url,
-                                "stream": stream,
-                                "dlq_stream": dlq_stream,
-                                "timeout_s": timeout_s,
-                                "last_state": last_state,
-                                "last_error": last_error,
-                                "duration_ms": int((time.time() - started) * 1000),
-                            }
-                        )
-                    )
+                    timeout = {
+                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                        "nats_url": url,
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "poll_s": poll_s,
+                        "attempt": attempt,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    }
+                    print(nats_dumps(timeout))
                     raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
                 await asyncio.sleep(poll_s)
 
@@ -140,20 +142,19 @@ async def _wait_for_streams() -> None:
                 last_state = "unknown_error"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    print(
-                        nats_dumps(
-                            {
-                                "event": "outbox.jetstream.wait_for_streams.timeout",
-                                "nats_url": url,
-                                "stream": stream,
-                                "dlq_stream": dlq_stream,
-                                "timeout_s": timeout_s,
-                                "last_state": last_state,
-                                "last_error": last_error,
-                                "duration_ms": int((time.time() - started) * 1000),
-                            }
-                        )
-                    )
+                    timeout = {
+                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                        "nats_url": url,
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "poll_s": poll_s,
+                        "attempt": attempt,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    }
+                    print(nats_dumps(timeout))
                     raise
                 await asyncio.sleep(poll_s)
 
