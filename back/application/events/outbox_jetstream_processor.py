@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import asyncio
 import os
 import time
 from dataclasses import dataclass
@@ -10,10 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 from infrastructure.services.nats_jetstream import JetStreamPublisher, load_jetstream_settings
-
-
-def _dumps(obj: dict) -> str:
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+from infrastructure.services.nats_json import nats_dumps
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +53,7 @@ class JetStreamOutboxProcessor:
 
         if not self._boot_logged:
             print(
-                _dumps(
+                nats_dumps(
                     {
                         "event": "outbox.jetstream.worker.ready",
                         "worker_id": worker_id,
@@ -75,33 +72,36 @@ class JetStreamOutboxProcessor:
         async with self._session_factory() as session:
             async with session.begin():
                 repo = OutboxRepositoryImpl(session)
+                max_attempts = int(os.getenv("OUTBOX_MAX_ATTEMPTS", "10"))
                 batch = await repo.fetch_batch_for_processing(
                     limit=self._batch_size,
                     worker_id=worker_id,
                     locked_at=now_ms,
                     lock_ttl_ms=lock_ttl_ms,
+                    max_attempts=max_attempts,
                 )
                 to_publish = [(int(m.id), m.event_name, m.payload) for m in batch]
 
         if not to_publish:
             return 0
 
-        ok_ids: list[int] = []
-        failed_ids: list[int] = []
-        last_error = ""
-
-        # 2) Publish réseau (hors transaction)
-        for message_id, event_name, payload in to_publish:
+        # 2) Publish réseau en parallèle (hors transaction)
+        async def _publish_one(mid: int, en: str, pl: dict) -> tuple[int, str | None]:
             try:
                 await self._publisher.publish_event(
-                    event_name=event_name,
-                    payload=payload,
-                    message_id=str(message_id),
+                    event_name=en, payload=pl, message_id=str(mid),
                 )
-                ok_ids.append(message_id)
+                return (mid, None)
             except Exception as e:
-                failed_ids.append(message_id)
-                last_error = str(e)[:2000]
+                return (mid, str(e)[:2000])
+
+        results = await asyncio.gather(
+            *[_publish_one(mid, en, pl) for mid, en, pl in to_publish]
+        )
+
+        ok_ids = [mid for mid, err in results if err is None]
+        failed_ids = [mid for mid, err in results if err is not None]
+        last_error = next((err for _, err in results if err is not None), "")
 
         processed_at = int(time.time() * 1000)
 
@@ -126,7 +126,7 @@ class JetStreamOutboxProcessor:
 
         duration_ms = int(time.time() * 1000) - started_ms
         print(
-            _dumps(
+            nats_dumps(
                 {
                     "event": "outbox.jetstream.run_once",
                     "worker_id": worker_id,

@@ -5,7 +5,7 @@ NATS_URL="${NATS_URL:-nats://nats:4222}"
 NATS_MONITOR_URL="${NATS_MONITOR_URL:-http://nats:8222}"
 STREAM_MAIN="${NATS_STREAM_MAIN:-BETLEAGUE}"
 STREAM_DLQ="${NATS_STREAM_DLQ:-BETLEAGUE_DLQ}"
-SUBJECTS_MAIN="${NATS_STREAM_SUBJECTS:-betleague.league.* , betleague.ticket.* , betleague.match.*}"
+SUBJECTS_MAIN="${NATS_STREAM_SUBJECTS:-betleague.league.> , betleague.ticket.> , betleague.match.>}"
 SUBJECT_DLQ="${NATS_DLQ_SUBJECT:-betleague.dlq.>}"
 
 # Optional: creds for system privileges (required by nats CLI for JetStream management)
@@ -45,7 +45,13 @@ done
 
 SUBJECTS_MAIN_NORM=$(echo "$SUBJECTS_MAIN" | tr ';' ',' | tr -s ' ')
 
+NATS_USER_ARG="${NATS_USER:-}"
+NATS_PASS_ARG="${NATS_PASSWORD:-}"
+
 base_args="--server $NATS_URL"
+if [ -n "$NATS_USER_ARG" ]; then
+  base_args="$base_args --user $NATS_USER_ARG --password $NATS_PASS_ARG"
+fi
 if [ -n "$NATS_CREDS" ]; then
   base_args="$base_args --creds $NATS_CREDS"
 fi
