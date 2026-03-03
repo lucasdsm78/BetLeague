@@ -11,7 +11,7 @@ def load_nats_subjects(*, subject_prefix: str | None = None) -> list[str]:
     - garder une config simple et explicite (audit-friendly)
 
     Override possible via env:
-      NATS_STREAM_SUBJECTS="betleague.league.* , betleague.ticket.*"
+      NATS_STREAM_SUBJECTS="betleague.league.> , betleague.ticket.>"
 
     Notes:
     - la DLQ (si stream séparé) utilise `{prefix}.dlq.>` et n'est volontairement pas dans cette liste.
@@ -26,8 +26,8 @@ def load_nats_subjects(*, subject_prefix: str | None = None) -> list[str]:
 
     # Par défaut: on couvre uniquement les domains connus.
     return [
-        f"{subject_prefix}.league.*",
-        f"{subject_prefix}.ticket.*",
-        f"{subject_prefix}.match.*",
+        f"{subject_prefix}.league.>",
+        f"{subject_prefix}.ticket.>",
+        f"{subject_prefix}.match.>",
     ]
 

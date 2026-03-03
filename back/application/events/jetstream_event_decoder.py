@@ -34,11 +34,17 @@ _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
     ),
     "league.invitation.accepted": lambda p: LeagueInvitationAccepted(
         league_id=int(p["league_id"]),
+        league_name=str(p.get("league_name", "")),
         invited_user_id=int(p["invited_user_id"]),
+        invited_user_pseudo=str(p.get("invited_user_pseudo", "")),
+        sender_user_id=int(p["sender_user_id"]),
     ),
     "league.invitation.refused": lambda p: LeagueInvitationRefused(
         league_id=int(p["league_id"]),
+        league_name=str(p.get("league_name", "")),
         invited_user_id=int(p["invited_user_id"]),
+        invited_user_pseudo=str(p.get("invited_user_pseudo", "")),
+        sender_user_id=int(p["sender_user_id"]),
     ),
     "league.started": lambda p: LeagueStarted(
         league_id=int(p["league_id"]),

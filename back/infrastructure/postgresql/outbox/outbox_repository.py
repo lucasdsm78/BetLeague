@@ -52,6 +52,7 @@ class OutboxRepositoryImpl:
         worker_id: str,
         locked_at: int,
         lock_ttl_ms: int = 120_000,
+        max_attempts: int = 10,
     ) -> list[DBOutboxMessage]:
         # Libère d'abord les locks orphelins (worker crash)
         if lock_ttl_ms > 0:
@@ -65,6 +66,7 @@ class OutboxRepositoryImpl:
             .where(
                 DBOutboxMessage.processed_at.is_(None),
                 DBOutboxMessage.locked_at.is_(None),
+                DBOutboxMessage.attempts < max_attempts,
             )
             .order_by(DBOutboxMessage.id.asc())
             .limit(limit)

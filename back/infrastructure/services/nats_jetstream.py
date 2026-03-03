@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 from dataclasses import dataclass
 
-try:
-    import orjson  # type: ignore
-except Exception:  # pragma: no cover
-    orjson = None
-
 from nats.aio.client import Client as NATS
 
+from infrastructure.services.nats_json import nats_dumps, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
+
+
+_MAX_PAYLOAD_BYTES = int(os.getenv("NATS_MAX_PAYLOAD_BYTES", str(1024 * 1024)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,28 +18,18 @@ class JetStreamSettings:
     url: str
     stream: str
     subject_prefix: str
+    user: str | None = None
+    password: str | None = None
 
 
 def load_jetstream_settings() -> JetStreamSettings:
-    # Local-first: en dev hors Docker on vise localhost; dans Docker compose,
-    # NATS_URL est injecté (ex: nats://nats:4222).
     return JetStreamSettings(
         url=os.getenv("NATS_URL", "nats://127.0.0.1:4222"),
         stream=os.getenv("NATS_STREAM", "BETLEAGUE"),
         subject_prefix=os.getenv("NATS_SUBJECT_PREFIX", "betleague"),
+        user=os.getenv("NATS_USER") or None,
+        password=os.getenv("NATS_PASSWORD") or None,
     )
-
-
-def _dumps(obj: dict) -> str:
-    if orjson is not None:
-        return orjson.dumps(obj).decode("utf-8")
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
-
-
-def _encode(payload: dict) -> bytes:
-    if orjson is not None:
-        return orjson.dumps(payload)
-    return json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
 def event_name_to_subject(event_name: str, *, subject_prefix: str) -> str:
@@ -69,13 +57,12 @@ class JetStreamPublisher:
         async with self._lock:
             if not self._boot_logged:
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.publisher.start",
                             "nats_url": self._settings.url,
                             "stream": self._settings.stream,
                             "subject_prefix": self._settings.subject_prefix,
-                            "orjson": bool(orjson is not None),
                         }
                     )
                 )
@@ -84,16 +71,21 @@ class JetStreamPublisher:
             if self._nc.is_connected:
                 return
 
+            connect_kwargs: dict = dict(
+                servers=[self._settings.url],
+                connect_timeout=2,
+                max_reconnect_attempts=-1,
+                reconnect_time_wait=0.5,
+            )
+            if self._settings.user:
+                connect_kwargs["user"] = self._settings.user
+                connect_kwargs["password"] = self._settings.password or ""
+
             try:
-                await self._nc.connect(
-                    servers=[self._settings.url],
-                    connect_timeout=2,
-                    max_reconnect_attempts=-1,
-                    reconnect_time_wait=0.5,
-                )
+                await self._nc.connect(**connect_kwargs)
             except Exception as e:
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.publisher.connect_error",
                             "nats_url": self._settings.url,
@@ -133,7 +125,7 @@ class JetStreamPublisher:
             except Exception as e:
                 if provisioned:
                     print(
-                        _dumps(
+                        nats_dumps(
                             {
                                 "event": "jetstream.publisher.stream_missing",
                                 "stream": self._settings.stream,
@@ -156,7 +148,7 @@ class JetStreamPublisher:
                         duplicate_window=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
                     )
                     print(
-                        _dumps(
+                        nats_dumps(
                             {
                                 "event": "jetstream.publisher.stream_created",
                                 "stream": self._settings.stream,
@@ -166,7 +158,7 @@ class JetStreamPublisher:
                     )
                 except Exception as e2:
                     print(
-                        _dumps(
+                        nats_dumps(
                             {
                                 "event": "jetstream.publisher.stream_create_error",
                                 "stream": self._settings.stream,
@@ -179,13 +171,17 @@ class JetStreamPublisher:
             self._stream_ready = True
 
     async def publish_event(self, *, event_name: str, payload: dict, message_id: str | None = None) -> None:
-        # Assume ensure_stream() called once at startup by processor; keep safety here too.
-        await self.ensure_stream()
+        await self.connect()
         if self._js is None:
             raise RuntimeError("JetStream client not initialized")
 
         subject = event_name_to_subject(event_name, subject_prefix=self._settings.subject_prefix)
-        data = _encode(payload)
+        data = nats_encode(payload)
+
+        if len(data) > _MAX_PAYLOAD_BYTES:
+            raise ValueError(
+                f"Payload too large: {len(data)} bytes > {_MAX_PAYLOAD_BYTES} for subject={subject}"
+            )
 
         headers = None
         if message_id:
@@ -195,7 +191,7 @@ class JetStreamPublisher:
             await self._js.publish(subject, data, headers=headers)
         except Exception as e:
             print(
-                _dumps(
+                nats_dumps(
                     {
                         "event": "jetstream.publisher.publish_error",
                         "subject": subject,

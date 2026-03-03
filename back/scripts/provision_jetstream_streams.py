@@ -1,26 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-from typing import Any
-
-try:
-    import orjson  # type: ignore
-except Exception:  # pragma: no cover
-    orjson = None
 
 from nats.aio.client import Client as NATS
 from nats.js.api import StreamConfig
 from nats.js.errors import APIError, NotFoundError
 
+from infrastructure.services.nats_json import nats_dumps
 from infrastructure.services.nats_subjects import load_nats_subjects
-
-
-def _dumps(obj: dict[str, Any]) -> str:
-    if orjson is not None:
-        return orjson.dumps(obj).decode("utf-8")
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
 
 
 async def _wait_for_jetstream(*, js, timeout_s: float = 10.0) -> None:
@@ -81,7 +69,7 @@ async def main() -> None:
     main_subjects = load_nats_subjects(subject_prefix=subject_prefix)
 
     print(
-        _dumps(
+        nats_dumps(
             {
                 "event": "jetstream.provision.start",
                 "nats_url": url,
@@ -89,22 +77,29 @@ async def main() -> None:
                 "subjects": main_subjects,
                 "dlq_stream": dlq_stream,
                 "dlq_subjects": dlq_subjects,
-                "orjson": bool(orjson is not None),
             }
         )
     )
 
+    nats_user = os.getenv("NATS_USER") or None
+    nats_password = os.getenv("NATS_PASSWORD") or None
+
+    connect_kwargs: dict = dict(
+        servers=[url],
+        connect_timeout=2,
+        max_reconnect_attempts=30,
+        reconnect_time_wait=0.5,
+    )
+    if nats_user:
+        connect_kwargs["user"] = nats_user
+        connect_kwargs["password"] = nats_password or ""
+
     nc = NATS()
     try:
-        await nc.connect(
-            servers=[url],
-            connect_timeout=2,
-            max_reconnect_attempts=30,
-            reconnect_time_wait=0.5,
-        )
+        await nc.connect(**connect_kwargs)
     except Exception as e:
         print(
-            _dumps(
+            nats_dumps(
                 {
                     "event": "jetstream.provision.connect_error",
                     "nats_url": url,
@@ -123,7 +118,7 @@ async def main() -> None:
         op_dlq = await _upsert_stream(js=js, name=dlq_stream, subjects=dlq_subjects)
 
         print(
-            _dumps(
+            nats_dumps(
                 {
                     "event": "jetstream.provision.done",
                     "stream": stream,
@@ -135,7 +130,7 @@ async def main() -> None:
         )
 
     except (APIError, Exception) as e:
-        print(_dumps({"event": "jetstream.provision.error", "error": str(e)}))
+        print(nats_dumps({"event": "jetstream.provision.error", "error": str(e)}))
         raise
 
     finally:

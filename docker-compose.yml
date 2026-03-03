@@ -28,6 +28,10 @@ services:
     command:
       - "-c"
       - "/etc/nats/nats-server.conf"
+      - "--user"
+      - "${NATS_USER:-betleague}"
+      - "--pass"
+      - "${NATS_PASSWORD:-betleague_dev_password}"
     ports:
       - "4222:4222"
       - "8222:8222"
@@ -52,7 +56,9 @@ services:
       NATS_SUBJECT_PREFIX: "betleague"
       NATS_DLQ_STREAM: "BETLEAGUE_DLQ"
       NATS_DLQ_SUBJECT_PREFIX: "betleague.dlq"
-      NATS_STREAM_SUBJECTS: "betleague.league.* , betleague.ticket.* , betleague.match.*"
+      NATS_STREAM_SUBJECTS: "betleague.league.> , betleague.ticket.> , betleague.match.>"
+      NATS_USER: "${NATS_USER:-betleague}"
+      NATS_PASSWORD: "${NATS_PASSWORD:-betleague_dev_password}"
     depends_on:
       - nats
     restart: "no"
@@ -161,7 +167,9 @@ services:
       NATS_URL: "nats://nats:4222"
       NATS_STREAM: "BETLEAGUE"
       NATS_SUBJECT_PREFIX: "betleague"
-      NATS_STREAM_SUBJECTS: "betleague.league.* , betleague.ticket.* , betleague.match.*"
+      NATS_STREAM_SUBJECTS: "betleague.league.> , betleague.ticket.> , betleague.match.>"
+      NATS_USER: "${NATS_USER:-betleague}"
+      NATS_PASSWORD: "${NATS_PASSWORD:-betleague_dev_password}"
       OUTBOX_BATCH_SIZE: 50
       OUTBOX_POLL_INTERVAL_MS: 250
       OUTBOX_MAX_POLL_INTERVAL_MS: 5000
@@ -193,8 +201,9 @@ services:
       NATS_STREAM: "BETLEAGUE"
       NATS_SUBJECT_PREFIX: "betleague"
       NATS_DURABLE: "betleague_consumer"
-      # Multi-subscribe explicite (le consumer ne s'abonne pas à betleague.> pour ne pas consommer la DLQ)
-      NATS_CONSUMER_SUBJECTS: "betleague.league.* , betleague.ticket.* , betleague.match.*"
+      NATS_USER: "${NATS_USER:-betleague}"
+      NATS_PASSWORD: "${NATS_PASSWORD:-betleague_dev_password}"
+      NATS_CONSUMER_SUBJECTS: "betleague.league.> , betleague.ticket.> , betleague.match.>"
       # DLQ (stream séparé)
       NATS_DLQ_STREAM: "BETLEAGUE_DLQ"
       NATS_DLQ_SUBJECT_PREFIX: "betleague.dlq"

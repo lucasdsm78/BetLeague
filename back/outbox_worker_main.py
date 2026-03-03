@@ -7,14 +7,8 @@ import signal
 import time
 from dataclasses import dataclass
 
-import json
-
-try:
-    import orjson
-except Exception:  # pragma: no cover
-    orjson = None
-
 from infrastructure.logging_config import setup_logging
+from infrastructure.services.nats_json import nats_dumps
 
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
@@ -59,38 +53,46 @@ async def _wait_for_streams() -> None:
     poll_s = float(os.getenv("NATS_PROVISION_WAIT_POLL_SECONDS", "0.25"))
 
     started = time.time()
-    boot = {
-        "event": "outbox.jetstream.wait_for_streams.start",
-        "nats_url": url,
-        "stream": stream,
-        "dlq_stream": dlq_stream,
-        "timeout_s": timeout_s,
-        "poll_s": poll_s,
-    }
-    if orjson is not None:
-        print(orjson.dumps(boot).decode("utf-8"))
-    else:
-        print(json.dumps(boot, separators=(",", ":")))
+    print(
+        nats_dumps(
+            {
+                "event": "outbox.jetstream.wait_for_streams.start",
+                "nats_url": url,
+                "stream": stream,
+                "dlq_stream": dlq_stream,
+                "timeout_s": timeout_s,
+                "poll_s": poll_s,
+            }
+        )
+    )
 
     last_state: str | None = None
     last_error: str | None = None
 
+    nats_user = os.getenv("NATS_USER") or None
+    nats_password = os.getenv("NATS_PASSWORD") or None
+
+    connect_kwargs: dict = dict(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+    if nats_user:
+        connect_kwargs["user"] = nats_user
+        connect_kwargs["password"] = nats_password or ""
+
     nc = NATS()
     try:
         try:
-            await nc.connect(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+            await nc.connect(**connect_kwargs)
         except Exception as e:
             last_state = "nats_unreachable"
             last_error = str(e)
-            err = {
-                "event": "outbox.jetstream.wait_for_streams.connect_error",
-                "nats_url": url,
-                "error": last_error,
-            }
-            if orjson is not None:
-                print(orjson.dumps(err).decode("utf-8"))
-            else:
-                print(json.dumps(err, separators=(",", ":")))
+            print(
+                nats_dumps(
+                    {
+                        "event": "outbox.jetstream.wait_for_streams.connect_error",
+                        "nats_url": url,
+                        "error": last_error,
+                    }
+                )
+            )
             raise
 
         js = nc.jetstream()
@@ -98,40 +100,39 @@ async def _wait_for_streams() -> None:
         while True:
             try:
                 await js.stream_info(stream)
-                # DLQ: on attend aussi si elle est configurée
                 if dlq_stream:
                     await js.stream_info(dlq_stream)
 
-                ok = {
-                    "event": "outbox.jetstream.wait_for_streams.ready",
-                    "stream": stream,
-                    "dlq_stream": dlq_stream,
-                    "duration_ms": int((time.time() - started) * 1000),
-                }
-                if orjson is not None:
-                    print(orjson.dumps(ok).decode("utf-8"))
-                else:
-                    print(json.dumps(ok, separators=(",", ":")))
+                print(
+                    nats_dumps(
+                        {
+                            "event": "outbox.jetstream.wait_for_streams.ready",
+                            "stream": stream,
+                            "dlq_stream": dlq_stream,
+                            "duration_ms": int((time.time() - started) * 1000),
+                        }
+                    )
+                )
                 return
 
             except NotFoundError as e:
                 last_state = "stream_missing"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    timeout = {
-                        "event": "outbox.jetstream.wait_for_streams.timeout",
-                        "nats_url": url,
-                        "stream": stream,
-                        "dlq_stream": dlq_stream,
-                        "timeout_s": timeout_s,
-                        "last_state": last_state,
-                        "last_error": last_error,
-                        "duration_ms": int((time.time() - started) * 1000),
-                    }
-                    if orjson is not None:
-                        print(orjson.dumps(timeout).decode("utf-8"))
-                    else:
-                        print(json.dumps(timeout, separators=(",", ":")))
+                    print(
+                        nats_dumps(
+                            {
+                                "event": "outbox.jetstream.wait_for_streams.timeout",
+                                "nats_url": url,
+                                "stream": stream,
+                                "dlq_stream": dlq_stream,
+                                "timeout_s": timeout_s,
+                                "last_state": last_state,
+                                "last_error": last_error,
+                                "duration_ms": int((time.time() - started) * 1000),
+                            }
+                        )
+                    )
                     raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
                 await asyncio.sleep(poll_s)
 
@@ -139,20 +140,20 @@ async def _wait_for_streams() -> None:
                 last_state = "unknown_error"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    timeout = {
-                        "event": "outbox.jetstream.wait_for_streams.timeout",
-                        "nats_url": url,
-                        "stream": stream,
-                        "dlq_stream": dlq_stream,
-                        "timeout_s": timeout_s,
-                        "last_state": last_state,
-                        "last_error": last_error,
-                        "duration_ms": int((time.time() - started) * 1000),
-                    }
-                    if orjson is not None:
-                        print(orjson.dumps(timeout).decode("utf-8"))
-                    else:
-                        print(json.dumps(timeout, separators=(",", ":")))
+                    print(
+                        nats_dumps(
+                            {
+                                "event": "outbox.jetstream.wait_for_streams.timeout",
+                                "nats_url": url,
+                                "stream": stream,
+                                "dlq_stream": dlq_stream,
+                                "timeout_s": timeout_s,
+                                "last_state": last_state,
+                                "last_error": last_error,
+                                "duration_ms": int((time.time() - started) * 1000),
+                            }
+                        )
+                    )
                     raise
                 await asyncio.sleep(poll_s)
 
@@ -177,20 +178,20 @@ async def main() -> None:
     worker_id = os.getenv("OUTBOX_WORKER_ID", "local")
     lock_ttl_ms = int(os.getenv("OUTBOX_LOCK_TTL_MS", "120000"))
 
-    boot = {
-        "event": "outbox.worker.start",
-        "worker_id": worker_id,
-        "dispatch_mode": dispatch_mode,
-        "batch_size": config.batch_size,
-        "poll_interval_ms": config.poll_interval_ms,
-        "max_poll_interval_ms": config.max_poll_interval_ms,
-        "jitter_ms": config.jitter_ms,
-        "lock_ttl_ms": lock_ttl_ms,
-    }
-    if orjson is not None:
-        print(orjson.dumps(boot).decode("utf-8"))
-    else:
-        print(json.dumps(boot, separators=(",", ":")))
+    print(
+        nats_dumps(
+            {
+                "event": "outbox.worker.start",
+                "worker_id": worker_id,
+                "dispatch_mode": dispatch_mode,
+                "batch_size": config.batch_size,
+                "poll_interval_ms": config.poll_interval_ms,
+                "max_poll_interval_ms": config.max_poll_interval_ms,
+                "jitter_ms": config.jitter_ms,
+                "lock_ttl_ms": lock_ttl_ms,
+            }
+        )
+    )
 
     session_factory = get_session_factory()
 

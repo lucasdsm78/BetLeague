@@ -2,13 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-import json
 import time
-
-try:
-    import orjson  # type: ignore
-except Exception:  # pragma: no cover
-    orjson = None
 
 from nats.aio.client import Client as NATS
 from nats.js.api import ConsumerConfig
@@ -16,19 +10,8 @@ from nats.js.errors import NotFoundError
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
+from infrastructure.services.nats_json import nats_dumps, nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
-
-
-def _dumps(obj: dict) -> str:
-    if orjson is not None:
-        return orjson.dumps(obj).decode("utf-8")
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
-
-
-def _loads(data: bytes) -> dict:
-    if orjson is not None:
-        return orjson.loads(data)
-    return json.loads(data.decode("utf-8"))
 
 
 def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> list[str]:
@@ -61,7 +44,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
     last_error: str | None = None
 
     print(
-        _dumps(
+        nats_dumps(
             {
                 "event": "jetstream.consumer.wait_for_streams.start",
                 "stream": stream,
@@ -77,7 +60,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             await js.stream_info(stream)
             await js.stream_info(dlq_stream)
             print(
-                _dumps(
+                nats_dumps(
                     {
                         "event": "jetstream.consumer.wait_for_streams.ready",
                         "stream": stream,
@@ -93,7 +76,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             last_error = str(e)
             if time.time() - started >= timeout_s:
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.consumer.wait_for_streams.timeout",
                             "stream": stream,
@@ -114,7 +97,7 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             last_error = str(e)
             if time.time() - started >= timeout_s:
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.consumer.wait_for_streams.timeout",
                             "stream": stream,
@@ -147,14 +130,13 @@ async def main() -> None:
     )
 
     print(
-        _dumps(
+        nats_dumps(
             {
                 "event": "jetstream.consumer.start",
                 "nats_url": url,
                 "stream": stream,
                 "subjects": consumer_subjects,
                 "durable": durable,
-                "orjson": bool(orjson is not None),
                 "max_deliver": max_deliver,
                 "dlq_stream": dlq_stream,
                 "dlq_subject_prefix": dlq_subject_prefix,
@@ -162,12 +144,20 @@ async def main() -> None:
         )
     )
 
+    nats_user = os.getenv("NATS_USER") or None
+    nats_password = os.getenv("NATS_PASSWORD") or None
+
+    connect_kwargs: dict = dict(servers=[url])
+    if nats_user:
+        connect_kwargs["user"] = nats_user
+        connect_kwargs["password"] = nats_password or ""
+
     nc = NATS()
     try:
-        await nc.connect(servers=[url])
+        await nc.connect(**connect_kwargs)
     except Exception as e:
         print(
-            _dumps(
+            nats_dumps(
                 {
                     "event": "jetstream.consumer.connect_error",
                     "error": str(e),
@@ -192,7 +182,7 @@ async def main() -> None:
             "error": error,
             "payload": payload,
         }
-        data = orjson.dumps(envelope) if orjson is not None else json.dumps(envelope).encode("utf-8")
+        data = nats_encode(envelope)
         await js.publish(dlq_subject, data)
 
     async def handler(msg):
@@ -203,14 +193,15 @@ async def main() -> None:
         except Exception:
             num_delivered = None
 
+        payload: dict | None = None
         try:
-            payload = _loads(msg.data)
+            payload = nats_loads(msg.data)
             decoded = decode_domain_event(payload)
 
             await bus.publish(decoded.event)
 
             print(
-                _dumps(
+                nats_dumps(
                     {
                         "event": "jetstream.consumer.processed",
                         "subject": msg.subject,
@@ -222,7 +213,6 @@ async def main() -> None:
             await msg.ack()
 
         except JetStreamEventDecodeError as e:
-            # Permanent failure: send to DLQ and ack
             err = str(e)
             await _publish_to_dlq(
                 original_subject=msg.subject,
@@ -231,7 +221,7 @@ async def main() -> None:
                 num_delivered=num_delivered,
             )
             print(
-                _dumps(
+                nats_dumps(
                     {
                         "event": "jetstream.consumer.dlq.decode_error",
                         "subject": msg.subject,
@@ -244,16 +234,15 @@ async def main() -> None:
 
         except Exception as e:
             err = str(e)
-            # Retry until max_deliver; then DLQ and ack
             if num_delivered is not None and num_delivered >= max_deliver:
                 await _publish_to_dlq(
                     original_subject=msg.subject,
-                    payload=_loads(msg.data) if msg.data else {},
+                    payload=payload if payload is not None else {},
                     error=err,
                     num_delivered=num_delivered,
                 )
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.consumer.dlq.max_deliver",
                             "subject": msg.subject,
@@ -265,7 +254,7 @@ async def main() -> None:
                 await msg.ack()
             else:
                 print(
-                    _dumps(
+                    nats_dumps(
                         {
                             "event": "jetstream.consumer.nak",
                             "subject": msg.subject,
@@ -283,18 +272,21 @@ async def main() -> None:
         max_deliver=max_deliver,
     )
 
-    # Subscribe to each subject pattern (no wildcard betleague.> to keep DLQ isolated)
     for sub in consumer_subjects:
+        # "betleague.league.>" -> "league"
+        clean = sub.removeprefix(f"{subject_prefix}.").rstrip(".>").replace(".", "_")
+        durable_name = f"{durable}_{clean}"
+
         await js.subscribe(
             sub,
-            durable=f"{durable}__{sub.replace('.', '_').replace('*', 'STAR').replace('>', 'GT')}",
+            durable=durable_name,
             manual_ack=True,
             config=cfg,
             cb=handler,
         )
 
     print(
-        _dumps(
+        nats_dumps(
             {
                 "event": "jetstream.consumer.subscribed",
                 "subjects": consumer_subjects,
