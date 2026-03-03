@@ -74,13 +74,16 @@ class OutboxProcessor:
                     )
             processed = len(ok_ids)
 
-        # Phase 4: Mark failed (short transaction)
+        # Phase 4: Mark failed (batch, short transaction)
         if failed:
+            failed_ids = [mid for mid, _, _ in failed]
+            last_err = failed[-1][2] if failed else "unknown"
             async with self._session_factory() as session:
                 async with session.begin():
-                    repo = OutboxRepositoryImpl(session)
-                    for mid, att, err in failed:
-                        await repo.mark_failed(message_id=mid, attempts=att, last_error=err)
+                    await OutboxRepositoryImpl(session).mark_failed_increment_attempts_batch(
+                        message_ids=failed_ids,
+                        last_error=last_err,
+                    )
 
         duration_ms = int(time.time() * 1000) - started_ms
         print(

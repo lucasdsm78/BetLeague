@@ -13,6 +13,8 @@ from dependency_injections import outbox_handler_bus_dependency
 from infrastructure.services.nats_json import nats_dumps, nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
 
+_MAX_INBOUND_BYTES = int(os.getenv("NATS_MAX_INBOUND_PAYLOAD_BYTES", str(2 * 1024 * 1024)))
+
 
 def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> list[str]:
     """Détermine les subjects auxquels le consumer doit s'abonner.
@@ -198,6 +200,26 @@ async def main() -> None:
                 num_delivered = getattr(msg.metadata, "num_delivered", None)
         except Exception:
             num_delivered = None
+
+        if len(msg.data) > _MAX_INBOUND_BYTES:
+            await _publish_to_dlq(
+                original_subject=msg.subject,
+                payload={"raw_size": len(msg.data)},
+                error=f"payload too large: {len(msg.data)} > {_MAX_INBOUND_BYTES}",
+                num_delivered=num_delivered,
+            )
+            print(
+                nats_dumps(
+                    {
+                        "event": "jetstream.consumer.dlq.payload_too_large",
+                        "subject": msg.subject,
+                        "size": len(msg.data),
+                        "limit": _MAX_INBOUND_BYTES,
+                    }
+                )
+            )
+            await msg.ack()
+            return
 
         payload: dict | None = None
         try:

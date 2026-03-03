@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from nats.aio.client import Client as NATS
 
 from infrastructure.services.nats_json import nats_dumps, nats_encode
-from infrastructure.services.nats_subjects import load_nats_subjects
 
 
 _MAX_PAYLOAD_BYTES = int(os.getenv("NATS_MAX_PAYLOAD_BYTES", str(1024 * 1024)))
@@ -47,7 +46,6 @@ class JetStreamPublisher:
         self._js = None
         self._lock = asyncio.Lock()
         self._boot_logged = False
-        self._stream_ready = False
 
     @property
     def settings(self) -> JetStreamSettings:
@@ -96,79 +94,6 @@ class JetStreamPublisher:
                 raise
 
             self._js = self._nc.jetstream()
-
-    async def ensure_stream(self) -> None:
-        """S'assure que le stream existe (one-shot).
-
-        Par défaut en dev, on peut auto-créer le stream.
-        Si l'infra provisionne déjà (nats-box / nats-server.conf), mets:
-          NATS_PROVISIONED_STREAMS=1
-        pour ne jamais modifier le broker depuis l'app.
-        """
-        if self._stream_ready:
-            return
-
-        await self.connect()
-        if self._js is None:
-            raise RuntimeError("JetStream client not initialized")
-
-        provisioned = os.getenv("NATS_PROVISIONED_STREAMS", "0").strip() in {"1", "true", "TRUE", "yes", "YES"}
-        subjects = load_nats_subjects(subject_prefix=self._settings.subject_prefix)
-
-        # Double-check under lock to avoid concurrent stream_info/add_stream
-        async with self._lock:
-            if self._stream_ready:
-                return
-
-            try:
-                await self._js.stream_info(self._settings.stream)
-            except Exception as e:
-                if provisioned:
-                    print(
-                        nats_dumps(
-                            {
-                                "event": "jetstream.publisher.stream_missing",
-                                "stream": self._settings.stream,
-                                "error": str(e),
-                                "hint": "Le stream doit exister (provision nats-box / nats-server.conf).",
-                            }
-                        )
-                    )
-                    raise
-
-                try:
-                    await self._js.add_stream(
-                        name=self._settings.stream,
-                        subjects=subjects,
-                        storage=os.getenv("NATS_STORAGE", "file"),
-                        retention=os.getenv("NATS_RETENTION", "limits"),
-                        max_msgs=int(os.getenv("NATS_MAX_MSGS", "-1")),
-                        max_bytes=int(os.getenv("NATS_MAX_BYTES", "-1")),
-                        max_age=int(os.getenv("NATS_MAX_AGE_SECONDS", "0")),
-                        duplicate_window=int(os.getenv("NATS_DUPLICATES_WINDOW_SECONDS", "120")),
-                    )
-                    print(
-                        nats_dumps(
-                            {
-                                "event": "jetstream.publisher.stream_created",
-                                "stream": self._settings.stream,
-                                "subjects": subjects,
-                            }
-                        )
-                    )
-                except Exception as e2:
-                    print(
-                        nats_dumps(
-                            {
-                                "event": "jetstream.publisher.stream_create_error",
-                                "stream": self._settings.stream,
-                                "error": str(e2),
-                            }
-                        )
-                    )
-                    raise
-
-            self._stream_ready = True
 
     async def publish_event(self, *, event_name: str, payload: dict, message_id: str | None = None) -> None:
         await self.connect()
