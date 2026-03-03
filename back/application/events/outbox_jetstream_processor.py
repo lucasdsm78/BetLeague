@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from dataclasses import dataclass
 from typing import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,11 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 from infrastructure.services.nats_jetstream import JetStreamPublisher, load_jetstream_settings
 from infrastructure.services.nats_json import nats_dumps
-
-
-@dataclass(frozen=True, slots=True)
-class JetStreamOutboxProcessorConfig:
-    batch_size: int = 50
 
 
 class JetStreamOutboxProcessor:
@@ -32,16 +26,9 @@ class JetStreamOutboxProcessor:
         self._publisher = publisher
         self._batch_size = batch_size
         self._boot_logged = False
-        self._stream_ensured = False
 
     async def close(self) -> None:
         await self._publisher.close()
-
-    async def _ensure_stream_once(self) -> None:
-        if self._stream_ensured:
-            return
-        await self._publisher.ensure_stream()
-        self._stream_ensured = True
 
     async def run_once(self) -> int:
         started_ms = int(time.time() * 1000)
@@ -65,8 +52,6 @@ class JetStreamOutboxProcessor:
                 )
             )
             self._boot_logged = True
-
-        await self._ensure_stream_once()
 
         # 1) Lock batch en DB (transaction courte)
         async with self._session_factory() as session:
@@ -101,7 +86,8 @@ class JetStreamOutboxProcessor:
 
         ok_ids = [mid for mid, err in results if err is None]
         failed_ids = [mid for mid, err in results if err is not None]
-        last_error = next((err for _, err in results if err is not None), "")
+        unique_errors = {err for _, err in results if err is not None}
+        last_error = " | ".join(list(unique_errors)[:3]) or "publish_failed"
 
         processed_at = int(time.time() * 1000)
 

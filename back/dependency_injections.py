@@ -446,7 +446,7 @@ def outbox_handler_bus_dependency(
         )
         bus.subscribe(
             LeagueStarted,
-            OnLeagueStartedCreateNotification(notification_uc),
+            OnLeagueStartedCreateNotification(notification_uc, session_factory=sf),
         )
         bus.subscribe(
             TicketChoicesResolvedEvent,
