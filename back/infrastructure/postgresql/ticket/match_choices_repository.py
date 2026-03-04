@@ -1,11 +1,13 @@
 from typing import List
 from sqlalchemy.orm import joinedload
-from sqlalchemy import select, update, delete, func, case
+from sqlalchemy import select, update, delete, func, case, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
+from infrastructure.postgresql.match.db_match_odd import DBMatchOdd
 
 
 class MatchChoicesRepositoryImpl(MatchChoiceRepository):
@@ -135,3 +137,28 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
 
     async def rollback(self):
         await self.session.rollback()
+
+    async def bulk_resolve_pending_for_match(self, match_id: int) -> List[int]:
+        stmt = (
+            update(DBMatchChoices)
+            .where(
+                DBMatchChoices.match_id == match_id,
+                DBMatchChoices.status == MatchChoiceStatus.pending.value,
+                DBMatchChoices.match_odd_id.is_not(None),
+                DBMatchChoices.match_odd_id == DBMatchOdd.id,
+                DBMatchOdd.result.is_not(None),
+            )
+            .values(
+                status=case(
+                    (DBMatchOdd.result == "WIN", MatchChoiceStatus.correct.value),
+                    else_=MatchChoiceStatus.wrong.value,
+                )
+            )
+            .execution_options(synchronize_session=False)
+            .returning(DBMatchChoices.ticket_id)
+        )
+
+        res = await self.session.execute(stmt)
+        ticket_ids = {row[0] for row in res.fetchall()}
+        await self.session.flush()
+        return list(ticket_ids)

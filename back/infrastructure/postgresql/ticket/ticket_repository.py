@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import joinedload, selectinload
 
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.ticket.exception.ticket_exception import TicketNotFoundError
@@ -10,6 +10,7 @@ from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
+from domain.ticket.model.match_choice_status import MatchChoiceStatus
 
 
 class TicketRepositoryImpl(TicketRepository):
@@ -193,6 +194,70 @@ class TicketRepositoryImpl(TicketRepository):
             .values(status=new_status)
         )
         return result.rowcount > 0
+
+    async def bulk_resolve_status(self, ticket_ids: List[int]) -> List[int]:
+        """Resolve ticket.status for pending tickets based on their match_choices.
+
+        Chunked to avoid huge IN() clauses.
+        """
+        if not ticket_ids:
+            return []
+
+        chunk_size = int(os.getenv("TICKET_RESOLVE_CHUNK_SIZE", "2000"))
+        updated_all: list[int] = []
+
+        for i in range(0, len(ticket_ids), chunk_size):
+            chunk = ticket_ids[i:i + chunk_size]
+
+            agg = (
+                select(
+                    DBMatchChoices.ticket_id.label("ticket_id"),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (DBMatchChoices.status == MatchChoiceStatus.wrong.value, 1),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ).label("wrong_count"),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (DBMatchChoices.status == MatchChoiceStatus.pending.value, 1),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ).label("pending_count"),
+                )
+                .where(DBMatchChoices.ticket_id.in_(chunk))
+                .group_by(DBMatchChoices.ticket_id)
+                .subquery("choice_agg")
+            )
+
+            new_status = case(
+                (agg.c.wrong_count > 0, TicketStatus.wrong.value),
+                (agg.c.pending_count == 0, TicketStatus.correct.value),
+                else_=DBTicket.status,
+            )
+
+            stmt = (
+                update(DBTicket)
+                .where(
+                    DBTicket.id == agg.c.ticket_id,
+                    DBTicket.status == TicketStatus.pending.value,
+                    or_(agg.c.wrong_count > 0, agg.c.pending_count == 0),
+                )
+                .values(status=new_status)
+                .execution_options(synchronize_session=False)
+                .returning(DBTicket.id)
+            )
+
+            res = await self.session.execute(stmt)
+            updated_all.extend([row[0] for row in res.fetchall()])
+
+        return updated_all
 
     async def begin(self):
         await self.session.begin()
