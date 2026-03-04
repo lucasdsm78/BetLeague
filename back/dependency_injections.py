@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from infrastructure.postgresql.match.match_score_unit_of_work import MatchScoreUnitOfWorkImpl
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
 from application.match.match_command_usecase import MatchCommandUseCase, MatchCommandUseCaseImpl
@@ -33,9 +33,10 @@ from domain.purchase.repository.purchase_repository import PurchaseRepository
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.totp_service import TOTPService
+from domain.match.model.sport import Sport
+from domain.services.match_fetch_api.match_fetch_api import MatchFetchApi
 from domain.services.match_score_api.match_score_api import MatchScoreApi
-from domain.services.rabbitmq.publisher import RabbitMQPublisher
-from domain.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreService
+from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.services.stripe.stripe_service import StripeService
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
@@ -85,8 +86,12 @@ from infrastructure.services.authentication.jwt_bearer import JwtBearer
 from infrastructure.services.authentication.manager_token import JwtManagerTokenImpl
 from infrastructure.services.authentication.totp_service import TOTPServiceImpl
 from infrastructure.services.match_score_api.match_score_api import MatchScoreApiImpl
-from infrastructure.services.rabbitmq.publisher import RabbitMQPublisherImpl
-from infrastructure.services.rabbitmq.publisher_score_service import RabbitMQPublisherScoreServiceImpl
+from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
+from infrastructure.services.api_sports.football_fetch_service import ApiSportsFootballFetchService
+from infrastructure.services.api_sports.match_fetch_router import MultiSportMatchFetchRouter
+from infrastructure.services.api_sports.score_service import ApiSportsScoreService
+from application.match.match_fetch_usecase import MatchFetchUseCase, MatchFetchUseCaseImpl
+from application.match.handlers.match_result_resolved_handler import OnMatchResultResolvedCheckChoices
 from infrastructure.services.stripe.stripe_service import StripeServiceImpl
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
 from infrastructure.postgresql.push_subscription.push_subscription_repository import PushSubscriptionRepositoryImpl
@@ -101,6 +106,8 @@ from application.notification.handlers.league_invitation_notification_handler im
 from application.notification.handlers.league_invitation_accepted_notification_handler import OnLeagueInvitationAcceptedCreateNotification
 from application.notification.handlers.league_invitation_refused_notification_handler import OnLeagueInvitationRefusedCreateNotification
 from application.notification.handlers.league_started_notification_handler import OnLeagueStartedCreateNotification
+from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from application.ticket.handlers.ticket_choices_resolved_handler import OnTicketChoicesResolvedCheckStatus
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
 from application.events.outbox_event_bus import OutboxDomainEventBus
 from infrastructure.services.notification.redis_notification_realtime import (
@@ -146,6 +153,39 @@ def totp_service() -> TOTPService:
 
 def match_score_api(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
     return MatchScoreApiImpl(settings=settings)
+
+
+@lru_cache()
+def _api_sports_football_client() -> ApiSportsBaseClient:
+    settings = get_settings()
+    return ApiSportsBaseClient(
+        base_url=settings.api_sports_football_url,
+        api_key=settings.api_sports_key,
+    )
+
+
+def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+    client = _api_sports_football_client()
+    league_ids = frozenset(int(x) for x in settings.api_sports_league_ids.split(","))
+    football_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
+    return MultiSportMatchFetchRouter(services={
+        Sport.FOOTBALL: football_service,
+    })
+
+
+def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+    client = _api_sports_football_client()
+    return ApiSportsScoreService(client=client)
+
+
+def match_fetch_usecase_dep(
+        match_fetch_api_dependency: MatchFetchApi = Depends(match_fetch_api_dep),
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> MatchFetchUseCase:
+    return MatchFetchUseCaseImpl(
+        match_fetch_api=match_fetch_api_dependency,
+        session_factory=session_factory,
+    )
 
 
 def user_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> UserRepository:
@@ -406,7 +446,15 @@ def outbox_handler_bus_dependency(
         )
         bus.subscribe(
             LeagueStarted,
-            OnLeagueStartedCreateNotification(notification_uc),
+            OnLeagueStartedCreateNotification(notification_uc, session_factory=sf),
+        )
+        bus.subscribe(
+            TicketChoicesResolvedEvent,
+            OnTicketChoicesResolvedCheckStatus(session_factory=sf),
+        )
+        bus.subscribe(
+            MatchResultResolvedEvent,
+            OnMatchResultResolvedCheckChoices(session_factory=sf),
         )
         setattr(bus, '_betleague_handlers_registered', True)
     return bus
@@ -460,39 +508,14 @@ def ticket_query_usecase(
     )
 
 
-def rabbitmq_dependency(settings: Settings = Depends(get_settings)) -> RabbitMQPublisher:
-    return RabbitMQPublisherImpl(settings=settings)
-
-
-def rabbitmq_dependency_score_service(settings: Settings = Depends(get_settings)) -> RabbitMQPublisherScoreService:
-    return RabbitMQPublisherScoreServiceImpl(settings=settings)
-
-
 def ticket_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
-        league_repository: LeagueRepository = Depends(league_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency),
-        ticket_repository: TicketRepository = Depends(ticket_repository_dependency),
-        match_choices_repository: MatchChoiceRepository = Depends(match_choices_repository_dependency),
-        match_repository: MatchRepository = Depends(match_repository_dependency),
-        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
-        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
-        league_players_repository: LeaguePlayersRepository = Depends(league_players_repository_dependency),
-        publisher: RabbitMQPublisher = Depends(rabbitmq_dependency),
-        settings: Settings = Depends(get_settings)
+        settings: Settings = Depends(get_settings),
 ) -> TicketCommandUseCase:
+    from infrastructure.postgresql.ticket.ticket_unit_of_work import TicketUnitOfWorkImpl
     return TicketCommandUseCaseImpl(
-        league_repository=league_repository,
-        session_factory=session_factory,
-        user_repository=user_repository,
-        ticket_repository=ticket_repository,
-        tournament_repository=tournament_repository,
-        tournament_players_repository=tournament_players_repository,
-        match_choices_repository=match_choices_repository,
-        match_repository=match_repository,
-        league_players_repository=league_players_repository,
+        uow_factory=lambda: TicketUnitOfWorkImpl(session_factory=session_factory),
         settings=settings,
-        publisher=publisher
     )
 
 
@@ -515,18 +538,13 @@ def match_query_usecase(
 
 
 def match_command_usecase(
-        match_repository: MatchRepository = Depends(match_repository_dependency),
         settings: Settings = Depends(get_settings),
-        match_score_api_dependency: MatchScoreApi = Depends(match_score_api),
-        publisher: RabbitMQPublisherScoreService = Depends(rabbitmq_dependency_score_service),
+        match_score_api_dependency: MatchScoreApi = Depends(match_score_api_v2),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchCommandUseCase:
     return MatchCommandUseCaseImpl(
-        match_repository=match_repository,
-        settings=settings,
         match_score_api=match_score_api_dependency,
-        publisher=publisher,
-        session_factory=session_factory,
+        uow_factory=lambda: MatchScoreUnitOfWorkImpl(session_factory=session_factory),
     )
 
 

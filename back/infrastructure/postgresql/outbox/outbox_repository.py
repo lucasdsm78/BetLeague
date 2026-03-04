@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.postgresql.outbox.db_outbox_message import DBOutboxMessage
@@ -52,6 +52,7 @@ class OutboxRepositoryImpl:
         worker_id: str,
         locked_at: int,
         lock_ttl_ms: int = 120_000,
+        max_attempts: int = 10,
     ) -> list[DBOutboxMessage]:
         # Libère d'abord les locks orphelins (worker crash)
         if lock_ttl_ms > 0:
@@ -65,6 +66,7 @@ class OutboxRepositoryImpl:
             .where(
                 DBOutboxMessage.processed_at.is_(None),
                 DBOutboxMessage.locked_at.is_(None),
+                DBOutboxMessage.attempts < max_attempts,
             )
             .order_by(DBOutboxMessage.id.asc())
             .limit(limit)
@@ -91,6 +93,17 @@ class OutboxRepositoryImpl:
         )
         await self._session.execute(stmt)
 
+    async def mark_processed_batch(self, *, message_ids: list[int], processed_at: int) -> int:
+        if not message_ids:
+            return 0
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id.in_(message_ids))
+            .values(processed_at=processed_at, locked_at=None, locked_by=None)
+        )
+        res = await self._session.execute(stmt)
+        return int(res.rowcount or 0)
+
     async def mark_failed(self, *, message_id: int, attempts: int, last_error: str) -> None:
         stmt = (
             update(DBOutboxMessage)
@@ -98,3 +111,32 @@ class OutboxRepositoryImpl:
             .values(attempts=attempts, last_error=last_error, locked_at=None, locked_by=None)
         )
         await self._session.execute(stmt)
+
+    async def mark_failed_increment_attempts(self, *, message_id: int, last_error: str) -> None:
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id == message_id)
+            .values(
+                attempts=(func.coalesce(DBOutboxMessage.attempts, 0) + 1),
+                last_error=last_error,
+                locked_at=None,
+                locked_by=None,
+            )
+        )
+        await self._session.execute(stmt)
+
+    async def mark_failed_increment_attempts_batch(self, *, message_ids: list[int], last_error: str) -> int:
+        if not message_ids:
+            return 0
+        stmt = (
+            update(DBOutboxMessage)
+            .where(DBOutboxMessage.id.in_(message_ids))
+            .values(
+                attempts=(func.coalesce(DBOutboxMessage.attempts, 0) + 1),
+                last_error=last_error,
+                locked_at=None,
+                locked_by=None,
+            )
+        )
+        res = await self._session.execute(stmt)
+        return int(res.rowcount or 0)

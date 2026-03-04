@@ -1,61 +1,15 @@
 from __future__ import annotations
 
-import json
 import os
 import time
 from typing import Callable
 
-try:
-    import orjson
-except Exception:  # pragma: no cover
-    orjson = None
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.events.event_bus import InProcessDomainEventBus
-from domain.utils.domain_event import DomainEvent
-from domain.league.events.league_invitation_created import LeagueInvitationCreated
-from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
-from domain.league.events.league_invitation_refused import LeagueInvitationRefused
-from domain.league.events.league_started import LeagueStarted
+from application.events.jetstream_event_decoder import decode_domain_event
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
-
-
-def _deserialize(event_name: str, payload: dict) -> DomainEvent:
-    if event_name == "league.invitation.created" or payload.get("event_name") == "league.invitation.created":
-        return LeagueInvitationCreated(
-            league_id=int(payload["league_id"]),
-            league_name=str(payload["league_name"]),
-            invited_user_id=int(payload["invited_user_id"]),
-            sender_user_id=int(payload["sender_user_id"]),
-            sender_pseudo=str(payload["sender_pseudo"]),
-        )
-
-    if event_name == "league.invitation.accepted" or payload.get("event_name") == "league.invitation.accepted":
-        return LeagueInvitationAccepted(
-            league_id=int(payload["league_id"]),
-            league_name=str(payload["league_name"]),
-            invited_user_id=int(payload["invited_user_id"]),
-            invited_user_pseudo=str(payload["invited_user_pseudo"]),
-            sender_user_id=int(payload["sender_user_id"]),
-        )
-
-    if event_name == "league.invitation.refused" or payload.get("event_name") == "league.invitation.refused":
-        return LeagueInvitationRefused(
-            league_id=int(payload["league_id"]),
-            league_name=str(payload["league_name"]),
-            invited_user_id=int(payload["invited_user_id"]),
-            invited_user_pseudo=str(payload["invited_user_pseudo"]),
-            sender_user_id=int(payload["sender_user_id"]),
-        )
-
-    if event_name == "league.started" or payload.get("event_name") == "league.started":
-        return LeagueStarted(
-            league_id=int(payload["league_id"]),
-            league_name=str(payload["league_name"]),
-        )
-
-    raise ValueError(f"Event non supporté: {event_name}")
+from infrastructure.services.nats_json import nats_dumps
 
 
 class OutboxProcessor:
@@ -73,9 +27,12 @@ class OutboxProcessor:
     async def run_once(self) -> int:
         started_ms = int(time.time() * 1000)
         processed = 0
-        worker_id = os.getenv('OUTBOX_WORKER_ID', 'local')
-        lock_ttl_ms = int(os.getenv('OUTBOX_LOCK_TTL_MS', '120000'))
+        worker_id = os.getenv("OUTBOX_WORKER_ID", "local")
+        lock_ttl_ms = int(os.getenv("OUTBOX_LOCK_TTL_MS", "120000"))
+        max_attempts = int(os.getenv("OUTBOX_MAX_ATTEMPTS", "10"))
         now_ms = int(time.time() * 1000)
+
+        # Phase 1: Lock batch (short transaction)
         async with self._session_factory() as session:
             async with session.begin():
                 repo = OutboxRepositoryImpl(session)
@@ -84,32 +41,61 @@ class OutboxProcessor:
                     worker_id=worker_id,
                     locked_at=now_ms,
                     lock_ttl_ms=lock_ttl_ms,
+                    max_attempts=max_attempts,
                 )
+                to_process = [
+                    (int(m.id), m.event_name, m.payload, int(m.attempts or 0))
+                    for m in batch
+                ]
 
-                for msg in batch:
-                    try:
-                        event = _deserialize(msg.event_name, msg.payload)
-                        await self._handler_bus.publish(event)
-                        await repo.mark_processed(message_id=int(msg.id), processed_at=int(time.time() * 1000))
-                        processed += 1
-                    except Exception as e:
-                        attempts = int((msg.attempts or 0) + 1)
-                        await repo.mark_failed(message_id=int(msg.id), attempts=attempts, last_error=str(e)[:2000])
+        if not to_process:
+            return 0
+
+        ok_ids: list[int] = []
+        failed: list[tuple[int, int, str]] = []
+
+        # Phase 2: Process handlers (outside any transaction)
+        for message_id, event_name, payload, attempts in to_process:
+            try:
+                decoded = decode_domain_event(payload)
+                await self._handler_bus.publish(decoded.event)
+                ok_ids.append(message_id)
+            except Exception as e:
+                failed.append((message_id, attempts + 1, str(e)[:2000]))
+
+        # Phase 3: Mark processed (short transaction)
+        if ok_ids:
+            processed_at = int(time.time() * 1000)
+            async with self._session_factory() as session:
+                async with session.begin():
+                    await OutboxRepositoryImpl(session).mark_processed_batch(
+                        message_ids=ok_ids,
+                        processed_at=processed_at,
+                    )
+            processed = len(ok_ids)
+
+        # Phase 4: Mark failed (batch, short transaction)
+        if failed:
+            failed_ids = [mid for mid, _, _ in failed]
+            last_err = failed[-1][2] if failed else "unknown"
+            async with self._session_factory() as session:
+                async with session.begin():
+                    await OutboxRepositoryImpl(session).mark_failed_increment_attempts_batch(
+                        message_ids=failed_ids,
+                        last_error=last_err,
+                    )
 
         duration_ms = int(time.time() * 1000) - started_ms
-        log_obj = {
-            "event": "outbox.run_once",
-            "worker_id": worker_id,
-            "batch_size": self._batch_size,
-            "processed": processed,
-            "released_stale_locks": int(getattr(repo, 'last_released_locks', 0)),
-            "duration_ms": duration_ms,
-        }
-        try:
-            if orjson is not None:
-                print(orjson.dumps(log_obj).decode("utf-8"))
-            else:
-                print(json.dumps(log_obj, separators=(",", ":")))
-        except Exception:
-            pass
+        print(
+            nats_dumps(
+                {
+                    "event": "outbox.run_once",
+                    "worker_id": worker_id,
+                    "batch_size": self._batch_size,
+                    "processed": processed,
+                    "failed": len(failed),
+                    "duration_ms": duration_ms,
+                }
+            )
+        )
         return processed

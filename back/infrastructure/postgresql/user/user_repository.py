@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, select, or_, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -158,6 +158,24 @@ class UserRepositoryImpl(UserRepository):
             raise UserNotFoundError
         except:
             raise
+
+    async def apply_ticket_win(self, user_id: int, gain: float) -> None:
+        await self.session.execute(
+            update(DBUser)
+            .where(DBUser.id == user_id)
+            .values(
+                nb_win=DBUser.nb_win + 1,
+                nb_btl=DBUser.nb_btl + gain,
+                btl_from_tickets=DBUser.btl_from_tickets + gain,
+            )
+        )
+
+    async def apply_ticket_lose(self, user_id: int) -> None:
+        await self.session.execute(
+            update(DBUser)
+            .where(DBUser.id == user_id)
+            .values(nb_lose=DBUser.nb_lose + 1)
+        )
 
     async def begin(self):
         await self.session.begin()
