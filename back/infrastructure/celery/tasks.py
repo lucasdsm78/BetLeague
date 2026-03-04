@@ -14,35 +14,8 @@ from infrastructure.celery.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
-
-def _run_async(coro):
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
-
-
-def _make_session_factory():
-    """Create a fresh engine + session factory for each task invocation.
-
-    This avoids the 'Future attached to a different loop' error
-    that occurs when a module-level engine is reused across
-    Celery's per-task event loops.
-    """
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from infrastructure.config import Settings
-
-    settings = Settings()
-    engine = create_async_engine(
-        settings.sqlalchemy_database_url,
-        echo=bool(getattr(settings, "sqlalchemy_echo", False)),
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-    )
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    return engine, factory
+# Redis client lazy (process-level) for state updates
+_redis_state_client_singleton = None
 
 
 def _redis_state_url() -> str:
@@ -50,58 +23,52 @@ def _redis_state_url() -> str:
     return os.getenv("CELERY_STATE_REDIS_URL") or os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
 
 
-def _touch_score_check_started(*, now_epoch: int) -> None:
-    try:
+def _redis_state() -> "Redis":
+    global _redis_state_client_singleton
+    if _redis_state_client_singleton is None:
         from redis import Redis
 
-        url = _redis_state_url()
-        base = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
-        ttl = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
+        _redis_state_client_singleton = Redis.from_url(
+            _redis_state_url(),
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+    return _redis_state_client_singleton
 
-        r = Redis.from_url(url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2)
-        try:
-            # 1 command each
-            r.set(f"{base}:last_started_at", str(now_epoch), ex=ttl)
-        finally:
-            r.close()
+
+def _state_prefix_and_ttl() -> tuple[str, int]:
+    base = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
+    ttl = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
+    return base, ttl
+
+
+def _safe_set(key: str, value: str, *, ex: int) -> None:
+    try:
+        _redis_state().set(key, value, ex=ex)
     except Exception as e:
-        logger.warning(f"[Celery] Unable to persist score_check last_started_at: {e}")
+        logger.warning(f"[Celery] Unable to persist {key}: {e}")
+
+
+def _touch_score_check_started(*, now_epoch: int) -> None:
+    base, ttl = _state_prefix_and_ttl()
+    _safe_set(f"{base}:last_started_at", str(now_epoch), ex=ttl)
 
 
 def _touch_score_check_finished(*, now_epoch: int) -> None:
-    try:
-        from redis import Redis
-
-        url = _redis_state_url()
-        base = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
-        ttl = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
-
-        r = Redis.from_url(url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2)
-        try:
-            r.set(f"{base}:last_finished_at", str(now_epoch), ex=ttl)
-        finally:
-            r.close()
-    except Exception as e:
-        logger.warning(f"[Celery] Unable to persist score_check last_finished_at: {e}")
+    base, ttl = _state_prefix_and_ttl()
+    _safe_set(f"{base}:last_finished_at", str(now_epoch), ex=ttl)
 
 
 def _touch_score_check_failed(*, now_epoch: int, error: str) -> None:
+    base, ttl = _state_prefix_and_ttl()
     try:
-        from redis import Redis
-
-        url = _redis_state_url()
-        base = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
-        ttl = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
-
-        r = Redis.from_url(url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2)
-        try:
-            r.set(f"{base}:last_failed_at", str(now_epoch), ex=ttl)
-            # keep last error small
-            r.set(f"{base}:last_error", (error or "")[:500], ex=ttl)
-        finally:
-            r.close()
+        pipe = _redis_state().pipeline()
+        pipe.set(f"{base}:last_failed_at", str(now_epoch), ex=ttl)
+        pipe.set(f"{base}:last_error", (error or "")[:500], ex=ttl)
+        pipe.execute()
     except Exception as e:
-        logger.warning(f"[Celery] Unable to persist score_check last_failed_at: {e}")
+        logger.warning(f"[Celery] Unable to persist score_check last_failed_at/last_error: {e}")
 
 
 @celery_app.task(
@@ -213,6 +180,7 @@ async def _check_match_scores_async():
         logger.info(f"[Celery] Score check result: {result}")
     except Exception as e:
         logger.error(f"[Celery] Error checking scores: {e}")
+        raise
     finally:
         await client.close()
         await engine.dispose()
