@@ -134,9 +134,10 @@ services:
       context: back
       dockerfile: Dockerfile
     container_name: celery_beat
-    command: celery -A infrastructure.celery.celery_app beat --loglevel=info
+    command: celery -A infrastructure.celery.celery_app beat --loglevel=info --schedule /var/lib/celery/celerybeat-schedule
     volumes:
       - ./back:/app
+      - celery_beat_schedule:/var/lib/celery
     env_file:
       - back/.env
     environment:
@@ -145,6 +146,11 @@ services:
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       CELERY_BROKER_URL: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/1"
       CELERY_RESULT_BACKEND: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/2"
+      CELERY_TIMEZONE: "Europe/Paris"
+      CELERY_ENABLE_UTC: "0"
+      CELERY_ENABLE_CATCHUP: "1"
+      CELERY_CATCHUP_THRESHOLD_SECONDS: "900"
+      CELERY_LAST_SCORE_CHECK_KEY: "betleague:celery:last_check_match_scores_at"
     depends_on:
       - redis
     restart: always
@@ -217,3 +223,4 @@ services:
 volumes:
   db_data:
   nats_data:
+  celery_beat_schedule:
