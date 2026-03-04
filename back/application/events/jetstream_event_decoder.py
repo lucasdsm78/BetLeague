@@ -9,6 +9,7 @@ from domain.league.events.league_invitation_refused import LeagueInvitationRefus
 from domain.league.events.league_started import LeagueStarted
 from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from domain.ticket.event.tickets_resolved_event import TicketsResolvedEvent
 from domain.utils.domain_event import DomainEvent
 
 
@@ -57,6 +58,10 @@ _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
     "match.result.resolved": lambda p: MatchResultResolvedEvent(
         match_id=int(p["match_id"]),
     ),
+    "tickets.resolved": lambda p: TicketsResolvedEvent(
+        ticket_ids=tuple(p.get("ticket_ids") or ()),
+        match_id=int(p.get("match_id") or 0),
+    ),
 }
 
 
@@ -77,4 +82,3 @@ def decode_domain_event(payload: dict[str, Any]) -> JetStreamDecodedEvent:
         raise JetStreamEventDecodeError(f"invalid payload for {event_name}: {e}") from e
 
     return JetStreamDecodedEvent(event_name=event_name, payload=payload, event=event)
-

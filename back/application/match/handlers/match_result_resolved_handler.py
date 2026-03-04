@@ -68,8 +68,8 @@ class OnMatchResultResolvedCheckChoices:
 
                     logger.info(
                         f"[MatchHandler] Match {event.match_id}: "
-                        f"{len(status_updates)} choix résolus, "
-                        f"{len(updated_ticket_ids)} tickets impactés."
+                        f"{len(impacted_ticket_ids)} tickets impactés, "
+                        f"{len(updated_ticket_ids)} tickets résolus."
                     )
         except Exception:
             logger.exception(f"[MatchHandler] Erreur lors du traitement du match {event.match_id}")
