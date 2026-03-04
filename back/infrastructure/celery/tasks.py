@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+import time
 from datetime import date, timedelta
 
 # Celery prefork workers may lose /app from sys.path after fork
@@ -42,6 +43,30 @@ def _make_session_factory():
     )
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     return engine, factory
+
+
+def _touch_last_score_check_run() -> None:
+    """Persiste le dernier run de check_match_scores (epoch seconds) dans Redis."""
+    try:
+        from redis import Redis
+
+        broker_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
+        key = os.getenv("CELERY_LAST_SCORE_CHECK_KEY", "betleague:celery:last_check_match_scores_at")
+        now = str(int(time.time()))
+
+        r = Redis.from_url(
+            broker_url,
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+        try:
+            r.set(key, now)
+            r.expire(key, 7 * 24 * 3600)
+        finally:
+            r.close()
+    except Exception as e:
+        logger.warning(f"[Celery] Unable to persist last score check timestamp: {e}")
 
 
 @celery_app.task(
@@ -112,6 +137,7 @@ async def _fetch_daily_matches_async():
 )
 def check_match_scores(self):
     logger.info("[Celery] Starting check_match_scores task")
+    _touch_last_score_check_run()
     _run_async(_check_match_scores_async())
 
 
