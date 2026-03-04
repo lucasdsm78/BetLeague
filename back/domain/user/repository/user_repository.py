@@ -59,5 +59,13 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def apply_ticket_win(self, user_id: int, gain: float) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def apply_ticket_lose(self, user_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def rollback(self):
         raise NotImplementedError

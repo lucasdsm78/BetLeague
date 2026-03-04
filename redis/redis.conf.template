@@ -12,6 +12,9 @@ user default off
 # User applicatif minimaliste: uniquement Pub/Sub + healthcheck, et uniquement sur les channels de notifications
 user notif on >__REDIS_PASSWORD__ +ping +hello +client|id +client|setinfo +auth +quit +publish +subscribe +psubscribe +unsubscribe +punsubscribe +pubsub &betleague:notifications:user:*
 
+# User Celery: broker (lists) + result backend (strings) + keys, sur toutes les DBs
+user celery on >__REDIS_PASSWORD__ +@all ~* &*
+
 # User admin compatible avec les clients modernes
 # user admin on >__REDIS_PASSWORD__ +@all +hello +client|id +client|setinfo ~* &*
 

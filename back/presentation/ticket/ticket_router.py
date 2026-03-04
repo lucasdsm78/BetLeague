@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, status
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
@@ -28,7 +28,7 @@ router = APIRouter(
     "/ticket/create",
     response_model=TicketCreateResponse,
     summary="Create a ticket to bet",
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_ticket(
         league_id: int,
@@ -65,19 +65,25 @@ async def create_ticket(
 
     except NbBTLHasReached0 as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=e.message,
         )
 
     except LeagueNotStartedError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=e.message,
         )
 
     except MiseSuperiorToNbBtlError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.message,
+        )
+
+    except MatchAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message,
         )
 
@@ -234,11 +240,13 @@ async def update_ticket(
     summary="Récupérer tous les tickets en cours"
 )
 async def get_tickets_in_progress(
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100),
         ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        tickets = await ticket_query_usecase.get_tickets_in_progress(current_user.get('email', ''))
+        tickets = await ticket_query_usecase.get_tickets_in_progress(current_user.get('email', ''), page, page_size)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -259,11 +267,13 @@ async def get_tickets_in_progress(
     summary="Récupérer tous les tickets terminés"
 )
 async def get_tickets_finished(
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100),
         ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        tickets = await ticket_query_usecase.get_tickets_finished(current_user.get('email', ''))
+        tickets = await ticket_query_usecase.get_tickets_finished(current_user.get('email', ''), page, page_size)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -307,8 +317,11 @@ async def create_tournament_ticket(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la création du pari de tournoi."
+        )
 
 @router.post(
     "/ticket/check_match_choices",
@@ -317,16 +330,17 @@ async def create_tournament_ticket(
     status_code=status.HTTP_200_OK,
 )
 async def check_match_choices_by_match_id(
-        token: str,
         match_id: int,
+        authorization: str = Header(...),
         ticket_command_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
 ):
+    token = authorization.removeprefix("Bearer ").strip()
     try:
         return await ticket_command_usecase.check_match_choices_by_match_id(token=token, match_id=match_id)
 
     except TokenInvalidError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=e.message,
         )
 

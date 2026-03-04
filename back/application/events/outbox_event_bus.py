@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import asdict, is_dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,8 +29,6 @@ class OutboxDomainEventBus(DomainEventBus):
         created_at = int(payload.get("created_at") or 0)
 
         if created_at == 0:
-            import time
-
             created_at = int(time.time() * 1000)
 
         await self._repo.add(

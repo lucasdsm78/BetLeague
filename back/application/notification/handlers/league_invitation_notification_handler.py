@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.notification.model.notification import NotificationType
 from application.notification.notification_command_usecase import NotificationCommandUseCase
+
+logger = logging.getLogger(__name__)
 
 
 class OnLeagueInvitationCreatedCreateNotification:
@@ -23,5 +27,6 @@ class OnLeagueInvitationCreatedCreateNotification:
                 },
             )
         except Exception:
-            pass
+            logger.exception("[OnLeagueInvitationCreated] Erreur notification")
+            raise
 

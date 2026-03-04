@@ -54,3 +54,9 @@ class MatchScoreApiImpl(MatchScoreApi):
             ]
         except httpx.HTTPError as e:
             return []
+
+    async def get_live_scores(
+            self,
+            fixture_ids: list[int],
+    ) -> list[dict]:
+        return []

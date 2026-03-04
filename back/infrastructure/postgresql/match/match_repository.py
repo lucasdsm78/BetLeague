@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
-from sqlalchemy import select, exists, func
+from sqlalchemy import select, exists, func, or_
 import pytz
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,35 +9,13 @@ from application.ticket.ticket_command_model import MatchChoiceData
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.match.model.match import Match
 from domain.match.repository.match_repository import MatchRepository
-from infrastructure.postgresql.match.db_match import DBMatch
+from infrastructure.postgresql.match.db_match import DBMatch, unixtimestamp
 
 
 class MatchRepositoryImpl(MatchRepository):
 
     def __init__(self, session: AsyncSession):
         self.session: AsyncSession = session
-
-    async def find_match(
-            self,
-            home_team: str,
-            away_team: str,
-            cote_home: float,
-            cote_draw: float,
-            cote_away: float
-    ) -> bool:
-        try:
-            query = select(DBMatch).where(
-                DBMatch.home_team == home_team,
-                DBMatch.away_team == away_team,
-                DBMatch.cote_home == cote_home,
-                DBMatch.cote_draw == cote_draw,
-                DBMatch.cote_away == cote_away
-            )
-            result = await self.session.execute(query)
-            match_exists = result.scalar_one_or_none() is not None
-            return match_exists
-        except:
-            raise
 
     async def count_upcoming_matches(self) -> int:
         now = datetime.utcnow()
@@ -143,6 +121,94 @@ class MatchRepositoryImpl(MatchRepository):
         result = await self.session.execute(stmt)
         db_matches = result.scalars().all()
         return [db.to_entity() for db in db_matches]
+
+    async def find_by_api_fixture_id(self, api_fixture_id: int) -> Optional[Match]:
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id == api_fixture_id)
+        )
+        db_match = result.scalar_one_or_none()
+        return db_match.to_entity() if db_match else None
+
+    async def find_all_by_api_fixture_ids(self, api_fixture_ids: List[int]) -> List[Match]:
+        if not api_fixture_ids:
+            return []
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id.in_(api_fixture_ids))
+        )
+        return [db.to_entity() for db in result.scalars().all()]
+
+    async def upsert_by_api_fixture_id(self, match: Match) -> Match:
+        result = await self.session.execute(
+            select(DBMatch).where(DBMatch.api_fixture_id == match.api_fixture_id)
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.home_team = match.home_team
+            existing.away_team = match.away_team
+            existing.time = match.time
+            existing.league_name = match.league_name
+            existing.league_id = match.league_id
+            existing.logo_home = match.logo_home
+            existing.logo_away = match.logo_away
+            existing.score_home = match.score_home
+            existing.score_away = match.score_away
+            existing.status = match.status.value if hasattr(match.status, 'value') else str(match.status)
+            existing.sport = match.sport.value if hasattr(match.sport, 'value') else str(match.sport)
+            existing.season = match.season
+            existing.winner = match.winner
+            existing.updated_at = unixtimestamp()
+            await self.session.flush()
+            return existing.to_entity()
+        else:
+            db_match = DBMatch.from_entity(match)
+            self.session.add(db_match)
+            await self.session.flush()
+            return db_match.to_entity()
+
+    async def find_active_fixture_ids(self) -> List[int]:
+        now = datetime.utcnow()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO', 'CANC', 'ABD', 'PST')
+
+        result = await self.session.execute(
+            select(DBMatch.api_fixture_id)
+            .where(
+                DBMatch.api_fixture_id.isnot(None),
+                or_(
+                    # Today's matches that are not yet finished (live or upcoming)
+                    (DBMatch.time >= start_of_day)
+                    & (DBMatch.time <= end_of_day)
+                    & DBMatch.status.notin_(finished_statuses),
+                    # Any finished match with no winner yet
+                    DBMatch.status.in_(finished_statuses)
+                    & (DBMatch.winner.is_(None)),
+                ),
+            )
+        )
+        return [row[0] for row in result.all()]
+
+    async def find_finished_without_winner(self) -> List[Match]:
+        finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO')
+
+        result = await self.session.execute(
+            select(DBMatch)
+            .where(
+                DBMatch.status.in_(finished_statuses),
+                DBMatch.winner.is_(None),
+                DBMatch.score_home.isnot(None),
+                DBMatch.score_away.isnot(None),
+            )
+        )
+        return [row.to_entity() for row in result.scalars().all()]
+
+    async def bulk_update_scores(self, updates: list[dict]) -> None:
+        def _do_bulk(sess):
+            sess.bulk_update_mappings(DBMatch, updates)
+
+        await self.session.run_sync(_do_bulk)
 
     async def begin(self):
         await self.session.begin()

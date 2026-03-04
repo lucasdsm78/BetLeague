@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
-from domain.ticket.model.match_choice import MatchChoice
 from domain.ticket.model.ticket import Ticket
 
 
@@ -16,15 +15,19 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all_in_progress_by_user_id(self, user_id: int) -> List[Ticket]:
+    async def find_all_in_progress_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all_finished_by_user_id(self, user_id: int) -> List[Ticket]:
+    async def count_in_progress_by_user_id(self, user_id: int) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_gain(self, match_choices: List[MatchChoice], mise: int) -> float:
+    async def find_all_finished_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_finished_by_user_id(self, user_id: int) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -36,6 +39,10 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_by_id_for_update(self, ticket_id: int) -> Optional[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def apply_ticket_updates(
             self,
             ticket_id: int,
@@ -44,7 +51,16 @@ class TicketRepository(ABC):
             wrong_count: int,
             pending_count: int,
             gain: float
-    ):
+    ) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def resolve_status(
+            self,
+            ticket_id: int,
+            wrong_count: int,
+            pending_count: int,
+    ) -> bool:
         raise NotImplementedError
 
     @abstractmethod

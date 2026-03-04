@@ -2,7 +2,7 @@ fastapi~=0.115.6
 sqlmodel
 sqlalchemy~=2.0.36
 alembic~=1.13.3
-psycopg2
+psycopg2-binary
 uvicorn[standard]
 pydantic~=2.10.3
 passlib~=1.7.4
@@ -22,7 +22,7 @@ python-Levenshtein
 PyJWT
 pytz
 asyncpg
-celery
+celery[redis]>=5.3.0
 stripe
 orjson
 uvloop
@@ -30,3 +30,4 @@ httpx
 greenlet>=3.0.0
 redis>=5.0.0
 pywebpush>=2.0.0
+nats-py>=2.9.0

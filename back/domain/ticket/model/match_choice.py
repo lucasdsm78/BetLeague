@@ -11,10 +11,12 @@ class MatchChoice:
             ticket_id: int,
             choice: str,
             status: MatchChoiceStatus,
-            id: Optional[int] = None
+            id: Optional[int] = None,
+            match_odd_id: Optional[int] = None,
     ):
         self.id: Optional[int] = id
         self.match_id: int = match_id
         self.ticket_id: int = ticket_id
         self.choice: str = choice
         self.status: MatchChoiceStatus = status
+        self.match_odd_id: Optional[int] = match_odd_id
