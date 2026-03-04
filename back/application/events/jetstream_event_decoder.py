@@ -24,7 +24,6 @@ class JetStreamDecodedEvent:
     event: DomainEvent
 
 
-# Mapping stable: event_name -> (constructor)
 _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
     "league.invitation.created": lambda p: LeagueInvitationCreated(
         league_id=int(p["league_id"]),

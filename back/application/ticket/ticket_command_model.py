@@ -16,7 +16,6 @@ class TicketCreateModel(BaseModel):
 class TicketUpdateModel(BaseModel):
     match_choices: Optional[List[MatchChoiceData]] = Field(None, min_length=1, max_length=20)
     mise: Optional[int] = Field(None, ge=1)
-    # gain supprimé — calculé server-side
 
 
 class TicketCreateResponse(BaseModel):
