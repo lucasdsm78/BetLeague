@@ -71,6 +71,37 @@ def _touch_score_check_failed(*, now_epoch: int, error: str) -> None:
         logger.warning(f"[Celery] Unable to persist score_check last_failed_at/last_error: {e}")
 
 
+def _run_async(coro):
+    """Run an async coroutine in a dedicated event loop (Celery task context)."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+def _make_session_factory():
+    """Create a fresh engine + session factory for each task invocation.
+
+    This avoids the 'Future attached to a different loop' error
+    that occurs when a module-level engine is reused across
+    Celery's per-task event loops.
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from infrastructure.config import Settings
+
+    settings = Settings()
+    engine = create_async_engine(
+        settings.sqlalchemy_database_url,
+        echo=bool(getattr(settings, "sqlalchemy_echo", False)),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return engine, factory
+
+
 @celery_app.task(
     bind=True,
     name="infrastructure.celery.tasks.fetch_daily_matches",
