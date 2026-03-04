@@ -54,7 +54,7 @@ class OutboxProcessor:
         ok_ids: list[int] = []
         failed: list[tuple[int, int, str]] = []
 
-        # Phase 2: Process handlers (outside any transaction)
+        # Phase 2: Process handlers
         for message_id, event_name, payload, attempts in to_process:
             try:
                 decoded = decode_domain_event(payload)
@@ -63,7 +63,7 @@ class OutboxProcessor:
             except Exception as e:
                 failed.append((message_id, attempts + 1, str(e)[:2000]))
 
-        # Phase 3: Mark processed (short transaction)
+        # Phase 3: Mark processed
         if ok_ids:
             processed_at = int(time.time() * 1000)
             async with self._session_factory() as session:
@@ -74,7 +74,7 @@ class OutboxProcessor:
                     )
             processed = len(ok_ids)
 
-        # Phase 4: Mark failed (batch, short transaction)
+        # Phase 4: Mark failed
         if failed:
             failed_ids = [mid for mid, _, _ in failed]
             last_err = failed[-1][2] if failed else "unknown"

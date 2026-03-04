@@ -41,7 +41,6 @@ class OnMatchResultResolvedCheckChoices:
 
                     updated_ticket_ids = await ticket_repo.bulk_resolve_status(impacted_ticket_ids)
 
-                    # Emit batch event to trigger side-effects downstream without per-ticket fan-out
                     if updated_ticket_ids:
                         await outbox_bus.publish(
                             TicketsResolvedEvent(

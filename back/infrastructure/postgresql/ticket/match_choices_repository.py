@@ -82,7 +82,6 @@ class MatchChoicesRepositoryImpl(MatchChoiceRepository):
         if not updates:
             return
 
-        # Group by status to issue one UPDATE per status value (typically 2: correct/wrong)
         by_status: dict[str, list[int]] = {}
         for choice_id, choice_status in updates:
             by_status.setdefault(choice_status.value, []).append(choice_id)
