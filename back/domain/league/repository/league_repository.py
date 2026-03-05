@@ -78,3 +78,11 @@ class LeagueRepository(ABC):
     @abstractmethod
     async def rollback(self):
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_my_leagues(self, user_id: int, page: int = 1, limit: int = 10) -> List[League]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_my_leagues(self, user_id: int) -> int:
+        raise NotImplementedError
