@@ -595,12 +595,19 @@
 .tickets-grid.modern {
   display: grid;
   gap: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 @media (min-width: 640px) {
   .tickets-grid.modern {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   }
+}
+
+/* Prevent horizontal overflow: allow grid children to shrink properly */
+.tickets-grid.modern > * {
+  min-width: 0;
 }
 
 /* Ticket Card Modern */
@@ -611,6 +618,10 @@
   padding: 1rem;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* safety: nothing should render outside */
 }
 
 .ticket-card-modern:hover {
@@ -649,7 +660,7 @@
 
 .chip {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.25rem;
   border-radius: 999px;
   background: var(--bg-secondary);
@@ -657,9 +668,26 @@
   padding: 0.35rem 0.6rem;
   font-size: 0.8rem;
   color: var(--text-primary);
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.chip.choice strong { color: var(--primary-color); font-weight: 700; }
+.chip.choice strong {
+  color: var(--primary-color);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Sur desktop, on évite que les chips prennent toute la largeur si le texte est court */
+@media (min-width: 640px) {
+  .ticket-choices .chip {
+    max-width: 100%;
+  }
+}
 
 /* Stats row */
 .ticket-stats {

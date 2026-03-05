@@ -15,6 +15,10 @@ class MatchQueryUseCase(ABC):
     async def get_matches(self, email: str, page: int = 1, page_size: int = 20) -> MatchesListResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_match_odds_by_match_ids(self, email: str, match_ids: list[int]) -> dict[int, list[MatchOdd]]:
+        raise NotImplementedError
+
 
 class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
     match_repository: MatchRepository
@@ -61,3 +65,35 @@ class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
             total=total,
             total_pages=total_pages,
         )
+
+    async def get_match_odds_by_match_ids(self, email: str, match_ids: list[int]) -> dict[int, list[MatchOdd]]:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        uniq = []
+        seen: set[int] = set()
+        for mid in match_ids or []:
+            try:
+                mid_int = int(mid)
+            except Exception:
+                continue
+            if mid_int <= 0 or mid_int in seen:
+                continue
+            uniq.append(mid_int)
+            seen.add(mid_int)
+            if len(uniq) >= 500:
+                break
+
+        odds_by_match_id: dict[int, list[MatchOdd]] = {}
+        if not uniq:
+            return odds_by_match_id
+
+        all_odds = await self.match_odd_repository.find_by_match_ids(uniq)
+        for odd in all_odds:
+            mid = int(odd.match_id)
+            if mid <= 0:
+                continue
+            odds_by_match_id.setdefault(mid, []).append(odd)
+
+        return odds_by_match_id

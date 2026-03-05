@@ -7,6 +7,9 @@ import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/api/tickets';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
+import { useMatchOddsByMatchIds } from '../../hooks/useMatchOddsByMatchIds';
+import { formatBetTypeLabel } from '../../utils/oddsLabel';
+import type { ApiMatchOddReadModel } from '../../types/api/matches';
 
 type TabType = 'current' | 'finished';
 
@@ -27,23 +30,32 @@ const statusToLabel = (status: string): StatusLabel => {
   }
 };
 
-const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> = ({ choice, className }) => {
+const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; odds?: ApiMatchOddReadModel[]; className?: string }> = ({ choice, odds, className }) => {
   const { match_summary, choice: c } = choice;
-  const label = c === '1' ? match_summary.home_team : c === '2' ? match_summary.away_team : 'Match nul';
+  // Nouveau format (back): c est le libellé d'odd (ex: "Draw/Away", "Home/Draw", "Over 2.5").
+  // Ancien format: c peut être '1'/'N'/'2'.
+  const legacyLabel = c === '1' ? match_summary.home_team : c === '2' ? match_summary.away_team : c === 'N' ? 'Match nul' : '';
+  const label = legacyLabel || c || '';
+
+  const selectedOdd = Array.isArray(odds) ? odds.find((o) => o.value === c) : undefined;
+  const betTypeLabel = formatBetTypeLabel(selectedOdd);
+
   return (
     <span className={`chip choice ${className || ''}`.trim()}>
-      {match_summary.home_team} vs {match_summary.away_team} · <strong>{label}</strong>
+      {match_summary.home_team} vs {match_summary.away_team} · <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{betTypeLabel}:</span>{' '}
+      <strong>{label}</strong>
     </span>
   );
 };
 
 interface InProgressTicketCardProps {
   ticket: TicketReadModel;
+  oddsByMatchId?: Record<number, ApiMatchOddReadModel[]>;
   onView: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
-const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
+const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, oddsByMatchId, onView, onDelete }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
   const potentialGain = Number(ticket.gain ?? 0); // backend returns gain (potential when pending)
 
@@ -61,7 +73,7 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, 
 
       <div className="ticket-choices">
         {ticket.match_choice_summaries.slice(0, 3).map((mc: MatchChoiceSummary) => (
-          <ChoiceLabel key={mc.id} choice={mc} />
+          <ChoiceLabel key={mc.id} choice={mc} odds={oddsByMatchId?.[mc.match_summary.id]} />
         ))}
         {ticket.match_choice_summaries.length > 3 && (
           <div className="more-bets">+{ticket.match_choice_summaries.length - 3} sélection(s)</div>
@@ -95,10 +107,11 @@ InProgressTicketCard.displayName = 'InProgressTicketCard';
 
 interface FinishedTicketCardProps {
   ticket: TicketReadModel;
+  oddsByMatchId?: Record<number, ApiMatchOddReadModel[]>;
   onView: (id: number) => void;
 }
 
-const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) => {
+const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, oddsByMatchId, onView }) => {
   const leagueName = ticket.league_summary?.name || 'Ligues';
   const normalizedStatus = normalizeStatus(ticket.status);
   const isWin = normalizedStatus === 'correct';
@@ -119,7 +132,7 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
 
       <div className="ticket-choices">
         {ticket.match_choice_summaries.slice(0, 3).map((mc: MatchChoiceSummary) => (
-          <ChoiceLabel key={mc.id} choice={mc} />
+          <ChoiceLabel key={mc.id} choice={mc} odds={oddsByMatchId?.[mc.match_summary.id]} />
         ))}
         {ticket.match_choice_summaries.length > 3 && (
           <div className="more-bets">+{ticket.match_choice_summaries.length - 3} sélection(s)</div>
@@ -355,6 +368,16 @@ const TicketsSection: React.FC = memo(() => {
     setIsDeleteOpen(false);
   }, []);
 
+  const allMatchIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const t of [...(filteredTickets ?? []), ...(finishedTickets ?? [])]) {
+      for (const mc of t.match_choice_summaries ?? []) ids.add(mc.match_summary.id);
+    }
+    return Array.from(ids);
+  }, [filteredTickets, finishedTickets]);
+
+  const { oddsByMatchId } = useMatchOddsByMatchIds(allMatchIds);
+
   return (
     <div className="tickets-section">
 
@@ -428,7 +451,7 @@ const TicketsSection: React.FC = memo(() => {
             )}
 
             {filteredTickets.map((t) => (
-              <InProgressTicketCard key={t.id} ticket={t} onView={handleViewTicket} onDelete={handleDeleteAskFromList} />
+              <InProgressTicketCard key={t.id} ticket={t} oddsByMatchId={oddsByMatchId} onView={handleViewTicket} onDelete={handleDeleteAskFromList} />
             ))}
           </div>
         </>
@@ -462,7 +485,7 @@ const TicketsSection: React.FC = memo(() => {
             )}
 
             {finishedTickets.map((t) => (
-              <FinishedTicketCard key={t.id} ticket={t} onView={handleViewTicket} />
+              <FinishedTicketCard key={t.id} ticket={t} oddsByMatchId={oddsByMatchId} onView={handleViewTicket} />
             ))}
           </div>
         </>
