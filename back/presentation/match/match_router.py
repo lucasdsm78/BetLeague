@@ -2,15 +2,13 @@ import hmac
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from datetime import date, datetime, timedelta
-from typing import Optional, List
+from typing import Optional
 
 from application.match.match_command_model import MatchScoreUpdatedResponse
 from application.match.match_command_usecase import MatchCommandUseCase
 from application.match.match_fetch_usecase import MatchFetchUseCase
 from application.match.match_query_usecase import MatchQueryUseCase
 from application.match.match_query_model import MatchesListResponse
-from application.match.match_odds_query_model import MatchOddsByMatchIdsResponse
-from application.match.match_query_model import MatchOddReadModel
 from domain.match.model.sport import Sport
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.match.exception.match_exception import MatchesNotFoundError
@@ -109,52 +107,3 @@ async def fetch_matches(
         date_to=date.today() + timedelta(days=days_ahead),
     )
     return {"fetched": count, "sport": sport, "days_ahead": days_ahead}
-
-
-@router.get(
-    "/match-odds",
-    response_model=MatchOddsByMatchIdsResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Récupérer les cotes (match_odds) pour une liste de matchs",
-)
-async def get_match_odds_by_match_ids(
-        match_ids: str = Query("", description="Liste d'ids de matchs séparés par des virgules (ex: 1,2,3)"),
-        bet_type: Optional[str] = Query(None, description="Optionnel: filtrer par bet_type"),
-        match_query_usecase: MatchQueryUseCase = Depends(match_query_usecase),
-        current_user: dict = Depends(current_user),
-):
-    raw = (match_ids or "").strip()
-    if not raw:
-        return MatchOddsByMatchIdsResponse(odds_by_match_id={})
-
-    parts = [p.strip() for p in raw.split(",") if p.strip()]
-    if len(parts) > 500:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Trop de match_ids (max 500)")
-
-    mids: List[int] = []
-    seen: set[int] = set()
-    for p in parts:
-        if not p.isdigit():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"match_id invalide: {p}")
-        mid = int(p)
-        if mid <= 0 or mid in seen:
-            continue
-        mids.append(mid)
-        seen.add(mid)
-
-    try:
-        odds_by_mid = await match_query_usecase.get_match_odds_by_match_ids(current_user.get('email', ''), mids)
-        out = {}
-        for mid, odds in odds_by_mid.items():
-            if bet_type:
-                filtered = [o for o in odds if (o.bet_type.value if hasattr(o.bet_type, 'value') else str(o.bet_type)) == bet_type]
-            else:
-                filtered = odds
-            out[int(mid)] = [MatchOddReadModel.from_entity(o) for o in filtered]
-        return MatchOddsByMatchIdsResponse(odds_by_match_id=out)
-    except UserNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des cotes")
