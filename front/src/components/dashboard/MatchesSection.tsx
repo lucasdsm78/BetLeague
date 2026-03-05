@@ -5,7 +5,7 @@ import CreateTicketModal from './CreateTicketModal';
 import { createTicket, createTournamentBet } from '../../services/api/tickets';
 import type { TournamentMatchOption } from '../../types/api/tournament';
 import { useTicketsRefreshStore } from 'store/ticketsStore';
-import { useParticipatedLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
+import { useMyLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
 import { useTournamentPlayerBalanceQuery } from '../../hooks/queries/useTournamentBettingQueries';
 import { useMatchesInfiniteQuery } from '../../hooks/queries/useMatchesInfiniteQuery';
 import { useGlobalToast } from '../../toast/ToastProvider';
@@ -99,8 +99,8 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
     const [desktopTournamentMatches] = useState<TournamentMatchOption[]>([]);
 
     // React Query: ligues + balance ligue
-    const participatedLeaguesQuery = useParticipatedLeaguesQuery();
-    const participatedLeagues = participatedLeaguesQuery.data ?? [];
+    const myLeaguesQuery = useMyLeaguesQuery();
+    const myLeagues = myLeaguesQuery.data ?? [];
 
     const desktopBalanceQuery = useLeagueBalanceQuery(desktopSelectedLeagueId, { enabled: !!desktopSelectedLeagueId });
     const desktopBalance = desktopSelectedLeagueId ? (desktopBalanceQuery.data ?? null) : null;
@@ -522,7 +522,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
                     selectedBets={selectedBets}
                     onRemoveBet={handleRemoveBet}
                     onClearAll={handleClearAll}
-                    leagues={participatedLeagues}
+                    leagues={myLeagues}
                     selectedLeagueId={desktopSelectedLeagueId}
                     onLeagueChange={setDesktopSelectedLeagueId}
                     balance={desktopBalance}
@@ -545,7 +545,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
                     onClose={() => setIsTicketDrawerOpen(false)}
                     selectedBets={selectedBets}
                     onRemoveBet={handleRemoveBet}
-                    leagues={participatedLeagues}
+                    leagues={myLeagues}
                     selectedLeagueId={drawerSelectedLeagueId}
                     onLeagueChange={setDrawerSelectedLeagueId}
                     balance={drawerBalance}

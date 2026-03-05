@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import './CreateTicketModal.css';
 import { createTicket } from '../../services/api/tickets';
 import type { ApiMatchChoiceCreate as MatchChoiceData, ApiTicketCreateRequest as TicketCreatePayload, ApiTicketCreateResponse as TicketCreateResponse } from '../../types/api/tickets';
-import { getParticipatedLeagues, getLeagueBalance } from '../../services/api/leagues';
+import { getMyLeagues, getLeagueBalance } from '../../services/api/leagues';
 import type { LeagueSummaryApi } from '../../services/api/leagues';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { useNavigate } from 'react-router-dom';
@@ -47,7 +47,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
       if (!isOpen) return;
       try {
         setError(null);
-        const list = await getParticipatedLeagues();
+        const list = await getMyLeagues();
         if (!mounted) return;
         setLeagues(list);
         // Pré-sélectionner la ligue courante si présente, sinon la première
