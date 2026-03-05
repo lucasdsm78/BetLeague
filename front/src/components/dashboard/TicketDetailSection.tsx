@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
-import { useMatchOddsByMatchIds } from '../../hooks/useMatchOddsByMatchIds';
+import { formatBetTypeLabel } from '../../utils/oddsLabel';
 import type { ApiMatchOddReadModel } from '../../types/api/matches';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
@@ -23,15 +23,6 @@ const statusToLabel = (status: string | null | undefined): string => {
     case 'wrong': return 'Perdu';
     default: return 'En cours';
   }
-};
-
-const groupOddsByBetType = (odds: ApiMatchOddReadModel[]): Record<string, ApiMatchOddReadModel[]> => {
-  const out: Record<string, ApiMatchOddReadModel[]> = {};
-  for (const o of odds) {
-    const key = String(o.bet_type || 'UNKNOWN');
-    (out[key] ||= []).push(o);
-  }
-  return out;
 };
 
 const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
@@ -62,6 +53,10 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
     return date.toLocaleDateString('fr-FR', options);
   };
 
+  const betTypeLabel = formatBetTypeLabel(
+    (choice as unknown as { match_odd_summary?: Pick<ApiMatchOddReadModel, 'bet_name' | 'bet_type'> })?.match_odd_summary
+  );
+
   return (
     <li className="choice-row">
       <div className="teams">
@@ -78,6 +73,9 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
       <div className="selection">
         <span className={chipClass}>
           <strong>{teamChoice}</strong>
+          <span style={{ marginLeft: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>
+            ({betTypeLabel})
+          </span>
         </span>
       </div>
     </li>
@@ -90,12 +88,6 @@ const TicketDetailSection: React.FC = memo(() => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
-
-  const matchIds = useMemo(
-    () => (ticket?.match_choice_summaries ?? []).map((mc) => mc.match_summary.id),
-    [ticket]
-  );
-  const { oddsByMatchId } = useMatchOddsByMatchIds(matchIds);
 
   const leagueName = ticket?.league_summary?.name || 'Ligues';
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
@@ -177,56 +169,6 @@ const TicketDetailSection: React.FC = memo(() => {
                 <ChoiceRow key={mc.id} choice={mc} />
               ))}
             </ul>
-          </section>
-
-          <section className="choices-section">
-            <h3>Types de paris & autres cotes</h3>
-            <div className="choices-list" style={{ display: 'grid', gap: '0.75rem' }}>
-              {(ticket.match_choice_summaries ?? []).map((mc: MatchChoiceSummary) => {
-                const odds = oddsByMatchId[mc.match_summary.id] || [];
-                if (odds.length === 0) return null;
-
-                const selected = odds.find((o) => o.value === mc.choice);
-                const betType = selected?.bet_type ?? 'UNKNOWN';
-                const betName = selected?.bet_name ?? 'Pari';
-                const grouped = groupOddsByBetType(odds);
-                const sameMarket = grouped[betType] ?? [];
-
-                return (
-                  <div key={`market-${mc.id}`} className="choice-row" style={{ border: '1px solid var(--border-color)', borderRadius: 12, padding: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{mc.match_summary.home_team} vs {mc.match_summary.away_team}</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{betName} ({betType})</div>
-                      </div>
-                      <div className="chip choice" style={{ alignSelf: 'flex-start' }}>
-                        Choisie: <strong>{mc.choice}</strong>
-                      </div>
-                    </div>
-
-                    {sameMarket.length > 0 && (
-                      <div style={{ marginTop: '0.6rem', display: 'grid', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Autres cotes disponibles</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                          {sameMarket.map((o) => (
-                            <span
-                              key={o.id}
-                              className="chip"
-                              style={{
-                                borderColor: o.id === selected?.id ? 'var(--primary-color)' : undefined,
-                                background: o.id === selected?.id ? 'rgba(0, 210, 255, 0.12)' : undefined,
-                              }}
-                            >
-                              {o.value} <strong style={{ marginLeft: 6 }}>{Number(o.odd).toFixed(2)}</strong>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           </section>
 
           <footer className="detail-actions">
