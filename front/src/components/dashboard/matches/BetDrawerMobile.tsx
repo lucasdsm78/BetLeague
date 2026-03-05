@@ -77,7 +77,9 @@ const BetDrawerMobile = memo<BetDrawerMobileProps>(function BetDrawerMobile(prop
                       {bet.homeTeam} - {bet.awayTeam}
                     </div>
                     <div className="bet-meta">
-                      <span className="bet-type">{bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2'}</span>
+                      <span className="bet-type">
+                        {bet.selectionLabel || bet.marketValue || (bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2')}
+                      </span>
                       <span className="bet-odd">{bet.odd.toFixed(2)}</span>
                     </div>
                   </div>
