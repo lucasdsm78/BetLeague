@@ -410,6 +410,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             async with session.begin():
                 invitation_repo  = InvitationRepositoryImpl(session)
                 league_repo = LeagueRepositoryImpl(session)
+                user_repo = UserRepositoryImpl(session)
 
                 invitation = await invitation_repo.find_by_id(invitation_id)
                 if not invitation:
@@ -421,6 +422,11 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 if league.user.id != invitation.user_sender_id:
                     raise UserNotOwnerLeaguedError
+
+                league = await league_repo.increment_players_remaining(league.id)
+                if not league.is_free and league.nb_btl is not None:
+                    await user_repo.credit_btl(user_id=invitation.user_id, amount=float(league.nb_btl))
+                await league_repo.update(league)
 
                 await invitation_repo.delete(invitation.id)
 
