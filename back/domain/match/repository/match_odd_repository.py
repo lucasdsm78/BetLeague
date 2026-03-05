@@ -33,3 +33,7 @@ class MatchOddRepository(ABC):
     @abstractmethod
     async def delete_by_match_id(self, match_id: int) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_match_ids(self, match_ids: List[int]) -> List[MatchOdd]:
+        raise NotImplementedError

@@ -46,13 +46,13 @@ export type ApiTicketDetailResponse = { ticket: ApiTicketReadModel } | ApiTicket
 
 export interface ApiMatchChoiceCreate {
   match_id: number;
-  choice: '1' | 'N' | '2';
+  match_odd_id: number;
 }
 
 export interface ApiTicketCreateRequest {
   mise: number;
   match_choices: ApiMatchChoiceCreate[];
-  // Certains écrans historiques envoient encore ce champ.
+  // Certains écrans historiques envoyaient encore ce champ.
   // On le garde optionnel pour compatibilité durant la migration.
   gain?: number | null;
 }

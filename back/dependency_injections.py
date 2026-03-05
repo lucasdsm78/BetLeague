@@ -529,10 +529,18 @@ def user_query_usecase(
 
 def match_query_usecase(
         match_repository: MatchRepository = Depends(match_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency)
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> MatchQueryUseCase:
+    from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
+
+    # Repository léger basé sur la session pour charger les odds (match_odds)
+    session = session_factory()
+    match_odd_repository = MatchOddRepositoryImpl(session=session)
+
     return MatchQueryUseCaseImpl(
         match_repository=match_repository,
+        match_odd_repository=match_odd_repository,
         user_repository=user_repository
     )
 

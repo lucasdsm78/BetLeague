@@ -1392,6 +1392,31 @@
   transform: none;
 }
 
+/* Odds unavailable badge */
+.odds-unavailable-badge {
+  position: absolute;
+  top: -0.5rem;
+  left: 1rem;
+  background: rgba(100, 116, 139, 0.95); /* slate */
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  z-index: 1;
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 480px) {
+  .odds-unavailable-badge {
+    left: 0.875rem;
+    top: -0.4rem;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+  }
+}
+
 /* Responsive Design */
 
 @media (min-width: 769px) {
@@ -1403,7 +1428,7 @@
 
 @media (min-width: 1024px) {
   .matches-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   }
 }
 
@@ -1442,5 +1467,185 @@
   .ticket-drawer,
   .fab-ticket {
     display: none !important;
+  }
+}
+
+.more-odds {
+  margin-top: 1rem;
+}
+
+.more-odds-toggle {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.more-odds-toggle:hover {
+  border-color: var(--primary-color);
+  background: rgba(0, 210, 255, 0.05);
+}
+
+.more-odds-content {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.market-block {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  padding: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.market-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.market-odds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 0.5rem;
+  /* Empêche les overflow quand une colonne devient trop étroite */
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.market-odd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 0;
+}
+
+.market-odd-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-odd-value {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Marchés très longs (ex: EXACT SCORE) : on limite la hauteur et on scroll */
+.more-odds-content .market-block {
+  max-width: 100%;
+}
+
+.more-odds-content .market-odds-grid {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+@media (min-width: 1024px) {
+  /* NOTE: on ne force pas repeat(4,...) ici; auto-fit gère selon la largeur */
+  /* .market-odds-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } */
+}
+
+@media (max-width: 360px) {
+  .market-odds-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Layout Mon ticket : desktop à droite, mobile via drawer + bouton --- */
+.matches-layout {
+  /* ce conteneur est juste un wrapper React; sur desktop on ne veut pas qu'il crée une zone en bas */
+  display: contents;
+}
+
+.bet-sidebar.desktop {
+  display: none;
+}
+
+.ticket-fab {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .bet-sidebar.desktop {
+    display: flex;
+    position: fixed;
+    top: var(--header-height);
+    right: 0;
+    width: 380px;
+    height: calc(100vh - var(--header-height));
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-docked);
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Laisser de la place à droite pour le contenu principal */
+  .matches-section {
+    margin-right: 380px;
+  }
+
+  /* Sur desktop, le drawer mobile + fab ne doivent pas exister visuellement */
+  .ticket-drawer,
+  .drawer-overlay,
+  .ticket-fab {
+    display: none !important;
+  }
+
+  /* Autres cotes: plus lisible en desktop */
+  .more-odds-content {
+    gap: 1rem;
+  }
+
+  .market-block {
+    padding: 0.9rem;
+  }
+
+  .market-odds-grid {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  /* Mobile/tablet: pas de sidebar; on utilise le drawer + bouton */
+  .bet-sidebar.desktop {
+    display: none !important;
+  }
+
+  .ticket-fab {
+    display: inline-flex;
   }
 }
