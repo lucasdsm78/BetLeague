@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import type { BetType, BetSelection } from '../../../types/entities/betting';
+import { getBetTypeLabelFr, formatChoiceLabelFr } from '../../../utils/oddsLabel';
 
 export type UiMatchStatus = 'upcoming' | 'live' | 'finished';
 
@@ -112,15 +113,23 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
   const handleMarketOddClick = useCallback(
     (matchOddId: number | undefined, marketKey: string, marketLabel: string, marketValue: string, odd: number) => {
       if (!matchOddId || matchOddId <= 0) return;
+
+      const frMarketLabel = getBetTypeLabelFr(marketKey) || marketLabel || marketKey;
+      const frChoice = formatChoiceLabelFr({
+        choice: marketValue,
+        betType: marketKey,
+        teams: { home: match.homeTeam, away: match.awayTeam },
+      });
+
       onAddToBet({
         matchId: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
         competition: match.competition,
         marketKey,
-        marketLabel,
+        marketLabel: frMarketLabel,
         marketValue,
-        selectionLabel: marketLabel ? `${marketLabel}: ${marketValue}` : marketValue,
+        selectionLabel: frMarketLabel ? `${frMarketLabel}: ${frChoice || marketValue}` : (frChoice || marketValue),
         odd,
         matchOddId,
       });
@@ -218,28 +227,39 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
 
           {isMoreOpen && (
             <div className="more-odds-content">
-              {oddsByMarket.map((mkt) => (
-                <div key={mkt.marketKey} className="market-block">
-                  <div className="market-title">{mkt.marketLabel}</div>
-                  <div className="market-odds-grid">
-                    {mkt.items.map((o) => (
-                      <button
-                        key={`${mkt.marketKey}:${o.value}:${o.id ?? ''}`}
-                        type="button"
-                        className="market-odd"
-                        onClick={() =>
-                          handleMarketOddClick(o.matchOddId ?? o.id, mkt.marketKey, mkt.marketLabel, o.value, o.odd)
-                        }
-                        disabled={disabledByStatus || !isOddSelectable(o.odd)}
-                        aria-label={`Parier sur ${mkt.marketLabel} - ${o.value} cote ${formatOdd(o.odd)}`}
-                      >
-                        <span className="market-odd-label">{o.value}</span>
-                        <span className="market-odd-value">{formatOdd(o.odd)}</span>
-                      </button>
-                    ))}
+              {oddsByMarket.map((mkt) => {
+                const frMarketTitle = getBetTypeLabelFr(mkt.marketKey) || mkt.marketLabel;
+                return (
+                  <div key={mkt.marketKey} className="market-block">
+                    <div className="market-title">{frMarketTitle}</div>
+                    <div className="market-odds-grid">
+                      {mkt.items.map((o) => {
+                        const frValueLabel = formatChoiceLabelFr({
+                          choice: o.value,
+                          betType: mkt.marketKey,
+                          teams: { home: match.homeTeam, away: match.awayTeam },
+                        });
+
+                        return (
+                          <button
+                            key={`${mkt.marketKey}:${o.value}:${o.id ?? ''}`}
+                            type="button"
+                            className="market-odd"
+                            onClick={() =>
+                              handleMarketOddClick(o.matchOddId ?? o.id, mkt.marketKey, mkt.marketLabel, o.value, o.odd)
+                            }
+                            disabled={disabledByStatus || !isOddSelectable(o.odd)}
+                            aria-label={`Parier sur ${frMarketTitle} - ${frValueLabel || o.value} cote ${formatOdd(o.odd)}`}
+                          >
+                            <span className="market-odd-label">{frValueLabel || o.value}</span>
+                            <span className="market-odd-value">{formatOdd(o.odd)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

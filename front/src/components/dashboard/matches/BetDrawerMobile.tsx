@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import type { BetSelection } from '../../../types/entities/betting';
+import { formatChoiceLabelFr } from '../../../utils/oddsLabel';
 
 export interface BetDrawerMobileProps {
   isOpen: boolean;
@@ -78,7 +79,14 @@ const BetDrawerMobile = memo<BetDrawerMobileProps>(function BetDrawerMobile(prop
                     </div>
                     <div className="bet-meta">
                       <span className="bet-type">
-                        {bet.selectionLabel || bet.marketValue || (bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2')}
+                        {bet.selectionLabel ||
+                          formatChoiceLabelFr({
+                            choice: bet.marketValue || (bet.betType === 'home' ? 'home' : bet.betType === 'draw' ? 'draw' : 'away'),
+                            betType: bet.marketKey || (bet.betType ? 'match_winner' : undefined),
+                            teams: { home: bet.homeTeam, away: bet.awayTeam },
+                          }) ||
+                          bet.marketValue ||
+                          (bet.betType === 'home' ? '1' : bet.betType === 'draw' ? 'N' : '2')}
                       </span>
                       <span className="bet-odd">{bet.odd.toFixed(2)}</span>
                     </div>
