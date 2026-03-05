@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLeagueBalance, getParticipatedLeagues, type LeagueSummaryApi } from '../../services/api/leagues';
+import { getLeagueBalance, getMyLeagues, type LeagueSummaryApi } from '../../services/api/leagues';
 import { leaguesLiteKeys } from './leaguesLiteKeys';
 
-export function useParticipatedLeaguesQuery(options?: { enabled?: boolean }) {
+export function useMyLeaguesQuery(options?: { enabled?: boolean }) {
   return useQuery<LeagueSummaryApi[], Error>({
-    queryKey: leaguesLiteKeys.participated(),
-    queryFn: () => getParticipatedLeagues(),
+    queryKey: leaguesLiteKeys.mine(),
+    queryFn: () => getMyLeagues(),
     enabled: options?.enabled ?? true,
   });
 }
@@ -20,4 +20,3 @@ export function useLeagueBalanceQuery(leagueId: number | null, options?: { enabl
     enabled: (options?.enabled ?? true) && !!leagueId,
   });
 }
-

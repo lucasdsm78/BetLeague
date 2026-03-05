@@ -220,3 +220,23 @@ export async function checkLeagueNameAvailability(name: string): Promise<boolean
     return true;
   }
 }
+
+export async function getMyLeagues(): Promise<LeagueSummaryApi[]> {
+  // On agrège les ligues où je suis owner + celles où je participe.
+  // Perf: 2 requêtes max, déduplication en mémoire.
+  const [createdPage, participatedPage] = await Promise.all([
+    getCreatedLeaguesPage(1, 50),
+    getParticipatedLeaguesPage(1, 50),
+  ]);
+
+  const created = (createdPage.leagues ?? []).map((l) => ({ id: l.id, name: l.name })) as LeagueSummaryApi[];
+  const participated = (participatedPage.leagues ?? []).map((l) => ({ id: l.id, name: l.name })) as LeagueSummaryApi[];
+
+  const map = new Map<number, LeagueSummaryApi>();
+  for (const l of [...created, ...participated]) {
+    if (!l || typeof l.id !== 'number') continue;
+    if (!map.has(l.id)) map.set(l.id, l);
+  }
+
+  return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}
