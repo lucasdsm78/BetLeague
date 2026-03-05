@@ -37,3 +37,7 @@ class MatchOddRepository(ABC):
     @abstractmethod
     async def find_by_match_ids(self, match_ids: List[int]) -> List[MatchOdd]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_all_by_ids(self, odd_ids: List[int]) -> List[MatchOdd]:
+        raise NotImplementedError
