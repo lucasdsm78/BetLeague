@@ -222,8 +222,24 @@ export async function checkLeagueNameAvailability(name: string): Promise<boolean
 }
 
 export async function getMyLeagues(): Promise<LeagueSummaryApi[]> {
-  // On agrège les ligues où je suis owner + celles où je participe.
-  // Perf: 2 requêtes max, déduplication en mémoire.
+  // Nouveau endpoint performant (1 seule requête)
+  try {
+    const query = new URLSearchParams({ page: '1', page_size: '50' });
+    const res: ApiResponse<any> = await http.get(`/leagues/mine?${query.toString()}`);
+    if (res.success) {
+      const data: any = res.data ?? {};
+      const leagues = (Array.isArray(data?.leagues) ? data.leagues : Array.isArray(data?.items) ? data.items : []) as any[];
+      return leagues
+        .filter((l) => l && typeof l.id === 'number')
+        .map((l) => ({ id: Number(l.id), name: String(l.name ?? '') }))
+        .filter((l) => !!l.name)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+  } catch {
+    // fallback plus bas
+  }
+
+  // Fallback compat: 2 requêtes
   const [createdPage, participatedPage] = await Promise.all([
     getCreatedLeaguesPage(1, 50),
     getParticipatedLeaguesPage(1, 50),
