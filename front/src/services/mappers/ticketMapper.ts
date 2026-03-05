@@ -9,6 +9,7 @@ import type {
   MatchChoiceSummary,
   MatchSummary,
   TicketReadModel,
+  MatchOddSummary,
 } from '../../types/entities/ticket';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -48,11 +49,23 @@ function mapApiMatchSummaryToUi(api: ApiMatchSummary): MatchSummary {
 }
 
 function mapApiMatchChoiceSummaryToUi(api: ApiMatchChoiceSummary): MatchChoiceSummary {
+  const raw = api as any;
+  const rawOddSummary = raw?.match_odd_summary;
+
+  const matchOddSummary: MatchOddSummary | null | undefined =
+    rawOddSummary && typeof rawOddSummary === 'object'
+      ? {
+          bet_type: asString((rawOddSummary as any).bet_type),
+          bet_name: asString((rawOddSummary as any).bet_name),
+        }
+      : null;
+
   return {
     id: asNumber(api.id),
     match_summary: mapApiMatchSummaryToUi(api.match_summary),
-    choice: asChoiceLabel((api as any).choice),
-    status: asString((api as any).status),
+    choice: asChoiceLabel(raw.choice),
+    status: asString(raw.status),
+    match_odd_summary: matchOddSummary,
   };
 }
 
