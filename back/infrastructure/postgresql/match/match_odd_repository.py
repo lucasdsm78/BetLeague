@@ -119,3 +119,13 @@ class MatchOddRepositoryImpl(MatchOddRepository):
         await self.session.execute(
             delete(DBMatchOdd).where(DBMatchOdd.match_id == match_id)
         )
+
+    async def find_by_match_ids(self, match_ids: List[int]) -> List[MatchOdd]:
+        if not match_ids:
+            return []
+        result = await self.session.execute(
+            select(DBMatchOdd)
+            .where(DBMatchOdd.match_id.in_(match_ids))
+            .order_by(DBMatchOdd.match_id.asc(), DBMatchOdd.bet_type.asc(), DBMatchOdd.value.asc())
+        )
+        return [row.to_entity() for row in result.scalars().all()]
