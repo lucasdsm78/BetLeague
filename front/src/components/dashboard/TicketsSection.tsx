@@ -8,7 +8,6 @@ import { deleteTicket as apiDeleteTicket } from 'services/api/tickets';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
-import type { ApiMatchOddReadModel } from '../../types/api/matches';
 
 type TabType = 'current' | 'finished';
 
@@ -36,9 +35,7 @@ const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> 
   const legacyLabel = c === '1' ? match_summary.home_team : c === '2' ? match_summary.away_team : c === 'N' ? 'Match nul' : '';
   const label = legacyLabel || c || '';
 
-  const betTypeLabel = formatBetTypeLabel(
-    (choice as unknown as { match_odd_summary?: Pick<ApiMatchOddReadModel, 'bet_name' | 'bet_type'> })?.match_odd_summary
-  );
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
 
   return (
     <span className={`chip choice ${className || ''}`.trim()}>

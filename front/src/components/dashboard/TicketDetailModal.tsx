@@ -5,7 +5,6 @@ import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel } from 'utils/oddsLabel';
-import type { ApiMatchOddReadModel } from 'types/api/matches';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -51,9 +50,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
   const teamChoice = legacyLabel || choice.choice;
   // Le back peut renvoyer match_odd_summary (avec bet_name/bet_type) sur un match_choice.
   // Si absent, on fallback sur un label générique.
-  const betTypeLabel = formatBetTypeLabel(
-    (choice as unknown as { match_odd_summary?: Pick<ApiMatchOddReadModel, 'bet_name' | 'bet_type'> })?.match_odd_summary
-  );
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
 
   const chipClass =
     normalizeStatus(choice.status) === 'correct'

@@ -4,7 +4,6 @@ import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
-import type { ApiMatchOddReadModel } from '../../types/api/matches';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -53,9 +52,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
     return date.toLocaleDateString('fr-FR', options);
   };
 
-  const betTypeLabel = formatBetTypeLabel(
-    (choice as unknown as { match_odd_summary?: Pick<ApiMatchOddReadModel, 'bet_name' | 'bet_type'> })?.match_odd_summary
-  );
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
 
   return (
     <li className="choice-row">
