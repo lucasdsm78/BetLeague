@@ -120,6 +120,7 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
         marketKey,
         marketLabel,
         marketValue,
+        selectionLabel: marketLabel ? `${marketLabel}: ${marketValue}` : marketValue,
         odd,
         matchOddId,
       });
