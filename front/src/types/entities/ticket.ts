@@ -16,7 +16,7 @@ export interface MatchSummary {
 export interface MatchChoiceSummary {
   id: number;
   match_summary: MatchSummary;
-  choice: '1' | 'N' | '2';
+  choice: string;
   status: string;
 }
 
