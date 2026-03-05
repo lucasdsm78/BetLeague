@@ -245,3 +245,21 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     async def rollback(self):
         await self.session.rollback()
+
+    async def decrement_players_remaining_if_available(self, league_id: int) -> League:
+        stmt = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id == league_id)
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        league_db = result.scalar_one_or_none()
+        if league_db is None:
+            raise LeagueNotFoundError
+
+        if int(league_db.nb_players_remaining or 0) <= 0:
+            return None
+
+        league_db.nb_players_remaining = int(league_db.nb_players_remaining) - 1
+        return league_db.to_entity()
