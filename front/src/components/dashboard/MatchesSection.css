@@ -1391,3 +1391,320 @@
 .desktop-bet-sidebar {
   display: none !important;
 }
+
+/* =========================
+   Mon ticket (nouveaux composants)
+   ========================= */
+
+.bet-sidebar.desktop {
+  /* le positionnement (fixed, width...) est géré dans les media queries plus bas */
+  overflow: hidden;
+}
+
+.bet-sidebar.desktop .sidebar-header,
+.ticket-drawer .drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.bet-sidebar.desktop .sidebar-header h3,
+.ticket-drawer .drawer-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.bet-sidebar.desktop .clear-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.bet-sidebar.desktop .clear-btn:hover:not(:disabled) {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.bet-sidebar.desktop .clear-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Liste des paris */
+.bet-sidebar.desktop .selected-bets,
+.ticket-drawer .selected-bets {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+}
+
+.bet-sidebar.desktop .bet-item,
+.ticket-drawer .bet-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+}
+
+.bet-sidebar.desktop .bet-info,
+.ticket-drawer .bet-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bet-sidebar.desktop .bet-teams,
+.ticket-drawer .bet-teams {
+  font-weight: 800;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.bet-sidebar.desktop .bet-meta,
+.ticket-drawer .bet-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bet-sidebar.desktop .bet-type,
+.ticket-drawer .bet-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.35rem;
+  background: var(--gradient-primary);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 0.75rem;
+}
+
+.bet-sidebar.desktop .bet-odd,
+.ticket-drawer .bet-odd {
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.bet-sidebar.desktop .remove-btn,
+.ticket-drawer .remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.bet-sidebar.desktop .remove-btn:hover:not(:disabled),
+.ticket-drawer .remove-btn:hover:not(:disabled) {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.bet-sidebar.desktop .remove-btn:disabled,
+.ticket-drawer .remove-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* État vide */
+.bet-sidebar.desktop .empty-bet,
+.ticket-drawer .empty-bet {
+  padding: 1.25rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.bet-sidebar.desktop .empty-icon,
+.ticket-drawer .empty-icon {
+  display: block;
+  font-size: 2.25rem;
+  opacity: 0.6;
+  margin-bottom: 0.5rem;
+}
+
+/* Form */
+.bet-sidebar.desktop .bet-form,
+.ticket-drawer .bet-form {
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.bet-sidebar.desktop .select-group,
+.ticket-drawer .select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bet-sidebar.desktop .select-label,
+.ticket-drawer .select-label,
+.bet-sidebar.desktop .stake-label,
+.ticket-drawer .stake-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.bet-sidebar.desktop .select-field,
+.ticket-drawer .select-field {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.bet-sidebar.desktop .balance-indicator,
+.ticket-drawer .balance-indicator {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+
+.bet-sidebar.desktop .stake-input-wrapper,
+.ticket-drawer .stake-input-wrapper {
+  position: relative;
+}
+
+.bet-sidebar.desktop .stake-input,
+.ticket-drawer .stake-input {
+  width: 100%;
+  padding: 0.8rem 2.8rem 0.8rem 0.8rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+
+.bet-sidebar.desktop .input-suffix,
+.ticket-drawer .input-suffix {
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 900;
+  color: var(--text-secondary);
+}
+
+.bet-sidebar.desktop .input-error,
+.ticket-drawer .input-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--danger-color);
+}
+
+.bet-sidebar.desktop .summary-card,
+.ticket-drawer .summary-card {
+  padding: 0.8rem 0.9rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bet-sidebar.desktop .summary-row,
+.ticket-drawer .summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bet-sidebar.desktop .summary-row.highlight,
+.ticket-drawer .summary-row.highlight {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.bet-sidebar.desktop .summary-label,
+.ticket-drawer .summary-label {
+  color: var(--text-secondary);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.bet-sidebar.desktop .summary-value,
+.ticket-drawer .summary-value {
+  color: var(--text-primary);
+  font-weight: 900;
+}
+
+.bet-sidebar.desktop .error-message,
+.ticket-drawer .error-message {
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--border-radius-sm);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  font-weight: 800;
+}
+
+.bet-sidebar.desktop .create-ticket-btn,
+.ticket-drawer .create-ticket-btn {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: var(--border-radius-sm);
+  border: none;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.bet-sidebar.desktop .create-ticket-btn:hover:not(:disabled),
+.ticket-drawer .create-ticket-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.bet-sidebar.desktop .create-ticket-btn:disabled,
+.ticket-drawer .create-ticket-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
