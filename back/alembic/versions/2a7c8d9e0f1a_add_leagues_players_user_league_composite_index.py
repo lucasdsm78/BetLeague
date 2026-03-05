@@ -16,6 +16,10 @@ branch_labels = None
 depends_on = None
 
 
+_INDEX_NAME = "ix_leagues_players_user_id_league_id"
+_TABLE_NAME = "leagues_players"
+
+
 def upgrade() -> None:
     # La contrainte unique (uq_leagues_players_user_league) implique déjà
     # un index sous-jacent, et on a aussi historiquement l'index
@@ -23,23 +27,18 @@ def upgrade() -> None:
     #
     # Objectif ici: garantir la présence explicite de l'index composite pour
     # les requêtes (user_id, league_id) quel que soit l'historique.
-    # On utilise checkfirst=True pour éviter les erreurs si l'index existe.
 
-    op.create_index(
-        "ix_leagues_players_user_id_league_id",
-        "leagues_players",
-        ["user_id", "league_id"],
-        unique=False,
-        postgresql_concurrently=False,
-        if_not_exists=True,
-    )
+    bind = op.get_bind()
+    if not bind.dialect.has_index(bind, _TABLE_NAME, _INDEX_NAME):
+        op.create_index(
+            _INDEX_NAME,
+            _TABLE_NAME,
+            ["user_id", "league_id"],
+            unique=False,
+        )
 
 
 def downgrade() -> None:
-    # On ne drop pas l'index historique; on retire uniquement celui ajouté.
-    op.drop_index(
-        "ix_leagues_players_user_id_league_id",
-        table_name="leagues_players",
-        if_exists=True,
-    )
-
+    bind = op.get_bind()
+    if bind.dialect.has_index(bind, _TABLE_NAME, _INDEX_NAME):
+        op.drop_index(_INDEX_NAME, table_name=_TABLE_NAME)
