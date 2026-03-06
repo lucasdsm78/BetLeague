@@ -70,54 +70,73 @@ class ApiSportsScoreService(MatchScoreApi):
             return []
 
         # Prefer fetching by explicit fixture IDs (more reliable than filtering by date/status).
-        # API-Sports v3 expects a single integer for `id`, so we query in small batches.
-        results: list[dict] = []
+        # API-Sports v3 expects a single integer for `id`, so we query multiple IDs with bounded concurrency.
+        results_by_id: dict[int, dict] = {}
 
         logger.info(
             "[ApiSports] get_live_scores by_ids fixture_ids_count=%s",
             len(fixture_id_set),
         )
 
+        import asyncio
+
         # Low concurrency to respect rate limits and connection pool constraints.
-        # We'll stop early if we already collected all requested ids.
-        for fid in sorted(fixture_id_set):
-            data = await self._client.get(
-                "/fixtures",
-                params={"id": str(fid)},
-            )
-            resp = data.get("response")
-            if not isinstance(resp, list) or not resp:
-                continue
+        # Keep in sync with Httpx client max_connections (defaults to 5).
+        concurrency = 4
+        sem = asyncio.Semaphore(concurrency)
 
-            for fixture in resp:
-                f = fixture.get("fixture", {})
-                goals = fixture.get("goals", {})
+        async def _fetch_one(fid: int) -> None:
+            async with sem:
+                data = await self._client.get(
+                    "/fixtures",
+                    params={"id": str(fid)},
+                )
+                resp = data.get("response")
+                if not isinstance(resp, list) or not resp:
+                    return
 
-                fixture_id = f.get("id")
-                if not fixture_id or int(fixture_id) != fid:
-                    continue
+                for fixture in resp:
+                    f = fixture.get("fixture", {})
+                    goals = fixture.get("goals", {})
 
-                status_short = f.get("status", {}).get("short", "NS")
-                gh = goals.get("home")
-                ga = goals.get("away")
+                    fixture_id = f.get("id")
+                    if not fixture_id:
+                        continue
+                    try:
+                        fixture_id_int = int(fixture_id)
+                    except Exception:
+                        continue
 
-                winner = None
-                if gh is not None and ga is not None:
-                    if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                        if gh > ga:
-                            winner = "HOME_TEAM"
-                        elif ga > gh:
-                            winner = "AWAY_TEAM"
-                        else:
-                            winner = "DRAW"
+                    if fixture_id_int != fid:
+                        continue
 
-                results.append({
-                    "api_fixture_id": int(fixture_id),
-                    "score_home": gh,
-                    "score_away": ga,
-                    "status": status_short,
-                    "winner": winner,
-                })
+                    status_short = f.get("status", {}).get("short", "NS")
+                    gh = goals.get("home")
+                    ga = goals.get("away")
+
+                    winner = None
+                    if gh is not None and ga is not None:
+                        if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
+                            if gh > ga:
+                                winner = "HOME_TEAM"
+                            elif ga > gh:
+                                winner = "AWAY_TEAM"
+                            else:
+                                winner = "DRAW"
+
+                    results_by_id[fid] = {
+                        "api_fixture_id": fixture_id_int,
+                        "score_home": gh,
+                        "score_away": ga,
+                        "status": status_short,
+                        "winner": winner,
+                    }
+
+        # Fire bounded-concurrency tasks
+        tasks = [asyncio.create_task(_fetch_one(fid)) for fid in sorted(fixture_id_set)]
+        await asyncio.gather(*tasks)
+
+        results = list(results_by_id.values())
 
         # Fallback for plans that don't support `id` effectively or if we retrieved nothing.
         if not results:
@@ -144,7 +163,13 @@ class ApiSportsScoreService(MatchScoreApi):
                 goals = fixture.get("goals", {})
 
                 fixture_id = f.get("id")
-                if not fixture_id or int(fixture_id) not in fixture_id_set:
+                if not fixture_id:
+                    continue
+                try:
+                    fixture_id_int = int(fixture_id)
+                except Exception:
+                    continue
+                if fixture_id_int not in fixture_id_set:
                     continue
 
                 status_short = f.get("status", {}).get("short", "NS")
@@ -162,7 +187,7 @@ class ApiSportsScoreService(MatchScoreApi):
                             winner = "DRAW"
 
                 results.append({
-                    "api_fixture_id": int(fixture_id),
+                    "api_fixture_id": fixture_id_int,
                     "score_home": gh,
                     "score_away": ga,
                     "status": status_short,
