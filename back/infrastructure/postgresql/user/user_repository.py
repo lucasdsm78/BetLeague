@@ -145,19 +145,25 @@ class UserRepositoryImpl(UserRepository):
         except Exception as e:
             raise e
 
-    async def credit_btl(self, user_id: int, amount: float):
-        try:
-            result = await self.session.execute(
-                select(DBUser).where(DBUser.id == user_id)
-            )
-            user = result.scalar_one()
-            user.nb_btl += amount
-            user.btl_from_tickets += amount
-            return user.to_entity()
-        except NoResultFound:
-            raise UserNotFoundError
-        except:
-            raise
+    async def debit_btl_if_enough(self, user_id: int, amount: float) -> bool:
+        if amount <= 0:
+            return True
+        stmt = (
+            update(DBUser)
+            .where(DBUser.id == user_id, DBUser.nb_btl >= amount)
+            .values(nb_btl=DBUser.nb_btl - amount)
+        )
+        result = await self.session.execute(stmt)
+        return (result.rowcount or 0) == 1
+
+    async def credit_btl(self, user_id: int, amount: float) -> None:
+        if amount <= 0:
+            return
+        await self.session.execute(
+            update(DBUser)
+            .where(DBUser.id == user_id)
+            .values(nb_btl=DBUser.nb_btl + amount)
+        )
 
     async def apply_ticket_win(self, user_id: int, gain: float) -> None:
         await self.session.execute(

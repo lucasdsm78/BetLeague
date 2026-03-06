@@ -7,6 +7,7 @@ import DeleteTicketModal from './DeleteTicketModal';
 import { deleteTicket as apiDeleteTicket } from 'services/api/tickets';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
+import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 
 type TabType = 'current' | 'finished';
 
@@ -29,10 +30,24 @@ const statusToLabel = (status: string): StatusLabel => {
 
 const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> = ({ choice, className }) => {
   const { match_summary, choice: c } = choice;
-  const label = c === '1' ? match_summary.home_team : c === '2' ? match_summary.away_team : 'Match nul';
+  // Nouveau format (back): c est le libellé d'odd (ex: "Draw/Away", "Home/Draw", "Over 2.5").
+  // Ancien format: c peut être '1'/'N'/'2'.
+
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
+  const translatedChoice = formatChoiceLabelFr({
+    choice: c,
+    betType: choice.match_odd_summary?.bet_type,
+    teams: { home: match_summary.home_team, away: match_summary.away_team },
+  });
+
+  // Compat legacy (si jamais on ne peut pas traduire)
+  const legacyLabel = c === '1' ? match_summary.home_team : c === '2' ? match_summary.away_team : c === 'N' ? 'Match nul' : '';
+  const label = translatedChoice || legacyLabel || c || '';
+
   return (
     <span className={`chip choice ${className || ''}`.trim()}>
-      {match_summary.home_team} vs {match_summary.away_team} · <strong>{label}</strong>
+      {match_summary.home_team} vs {match_summary.away_team} · <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{betTypeLabel}:</span>{' '}
+      <strong>{label}</strong>
     </span>
   );
 };

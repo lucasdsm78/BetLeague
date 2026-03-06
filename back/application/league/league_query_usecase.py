@@ -44,6 +44,10 @@ class LeagueQueryUseCase(ABC):
     async def get_leagues_balances(self, email: str, league_ids: List[int]) -> LeagueBalancesBulkResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_my_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
+        raise NotImplementedError
+
 
 class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     league_players_repository: LeaguePlayersRepository
@@ -241,4 +245,31 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             balances=balances,
             not_found=not_found,
             forbidden=forbidden,
+        )
+
+    async def get_my_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 1
+        if page_size > 50:
+            page_size = 50
+
+        total = await self.league_repository.count_my_leagues(user_id=user.id)
+        total_pages = (total + page_size - 1) // page_size if page_size else 1
+        if page > max(total_pages, 1):
+            page = max(total_pages, 1)
+
+        leagues = await self.league_repository.find_my_leagues(user_id=user.id, page=page, limit=page_size)
+
+        return LeaguesListResponse(
+            leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in leagues],
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
         )

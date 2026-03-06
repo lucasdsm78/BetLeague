@@ -65,48 +65,138 @@ class ApiSportsScoreService(MatchScoreApi):
         if not fixture_ids:
             return []
 
-        # Free plan: fetch by date + status, then filter locally by fixture_ids
-        fixture_id_set: Set[int] = set(fixture_ids)
-        today = date.today().isoformat()
+        fixture_id_set: Set[int] = set(int(x) for x in fixture_ids if x)
+        if not fixture_id_set:
+            return []
 
-        data = await self._client.get(
-            "/fixtures",
-            params={
-                "date": today,
-                "status": _LIVE_AND_FINISHED,
-            }
+        # Prefer fetching by explicit fixture IDs (more reliable than filtering by date/status).
+        # API-Sports v3 expects a single integer for `id`, so we query multiple IDs with bounded concurrency.
+        results_by_id: dict[int, dict] = {}
+
+        logger.info(
+            "[ApiSports] get_live_scores by_ids fixture_ids_count=%s",
+            len(fixture_id_set),
         )
 
-        results = []
-        for fixture in data.get("response", []):
-            f = fixture.get("fixture", {})
-            goals = fixture.get("goals", {})
+        import asyncio
 
-            fixture_id = f.get("id")
-            if not fixture_id or fixture_id not in fixture_id_set:
-                continue
+        # Low concurrency to respect rate limits and connection pool constraints.
+        # Keep in sync with Httpx client max_connections (defaults to 5).
+        concurrency = 4
+        sem = asyncio.Semaphore(concurrency)
 
-            status_short = f.get("status", {}).get("short", "NS")
-            gh = goals.get("home")
-            ga = goals.get("away")
+        async def _fetch_one(fid: int) -> None:
+            async with sem:
+                data = await self._client.get(
+                    "/fixtures",
+                    params={"id": str(fid)},
+                )
+                resp = data.get("response")
+                if not isinstance(resp, list) or not resp:
+                    return
 
-            winner = None
-            if gh is not None and ga is not None:
-                if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                    if gh > ga:
-                        winner = "HOME_TEAM"
-                    elif ga > gh:
-                        winner = "AWAY_TEAM"
-                    else:
-                        winner = "DRAW"
+                for fixture in resp:
+                    f = fixture.get("fixture", {})
+                    goals = fixture.get("goals", {})
 
-            results.append({
-                "api_fixture_id": fixture_id,
-                "score_home": gh,
-                "score_away": ga,
-                "status": status_short,
-                "winner": winner,
-            })
+                    fixture_id = f.get("id")
+                    if not fixture_id:
+                        continue
+                    try:
+                        fixture_id_int = int(fixture_id)
+                    except Exception:
+                        continue
 
-        logger.info(f"Fetched live scores for {len(results)} fixtures (from {len(data.get('response', []))} total today)")
+                    if fixture_id_int != fid:
+                        continue
+
+                    status_short = f.get("status", {}).get("short", "NS")
+                    gh = goals.get("home")
+                    ga = goals.get("away")
+
+                    winner = None
+                    if gh is not None and ga is not None:
+                        if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
+                            if gh > ga:
+                                winner = "HOME_TEAM"
+                            elif ga > gh:
+                                winner = "AWAY_TEAM"
+                            else:
+                                winner = "DRAW"
+
+                    results_by_id[fid] = {
+                        "api_fixture_id": fixture_id_int,
+                        "score_home": gh,
+                        "score_away": ga,
+                        "status": status_short,
+                        "winner": winner,
+                    }
+
+        # Fire bounded-concurrency tasks
+        tasks = [asyncio.create_task(_fetch_one(fid)) for fid in sorted(fixture_id_set)]
+        await asyncio.gather(*tasks)
+
+        results = list(results_by_id.values())
+
+        # Fallback for plans that don't support `id` effectively or if we retrieved nothing.
+        if not results:
+            today = date.today().isoformat()
+            logger.info(
+                "[ApiSports] get_live_scores fallback date=%s status=%s fixture_ids_count=%s",
+                today,
+                _LIVE_AND_FINISHED,
+                len(fixture_id_set),
+            )
+            data = await self._client.get(
+                "/fixtures",
+                params={
+                    "date": today,
+                    "status": _LIVE_AND_FINISHED,
+                }
+            )
+            resp = data.get("response")
+            if not isinstance(resp, list):
+                resp = []
+
+            for fixture in resp:
+                f = fixture.get("fixture", {})
+                goals = fixture.get("goals", {})
+
+                fixture_id = f.get("id")
+                if not fixture_id:
+                    continue
+                try:
+                    fixture_id_int = int(fixture_id)
+                except Exception:
+                    continue
+                if fixture_id_int not in fixture_id_set:
+                    continue
+
+                status_short = f.get("status", {}).get("short", "NS")
+                gh = goals.get("home")
+                ga = goals.get("away")
+
+                winner = None
+                if gh is not None and ga is not None:
+                    if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
+                        if gh > ga:
+                            winner = "HOME_TEAM"
+                        elif ga > gh:
+                            winner = "AWAY_TEAM"
+                        else:
+                            winner = "DRAW"
+
+                results.append({
+                    "api_fixture_id": fixture_id_int,
+                    "score_home": gh,
+                    "score_away": ga,
+                    "status": status_short,
+                    "winner": winner,
+                })
+
+        logger.info(
+            "Fetched live scores for %s fixtures (requested=%s)",
+            len(results),
+            len(fixture_id_set),
+        )
         return results

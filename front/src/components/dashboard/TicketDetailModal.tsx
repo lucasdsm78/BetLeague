@@ -4,6 +4,7 @@ import './TicketDetailSection.css';
 import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
+import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -36,12 +37,27 @@ const statusToLabel = (status: string | null | undefined): string => {
 };
 
 const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
-  const teamChoice =
+  // Nouveau format (back): choice.choice est un libellé d'odd (ex: "Draw/Away", "Over 2.5").
+  // Ancien format: '1'/'N'/'2'.
+  const legacyLabel =
     choice.choice === '1'
       ? choice.match_summary.home_team
       : choice.choice === '2'
         ? choice.match_summary.away_team
-        : 'Match nul';
+        : choice.choice === 'N'
+          ? 'Match nul'
+          : '';
+
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
+  const translatedChoice = formatChoiceLabelFr({
+    choice: choice.choice,
+    betType: choice.match_odd_summary?.bet_type,
+    teams: { home: choice.match_summary.home_team, away: choice.match_summary.away_team },
+  });
+
+  const teamChoice = translatedChoice || legacyLabel || choice.choice;
+  // Le back peut renvoyer match_odd_summary (avec bet_name/bet_type) sur un match_choice.
+  // Si absent, on fallback sur un label générique.
 
   const chipClass =
     normalizeStatus(choice.status) === 'correct'
@@ -63,6 +79,9 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
       <div className="selection">
         <span className={chipClass}>
           Sélection: <strong>{teamChoice}</strong>
+          <span style={{ marginLeft: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>
+            ({betTypeLabel})
+          </span>
         </span>
       </div>
     </li>

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -245,3 +245,76 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     async def rollback(self):
         await self.session.rollback()
+
+    async def decrement_players_remaining_if_available(self, league_id: int) -> League:
+        stmt = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id == league_id)
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        league_db = result.scalar_one_or_none()
+        if league_db is None:
+            raise LeagueNotFoundError
+
+        if int(league_db.nb_players_remaining or 0) <= 0:
+            return None
+
+        league_db.nb_players_remaining = int(league_db.nb_players_remaining) - 1
+        return league_db.to_entity()
+
+    async def increment_players_remaining(self, league_id: int) -> League:
+        stmt = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id == league_id)
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        league_db = result.scalar_one_or_none()
+        if league_db is None:
+            raise LeagueNotFoundError
+
+        league_db.nb_players_remaining = int(league_db.nb_players_remaining or 0) + 1
+        return league_db.to_entity()
+
+    async def find_my_leagues(self, user_id: int, page: int = 1, limit: int = 10) -> List[League]:
+        if page < 1:
+            page = 1
+        if limit < 1:
+            limit = 1
+
+        offset = (page - 1) * limit
+
+        league_ids_sq = (
+            select(DBLeague.id)
+            .outerjoin(DBLeaguePlayers, DBLeaguePlayers.league_id == DBLeague.id)
+            .where(or_(DBLeague.user_id == user_id, DBLeaguePlayers.user_id == user_id))
+            .distinct()
+            .subquery()
+        )
+
+        q = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id.in_(select(league_ids_sq.c.id)))
+            .order_by(DBLeague.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(q)
+        leagues_dbs = result.scalars().all()
+        if not leagues_dbs:
+            return []
+        return [league_db.to_entity() for league_db in leagues_dbs]
+
+    async def count_my_leagues(self, user_id: int) -> int:
+        q = (
+            select(func.count(func.distinct(DBLeague.id)))
+            .select_from(DBLeague)
+            .outerjoin(DBLeaguePlayers, DBLeaguePlayers.league_id == DBLeague.id)
+            .where(or_(DBLeague.user_id == user_id, DBLeaguePlayers.user_id == user_id))
+        )
+        result = await self.session.execute(q)
+        return int(result.scalar_one() or 0)

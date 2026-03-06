@@ -58,9 +58,29 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
 
   let lastError: string | undefined;
   for (const endpoint of endpoints) {
-    const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(endpoint);
+    const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(endpoint, {
+      skipCache: true,
+      cache: 'no-store',
+    });
+    if (process.env.NODE_ENV === 'development') {
+      const raw = (res as any)?.data;
+      const rawTickets = Array.isArray((raw as any)?.tickets)
+        ? (raw as any).tickets
+        : Array.isArray(raw)
+          ? raw
+          : [];
+      // Log sans contenu sensible: uniquement tailles + status
+      // eslint-disable-next-line no-console
+      console.log('[tickets][in-progress]', { endpoint, success: res.success, status: res.status, rawCount: rawTickets.length });
+    }
+
     if (res.success) {
-      return normalizeInProgress(res.data);
+      const normalized = normalizeInProgress(res.data);
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[tickets][in-progress][mapped]', { endpoint, mappedCount: normalized.tickets.length });
+      }
+      return normalized;
     }
     lastError = res.error;
   }
@@ -70,7 +90,10 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
 
 export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
   try {
-    const res: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/tickets/finished');
+    const res: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/tickets/finished', {
+      skipCache: true,
+      cache: 'no-store',
+    });
     if (res.success) {
       return normalizeFinished(res.data);
     }
@@ -78,7 +101,10 @@ export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
     // ignore pour tenter le fallback
   }
 
-  const fallback: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/ticket/finished');
+  const fallback: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/ticket/finished', {
+    skipCache: true,
+    cache: 'no-store',
+  });
   if (!fallback.success) {
     throw new Error(fallback.error || 'Récupération des tickets terminés échouée');
   }

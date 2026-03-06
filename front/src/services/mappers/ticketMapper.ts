@@ -9,6 +9,7 @@ import type {
   MatchChoiceSummary,
   MatchSummary,
   TicketReadModel,
+  MatchOddSummary,
 } from '../../types/entities/ticket';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -29,9 +30,12 @@ function asString(value: unknown): string {
   return value;
 }
 
-function asChoice(value: unknown): '1' | 'N' | '2' {
-  if (value === '1' || value === 'N' || value === '2') return value;
-  throw new Error('Choix invalide');
+function asChoiceLabel(value: unknown): string {
+  // Le back renvoie généralement match_odds.value (ex: "Draw/Away", "Over 2.5", "Home/Draw").
+  // On accepte aussi des valeurs simples (1/N/2, home/draw/away) pour compat.
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  return String(value);
 }
 
 function mapApiMatchSummaryToUi(api: ApiMatchSummary): MatchSummary {
@@ -45,11 +49,23 @@ function mapApiMatchSummaryToUi(api: ApiMatchSummary): MatchSummary {
 }
 
 function mapApiMatchChoiceSummaryToUi(api: ApiMatchChoiceSummary): MatchChoiceSummary {
+  const raw = api as any;
+  const rawOddSummary = raw?.match_odd_summary;
+
+  const matchOddSummary: MatchOddSummary | null | undefined =
+    rawOddSummary && typeof rawOddSummary === 'object'
+      ? {
+          bet_type: asString((rawOddSummary as any).bet_type),
+          bet_name: asString((rawOddSummary as any).bet_name),
+        }
+      : null;
+
   return {
     id: asNumber(api.id),
     match_summary: mapApiMatchSummaryToUi(api.match_summary),
-    choice: asChoice((api as any).choice),
-    status: asString((api as any).status),
+    choice: asChoiceLabel(raw.choice),
+    status: asString(raw.status),
+    match_odd_summary: matchOddSummary,
   };
 }
 
@@ -58,6 +74,20 @@ function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): TicketLeagueSummary {
     id: asNumber(api.id),
     name: asString(api.name),
   };
+}
+
+function asNumberOrZero(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  // back peut envoyer int sous forme string dans certains cas
+  if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return Number(value);
+  throw new Error('Champ numérique invalide');
+}
+
+function asStringOrEmpty(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  return String(value);
 }
 
 /**
@@ -79,10 +109,10 @@ export function mapApiTicketToUi(api: ApiTicketReadModel): TicketReadModel {
 
   return {
     id: asNumber((api as any).id),
-    mise: asNumber((api as any).mise),
-    uuid: asString((api as any).uuid),
-    gain: asNumber((api as any).gain),
-    status: asString((api as any).status),
+    mise: asNumberOrZero((api as any).mise),
+    uuid: asStringOrEmpty((api as any).uuid),
+    gain: asNumberOrZero((api as any).gain),
+    status: asStringOrEmpty((api as any).status),
     league_summary: leagueSummary ? mapApiLeagueSummaryToUi(leagueSummary as ApiLeagueSummary) : null,
     tournament_match_summary: tournamentMatchSummary ?? null,
     match_choice_summaries: matchChoices.map((c: any) => mapApiMatchChoiceSummaryToUi(c as ApiMatchChoiceSummary)),
@@ -96,7 +126,13 @@ export function mapApiTicketToUi(api: ApiTicketReadModel): TicketReadModel {
 export function tryMapApiTicketToUi(api: unknown): TicketReadModel | null {
   try {
     return mapApiTicketToUi(api as ApiTicketReadModel);
-  } catch {
+  } catch (e: any) {
+    if (process.env.NODE_ENV === 'development') {
+      // Log sans payload complet (évite PII). On log uniquement le message d'erreur et l'id si accessible.
+      const maybeId = (api as any)?.id;
+      // eslint-disable-next-line no-console
+      console.log('[tickets][map][drop]', { id: typeof maybeId === 'number' ? maybeId : undefined, error: e?.message ?? String(e) });
+    }
     return null;
   }
 }

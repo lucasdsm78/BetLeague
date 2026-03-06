@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from domain.match.model.bet_type import BetType
@@ -24,6 +24,8 @@ class DBMatchOdd(Base):
 
     __table_args__ = (
         Index("ix_match_odds_match_id_bet_type", "match_id", "bet_type"),
+        Index("ix_match_odds_match_id_bet_type_value", "match_id", "bet_type", "value"),
+        UniqueConstraint("match_id", "bet_type", "value", name="uq_match_odds_match_id_bet_type_value"),
     )
 
     def to_entity(self) -> MatchOdd:
