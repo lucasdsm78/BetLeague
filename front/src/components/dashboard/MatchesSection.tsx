@@ -31,7 +31,18 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
     const isFinishedByApi = ['FT', 'AET', 'PEN', 'AWD', 'WO'].includes(statusFromApi);
     const isLiveByApi = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(statusFromApi);
 
-    const status: UiMatch['status'] = isFinishedByApi ? 'finished' : isLiveByApi ? 'live' : startTs > now ? 'upcoming' : 'finished';
+    // UI requirement: affichage kickoff + 1h pour tout le monde.
+    // Donc, tant que kickoff+1h est dans le futur, on considère le match comme 'upcoming'
+    // (sauf si l'API dit explicitement live/finished).
+    const startTsDisplay = startTs + 60 * 60 * 1000;
+
+    const status: UiMatch['status'] = isFinishedByApi
+        ? 'finished'
+        : isLiveByApi
+            ? 'live'
+            : startTsDisplay > now
+                ? 'upcoming'
+                : 'finished';
 
     const odds = Array.isArray(m.odds) ? m.odds : [];
     const winnerOdds = odds.filter((o) => (o.bet_type || '').toUpperCase().includes('MATCH_WINNER'));

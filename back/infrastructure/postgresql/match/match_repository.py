@@ -82,14 +82,14 @@ class MatchRepositoryImpl(MatchRepository):
         if not match_choices:
             return False
 
-        now = datetime.utcnow()
+        now_minus_one_hour = datetime.utcnow() - timedelta(hours=1)
         match_ids = [mc.match_id for mc in match_choices]
 
         query = (
             select(DBMatch)
             .where(
                 DBMatch.id.in_(match_ids),
-                DBMatch.time <= now
+                DBMatch.time <= now_minus_one_hour
             )
             .limit(1)
         )

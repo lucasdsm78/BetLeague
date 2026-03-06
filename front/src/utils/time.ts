@@ -22,19 +22,26 @@ export function safeParseDate(value: string | Date): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+export type TimeZoneName = Intl.DateTimeFormatOptions['timeZone'];
+
 /**
- * Return a display date shifted by +1 hour.
- * If input is invalid, returns empty string.
+ * Format a match datetime with a global +1h offset (business requirement).
  */
-export function formatMatchDateTimePlusOneHour(
+export function formatMatchDateTime(
   dateValue: string | Date,
-  locale: string = 'fr-FR'
+  options?: {
+    locale?: string;
+    timeZone?: TimeZoneName;
+  }
 ): string {
   const d = safeParseDate(dateValue);
   if (!d) return '';
 
+  const { locale = 'fr-FR', timeZone } = options ?? {};
   const shifted = addHours(d, 1);
+
   return shifted.toLocaleString(locale, {
+    ...(timeZone ? { timeZone } : {}),
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -43,32 +50,83 @@ export function formatMatchDateTimePlusOneHour(
   });
 }
 
-export function formatMatchTimePlusOneHour(
+export function formatMatchTime(
   dateValue: string | Date,
-  locale: string = 'fr-FR'
+  options?: {
+    locale?: string;
+    timeZone?: TimeZoneName;
+  }
 ): string {
   const d = safeParseDate(dateValue);
   if (!d) return '';
 
+  const { locale = 'fr-FR', timeZone } = options ?? {};
   const shifted = addHours(d, 1);
-  return shifted.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+
+  return shifted.toLocaleTimeString(locale, {
+    ...(timeZone ? { timeZone } : {}),
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
-export function formatMatchDayLabelPlusOneHour(
+export function formatMatchDayLabel(
   dateValue: string | Date,
-  locale: string = 'fr-FR'
+  options?: {
+    locale?: string;
+    timeZone?: TimeZoneName;
+  }
 ): string {
   const d = safeParseDate(dateValue);
   if (!d) return '';
 
+  const { locale = 'fr-FR', timeZone } = options ?? {};
   const shifted = addHours(d, 1);
+
+  // Compare day keys in the chosen timezone (or local timezone when undefined)
+  const fmt = new Intl.DateTimeFormat(locale, {
+    ...(timeZone ? { timeZone } : {}),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const dayKey = fmt.format(shifted);
+
   const today = new Date();
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
 
-  if (shifted.toDateString() === today.toDateString()) return "Aujourd'hui";
-  if (shifted.toDateString() === tomorrow.toDateString()) return 'Demain';
+  const todayKey = fmt.format(today);
+  const tomorrowKey = fmt.format(tomorrow);
 
-  return shifted.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+  if (dayKey === todayKey) return "Aujourd'hui";
+  if (dayKey === tomorrowKey) return 'Demain';
+
+  return shifted.toLocaleDateString(locale, {
+    ...(timeZone ? { timeZone } : {}),
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
+export function getEpochMs(dateValue: string | Date): number | null {
+  const d = safeParseDate(dateValue);
+  return d ? d.getTime() : null;
+}
+
+/** @deprecated Compat: alias */
+export function formatMatchDateTimePlusOneHour(dateValue: string | Date, locale: string = 'fr-FR'): string {
+  return formatMatchDateTime(dateValue, { locale });
+}
+
+/** @deprecated Compat: alias */
+export function formatMatchTimePlusOneHour(dateValue: string | Date, locale: string = 'fr-FR'): string {
+  return formatMatchTime(dateValue, { locale });
+}
+
+/** @deprecated Compat: alias */
+export function formatMatchDayLabelPlusOneHour(dateValue: string | Date, locale: string = 'fr-FR'): string {
+  return formatMatchDayLabel(dateValue, { locale });
+}

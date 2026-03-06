@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import type { BetType, BetSelection } from '../../../types/entities/betting';
 import { getBetTypeLabelFr, formatChoiceLabelFr } from '../../../utils/oddsLabel';
-import { formatMatchDayLabelPlusOneHour, formatMatchTimePlusOneHour } from '../../../utils/time';
+import { formatMatchDayLabel, formatMatchTime } from '../../../utils/time';
 
 export type UiMatchStatus = 'upcoming' | 'live' | 'finished';
 
@@ -56,11 +56,11 @@ function isOddSelectable(v: number): boolean {
 
 const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet }) {
   const formatTime = useCallback((dateString: string): string => {
-    return formatMatchTimePlusOneHour(dateString) || '';
+    return formatMatchTime(dateString) || '';
   }, []);
 
   const formatDate = useCallback((dateString: string): string => {
-    return formatMatchDayLabelPlusOneHour(dateString) || '';
+    return formatMatchDayLabel(dateString) || '';
   }, []);
 
   const handleOddClick = useCallback(
