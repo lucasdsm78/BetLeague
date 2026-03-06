@@ -203,6 +203,7 @@ services:
     env_file:
       - back/.env
     environment:
+      SQLALCHEMY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/betleague
       NATS_URL: "nats://nats:4222"
       NATS_STREAM: "BETLEAGUE"
       NATS_SUBJECT_PREFIX: "betleague"
