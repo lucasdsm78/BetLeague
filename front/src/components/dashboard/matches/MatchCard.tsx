@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import type { BetType, BetSelection } from '../../../types/entities/betting';
 import { getBetTypeLabelFr, formatChoiceLabelFr } from '../../../utils/oddsLabel';
+import { formatMatchDayLabelPlusOneHour, formatMatchTimePlusOneHour } from '../../../utils/time';
 
 export type UiMatchStatus = 'upcoming' | 'live' | 'finished';
 
@@ -55,20 +56,11 @@ function isOddSelectable(v: number): boolean {
 
 const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet }) {
   const formatTime = useCallback((dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return formatMatchTimePlusOneHour(dateString) || '';
   }, []);
 
   const formatDate = useCallback((dateString: string): string => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
-    if (date.toDateString() === tomorrow.toDateString()) return 'Demain';
-
-    return date.toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' });
+    return formatMatchDayLabelPlusOneHour(dateString) || '';
   }, []);
 
   const handleOddClick = useCallback(
