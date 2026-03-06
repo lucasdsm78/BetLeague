@@ -297,11 +297,6 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if league is None:
                     raise LeagueMaxPlayersError
 
-                if not league.is_free and league.nb_btl is not None:
-                    ok = await user_repo.debit_btl_if_enough(user_id=user.id, amount=float(league.nb_btl))
-                    if not ok:
-                        raise LeagueNbBtlIsNotEnoughError
-
                 was_started = bool(league.is_started)
                 if (not league.is_started) and int(league.nb_players_remaining) <= MIN_PLAYERS:
                     league.is_started = True
@@ -366,6 +361,13 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueNotFoundError
 
                 if action:
+                    if not league.is_free and league.nb_btl is not None:
+                        ok = await user_repo.debit_btl_if_enough(user_id=user.id, amount=float(league.nb_btl))
+                        if not ok:
+                            league = await league_repo.increment_players_remaining(league.id)
+                            await league_repo.update(league)
+                            raise LeagueNbBtlIsNotEnoughError
+
                     if await players_repo.find_participation(league_id=league.id, user_id=user.id):
                         invitation.status = InvitationStatus.accepted
                     else:
@@ -387,8 +389,6 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     invitation.status = InvitationStatus.refused
 
                     league = await league_repo.increment_players_remaining(league.id)
-                    if not league.is_free and league.nb_btl is not None:
-                        await user_repo.credit_btl(user_id=user.id, amount=float(league.nb_btl))
                     await league_repo.update(league)
 
                     await self._event_bus.publish(
@@ -423,9 +423,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if league.user.id != invitation.user_sender_id:
                     raise UserNotOwnerLeaguedError
 
+                # Libérer la place réservée (pas de crédit BTL : rien n'a été débité à l'invitation)
                 league = await league_repo.increment_players_remaining(league.id)
-                if not league.is_free and league.nb_btl is not None:
-                    await user_repo.credit_btl(user_id=invitation.user_id, amount=float(league.nb_btl))
                 await league_repo.update(league)
 
                 await invitation_repo.delete(invitation.id)
