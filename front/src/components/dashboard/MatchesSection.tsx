@@ -54,6 +54,7 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
         },
         oddsAll: odds.map((o) => ({
             id: o.id,
+            matchOddId: o.id,
             betType: o.bet_type,
             betName: o.bet_name,
             value: o.value,

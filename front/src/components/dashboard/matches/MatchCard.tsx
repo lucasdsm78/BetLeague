@@ -73,6 +73,13 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
 
   const handleOddClick = useCallback(
     (type: BetType, odd: number) => {
+      const winnerOdds = (match.oddsAll || []).filter(
+        (o) => (o.betType || '').toUpperCase().includes('MATCH_WINNER')
+      );
+      const matchingOdd = winnerOdds.find(
+        (o) => (o.value || '').toLowerCase() === type
+      );
+
       onAddToBet({
         matchId: match.id,
         homeTeam: match.homeTeam,
@@ -80,6 +87,7 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
         betType: type,
         odd,
         competition: match.competition,
+        matchOddId: matchingOdd?.matchOddId ?? matchingOdd?.id,
       });
     },
     [match, onAddToBet]
