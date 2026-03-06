@@ -10,9 +10,7 @@ type BetTypeKey =
   | 'exact_goals_number';
 
 const BET_TYPE_FR: Record<BetTypeKey, string> = {
-  // IMPORTANT: On ne veut pas afficher "Résultat du match" dans la grille "autres cotes".
-  // Ce marché est déjà affiché en quick-pick (1/N/2). On laisse volontairement une chaîne vide.
-  match_winner: '',
+  match_winner: 'Résultat du match',
   goals_over_under: 'Plus/Moins de buts',
   both_teams_score: 'Les deux équipes marquent',
   exact_score: 'Score exact',

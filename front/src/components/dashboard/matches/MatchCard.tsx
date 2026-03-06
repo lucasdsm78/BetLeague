@@ -105,7 +105,7 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
 
     for (const o of items) {
       const key = (o.betType || '').trim();
-      if (!key) continue;
+      if (!key || key.toUpperCase().includes('MATCH_WINNER')) continue;
       if (!map.has(key)) {
         map.set(key, { label: o.betName || key, items: [] });
       }
