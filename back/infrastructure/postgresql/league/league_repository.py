@@ -287,12 +287,18 @@ class LeagueRepositoryImpl(LeagueRepository):
 
         offset = (page - 1) * limit
 
+        league_ids_sq = (
+            select(DBLeague.id)
+            .outerjoin(DBLeaguePlayers, DBLeaguePlayers.league_id == DBLeague.id)
+            .where(or_(DBLeague.user_id == user_id, DBLeaguePlayers.user_id == user_id))
+            .distinct()
+            .subquery()
+        )
+
         q = (
             select(DBLeague)
             .options(joinedload(DBLeague.user))
-            .outerjoin(DBLeaguePlayers, DBLeaguePlayers.league_id == DBLeague.id)
-            .where(or_(DBLeague.user_id == user_id, DBLeaguePlayers.user_id == user_id))
-            .distinct(DBLeague.id)
+            .where(DBLeague.id.in_(select(league_ids_sq.c.id)))
             .order_by(DBLeague.created_at.desc())
             .offset(offset)
             .limit(limit)
