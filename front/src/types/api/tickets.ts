@@ -10,11 +10,17 @@ export interface ApiMatchSummary {
   winner?: string | null;
 }
 
+export interface ApiMatchOddSummary {
+  bet_type: string;
+  bet_name: string;
+}
+
 export interface ApiMatchChoiceSummary {
   id: number;
   match_summary: ApiMatchSummary;
-  choice: '1' | 'N' | '2';
+  choice: string;
   status: string;
+  match_odd_summary?: ApiMatchOddSummary;
 }
 
 // Read model tel que renvoyé par l'API
