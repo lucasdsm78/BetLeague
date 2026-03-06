@@ -172,18 +172,17 @@ class MatchRepositoryImpl(MatchRepository):
         end_of_day = start_of_day + timedelta(days=1)
 
         finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO', 'CANC', 'ABD', 'PST')
-        live_statuses = ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT')
 
         result = await self.session.execute(
             select(DBMatch.api_fixture_id)
             .where(
                 DBMatch.api_fixture_id.isnot(None),
                 or_(
-                    # Today's matches that are live (eligible for score updates)
+                    # Today's matches that are not yet finished (live or upcoming)
                     (DBMatch.time >= start_of_day)
                     & (DBMatch.time <= end_of_day)
-                    & DBMatch.status.in_(live_statuses),
-                    # Any finished/cancelled match with no winner yet
+                    & DBMatch.status.notin_(finished_statuses),
+                    # Any finished match with no winner yet
                     DBMatch.status.in_(finished_statuses)
                     & (DBMatch.winner.is_(None)),
                 ),
