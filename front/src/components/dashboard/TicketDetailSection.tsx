@@ -4,7 +4,7 @@ import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
-import { formatMatchDateTimePlusOneHour } from '../../utils/time';
+import { formatMatchDateTime } from '../../utils/time';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -43,7 +43,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
     : 'chip';
 
   const formatDate = (dateStr: string): string => {
-    return formatMatchDateTimePlusOneHour(dateStr) || '';
+    return formatMatchDateTime(dateStr) || '';
   };
 
   const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
