@@ -31,6 +31,7 @@ export interface RequestConfig extends RequestInit {
   skipRetry?: boolean;
   timeout?: number;
   retries?: number;
+  skipCache?: boolean;
 }
 
 // Request queue for managing concurrent requests during token refresh
@@ -110,7 +111,7 @@ class SecureApiClient {
       this.logRequest(requestId, config.method || 'GET', url, config);
 
       // Check cache first
-      if (config.method === 'GET' && this.config.enableResponseCaching) {
+      if (config.method === 'GET' && this.config.enableResponseCaching && !config.skipCache) {
         const cached = this.getCachedResponse<T>(url);
         if (cached) {
           this.logRequest(requestId, 'CACHE', url, { fromCache: true });
@@ -130,7 +131,8 @@ class SecureApiClient {
       if (
         config.method === 'GET' &&
         result.success &&
-        this.config.enableResponseCaching
+        this.config.enableResponseCaching &&
+        !config.skipCache
       ) {
         this.setCachedResponse(url, result.data, 5 * 60 * 1000); // 5 minutes TTL
       }
@@ -470,9 +472,8 @@ class SecureApiClient {
   ): void {
     if (!this.config.enableRequestLogging) return;
 
-    console.group(`🔄 API Request [${id}]`);
-    if (config.body) {
-    }
+    // Ne jamais logger les headers (tokens). On log uniquement method+url.
+    console.group(`🔄 API Request [${id}] ${method} ${url}`);
     console.groupEnd();
   }
 
@@ -484,6 +485,8 @@ class SecureApiClient {
     if (!this.config.enableRequestLogging) return;
 
     const statusIcon = status < 400 ? '✅' : '❌';
+    // eslint-disable-next-line no-console
+    console.log(`${statusIcon} API Response [${id}] status=${status}`);
   }
 
   private logError(id: string, error: any): void {

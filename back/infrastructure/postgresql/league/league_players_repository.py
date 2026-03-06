@@ -1,12 +1,13 @@
 from typing import List, Dict
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
-from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
+from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers, unixtimestamp
 from infrastructure.postgresql.user.db_user import DBUser
 
 
@@ -16,11 +17,23 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         self.session: AsyncSession = session
 
     async def join_league(self, league_players: LeaguePlayers):
-        league_players_db = DBLeaguePlayers.from_entity(league_players)
-        try:
-            self.session.add(league_players_db)
-        except:
-            raise
+        now = unixtimestamp()
+        # Idempotent insert (anti-doublons) : si (user_id, league_id) existe déjà, NOOP.
+        stmt = (
+            insert(DBLeaguePlayers)
+            .values(
+                user_id=league_players.user_id,
+                league_id=league_players.league_id,
+                nb_win=league_players.nb_win or 0,
+                nb_lose=league_players.nb_lose or 0,
+                nb_btl=league_players.nb_btl if league_players.nb_btl is not None else 100,
+                btl_from_tickets=league_players.btl_from_tickets or 0,
+                created_at=now,
+                updated_at=now,
+            )
+            .on_conflict_do_nothing(constraint='uq_leagues_players_user_league')
+        )
+        await self.session.execute(stmt)
 
     async def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
         try:

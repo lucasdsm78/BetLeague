@@ -220,3 +220,39 @@ export async function checkLeagueNameAvailability(name: string): Promise<boolean
     return true;
   }
 }
+
+export async function getMyLeagues(): Promise<LeagueSummaryApi[]> {
+  // Nouveau endpoint performant (1 seule requête)
+  try {
+    const query = new URLSearchParams({ page: '1', page_size: '50' });
+    const res: ApiResponse<any> = await http.get(`/leagues/mine?${query.toString()}`);
+    if (res.success) {
+      const data: any = res.data ?? {};
+      const leagues = (Array.isArray(data?.leagues) ? data.leagues : Array.isArray(data?.items) ? data.items : []) as any[];
+      return leagues
+        .filter((l) => l && typeof l.id === 'number')
+        .map((l) => ({ id: Number(l.id), name: String(l.name ?? '') }))
+        .filter((l) => !!l.name)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+  } catch {
+    // fallback plus bas
+  }
+
+  // Fallback compat: 2 requêtes
+  const [createdPage, participatedPage] = await Promise.all([
+    getCreatedLeaguesPage(1, 50),
+    getParticipatedLeaguesPage(1, 50),
+  ]);
+
+  const created = (createdPage.leagues ?? []).map((l) => ({ id: l.id, name: l.name })) as LeagueSummaryApi[];
+  const participated = (participatedPage.leagues ?? []).map((l) => ({ id: l.id, name: l.name })) as LeagueSummaryApi[];
+
+  const map = new Map<number, LeagueSummaryApi>();
+  for (const l of [...created, ...participated]) {
+    if (!l || typeof l.id !== 'number') continue;
+    if (!map.has(l.id)) map.set(l.id, l);
+  }
+
+  return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+}

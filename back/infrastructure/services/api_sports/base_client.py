@@ -35,33 +35,48 @@ class ApiSportsBaseClient:
                 data = resp.json()
 
                 if not isinstance(data, dict):
-                    logger.error(f"Unexpected response format from {endpoint}: {type(data)}")
-                    return {"response": []}
+                    logger.error(
+                        "Unexpected response format from %s params=%s: %s",
+                        endpoint,
+                        params,
+                        type(data),
+                    )
+                    return {"response": [], "errors": ["unexpected_format"]}
 
                 errors = data.get("errors")
                 if isinstance(errors, dict) and errors:
                     if "rateLimit" in errors and attempt < _RATE_LIMIT_RETRIES:
                         logger.warning(
-                            f"Rate limited on {endpoint}, waiting {_RATE_LIMIT_WAIT}s "
-                            f"(attempt {attempt + 1}/{_RATE_LIMIT_RETRIES + 1})"
+                            "Rate limited on %s params=%s, waiting %ss (attempt %s/%s)",
+                            endpoint,
+                            params,
+                            _RATE_LIMIT_WAIT,
+                            attempt + 1,
+                            _RATE_LIMIT_RETRIES + 1,
                         )
                         await asyncio.sleep(_RATE_LIMIT_WAIT)
                         continue
-                    logger.error(f"API-Sports error on {endpoint}: {errors}")
-                    return {"response": []}
+                    logger.error("API-Sports error on %s params=%s: %s", endpoint, params, errors)
+                    return {"response": [], "errors": errors}
                 if isinstance(errors, list) and errors:
-                    logger.error(f"API-Sports error on {endpoint}: {errors}")
-                    return {"response": []}
+                    logger.error("API-Sports error on %s params=%s: %s", endpoint, params, errors)
+                    return {"response": [], "errors": errors}
 
                 return data
             except httpx.HTTPStatusError as e:
-                logger.error(f"API-Sports HTTP {e.response.status_code} on {endpoint}: {e}")
-                return {"response": []}
+                logger.error(
+                    "API-Sports HTTP %s on %s params=%s: %s",
+                    e.response.status_code,
+                    endpoint,
+                    params,
+                    e,
+                )
+                return {"response": [], "errors": [f"http_{e.response.status_code}"]}
             except httpx.RequestError as e:
-                logger.error(f"API-Sports request error on {endpoint}: {e}")
-                return {"response": []}
+                logger.error("API-Sports request error on %s params=%s: %s", endpoint, params, e)
+                return {"response": [], "errors": ["request_error"]}
 
-        return {"response": []}
+        return {"response": [], "errors": ["rate_limit_retries_exhausted"]}
 
     async def close(self):
         await self._client.aclose()

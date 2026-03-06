@@ -1,8 +1,9 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
-import type { MatchChoiceSummary } from 'types/entities/ticket';
+import type { MatchChoiceSummary } from '../../types/entities/ticket';
+import { formatBetTypeLabel } from '../../utils/oddsLabel';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -23,12 +24,15 @@ const statusToLabel = (status: string | null | undefined): string => {
   }
 };
 
-const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = memo(({ choice }) => {
-  const teamChoice = choice.choice === '1'
+const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
+  const legacyLabel = choice.choice === '1'
     ? choice.match_summary.home_team
     : choice.choice === '2'
-    ? choice.match_summary.away_team
-    : 'Match nul';
+      ? choice.match_summary.away_team
+      : choice.choice === 'N'
+        ? 'Match nul'
+        : '';
+  const teamChoice = legacyLabel || choice.choice;
 
   const status = normalizeStatus(choice.status);
   const chipClass = status === 'correct'
@@ -48,6 +52,8 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = memo(({ choice }) =>
     return date.toLocaleDateString('fr-FR', options);
   };
 
+  const betTypeLabel = formatBetTypeLabel(choice.match_odd_summary ?? null);
+
   return (
     <li className="choice-row">
       <div className="teams">
@@ -64,18 +70,21 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = memo(({ choice }) =>
       <div className="selection">
         <span className={chipClass}>
           <strong>{teamChoice}</strong>
+          <span style={{ marginLeft: 10, color: 'var(--text-secondary)', fontWeight: 600 }}>
+            ({betTypeLabel})
+          </span>
         </span>
       </div>
     </li>
   );
-});
+};
 
 ChoiceRow.displayName = 'ChoiceRow';
 
 const TicketDetailSection: React.FC = memo(() => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
-  const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId || '');
+  const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
 
   const leagueName = ticket?.league_summary?.name || 'Ligues';
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;

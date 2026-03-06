@@ -16,9 +16,9 @@ def unixtimestamp() -> int:
 class DBLeaguePlayers(Base):
     __tablename__ = "leagues_players"
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
-    user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
+    user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'), nullable=False)
     user = relationship("DBUser", back_populates='league_players')
-    league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'))
+    league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'), nullable=False)
     league = relationship("DBLeague", back_populates='league_players')
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)

@@ -36,6 +36,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
             finished_scores: Dict[int, tuple] = {}
 
             finished_no_winner = await uow.match_repo.find_finished_without_winner()
+            logger.info("[ScoreCheck] finished_no_winner_count=%s", len(finished_no_winner))
             for match in finished_no_winner:
                 new_winner = match.determine_winner()
                 if new_winner:
@@ -51,8 +52,15 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                         events.append(MatchResultResolvedEvent(match_id=match.id))
 
             fixture_ids = await uow.match_repo.find_active_fixture_ids()
+            logger.info("[ScoreCheck] fixture_ids_count=%s", len(fixture_ids))
+
+            api_results = []
             if fixture_ids:
                 api_results = await self.match_score_api.get_live_scores(fixture_ids)
+                logger.info("[ScoreCheck] api_results_count=%s", len(api_results))
+                if not api_results:
+                    sample = fixture_ids[:20]
+                    logger.info("[ScoreCheck] fixture_ids_sample=%s", sample)
 
                 api_fixture_ids = [r["api_fixture_id"] for r in api_results]
                 matches_by_fixture = await uow.match_repo.find_all_by_api_fixture_ids(api_fixture_ids)
@@ -84,6 +92,10 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                         finished_scores[match.id] = (match.score_home, match.score_away)
                         if match.winner != new_winner:
                             events.append(MatchResultResolvedEvent(match_id=match.id))
+            else:
+                logger.info("[ScoreCheck] api_results_count=0")
+
+            logger.info("[ScoreCheck] to_update_count=%s", len(to_update))
 
             if to_update:
                 await uow.match_repo.bulk_update_scores(to_update)

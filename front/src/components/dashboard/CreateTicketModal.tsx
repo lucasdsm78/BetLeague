@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import './CreateTicketModal.css';
 import { createTicket } from '../../services/api/tickets';
 import type { ApiMatchChoiceCreate as MatchChoiceData, ApiTicketCreateRequest as TicketCreatePayload, ApiTicketCreateResponse as TicketCreateResponse } from '../../types/api/tickets';
-import { getParticipatedLeagues, getLeagueBalance } from '../../services/api/leagues';
+import { getMyLeagues, getLeagueBalance } from '../../services/api/leagues';
 import type { LeagueSummaryApi } from '../../services/api/leagues';
 import { useCurrentLeague } from '../../store/leagueStore';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ export interface BetItem {
   betType: BetType;
   odd: number;
   competition: string;
+  matchOddId?: number;
 }
 
 interface CreateTicketModalProps {
@@ -46,7 +47,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
       if (!isOpen) return;
       try {
         setError(null);
-        const list = await getParticipatedLeagues();
+        const list = await getMyLeagues();
         if (!mounted) return;
         setLeagues(list);
         // Pré-sélectionner la ligue courante si présente, sinon la première
@@ -105,8 +106,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     return isOpen && !isSubmitting && error == null && isValidStake && !!selectedLeagueId && bets.length > 0;
   }, [isOpen, isSubmitting, error, isValidStake, selectedLeagueId, bets]);
 
-  const formatBetType = (b: BetType): MatchChoiceData['choice'] => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
-
   const handleSubmit = useCallback(async () => {
     if (!selectedLeagueId) return;
 
@@ -118,11 +117,20 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
 
     if (!canSubmit) return;
 
+    const missing = bets.find((b) => !b.matchOddId);
+    if (missing) {
+      setError("Certaines cotes sélectionnées sont invalides (matchOddId manquant). Rafraîchis la page et re-sélectionne.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
 
-      const match_choices: MatchChoiceData[] = bets.map(b => ({ match_id: b.matchId, choice: formatBetType(b.betType) }));
+      const match_choices: MatchChoiceData[] = bets.map((b) => ({
+        match_id: b.matchId,
+        match_odd_id: b.matchOddId!,
+      }));
       const payload: TicketCreatePayload = {
         match_choices,
         mise: stakeNumber,
@@ -139,7 +147,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     } finally {
       setIsSubmitting(false);
     }
-  }, [canSubmit, selectedLeagueId, bets, stakeNumber, onCreated]);
+  }, [canSubmit, selectedLeagueId, bets, stakeNumber, onCreated, balance]);
 
   const onCloseModal = useCallback(() => {
     setSuccess(null);
@@ -147,6 +155,20 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     setError(null);
     onClose();
   }, [onClose]);
+
+  const describeBet = useCallback((b: BetItem): string => {
+    if (b.matchOddId) {
+      // On n'a pas forcément marketLabel côté modal legacy; fallback sur betType si présent.
+      if (b.betType) {
+        return (b.betType === 'home' ? '1' : b.betType === 'draw' ? 'N' : '2');
+      }
+      return 'Cote';
+    }
+    if (b.betType) {
+      return (b.betType === 'home' ? '1' : b.betType === 'draw' ? 'N' : '2');
+    }
+    return 'Cote';
+  }, []);
 
   if (!isOpen) return null;
 
@@ -206,7 +228,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
                 {bets.map((b) => (
                   <div key={`${b.matchId}-${b.betType}`} className="bet-row">
                     <div className="teams">{b.homeTeam} vs {b.awayTeam}</div>
-                    <div className="pick">{formatBetType(b.betType)} @ {b.odd}</div>
+                    <div className="pick">{describeBet(b)} @ {b.odd}</div>
                   </div>
                 ))}
               </div>

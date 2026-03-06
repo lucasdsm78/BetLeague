@@ -28,6 +28,7 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
+from domain.match.repository.match_odd_repository import MatchOddRepository
 from domain.purchase.repository.pack_repository import PackRepository
 from domain.purchase.repository.purchase_repository import PurchaseRepository
 from domain.services.authentication.hash import Hash
@@ -226,6 +227,11 @@ def tournament_match_repository_dependency(session: AsyncSession = Depends(get_a
 
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
+
+
+def match_odd_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchOddRepository:
+    from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
+    return MatchOddRepositoryImpl(session=session)
 
 
 def invitation_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> InvitationRepository:
@@ -529,10 +535,12 @@ def user_query_usecase(
 
 def match_query_usecase(
         match_repository: MatchRepository = Depends(match_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency)
+        match_odd_repository: MatchOddRepository = Depends(match_odd_repository_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
 ) -> MatchQueryUseCase:
     return MatchQueryUseCaseImpl(
         match_repository=match_repository,
+        match_odd_repository=match_odd_repository,
         user_repository=user_repository
     )
 

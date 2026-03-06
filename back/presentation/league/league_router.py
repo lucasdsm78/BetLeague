@@ -324,6 +324,26 @@ async def get_participated_leagues(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues rejointes")
 
 
+@router.get(
+    "/leagues/mine",
+    response_model=LeaguesListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get leagues where user is owner or participant"
+)
+async def get_my_leagues(
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(10, ge=1, le=50),
+):
+    try:
+        return await league_query_usecase.get_my_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération de mes ligues")
+
+
 @router.post(
     "/league/{league_id}/{user_id}/invite",
     response_model=LeagueInviteResponse,

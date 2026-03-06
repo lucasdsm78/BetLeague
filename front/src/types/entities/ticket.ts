@@ -13,11 +13,17 @@ export interface MatchSummary {
   winner?: string | null;
 }
 
+export interface MatchOddSummary {
+  bet_type: string;
+  bet_name: string;
+}
+
 export interface MatchChoiceSummary {
   id: number;
   match_summary: MatchSummary;
-  choice: '1' | 'N' | '2';
+  choice: string;
   status: string;
+  match_odd_summary?: MatchOddSummary | null;
 }
 
 export interface TicketReadModel {

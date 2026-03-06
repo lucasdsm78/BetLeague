@@ -18,10 +18,28 @@ from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
+from infrastructure.postgresql.match.match_odd_repository import MatchOddRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
 from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+from application.match.match_odd_summary import MatchOddSummary
+
+
+def _odd_to_summary(odd) -> MatchOddSummary:
+    bet_type = odd.bet_type.value if hasattr(odd.bet_type, "value") else str(odd.bet_type)
+    return MatchOddSummary(bet_type=str(bet_type), bet_name=str(odd.bet_name))
+
+
+def _build_odd_map(odds) -> dict[int, object]:
+    return {o.id: o for o in odds if o and getattr(o, "id", None) is not None}
+
+
+def _get_match_odd_summary(odd_map: dict[int, object], odd_id: Optional[int]) -> Optional[MatchOddSummary]:
+    if not odd_id:
+        return None
+    odd = odd_map.get(int(odd_id))
+    return _odd_to_summary(odd) if odd else None
 
 
 class TicketQueryUseCase(ABC):
@@ -72,6 +90,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 league_repo = LeagueRepositoryImpl(session)
                 match_choices_repo = MatchChoicesRepositoryImpl(session)
                 match_repo = MatchRepositoryImpl(session)
+                match_odd_repo = MatchOddRepositoryImpl(session)
                 tournament_match_repo = TournamentMatchRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
@@ -111,6 +130,10 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 matches = await match_repo.find_all_by_ids(match_ids)
                 match_map = {match.id: match for match in matches}
 
+                odd_ids = [c.match_odd_id for c in choices if getattr(c, 'match_odd_id', None)]
+                odds = await match_odd_repo.find_all_by_ids(list({int(x) for x in odd_ids})) if odd_ids else []
+                odd_map = _build_odd_map(odds)
+
                 match_choice_summaries = []
                 for mc in choices:
                     match = match_map.get(mc.match_id)
@@ -130,7 +153,8 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                             id=mc.id,
                             match_summary=match_summary,
                             choice=mc.choice,
-                            status=mc.status.value
+                            status=mc.status.value,
+                            match_odd_summary=_get_match_odd_summary(odd_map, mc.match_odd_id)
                         )
                     )
 
@@ -151,6 +175,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 user_repo          = UserRepositoryImpl(session)
                 ticket_repo        = TicketRepositoryImpl(session)
                 tournament_match_repo = TournamentMatchRepositoryImpl(session)
+                match_odd_repo = MatchOddRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -162,6 +187,16 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 result = TicketsInProgressResponse(total=total, page=page, page_size=page_size)
                 if not db_tickets:
                     return result
+
+                all_odd_ids: set[int] = set()
+                for t in db_tickets:
+                    for ch in getattr(t, 'match_choices', []) or []:
+                        oid = getattr(ch, 'match_odd_id', None)
+                        if oid:
+                            all_odd_ids.add(int(oid))
+
+                odds = await match_odd_repo.find_all_by_ids(list(all_odd_ids)) if all_odd_ids else []
+                odd_map = _build_odd_map(odds)
 
                 for db_ticket in db_tickets:
                     league_summary = None
@@ -200,7 +235,8 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                                 id=db_choice.id,
                                 match_summary=match_summary,
                                 choice=db_choice.choice,
-                                status=db_choice.status
+                                status=db_choice.status,
+                                match_odd_summary=_get_match_odd_summary(odd_map, getattr(db_choice, 'match_odd_id', None))
                             )
                         )
 
@@ -224,6 +260,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 user_repo   = UserRepositoryImpl(session)
                 ticket_repo = TicketRepositoryImpl(session)
                 tournament_match_repo = TournamentMatchRepositoryImpl(session)
+                match_odd_repo = MatchOddRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
@@ -235,6 +272,16 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 db_tickets = await ticket_repo.find_all_finished_by_user_id(user.id, page, page_size)
                 if not db_tickets:
                     return result
+
+                all_odd_ids: set[int] = set()
+                for t in db_tickets:
+                    for ch in getattr(t, 'match_choices', []) or []:
+                        oid = getattr(ch, 'match_odd_id', None)
+                        if oid:
+                            all_odd_ids.add(int(oid))
+
+                odds = await match_odd_repo.find_all_by_ids(list(all_odd_ids)) if all_odd_ids else []
+                odd_map = _build_odd_map(odds)
 
                 for db_ticket in db_tickets:
                     league_summary = None
@@ -273,7 +320,8 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                                 id=db_choice.id,
                                 match_summary=match_summary,
                                 choice=db_choice.choice,
-                                status=db_choice.status
+                                status=db_choice.status,
+                                match_odd_summary=_get_match_odd_summary(odd_map, getattr(db_choice, 'match_odd_id', None))
                             )
                         )
 
@@ -291,3 +339,4 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     result.tickets.append(ticket_read_model)
 
         return result
+
