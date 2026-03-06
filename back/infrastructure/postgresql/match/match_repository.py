@@ -17,19 +17,23 @@ class MatchRepositoryImpl(MatchRepository):
     def __init__(self, session: AsyncSession):
         self.session: AsyncSession = session
 
+    @staticmethod
+    def _upcoming_from_utc() -> datetime:
+        return datetime.utcnow()
+
     async def count_upcoming_matches(self) -> int:
-        now = datetime.utcnow()
-        stmt = select(func.count()).select_from(DBMatch).where(DBMatch.time > now)
+        now = self._upcoming_from_utc()
+        stmt = select(func.count()).select_from(DBMatch).where(DBMatch.time >= now)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
 
     async def find_matches_paginated(self, page: int, page_size: int) -> List[Match]:
-        now = datetime.utcnow()
+        now = self._upcoming_from_utc()
         offset = (page - 1) * page_size
 
         stmt = (
             select(DBMatch)
-            .where(DBMatch.time > now)
+            .where(DBMatch.time >= now)
             .order_by(DBMatch.time.asc())
             .offset(offset)
             .limit(page_size)
@@ -40,8 +44,8 @@ class MatchRepositoryImpl(MatchRepository):
 
     async def find_matches(self) -> List[Match]:
         try:
-            now = datetime.utcnow()
-            query = select(DBMatch).where(DBMatch.time > now).order_by(DBMatch.time.asc())
+            now = self._upcoming_from_utc()
+            query = select(DBMatch).where(DBMatch.time >= now).order_by(DBMatch.time.asc())
             result = await self.session.execute(query)
             match_dbs = result.scalars().all()
 

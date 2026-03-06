@@ -5,6 +5,7 @@ import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
+import { formatMatchDateTimePlusOneHour } from '../../utils/time';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -74,7 +75,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
         <span className="away">{choice.match_summary.away_team}</span>
       </div>
       <div className="meta">
-        <span className="time">{new Date(choice.match_summary.time).toLocaleString('fr-FR')}</span>
+        <span className="time">{formatMatchDateTimePlusOneHour(choice.match_summary.time) || ''}</span>
       </div>
       <div className="selection">
         <span className={chipClass}>
