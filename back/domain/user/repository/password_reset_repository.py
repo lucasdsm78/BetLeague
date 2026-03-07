@@ -4,11 +4,6 @@ from abc import ABC, abstractmethod
 
 
 class PasswordResetRepository(ABC):
-    """Stockage éphémère des challenges de reset de mot de passe.
-
-    Implémentation attendue: Redis (TTL natif) pour performance et simplicité.
-    Les données stockées doivent être hashées (jamais de code/token en clair).
-    """
 
     @abstractmethod
     async def create_challenge(
@@ -23,7 +18,7 @@ class PasswordResetRepository(ABC):
 
     @abstractmethod
     async def get_challenge(self, *, challenge_id: str) -> dict | None:
-        """Retourne un dict contenant au minimum: email, code_hash."""
+
         raise NotImplementedError
 
     @abstractmethod
@@ -38,7 +33,6 @@ class PasswordResetRepository(ABC):
         reset_token_hash: str,
         reset_expires_in_seconds: int,
     ) -> None:
-        """Associe un reset_token_hash au challenge et démarre le TTL de reset token."""
         raise NotImplementedError
 
     @abstractmethod
@@ -48,14 +42,10 @@ class PasswordResetRepository(ABC):
         challenge_id: str,
         reset_token_hash: str,
     ) -> dict | None:
-        """Valide et consomme le reset token.
 
-        Doit supprimer le challenge (anti-rejeu). Retourne les données du challenge si OK.
-        """
         raise NotImplementedError
 
     @abstractmethod
     async def incr_rate_limit(self, *, key: str, window_seconds: int, limit: int) -> bool:
-        """Incrémente un compteur et retourne True si autorisé, False si limit dépassée."""
         raise NotImplementedError
 
