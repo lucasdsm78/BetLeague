@@ -17,6 +17,7 @@ from domain.user.exception.password_reset_exception import (
     PasswordResetRateLimitedError,
 )
 from domain.user.exception.user_exception import Invalid2FACodeError, UserNotFoundError
+from domain.user.model.password import Password
 from domain.user.repository.password_reset_repository import PasswordResetRepository
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
@@ -151,5 +152,5 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
 
         # hash password
         hashed = await self._hasher.bcrypt(new_password)
-        user.password.password = hashed
+        user.password = Password(password=hashed)
         await self._users.update(user)
