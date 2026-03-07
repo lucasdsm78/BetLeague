@@ -20,6 +20,7 @@ class PasswordForgotRequest(BaseModel):
 
 
 class PasswordForgotResponse(BaseModel):
+    challenge_id: str
     message: str = "If the account exists and 2FA is enabled, you can verify using your authenticator code."
 
 
@@ -59,4 +60,3 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class PasswordResetConfirmResponse(BaseModel):
     message: str = "Password updated."
-

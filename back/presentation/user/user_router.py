@@ -431,8 +431,8 @@ async def forgot_password(
     client_key = f"ip:{client_ip}"
     # réponse neutre anti-enumération
     try:
-        await password_reset_uc.request_reset(email=str(data.email), client_key=client_key)
-        return PasswordForgotResponse()
+        challenge_id = await password_reset_uc.request_reset(email=str(data.email), client_key=client_key)
+        return PasswordForgotResponse(challenge_id=challenge_id)
     except PasswordResetRateLimitedError as e:
         raise HTTPException(status_code=429, detail={"message": e.message, "code": "RATE_LIMITED"})
 
