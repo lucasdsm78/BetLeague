@@ -13,6 +13,7 @@ from infrastructure.services.nats_json import nats_dumps
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
 from application.events.outbox_jetstream_processor import build_jetstream_outbox_processor
+from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
 from nats.aio.client import Client as NATS
 from nats.js.errors import NotFoundError
 
@@ -70,13 +71,7 @@ async def _wait_for_streams() -> None:
     last_error: str | None = None
     attempt = 0
 
-    nats_user = os.getenv("NATS_USER") or None
-    nats_password = os.getenv("NATS_PASSWORD") or None
-
-    connect_kwargs: dict = dict(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
-    if nats_user:
-        connect_kwargs["user"] = nats_user
-        connect_kwargs["password"] = nats_password or ""
+    connect_kwargs = build_nats_connect_kwargs(url=url)
 
     nc = NATS()
     try:

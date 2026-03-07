@@ -7,6 +7,7 @@ from nats.aio.client import Client as NATS
 from nats.js.api import StreamConfig
 from nats.js.errors import APIError, NotFoundError
 
+from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
 from infrastructure.services.nats_json import nats_dumps
 from infrastructure.services.nats_subjects import load_nats_subjects
 
@@ -81,18 +82,10 @@ async def main() -> None:
         )
     )
 
-    nats_user = os.getenv("NATS_USER") or None
-    nats_password = os.getenv("NATS_PASSWORD") or None
-
-    connect_kwargs: dict = dict(
-        servers=[url],
-        connect_timeout=2,
+    connect_kwargs = build_nats_connect_kwargs(
+        url=url,
         max_reconnect_attempts=30,
-        reconnect_time_wait=0.5,
     )
-    if nats_user:
-        connect_kwargs["user"] = nats_user
-        connect_kwargs["password"] = nats_password or ""
 
     nc = NATS()
     try:
