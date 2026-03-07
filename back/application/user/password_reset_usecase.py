@@ -26,12 +26,10 @@ from infrastructure.config import Settings
 class PasswordResetUseCase(ABC):
     @abstractmethod
     async def request_reset(self, *, email: str, client_key: str) -> str:
-        """Crée un challenge et envoie un code (out-of-band). Retourne challenge_id."""
         raise NotImplementedError
 
     @abstractmethod
     async def verify_code(self, *, email: str, challenge_id: str, code: str, client_key: str) -> tuple[str, int]:
-        """Vérifie l'OTP ou TOTP et retourne (reset_token, expires_in_seconds)."""
         raise NotImplementedError
 
     @abstractmethod
@@ -56,7 +54,6 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         self._settings = settings
         self._cipher_suite = Fernet(self._settings.encryption_key.encode())
 
-        # policy (configurable)
         self._otp_len = 6
         self._challenge_ttl_s = int(getattr(self._settings, "password_reset_challenge_ttl_s", 600))
         self._reset_ttl_s = int(getattr(self._settings, "password_reset_token_ttl_s", 600))
@@ -67,7 +64,6 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         return hmac.new(secret.encode(), value.encode(), hashlib.sha256).hexdigest()
 
     async def request_reset(self, *, email: str, client_key: str) -> str:
-        # rate limit by (client_key,email)
         rl_ok = await self._store.incr_rate_limit(
             key=f"req:{client_key}:{email}",
             window_seconds=self._rl_window_s,
@@ -76,19 +72,15 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         if not rl_ok:
             raise PasswordResetRateLimitedError
 
-        # Ne pas révéler si l'email existe.
         user = await self._users.find_by_email(email)
         if not user:
             return shortuuid.uuid()
 
-        # En mode TOTP-only, on ne permet le reset que si 2FA activé.
         if not getattr(user, "is_two_factor_enabled", False) or not getattr(user, "two_factor_secret", None):
-            # réponse neutre anti-enumération / anti-information
             return shortuuid.uuid()
 
         challenge_id = shortuuid.uuid()
 
-        # Pas d'envoi OTP: l'utilisateur confirmera via TOTP.
         await self._store.create_challenge(
             challenge_id=challenge_id,
             email=email,
@@ -110,7 +102,6 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         if not user:
             raise UserNotFoundError
 
-        # TOTP-only: 2FA requis
         if not getattr(user, "is_two_factor_enabled", False) or not getattr(user, "two_factor_secret", None):
             raise PasswordResetInvalidCodeError
 
@@ -136,7 +127,6 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
     async def confirm_reset(self, *, email: str, challenge_id: str, reset_token: str, new_password: str) -> None:
         user = await self._users.find_by_email(email)
         if not user:
-            # always same error
             raise PasswordResetInvalidTokenError
 
         reset_token_hash = self._hmac_hash(secret=self._settings.secret_key_token_refresh, value=f"{challenge_id}:{reset_token}")
@@ -150,12 +140,9 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         if len(new_password) < 8:
             raise HTTPException(status_code=400, detail="Password too short")
 
-        # hash password
         hashed = await self._hasher.bcrypt(new_password)
 
-        # Remplace l'objet Password (dataclass frozen) au lieu de muter un champ.
         user.password = Password(password=hashed)
 
-        # Persist + commit (sinon l'ancien mdp reste en DB).
         await self._users.update(user)
         await self._users.commit()

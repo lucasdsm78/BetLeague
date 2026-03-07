@@ -5,7 +5,6 @@ import string
 
 
 class OTPService:
-    """Génère des codes OTP numériques et tokens cryptographiquement sûrs."""
 
     @staticmethod
     def generate_numeric_code(length: int = 6) -> str:

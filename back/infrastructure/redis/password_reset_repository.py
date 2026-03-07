@@ -52,13 +52,11 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         data = json.loads(raw)
         data["verified"] = True
         data["reset_token_hash"] = reset_token_hash
-        # on reset le TTL à la durée du reset token
         await self._redis.set(k, json.dumps(data).encode(), ex=reset_expires_in_seconds)
 
     async def consume_reset_token(self, *, challenge_id: str, reset_token_hash: str) -> dict | None:
         k = self._challenge_key(challenge_id)
 
-        # Script atomique: compare et delete
         lua = """
         local val = redis.call('GET', KEYS[1])
         if not val then return nil end
@@ -86,6 +84,5 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         try:
             count = await self._redis.eval(lua, 1, k, int(window_seconds))
         except NoPermissionError:
-            # Redis ACL pas assez permissive: on se protège en refusant plutôt que d'ouvrir.
             return False
         return int(count) <= int(limit)
