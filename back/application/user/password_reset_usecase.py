@@ -152,5 +152,10 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
 
         # hash password
         hashed = await self._hasher.bcrypt(new_password)
+
+        # Remplace l'objet Password (dataclass frozen) au lieu de muter un champ.
         user.password = Password(password=hashed)
+
+        # Persist + commit (sinon l'ancien mdp reste en DB).
         await self._users.update(user)
+        await self._users.commit()
