@@ -1,7 +1,7 @@
 import io
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import (
@@ -12,15 +12,31 @@ from application.user.user_command_model import (
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
 from application.user.user_query_usecase import UserQueryUseCase
+from application.user.password_reset_models import (
+    PasswordForgotRequest,
+    PasswordForgotResponse,
+    PasswordResetVerifyRequest,
+    PasswordResetVerifyResponse,
+    PasswordResetConfirmRequest,
+    PasswordResetConfirmResponse,
+)
+from application.user.password_reset_usecase import PasswordResetUseCase
 from domain.user.exception.user_exception import (
     UserEmailAlreadyExistsError, UsersNotFoundError, UserNotFoundError,
     FARequiredError, Invalid2FACodeError, UserPseudoAlreadyExistsError, UserNotOwnerError,
     UserLoginNotFoundError
 )
+from domain.user.exception.password_reset_exception import (
+    PasswordResetRateLimitedError,
+    PasswordResetInvalidCodeError,
+    PasswordResetInvalidTokenError,
+)
 from presentation.user.user_error_message import (
     ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, ErrorMessageUserNotFound
 )
-from dependency_injections import current_user, user_command_usecase, user_query_usecase
+from dependency_injections import (
+    current_user, user_command_usecase, user_query_usecase, password_reset_usecase
+)
 
 router = APIRouter(
     prefix="/api/auth",
@@ -398,3 +414,73 @@ async def get_me(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération du profil"
         )
+
+
+@router.post(
+    "/forgot-password",
+    response_model=PasswordForgotResponse,
+    summary="Request password reset (sends code)",
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password(
+    request: Request,
+    data: PasswordForgotRequest,
+    password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
+):
+    client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown"))
+    client_key = f"ip:{client_ip}"
+    # réponse neutre anti-enumération
+    try:
+        challenge_id = await password_reset_uc.request_reset(email=str(data.email), client_key=client_key)
+        return PasswordForgotResponse(challenge_id=challenge_id)
+    except PasswordResetRateLimitedError as e:
+        raise HTTPException(status_code=429, detail={"message": e.message, "code": "RATE_LIMITED"})
+
+
+@router.post(
+    "/forgot-password/verify",
+    response_model=PasswordResetVerifyResponse,
+    summary="Verify reset code (2FA) and return reset token",
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password_verify(
+    request: Request,
+    data: PasswordResetVerifyRequest,
+    password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
+):
+    client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown"))
+    client_key = f"ip:{client_ip}"
+    try:
+        token, ttl = await password_reset_uc.verify_code(
+            email=str(data.email),
+            challenge_id=data.challenge_id,
+            code=data.code,
+            client_key=client_key,
+        )
+        return PasswordResetVerifyResponse(reset_token=token, expires_in_seconds=ttl)
+    except PasswordResetRateLimitedError as e:
+        raise HTTPException(status_code=429, detail={"message": e.message, "code": "RATE_LIMITED"})
+    except (PasswordResetInvalidCodeError, Invalid2FACodeError):
+        raise HTTPException(status_code=400, detail={"message": "Invalid code", "code": "INVALID_CODE"})
+
+
+@router.post(
+    "/forgot-password/confirm",
+    response_model=PasswordResetConfirmResponse,
+    summary="Reset password using verified reset token",
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password_confirm(
+    data: PasswordResetConfirmRequest,
+    password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
+):
+    try:
+        await password_reset_uc.confirm_reset(
+            email=str(data.email),
+            challenge_id=data.challenge_id,
+            reset_token=data.reset_token,
+            new_password=data.new_password,
+        )
+        return PasswordResetConfirmResponse()
+    except PasswordResetInvalidTokenError as e:
+        raise HTTPException(status_code=400, detail={"message": e.message, "code": "INVALID_TOKEN"})
