@@ -10,6 +10,7 @@ from nats.js.errors import NotFoundError
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
+from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
 from infrastructure.services.nats_json import nats_dumps, nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
 
@@ -152,13 +153,7 @@ async def main() -> None:
         )
     )
 
-    nats_user = os.getenv("NATS_USER") or None
-    nats_password = os.getenv("NATS_PASSWORD") or None
-
-    connect_kwargs: dict = dict(servers=[url])
-    if nats_user:
-        connect_kwargs["user"] = nats_user
-        connect_kwargs["password"] = nats_password or ""
+    connect_kwargs = build_nats_connect_kwargs(url=url)
 
     nc = NATS()
     try:
