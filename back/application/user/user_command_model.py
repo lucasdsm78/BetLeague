@@ -22,6 +22,7 @@ class UserCreateResponse(BaseModel):
 
 class UserUpdateResponse(BaseModel):
     token_auth: str
+    refresh_token: str
     token_expiration: str
 
 
@@ -38,6 +39,7 @@ class UserLoginModel(BaseModel):
 class UserLoginResponse(BaseModel):
     token_auth: str
     uuid: str
+    refresh_token: str
     token_expiration: str
     two_factor_enabled: bool = False
 
@@ -45,6 +47,7 @@ class UserLoginResponse(BaseModel):
         return dict(
             token_auth=self.token_auth,
             uuid=self.uuid,
+            refresh_token=self.refresh_token,
             token_expiration=self.token_expiration,
             two_factor_enabled=self.two_factor_enabled,
             message="login successful"

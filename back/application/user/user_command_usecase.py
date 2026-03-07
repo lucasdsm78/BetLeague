@@ -6,8 +6,7 @@ import shortuuid
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-import datetime
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel,
@@ -102,7 +101,13 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         token_coro = self.manager_token.generate_token_login(user)
         refresh_coro = self.manager_token.generate_expiration_token_login(user)
         token, refresh = await asyncio.gather(token_coro, refresh_coro)
-        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh)
+        expiration_time = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)
+        return UserLoginResponse(
+            uuid=user.uuid,
+            token_auth=token,
+            refresh_token=refresh,
+            token_expiration=_utc_iso_z(expiration_time),
+        )
 
     async def login(self, model: UserLoginModel) -> UserLoginResponse:
         async with self._session_factory() as session:
@@ -126,7 +131,14 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         token_coro = self.manager_token.generate_token_login(user)
         refresh_coro = self.manager_token.generate_expiration_token_login(user)
         token, refresh = await asyncio.gather(token_coro, refresh_coro)
-        return UserLoginResponse(uuid=user.uuid, token_auth=token, token_expiration=refresh, two_factor_enabled=user.is_two_factor_enabled)
+        expiration_time = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)
+        return UserLoginResponse(
+            uuid=user.uuid,
+            token_auth=token,
+            refresh_token=refresh,
+            token_expiration=_utc_iso_z(expiration_time),
+            two_factor_enabled=user.is_two_factor_enabled,
+        )
 
     async def delete_user(self, user_id: int) -> UserDeleteResponse:
         async with self._session_factory() as session:
@@ -218,8 +230,9 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         token_coro   = self.manager_token.generate_token_login(user)
         refresh_coro = self.manager_token.generate_expiration_token_login(user)
         token, refresh = await asyncio.gather(token_coro, refresh_coro)
+        expiration_time = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)
 
-        return UserUpdateResponse(token_auth=token, token_expiration=refresh)
+        return UserUpdateResponse(token_auth=token, refresh_token=refresh, token_expiration=_utc_iso_z(expiration_time))
 
     async def refresh_token(self, refresh_token: str) -> RefreshTokenResponse:
         try:
@@ -247,11 +260,13 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                             detail="User not found"
                         )
 
+            await self.manager_token.invalidate_token(refresh_token, user_email)
+
             token_coro = self.manager_token.generate_token_login(user)
             refresh_coro = self.manager_token.generate_expiration_token_login(user)
             new_token, new_refresh = await asyncio.gather(token_coro, refresh_coro)
 
-            expiration_time = datetime.now(UTC) + datetime.timedelta(hours=1)
+            expiration_time = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)
 
             return RefreshTokenResponse(
                 token_auth=new_token,
