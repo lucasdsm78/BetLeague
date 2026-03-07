@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     api_sports_league_ids: str = Field(default="39,61,78,135,140", validation_alias="API_SPORTS_LEAGUE_IDS")  # Top 5 European leagues
     celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", validation_alias="CELERY_RESULT_BACKEND")
+    password_reset_challenge_ttl_s: int = Field(default=600, validation_alias="PASSWORD_RESET_CHALLENGE_TTL_S")
+    password_reset_token_ttl_s: int = Field(default=600, validation_alias="PASSWORD_RESET_TOKEN_TTL_S")
+    password_reset_rate_limit_per_minute: int = Field(default=5, validation_alias="PASSWORD_RESET_RATE_LIMIT_PER_MINUTE")
+    password_reset_log_notifier_enabled: bool = Field(default=False, validation_alias="PASSWORD_RESET_LOG_NOTIFIER_ENABLED")
 
     class Config:
         env_file = ".env"

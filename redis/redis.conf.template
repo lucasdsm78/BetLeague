@@ -9,8 +9,10 @@ requirepass __REDIS_PASSWORD__
 # Désactive l'utilisateur default (évite d'utiliser implicitement default en prod)
 user default off
 
-# User applicatif minimaliste: uniquement Pub/Sub + healthcheck, et uniquement sur les channels de notifications
-user notif on >__REDIS_PASSWORD__ +ping +hello +client|id +client|setinfo +auth +quit +publish +subscribe +psubscribe +unsubscribe +punsubscribe +pubsub &betleague:notifications:user:*
+# User applicatif minimaliste: Pub/Sub notifications + reset password (rate limit + challenges)
+# - notifications: channels betleague:notifications:user:*
+# - reset pwd: keys betleague:pwdreset:* (GET/SET/DEL/EXPIRE/EVAL/INCRBY)
+user notif on >__REDIS_PASSWORD__ +ping +hello +client|id +client|setinfo +auth +quit +publish +subscribe +psubscribe +unsubscribe +punsubscribe +pubsub +get +set +del +expire +eval +incrby ~betleague:pwdreset:* ~betleague:notifications:user:* &betleague:notifications:user:*
 
 # User Celery: broker (lists) + result backend (strings) + keys, sur toutes les DBs
 user celery on >__REDIS_PASSWORD__ +@all ~* &*

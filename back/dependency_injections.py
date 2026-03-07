@@ -771,3 +771,31 @@ def push_subscription_usecase(
         web_push_service=web_push_service,
         session_factory=session_factory,
     )
+
+
+from domain.user.repository.password_reset_repository import PasswordResetRepository
+from application.user.password_reset_usecase import PasswordResetUseCase, PasswordResetUseCaseImpl
+
+
+def password_reset_repository_dependency() -> PasswordResetRepository:
+    r = redis_client_singleton()
+    if r is None:
+        raise HTTPException(status_code=500, detail="Password reset storage not configured")
+    from infrastructure.redis.password_reset_repository import RedisPasswordResetRepository
+    return RedisPasswordResetRepository(redis=r)
+
+
+def password_reset_usecase(
+    user_repository: UserRepository = Depends(user_repository_dependency),
+    hasher: Hash = Depends(hash_dependency),
+    totp_service: TOTPService = Depends(totp_service),
+    settings: Settings = Depends(get_settings),
+    reset_repo: PasswordResetRepository = Depends(password_reset_repository_dependency),
+) -> PasswordResetUseCase:
+    return PasswordResetUseCaseImpl(
+        user_repository=user_repository,
+        password_reset_repository=reset_repo,
+        hasher=hasher,
+        totp_service=totp_service,
+        settings=settings,
+    )
