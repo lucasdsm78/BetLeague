@@ -327,15 +327,19 @@ export const useSessionManager = () => {
       checkSessionExpiry();
     }, 60 * 1000);
 
-    // Track user activity
+    // Track user activity (throttled to avoid excessive store updates)
+    let lastTracked = 0;
     const trackActivity = () => {
+      const now = Date.now();
+      if (now - lastTracked < 60_000) return; // Max once per minute
+      lastTracked = now;
       updateSecurityContext({
         lastActivity: new Date().toISOString(),
       });
     };
 
     // Activity event listeners
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const events = ['mousedown', 'keypress', 'scroll', 'touchstart'];
     events.forEach(event => {
       document.addEventListener(event, trackActivity, { passive: true });
     });
