@@ -3,6 +3,7 @@ venv
 .env
 private_key.pem
 public_key.pem
+back/nats/certs/
 __pycache__/
 .DS_Store
 # Dépendances
