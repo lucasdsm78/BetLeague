@@ -200,6 +200,23 @@ services:
       - jetstream_provision
     restart: always
 
+  frontend:
+    build:
+      context: front
+      dockerfile: Dockerfile.dev
+    container_name: frontend_app
+    volumes:
+      - ./front/src:/app/src
+      - ./front/public:/app/public
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8001/api
+      REACT_APP_ENV: development
+      WATCHPACK_POLLING: "true"
+    depends_on:
+      - backend
+
   # Consumer de démo (optionnel) : affiche les événements JetStream
   jetstream_consumer:
     build:
