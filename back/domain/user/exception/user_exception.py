@@ -52,3 +52,9 @@ class UserLoginNotFoundError(Exception):
 
     def __str__(self):
         return f"user with login {self.login} not found"
+
+class PasswordResetNotEnabledError(Exception):
+    message = "Password reset not enabled"
+
+    def __str__(self):
+        return PasswordResetNotEnabledError.message
