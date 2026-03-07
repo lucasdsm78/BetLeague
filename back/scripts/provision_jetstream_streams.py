@@ -9,6 +9,7 @@ from nats.js.errors import APIError, NotFoundError
 
 from infrastructure.services.nats_json import nats_dumps
 from infrastructure.services.nats_subjects import load_nats_subjects
+from infrastructure.services.nats_tls import build_nats_tls_context
 
 
 async def _wait_for_jetstream(*, js, timeout_s: float = 10.0) -> None:
@@ -90,6 +91,9 @@ async def main() -> None:
         max_reconnect_attempts=30,
         reconnect_time_wait=0.5,
     )
+    tls_ctx = build_nats_tls_context()
+    if tls_ctx is not None:
+        connect_kwargs["tls"] = tls_ctx
     if nats_user:
         connect_kwargs["user"] = nats_user
         connect_kwargs["password"] = nats_password or ""

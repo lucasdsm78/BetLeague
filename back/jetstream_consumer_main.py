@@ -12,6 +12,7 @@ from application.events.jetstream_event_decoder import decode_domain_event, JetS
 from dependency_injections import outbox_handler_bus_dependency
 from infrastructure.services.nats_json import nats_dumps, nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
+from infrastructure.services.nats_tls import build_nats_tls_context
 
 _MAX_INBOUND_BYTES = int(os.getenv("NATS_MAX_INBOUND_PAYLOAD_BYTES", str(2 * 1024 * 1024)))
 
@@ -156,6 +157,9 @@ async def main() -> None:
     nats_password = os.getenv("NATS_PASSWORD") or None
 
     connect_kwargs: dict = dict(servers=[url])
+    tls_ctx = build_nats_tls_context()
+    if tls_ctx is not None:
+        connect_kwargs["tls"] = tls_ctx
     if nats_user:
         connect_kwargs["user"] = nats_user
         connect_kwargs["password"] = nats_password or ""

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from nats.aio.client import Client as NATS
 
 from infrastructure.services.nats_json import nats_dumps, nats_encode
+from infrastructure.services.nats_tls import build_nats_tls_context
 
 
 _MAX_PAYLOAD_BYTES = int(os.getenv("NATS_MAX_PAYLOAD_BYTES", str(1024 * 1024)))
@@ -75,6 +76,9 @@ class JetStreamPublisher:
                 max_reconnect_attempts=-1,
                 reconnect_time_wait=0.5,
             )
+            tls_ctx = build_nats_tls_context()
+            if tls_ctx is not None:
+                connect_kwargs["tls"] = tls_ctx
             if self._settings.user:
                 connect_kwargs["user"] = self._settings.user
                 connect_kwargs["password"] = self._settings.password or ""

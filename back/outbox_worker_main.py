@@ -15,6 +15,7 @@ from application.events.outbox_processor import OutboxProcessor
 from application.events.outbox_jetstream_processor import build_jetstream_outbox_processor
 from nats.aio.client import Client as NATS
 from nats.js.errors import NotFoundError
+from infrastructure.services.nats_tls import build_nats_tls_context
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +75,9 @@ async def _wait_for_streams() -> None:
     nats_password = os.getenv("NATS_PASSWORD") or None
 
     connect_kwargs: dict = dict(servers=[url], connect_timeout=2, max_reconnect_attempts=-1, reconnect_time_wait=0.5)
+    tls_ctx = build_nats_tls_context()
+    if tls_ctx is not None:
+        connect_kwargs["tls"] = tls_ctx
     if nats_user:
         connect_kwargs["user"] = nats_user
         connect_kwargs["password"] = nats_password or ""
