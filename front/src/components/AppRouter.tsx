@@ -13,6 +13,11 @@ import RegisterForm from 'components/RegisterForm';
 import DashboardLayout from 'components/DashboardLayout';
 import TwoFactorPage from 'components/TwoFactorPage';
 
+// Forgot password (lazy)
+const ForgotPasswordRequestPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordRequestPage'));
+const ForgotPasswordVerifyPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordVerifyPage'));
+const ForgotPasswordConfirmPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordConfirmPage'));
+
 // Lazy load dashboard components
 const MatchesSection = React.lazy(() => import('./dashboard/MatchesSection'));
 const LeaguesSection = React.lazy(() => import('./dashboard/LeaguesSection'));
@@ -173,6 +178,39 @@ const AppRouter: React.FC = () => {
           element={
             <PublicRoute>
               <TwoFactorPage />
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ForgotPasswordRequestPage />
+              </Suspense>
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password/verify"
+          element={
+            <PublicRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ForgotPasswordVerifyPage />
+              </Suspense>
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/forgot-password/confirm"
+          element={
+            <PublicRoute>
+              <Suspense fallback={<LoadingSpinner />}>
+                <ForgotPasswordConfirmPage />
+              </Suspense>
             </PublicRoute>
           }
         />
