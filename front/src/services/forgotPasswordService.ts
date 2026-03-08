@@ -1,56 +1,28 @@
 import { AuthError } from './authService.enhanced';
+import {
+  apiForgotPasswordConfirm,
+  apiForgotPasswordRequest,
+  apiForgotPasswordVerify,
+} from './api/passwordReset.public';
+import type {
+  ApiForgotPasswordConfirmResponse,
+  ApiForgotPasswordRequestResponse,
+  ApiForgotPasswordVerifyResponse,
+} from 'types/api/passwordReset';
 
-// NOTE: on reste volontairement simple ici et on s'aligne sur le client fetch existant.
-// Si tu as déjà un client http centralisé (axios/fetch wrapper), on pourra le brancher.
-
-export type ForgotPasswordRequestResponse = {
-  challenge_id?: string;
-  message?: string;
-};
-
-export type ForgotPasswordVerifyResponse = {
-  reset_token: string;
-  expires_in_seconds: number;
-};
-
-export type ForgotPasswordConfirmResponse = {
-  message: string;
-};
-
-const normalizeApiBase = (rawBase: string): string => {
-  const base = rawBase.replace(/\/$/, '');
-  if (!base) return '';
-  return base.endsWith('/api') ? base : `${base}/api`;
-};
-
-const API_BASE = normalizeApiBase(
-  (process.env.REACT_APP_API_URL as string | undefined) ?? 'http://localhost:8001'
-);
-
-async function safeJson(res: Response): Promise<any> {
-  const text = await res.text();
-  try {
-    return text ? JSON.parse(text) : {};
-  } catch {
-    return { raw: text };
-  }
-}
-
-function normalizeError(res: Response, payload: any): Error {
-  const msg = payload?.detail?.message || payload?.detail || payload?.message || 'Une erreur est survenue';
-  // Réutilise AuthError si dispo (meilleure UX côté app)
-  return new AuthError(msg, res.status, payload);
-}
+// Maintient la compatibilité avec les pages existantes
+export type ForgotPasswordRequestResponse = ApiForgotPasswordRequestResponse;
+export type ForgotPasswordVerifyResponse = ApiForgotPasswordVerifyResponse;
+export type ForgotPasswordConfirmResponse = ApiForgotPasswordConfirmResponse;
 
 export async function forgotPasswordRequest(email: string): Promise<ForgotPasswordRequestResponse> {
-  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
-  const payload = await safeJson(res);
-  if (!res.ok) throw normalizeError(res, payload);
-  return payload;
+  try {
+    return await apiForgotPasswordRequest({ email });
+  } catch (e: any) {
+    // Normalise en AuthError si besoin
+    if (e instanceof AuthError) throw e;
+    throw new AuthError(e?.message || 'Une erreur est survenue', e?.status || 500, e);
+  }
 }
 
 export async function forgotPasswordVerify(params: {
@@ -58,18 +30,16 @@ export async function forgotPasswordVerify(params: {
   challenge_id: string;
   code: string;
 }): Promise<ForgotPasswordVerifyResponse> {
-  const res = await fetch(`${API_BASE}/auth/forgot-password/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    return await apiForgotPasswordVerify({
       email: params.email,
       challenge_id: params.challenge_id,
       code: params.code,
-    }),
-  });
-  const payload = await safeJson(res);
-  if (!res.ok) throw normalizeError(res, payload);
-  return payload;
+    });
+  } catch (e: any) {
+    if (e instanceof AuthError) throw e;
+    throw new AuthError(e?.message || 'Une erreur est survenue', e?.status || 500, e);
+  }
 }
 
 export async function forgotPasswordConfirm(params: {
@@ -78,17 +48,15 @@ export async function forgotPasswordConfirm(params: {
   reset_token: string;
   new_password: string;
 }): Promise<ForgotPasswordConfirmResponse> {
-  const res = await fetch(`${API_BASE}/auth/forgot-password/confirm`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    return await apiForgotPasswordConfirm({
       email: params.email,
       challenge_id: params.challenge_id,
       reset_token: params.reset_token,
       new_password: params.new_password,
-    }),
-  });
-  const payload = await safeJson(res);
-  if (!res.ok) throw normalizeError(res, payload);
-  return payload;
+    });
+  } catch (e: any) {
+    if (e instanceof AuthError) throw e;
+    throw new AuthError(e?.message || 'Une erreur est survenue', e?.status || 500, e);
+  }
 }
