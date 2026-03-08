@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import { forgotPasswordConfirm } from 'services/forgotPasswordService';
 import { useExpiringSessionStorageToken } from 'hooks/useExpiringSessionStorageToken';
+import { evaluatePassword } from './passwordStrength';
 
 const VERIFY_KEY = 'bl.forgotPassword.verify';
 
@@ -28,6 +29,10 @@ function validatePassword(pw: string): string | undefined {
   if (!pw) return 'Nouveau mot de passe requis';
   if (pw.length < 8) return 'Minimum 8 caractères';
   if (pw.length > 256) return 'Mot de passe trop long';
+
+  const strength = evaluatePassword(pw);
+  if (!strength.valid) return strength.reasons[0];
+
   return undefined;
 }
 
@@ -70,6 +75,8 @@ export default function ForgotPasswordConfirmPage() {
     loading: false,
     showPassword: false,
   });
+
+  const strength = React.useMemo(() => evaluatePassword(state.password), [state.password]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +150,33 @@ export default function ForgotPasswordConfirmPage() {
                 required
               />
             </div>
-            <div className={styles.help}>Minimum 8 caractères.</div>
+
+            <div style={{ marginTop: '0.35rem' }}>
+              <div
+                style={{
+                  height: 8,
+                  borderRadius: 999,
+                  background: 'rgba(255,255,255,0.10)',
+                  overflow: 'hidden',
+                }}
+                aria-hidden
+              >
+                <div
+                  style={{
+                    width: `${(strength.level / 5) * 100}%`,
+                    height: '100%',
+                    background: strength.color,
+                    transition: 'width 180ms ease',
+                  }}
+                />
+              </div>
+              <div className={styles.help}>
+                Force: <strong style={{ color: strength.color }}>{strength.label}</strong>
+                {strength.reasons.length > 0 ? ` — ${strength.reasons[0]}` : ''}
+              </div>
+            </div>
+
+            <div className={styles.help}>Minimum 8 caractères, et au moins 3 catégories.</div>
           </div>
 
           <div className={styles.field}>

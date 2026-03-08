@@ -5,15 +5,22 @@ type Stored = {
   [k: string]: any;
 };
 
+function safeParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export function useExpiringSessionStorageToken<T extends Stored>(key: string) {
   const [data, setData] = React.useState<T | null>(() => {
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
+    const parsed = safeParse<T>(sessionStorage.getItem(key));
+    if (!parsed) return null;
+    // validation minimale
+    if (parsed.expiresAt !== undefined && typeof parsed.expiresAt !== 'number') return null;
+    return parsed;
   });
 
   const [now, setNow] = React.useState(() => Date.now());
@@ -35,6 +42,11 @@ export function useExpiringSessionStorageToken<T extends Stored>(key: string) {
     sessionStorage.removeItem(key);
     setData(null);
   }, [key]);
+
+  React.useEffect(() => {
+    if (!expired) return;
+    clear();
+  }, [expired, clear]);
 
   return { data, write, clear, expired, secondsRemaining, now };
 }
