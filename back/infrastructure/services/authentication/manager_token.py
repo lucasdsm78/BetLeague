@@ -68,6 +68,23 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
                 return None
 
             decoded = await self._decode_token(token, self.settings.public_key)
+            if not decoded:
+                return None
+
+            user_id = decoded.get("id")
+            issued_at = decoded.get("iat")
+            # fail-closed: on exige ces champs, sinon bypass possible de la révocation globale
+            if user_id is None or issued_at is None:
+                logging.warning("🚫 Token missing required claims (id/iat)")
+                return None
+
+            if await blacklist.is_token_globally_invalidated(
+                user_id=str(user_id),
+                token_issued_at=datetime.fromtimestamp(int(issued_at)),
+            ):
+                logging.warning("🚫 Token globally invalidated for user")
+                return None
+
             return decoded
 
         except Exception as e:
@@ -92,6 +109,17 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
 
         except Exception as e:
             logging.error(f"🚨 Failed to invalidate token: {e}")
+            return False
+
+    async def invalidate_all_user_tokens(self, user_id: str) -> bool:
+        try:
+            blacklist = get_token_blacklist()
+            return await blacklist.blacklist_user_tokens_before(
+                user_id=str(user_id),
+                invalid_before=datetime.utcnow(),
+            )
+        except Exception as e:
+            logging.error(f"🚨 Failed to globally invalidate tokens: {e}")
             return False
 
     @staticmethod

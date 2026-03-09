@@ -47,9 +47,14 @@ class FakeHash:
 class FakeManagerToken:
     def __init__(self):
         self.invalidations = []
+        self.global_invalidations = []
 
     async def invalidate_token(self, token: str, user_id: str) -> bool:
         self.invalidations.append((token, user_id))
+        return True
+
+    async def invalidate_all_user_tokens(self, user_id: str) -> bool:
+        self.global_invalidations.append(user_id)
         return True
 
     async def generate_token_login(self, domain_user: User) -> str:
@@ -135,6 +140,7 @@ def test_delete_current_user_marks_account_deleted_and_revokes_token():
     assert repo.updated_user.is_two_factor_verified is False
     assert repo.updated_user.is_tournament_subscriber is False
     assert manager.invalidations == [("access-token", "42")]
+    assert manager.global_invalidations == ["42"]
 
 
 def test_delete_current_user_requires_two_factor_code_when_enabled():

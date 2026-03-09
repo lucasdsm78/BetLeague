@@ -32,7 +32,7 @@ class UserRepositoryImpl(UserRepository):
     async def find_users_by_ids(self, user_ids: list[int]) -> dict[int, User]:
         try:
             result = await self.session.execute(
-                select(DBUser).where(DBUser.id.in_(user_ids))
+                select(DBUser).where(DBUser.id.in_(user_ids), DBUser.deleted_at.is_(None))
             )
             users_db = result.scalars().all()
             return {user.id: user.to_entity() for user in users_db}
@@ -44,14 +44,15 @@ class UserRepositoryImpl(UserRepository):
             pseudo: Optional[str] = None,
             email: Optional[str] = None
     ) -> Optional[User]:
-        filters = [DBUser.deleted_at.is_(None)]
+        filters = []
         if pseudo:
             filters.append(DBUser.pseudo == pseudo)
         if email:
             filters.append(DBUser.email == email)
-        if len(filters) == 1:
+        if not filters:
             return None
-        stmt = select(DBUser).where(or_(*filters[1:]), DBUser.deleted_at.is_(None))
+
+        stmt = select(DBUser).where(or_(*filters), DBUser.deleted_at.is_(None))
         result = await self.session.execute(stmt)
         user_db = result.scalar_one_or_none()
         return user_db.to_entity() if user_db else None
@@ -131,7 +132,7 @@ class UserRepositoryImpl(UserRepository):
     async def update(self, user: User):
         try:
             result = await self.session.execute(
-                select(DBUser).where(DBUser.id == user.id)
+                select(DBUser).where(DBUser.id == user.id, DBUser.deleted_at.is_(None))
             )
             _user = result.scalar_one()
             user_db = DBUser.from_entity(user, _user)
@@ -171,7 +172,7 @@ class UserRepositoryImpl(UserRepository):
             return True
         stmt = (
             update(DBUser)
-            .where(DBUser.id == user_id, DBUser.nb_btl >= amount)
+            .where(DBUser.id == user_id, DBUser.nb_btl >= amount, DBUser.deleted_at.is_(None))
             .values(nb_btl=DBUser.nb_btl - amount)
         )
         result = await self.session.execute(stmt)
@@ -182,14 +183,14 @@ class UserRepositoryImpl(UserRepository):
             return
         await self.session.execute(
             update(DBUser)
-            .where(DBUser.id == user_id)
+            .where(DBUser.id == user_id, DBUser.deleted_at.is_(None))
             .values(nb_btl=DBUser.nb_btl + amount)
         )
 
     async def apply_ticket_win(self, user_id: int, gain: float) -> None:
         await self.session.execute(
             update(DBUser)
-            .where(DBUser.id == user_id)
+            .where(DBUser.id == user_id, DBUser.deleted_at.is_(None))
             .values(
                 nb_win=DBUser.nb_win + 1,
                 nb_btl=DBUser.nb_btl + gain,
@@ -200,7 +201,7 @@ class UserRepositoryImpl(UserRepository):
     async def apply_ticket_lose(self, user_id: int) -> None:
         await self.session.execute(
             update(DBUser)
-            .where(DBUser.id == user_id)
+            .where(DBUser.id == user_id, DBUser.deleted_at.is_(None))
             .values(nb_lose=DBUser.nb_lose + 1)
         )
 

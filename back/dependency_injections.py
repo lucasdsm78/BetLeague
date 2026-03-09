@@ -58,7 +58,7 @@ from domain.services.push.web_push_service import WebPushService
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm.session import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
@@ -819,3 +819,63 @@ def password_reset_usecase(
         totp_service=totp_service,
         settings=settings,
     )
+
+
+from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
+from infrastructure.security.redis_rate_limiter import RedisSlidingWindowRateLimiter
+
+
+@lru_cache()
+def delete_account_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "delete_account_rate_limit_per_minute", 3)),
+        window_s=int(getattr(settings, "delete_account_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_delete_account_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    # Singleton pour réutiliser _script_sha => évite SCRIPT LOAD à chaque requête
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_delete_my_account(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(delete_account_rate_limiter_singleton),
+):
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    key = f"delete_my_account:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "delete_account_rate_limit_per_minute", 3))
+    window_s = int(getattr(settings, "delete_account_rate_limit_window_s", 60))
+
+    redis_limiter = redis_delete_account_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(
+            key=key,
+            limit=limit,
+            window_s=window_s,
+        )
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True
+

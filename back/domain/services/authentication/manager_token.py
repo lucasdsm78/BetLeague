@@ -30,3 +30,8 @@ class ManagerToken(ABC):
     @abstractmethod
     async def invalidate_token(self, token: str, user_id: str) -> bool:
         raise NotImplementedError
+
+    @abstractmethod
+    async def invalidate_all_user_tokens(self, user_id: str) -> bool:
+        """Invalide tous les tokens (access+refresh) d’un user à partir de maintenant."""
+        raise NotImplementedError

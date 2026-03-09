@@ -14,6 +14,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
         self._blacklisted_tokens: Set[str] = set()
         self._token_expiry: Dict[str, datetime] = {}
         self._user_tokens: Dict[str, Set[str]] = defaultdict(set)
+        self._user_invalid_before: Dict[str, datetime] = {}  # user_id -> cutoff
         self._blacklist_events: list = []
         self._lock = asyncio.Lock()
         self._stats = {
@@ -157,6 +158,35 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
         """Cleanup on destruction"""
         if hasattr(self, '_cleanup_task') and self._cleanup_task and not self._cleanup_task.done():
             self._cleanup_task.cancel()
+
+    async def blacklist_user_tokens_before(self, user_id: str, invalid_before: datetime) -> bool:
+        async with self._lock:
+            try:
+                current = self._user_invalid_before.get(user_id)
+                if current is None or invalid_before > current:
+                    self._user_invalid_before[user_id] = invalid_before
+
+                self._blacklist_events.append({
+                    'action': 'blacklist_user_tokens_before',
+                    'user_id': user_id,
+                    'invalid_before': invalid_before.isoformat(),
+                    'timestamp': datetime.utcnow().isoformat(),
+                })
+                return True
+            except Exception as e:
+                logging.error(f"🚨 Failed to set user invalid_before: {e}")
+                return False
+
+    async def is_token_globally_invalidated(self, *, user_id: str, token_issued_at: datetime) -> bool:
+        try:
+            async with self._lock:
+                cutoff = self._user_invalid_before.get(user_id)
+            if cutoff is None:
+                return False
+            return token_issued_at < cutoff
+        except Exception as e:
+            logging.error(f"🚨 Error checking global invalidation: {e}")
+            return True
 
 
 _blacklist_instance: Optional[InMemoryTokenBlacklistImpl] = None
