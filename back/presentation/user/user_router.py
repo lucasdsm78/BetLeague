@@ -35,7 +35,8 @@ from presentation.user.user_error_message import (
     ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, ErrorMessageUserNotFound
 )
 from dependency_injections import (
-    current_user, user_command_usecase, user_query_usecase, password_reset_usecase
+    current_user, user_command_usecase, user_query_usecase, password_reset_usecase,
+    rate_limit_delete_my_account,
 )
 
 router = APIRouter(
@@ -210,6 +211,7 @@ async def refresh_token(
     status_code=status.HTTP_200_OK,
     summary="Delete current authenticated user account",
     response_model=UserDeleteResponse,
+    dependencies=[Depends(rate_limit_delete_my_account)],
     responses={
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Mot de passe invalide ou utilisateur non authentifié",

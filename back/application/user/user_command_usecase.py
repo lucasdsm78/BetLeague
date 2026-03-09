@@ -180,6 +180,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             raise
 
         await self.manager_token.invalidate_token(token, str(user.id))
+        await self.manager_token.invalidate_all_user_tokens(str(user.id))
         return UserDeleteResponse()
 
     async def enable_2fa(self, email: str) -> bytes:
