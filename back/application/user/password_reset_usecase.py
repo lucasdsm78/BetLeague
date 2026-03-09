@@ -25,7 +25,7 @@ from infrastructure.config import Settings
 
 class PasswordResetUseCase(ABC):
     @abstractmethod
-    async def request_reset(self, *, email: str, client_key: str) -> str:
+    async def request_reset(self, *, email: str, client_key: str) -> tuple[str, int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -63,7 +63,7 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
     def _hmac_hash(self, *, secret: str, value: str) -> str:
         return hmac.new(secret.encode(), value.encode(), hashlib.sha256).hexdigest()
 
-    async def request_reset(self, *, email: str, client_key: str) -> str:
+    async def request_reset(self, *, email: str, client_key: str) -> tuple[str, int]:
         rl_ok = await self._store.incr_rate_limit(
             key=f"req:{client_key}:{email}",
             window_seconds=self._rl_window_s,
@@ -72,12 +72,15 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
         if not rl_ok:
             raise PasswordResetRateLimitedError
 
+        if self._challenge_ttl_s <= 0:
+            raise HTTPException(status_code=500, detail="Invalid password reset challenge TTL")
+
         user = await self._users.find_by_email(email)
         if not user:
-            return shortuuid.uuid()
+            return shortuuid.uuid(), self._challenge_ttl_s
 
         if not getattr(user, "is_two_factor_enabled", False) or not getattr(user, "two_factor_secret", None):
-            return shortuuid.uuid()
+            return shortuuid.uuid(), self._challenge_ttl_s
 
         challenge_id = shortuuid.uuid()
 
@@ -87,7 +90,7 @@ class PasswordResetUseCaseImpl(PasswordResetUseCase):
             code_hash="totp",  # placeholder; pas utilisé
             expires_in_seconds=self._challenge_ttl_s,
         )
-        return challenge_id
+        return challenge_id, self._challenge_ttl_s
 
     async def verify_code(self, *, email: str, challenge_id: str, code: str, client_key: str) -> tuple[str, int]:
         rl_ok = await self._store.incr_rate_limit(

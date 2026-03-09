@@ -8,6 +8,7 @@ export type ApiForgotPasswordRequestBody = {
 
 export type ApiForgotPasswordRequestResponse = {
   readonly challenge_id: string;
+  readonly expires_in_seconds: number;
   readonly message: string;
 };
 
@@ -32,4 +33,3 @@ export type ApiForgotPasswordConfirmBody = {
 export type ApiForgotPasswordConfirmResponse = {
   readonly message: string;
 };
-

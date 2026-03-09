@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import { forgotPasswordRequest } from 'services/forgotPasswordService';
 import { useJourneySessionStorage } from 'hooks/useJourneySessionStorage';
+import {
+  BACKEND_DEFAULT_CHALLENGE_TTL_SECONDS,
+  FORGOT_PASSWORD_REQUEST_STORAGE_KEY,
+  MIN_FORGOT_PASSWORD_CHALLENGE_ID_LENGTH,
+  ttlSecondsToExpiresAt,
+} from './forgotPasswordJourney';
 
 type State = {
   email: string;
@@ -19,9 +25,8 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
-const STORAGE_KEY = 'bl.forgotPassword.request';
-const MIN_CHALLENGE_ID_LENGTH = 10;
-const JOURNEY_TTL_MS = 15 * 60 * 1000;
+const STORAGE_KEY = FORGOT_PASSWORD_REQUEST_STORAGE_KEY;
+const MIN_CHALLENGE_ID_LENGTH = MIN_FORGOT_PASSWORD_CHALLENGE_ID_LENGTH;
 
 type ForgotPasswordRequestJourney = {
   readonly email: string;
@@ -71,7 +76,7 @@ export default function ForgotPasswordRequestPage() {
       const res = await forgotPasswordRequest(email);
 
       const challengeId = (res.challenge_id ?? '').trim();
-      const expiresAt = Date.now() + JOURNEY_TTL_MS;
+      const expiresAt = ttlSecondsToExpiresAt(res.expires_in_seconds);
 
       if (challengeId.length < MIN_CHALLENGE_ID_LENGTH) {
         setState(prev => ({
@@ -106,7 +111,10 @@ export default function ForgotPasswordRequestPage() {
           error: undefined,
         }));
         if (email) {
-          journey.write({ email, expiresAt: Date.now() + JOURNEY_TTL_MS });
+          journey.write({
+            email,
+            expiresAt: ttlSecondsToExpiresAt(BACKEND_DEFAULT_CHALLENGE_TTL_SECONDS),
+          });
         } else {
           journey.clear();
         }
@@ -151,7 +159,10 @@ export default function ForgotPasswordRequestPage() {
                     journey.clear();
                     return;
                   }
-                  journey.write({ email, expiresAt: Date.now() + JOURNEY_TTL_MS });
+                  journey.write({
+                    email,
+                    expiresAt: ttlSecondsToExpiresAt(BACKEND_DEFAULT_CHALLENGE_TTL_SECONDS),
+                  });
                 }}
                 placeholder="tonemail@exemple.com"
                 aria-invalid={!!state.error}

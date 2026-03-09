@@ -21,6 +21,7 @@ class PasswordForgotRequest(BaseModel):
 
 class PasswordForgotResponse(BaseModel):
     challenge_id: str
+    expires_in_seconds: int
     message: str = "If the account exists and 2FA is enabled, you can verify using your authenticator code."
 
 
