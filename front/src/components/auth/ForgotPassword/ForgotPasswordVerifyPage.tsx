@@ -4,12 +4,17 @@ import styles from './ForgotPassword.module.css';
 import { forgotPasswordRequest, forgotPasswordVerify } from 'services/forgotPasswordService';
 import { useJourneySessionStorage } from 'hooks/useJourneySessionStorage';
 import TotpCodeInput from './TotpCodeInput';
+import {
+  FORGOT_PASSWORD_REQUEST_STORAGE_KEY,
+  FORGOT_PASSWORD_VERIFY_STORAGE_KEY,
+  MIN_FORGOT_PASSWORD_CHALLENGE_ID_LENGTH,
+  ttlSecondsToExpiresAt,
+} from './forgotPasswordJourney';
 
-const STORAGE_KEY = 'bl.forgotPassword.request';
-const VERIFY_KEY = 'bl.forgotPassword.verify';
-const MIN_CHALLENGE_ID_LENGTH = 10;
+const STORAGE_KEY = FORGOT_PASSWORD_REQUEST_STORAGE_KEY;
+const VERIFY_KEY = FORGOT_PASSWORD_VERIFY_STORAGE_KEY;
+const MIN_CHALLENGE_ID_LENGTH = MIN_FORGOT_PASSWORD_CHALLENGE_ID_LENGTH;
 const RESEND_COOLDOWN_S = 30;
-const JOURNEY_TTL_MS = 15 * 60 * 1000;
 
 type ForgotPasswordRequestJourney = {
   readonly email: string;
@@ -104,7 +109,7 @@ export default function ForgotPasswordVerifyPage() {
       const res = await forgotPasswordRequest(email);
       const nextChallengeId = (res.challenge_id ?? '').trim();
 
-      const expiresAt = Date.now() + JOURNEY_TTL_MS;
+      const expiresAt = ttlSecondsToExpiresAt(res.expires_in_seconds);
       if (nextChallengeId.length >= MIN_CHALLENGE_ID_LENGTH) {
         journey.write({ email, challenge_id: nextChallengeId, expiresAt });
       } else {
@@ -162,7 +167,7 @@ export default function ForgotPasswordVerifyPage() {
       if (journey.data) {
         journey.write({
           ...journey.data,
-          expiresAt: Date.now() + JOURNEY_TTL_MS,
+          expiresAt: ttlSecondsToExpiresAt(res.expires_in_seconds),
         });
       }
 
