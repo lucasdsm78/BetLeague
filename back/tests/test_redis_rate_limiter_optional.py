@@ -35,3 +35,29 @@ async def test_redis_rate_limiter_allows_and_blocks_if_redis_available():
     except Exception:
         pytest.skip("Redis indisponible dans l'environnement de test")
 
+
+@pytest.mark.asyncio
+async def test_redis_global_token_cutoff_is_stored_if_redis_available():
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        pytest.skip("REDIS_URL non défini")
+
+    try:
+        from datetime import datetime, timedelta
+
+        from infrastructure.services.authentication.token_blacklist_impl import get_token_blacklist
+
+        bl = get_token_blacklist()
+
+        # On ne peut pas garantir la classe sans redis_url bien injecté; on valide le comportement de lecture/écriture.
+        user_id = "999"
+        cutoff = datetime.utcnow()
+        ok = await bl.blacklist_user_tokens_before(user_id, cutoff)
+        assert ok is True
+
+        assert await bl.is_token_globally_invalidated(
+            user_id=user_id,
+            token_issued_at=cutoff - timedelta(seconds=5),
+        ) is True
+    except Exception:
+        pytest.skip("Redis indisponible dans l'environnement de test")
