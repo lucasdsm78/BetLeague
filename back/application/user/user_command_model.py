@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserCreateModel(BaseModel):
@@ -16,6 +16,11 @@ class UserUpdateModel(BaseModel):
     two_fa_code: Optional[str] = None
 
 
+class DeleteMyAccountModel(BaseModel):
+    current_password: str = Field(min_length=8, max_length=255)
+    two_fa_code: Optional[str] = Field(default=None, min_length=6, max_length=6)
+
+
 class UserCreateResponse(BaseModel):
     message: str = "The user is well created"
 
@@ -27,7 +32,7 @@ class UserUpdateResponse(BaseModel):
 
 
 class UserDeleteResponse(BaseModel):
-    message: str = "The user is well deleted"
+    message: str = "Compte supprimé avec succès."
 
 
 class UserLoginModel(BaseModel):

@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
     UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
-    InvalidPasswordError
+    InvalidPasswordError, DeleteMyAccountModel
 )
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
@@ -206,34 +206,66 @@ async def refresh_token(
 
 
 @router.delete(
-    "/user/{id}/delete",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Delete a user",
+    "/me",
+    status_code=status.HTTP_200_OK,
+    summary="Delete current authenticated user account",
     response_model=UserDeleteResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Mot de passe invalide ou utilisateur non authentifié",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Code 2FA invalide",
+        },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorMessageUserNotFound,
         },
     },
 )
-async def delete_user(
-        id: int,
+async def delete_my_account(
+        data: DeleteMyAccountModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        delete_user = await user_command_usecase.delete_user(id)
+        user_email = current_user.get("email")
+        token = current_user.get("token")
+        if not user_email or not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Utilisateur non authentifié"
+            )
+        return await user_command_usecase.delete_current_user(user_email, token, data)
+    except InvalidPasswordError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Email ou mot de passe incorrect.",
+                "code": "INVALID_CREDENTIALS"
+            }
+        )
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
-    except Exception as e:
+    except FARequiredError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.message
         )
-
-    return delete_user
+    except Invalid2FACodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message
+        )
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la suppression du compte"
+        )
 
 
 @router.post(
