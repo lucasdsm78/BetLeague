@@ -40,3 +40,4 @@ export type {
 } from './tickets';
 
 export * from './tournament';
+export * from './passwordReset';
