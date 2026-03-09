@@ -22,7 +22,9 @@ class User:
             two_factor_secret: Optional[str] = None,
             is_two_factor_enabled: bool = False,
             is_tournament_subscriber: bool = False,
-            is_two_factor_verified: bool = False
+            is_two_factor_verified: bool = False,
+            deleted_at: Optional[int] = None,
+            auth_revoked_at: Optional[int] = None,
     ):
         self.id: Optional[int] = id
         self.password: Password = password
@@ -40,6 +42,29 @@ class User:
         self.is_two_factor_enabled = is_two_factor_enabled
         self.is_two_factor_verified = is_two_factor_verified
         self.is_tournament_subscriber = is_tournament_subscriber
+        self.deleted_at = deleted_at
+        self.auth_revoked_at = auth_revoked_at
+
+    def mark_as_deleted(
+            self,
+            *,
+            anonymized_email: str,
+            anonymized_pseudo: str,
+            hashed_password: str,
+            new_uuid: str,
+            deleted_at: int,
+            auth_revoked_at: int,
+    ) -> None:
+        self.email = Email(anonymized_email)
+        self.pseudo = anonymized_pseudo
+        self.password = Password(hashed_password)
+        self.uuid = new_uuid
+        self.two_factor_secret = None
+        self.is_two_factor_enabled = False
+        self.is_two_factor_verified = False
+        self.is_tournament_subscriber = False
+        self.deleted_at = deleted_at
+        self.auth_revoked_at = auth_revoked_at
 
     def token_details(self) -> dict:
         return dict(

@@ -600,11 +600,31 @@ async def authentication(
 
 async def current_user(
         token: str = Depends(authentication),
-        manager_token: ManagerToken = Depends(manager_token_dependency)
+        manager_token: ManagerToken = Depends(manager_token_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
 ) -> dict:
     decoded = await manager_token.verify_token(token)  # Use verify_token to check blacklist
-    if decoded:
-        decoded['token'] = token  # Add original token for logout operations
+    if not decoded:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide ou expiré",
+        )
+
+    user_email = decoded.get("email")
+    if not user_email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide",
+        )
+
+    user = await user_repository.find_by_email(user_email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Utilisateur non trouvé ou supprimé",
+        )
+
+    decoded['token'] = token  # Add original token for logout operations
     return decoded
 
 

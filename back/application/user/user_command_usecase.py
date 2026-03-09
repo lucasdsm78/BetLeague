@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, UTC
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel,
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel,
-    UserUpdateResponse, RefreshTokenResponse
+    UserUpdateResponse, RefreshTokenResponse, DeleteMyAccountModel
 )
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
@@ -42,7 +42,7 @@ class UserCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_user(self, user_id: int) -> UserDeleteResponse:
+    async def delete_current_user(self, email: str, token: str, data: DeleteMyAccountModel) -> UserDeleteResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -140,14 +140,46 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             two_factor_enabled=user.is_two_factor_enabled,
         )
 
-    async def delete_user(self, user_id: int) -> UserDeleteResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                repo = UserRepositoryImpl(session)
-                user = await repo.find_by_id(user_id)
-                if not user:
-                    raise UserNotFoundError
-                await repo.delete_user(user_id)
+    async def delete_current_user(self, email: str, token: str, data: DeleteMyAccountModel) -> UserDeleteResponse:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        if not await self.hasher.verify(data.current_password, user.password.password):
+            raise InvalidPasswordError(email)
+
+        if user.is_two_factor_enabled:
+            if not data.two_fa_code:
+                raise FARequiredError()
+            if not user.two_factor_secret:
+                raise HTTPException(status_code=500, detail="2FA secret missing for user")
+            secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+            if not data.two_fa_code.isdigit():
+                raise Invalid2FACodeError()
+            if not await self.totp_service.verify_code(secret, data.two_fa_code):
+                raise Invalid2FACodeError()
+
+        deleted_at = int(datetime.now(UTC).timestamp() * 1000)
+        anonymized_email = f"deleted{user.id}.{deleted_at}@deletedlocal.com"
+        anonymized_pseudo = f"deleted-user-{user.id}-{deleted_at}"
+        hashed_password = await self.hasher.bcrypt(shortuuid.uuid())
+        user.mark_as_deleted(
+            anonymized_email=anonymized_email,
+            anonymized_pseudo=anonymized_pseudo,
+            hashed_password=hashed_password,
+            new_uuid=shortuuid.uuid(),
+            deleted_at=deleted_at,
+            auth_revoked_at=int(datetime.now(UTC).timestamp()),
+        )
+
+        try:
+            await self.user_repository.update(user)
+            await self.user_repository.commit()
+        except Exception:
+            await self.user_repository.rollback()
+            raise
+
+        await self.manager_token.invalidate_token(token, str(user.id))
         return UserDeleteResponse()
 
     async def enable_2fa(self, email: str) -> bytes:
@@ -243,7 +275,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     detail="Invalid or expired refresh token"
                 )
 
-            user_email = payload.get("sub")
+            user_email = payload.get("email") or payload.get("sub")
             if not user_email:
                 raise HTTPException(
                     status_code=401,
