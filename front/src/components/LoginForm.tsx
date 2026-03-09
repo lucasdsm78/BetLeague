@@ -507,6 +507,16 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
               Créer un compte
             </button>
           </p>
+          <p>
+            <button
+              type="button"
+              className="form-link"
+              onClick={() => navigate('/forgot-password', { replace: true })}
+              disabled={isLoading}
+            >
+              Mot de passe oublié ?
+            </button>
+          </p>
         </div>
       )}
 
