@@ -2,14 +2,46 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import { forgotPasswordRequest, forgotPasswordVerify } from 'services/forgotPasswordService';
+import { useJourneySessionStorage } from 'hooks/useJourneySessionStorage';
 import TotpCodeInput from './TotpCodeInput';
 
 const STORAGE_KEY = 'bl.forgotPassword.request';
 const VERIFY_KEY = 'bl.forgotPassword.verify';
 const MIN_CHALLENGE_ID_LENGTH = 10;
 const RESEND_COOLDOWN_S = 30;
+const JOURNEY_TTL_MS = 15 * 60 * 1000;
 
-type Cached = { email?: string; challenge_id?: string };
+type ForgotPasswordRequestJourney = {
+  readonly email: string;
+  readonly challenge_id?: string;
+  readonly expiresAt: number;
+};
+
+function isValidJourney(v: unknown): v is ForgotPasswordRequestJourney {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as any;
+  if (typeof o.expiresAt !== 'number') return false;
+  if (typeof o.email !== 'string') return false;
+  if (o.challenge_id !== undefined && typeof o.challenge_id !== 'string') return false;
+  return true;
+}
+
+type ResetTokenJourney = {
+  readonly email: string;
+  readonly challenge_id: string;
+  readonly reset_token: string;
+  readonly expiresAt: number;
+};
+
+function isValidResetTokenJourney(v: unknown): v is ResetTokenJourney {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as any;
+  if (typeof o.expiresAt !== 'number') return false;
+  if (typeof o.email !== 'string') return false;
+  if (typeof o.challenge_id !== 'string') return false;
+  if (typeof o.reset_token !== 'string') return false;
+  return true;
+}
 
 type State = {
   code: string;
@@ -29,25 +61,20 @@ function validateCode(code: string): string | undefined {
 
 export default function ForgotPasswordVerifyPage() {
   const navigate = useNavigate();
-  const [now, setNow] = React.useState(() => Date.now());
 
-  React.useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
+  const journey = useJourneySessionStorage<ForgotPasswordRequestJourney>({
+    key: STORAGE_KEY,
+    isValid: isValidJourney,
+  });
 
-  const cached: Cached = React.useMemo(() => {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return {};
-    }
-  }, []);
+  const resetJourney = useJourneySessionStorage<ResetTokenJourney>({
+    key: VERIFY_KEY,
+    isValid: isValidResetTokenJourney,
+  });
 
-  const email = (cached.email ?? '').trim();
-  const challengeId = (cached.challenge_id ?? '').trim();
+  const now = journey.now;
+  const email = (journey.data?.email ?? '').trim();
+  const challengeId = (journey.data?.challenge_id ?? '').trim();
 
   const [state, setState] = React.useState<State>({
     code: '',
@@ -56,15 +83,17 @@ export default function ForgotPasswordVerifyPage() {
   });
 
   React.useEffect(() => {
-    if (!email) {
+    if (!email || journey.expired) {
+      journey.clear();
       navigate('/forgot-password', { replace: true });
       return;
     }
-  }, [email, navigate]);
+  }, [email, journey.expired, journey, navigate]);
 
   const resendSecondsRemaining = state.resendCooldownUntil
     ? Math.max(0, Math.ceil((state.resendCooldownUntil - now) / 1000))
     : 0;
+
   const resendDisabled = state.resendLoading || resendSecondsRemaining > 0;
 
   const onResend = async () => {
@@ -75,9 +104,12 @@ export default function ForgotPasswordVerifyPage() {
       const res = await forgotPasswordRequest(email);
       const nextChallengeId = (res.challenge_id ?? '').trim();
 
-      // Anti-enum: même UX, mais si on a un challenge valide on le remplace.
+      const expiresAt = Date.now() + JOURNEY_TTL_MS;
       if (nextChallengeId.length >= MIN_CHALLENGE_ID_LENGTH) {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ email, challenge_id: nextChallengeId }));
+        journey.write({ email, challenge_id: nextChallengeId, expiresAt });
+      } else {
+        // on refresh quand même le TTL
+        journey.write({ email, expiresAt });
       }
 
       setState(prev => ({
@@ -126,13 +158,21 @@ export default function ForgotPasswordVerifyPage() {
         code: state.code.trim(),
       });
 
-      sessionStorage.setItem(VERIFY_KEY, JSON.stringify({
+      // Refresh du TTL journey request pour éviter un back/forward "stale" si l'utilisateur traîne.
+      if (journey.data) {
+        journey.write({
+          ...journey.data,
+          expiresAt: Date.now() + JOURNEY_TTL_MS,
+        });
+      }
+
+      // Stocke le reset_token dans un storage TTLé dédié
+      resetJourney.write({
         email,
         challenge_id: challengeId,
         reset_token: res.reset_token,
-        expires_in_seconds: res.expires_in_seconds,
-        verified_at: Date.now(),
-      }));
+        expiresAt: Date.now() + res.expires_in_seconds * 1000,
+      });
 
       navigate('/forgot-password/confirm');
     } catch (err: any) {

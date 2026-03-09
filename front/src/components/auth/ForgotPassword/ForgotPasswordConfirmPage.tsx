@@ -2,28 +2,28 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import { forgotPasswordConfirm } from 'services/forgotPasswordService';
-import { useExpiringSessionStorageToken } from 'hooks/useExpiringSessionStorageToken';
+import { useJourneySessionStorage } from 'hooks/useJourneySessionStorage';
 import { evaluatePassword } from './passwordStrength';
 
 const VERIFY_KEY = 'bl.forgotPassword.verify';
+const STORAGE_KEY = 'bl.forgotPassword.request';
 
-type CachedVerify = {
-  email?: string;
-  challenge_id?: string;
-  reset_token?: string;
-  expires_in_seconds?: number;
-  verified_at?: number;
-  expiresAt?: number;
+type ResetTokenJourney = {
+  readonly email: string;
+  readonly challenge_id: string;
+  readonly reset_token: string;
+  readonly expiresAt: number;
 };
 
-type State = {
-  password: string;
-  confirm: string;
-  loading: boolean;
-  error?: string;
-  success?: string;
-  showPassword: boolean;
-};
+function isValidResetTokenJourney(v: unknown): v is ResetTokenJourney {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as any;
+  if (typeof o.expiresAt !== 'number') return false;
+  if (typeof o.email !== 'string') return false;
+  if (typeof o.challenge_id !== 'string') return false;
+  if (typeof o.reset_token !== 'string') return false;
+  return true;
+}
 
 function validatePassword(pw: string): string | undefined {
   if (!pw) return 'Nouveau mot de passe requis';
@@ -36,25 +36,27 @@ function validatePassword(pw: string): string | undefined {
   return undefined;
 }
 
+type State = {
+  password: string;
+  confirm: string;
+  loading: boolean;
+  error?: string;
+  success?: string;
+  showPassword: boolean;
+};
+
 export default function ForgotPasswordConfirmPage() {
   const navigate = useNavigate();
 
-  const verify = useExpiringSessionStorageToken<CachedVerify>(VERIFY_KEY);
-  const cached = verify.data ?? {};
+  const verify = useJourneySessionStorage<ResetTokenJourney>({
+    key: VERIFY_KEY,
+    isValid: isValidResetTokenJourney,
+  });
 
-  const email = (cached.email ?? '').trim();
-  const challengeId = (cached.challenge_id ?? '').trim();
-  const resetToken = (cached.reset_token ?? '').trim();
-
-  React.useEffect(() => {
-    // Migration: si expiresAt absent mais expires_in_seconds présent
-    if (verify.data && !verify.data.expiresAt && verify.data.expires_in_seconds && verify.data.verified_at) {
-      verify.write({
-        ...verify.data,
-        expiresAt: verify.data.verified_at + verify.data.expires_in_seconds * 1000,
-      });
-    }
-  }, [verify]);
+  const cached = verify.data;
+  const email = (cached?.email ?? '').trim();
+  const challengeId = (cached?.challenge_id ?? '').trim();
+  const resetToken = (cached?.reset_token ?? '').trim();
 
   React.useEffect(() => {
     if (!email || !challengeId || !resetToken) {
@@ -95,7 +97,8 @@ export default function ForgotPasswordConfirmPage() {
       });
 
       // Nettoyage pour éviter la réutilisation côté client
-      sessionStorage.removeItem(VERIFY_KEY);
+      verify.clear();
+      sessionStorage.removeItem(STORAGE_KEY);
 
       setState(prev => ({ ...prev, loading: false, success: 'Mot de passe mis à jour. Tu peux te reconnecter.' }));
 

@@ -26,7 +26,7 @@ export function useExpiringSessionStorageToken<T extends Stored>(key: string) {
   const [now, setNow] = React.useState(() => Date.now());
 
   React.useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 500);
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
