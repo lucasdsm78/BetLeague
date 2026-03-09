@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './ForgotPassword.module.css';
 import { forgotPasswordRequest } from 'services/forgotPasswordService';
+import { useJourneySessionStorage } from 'hooks/useJourneySessionStorage';
 
 type State = {
   email: string;
@@ -20,21 +21,41 @@ function validateEmail(email: string): string | undefined {
 
 const STORAGE_KEY = 'bl.forgotPassword.request';
 const MIN_CHALLENGE_ID_LENGTH = 10;
+const JOURNEY_TTL_MS = 15 * 60 * 1000;
+
+type ForgotPasswordRequestJourney = {
+  readonly email: string;
+  readonly challenge_id?: string;
+  readonly expiresAt: number;
+};
+
+function isValidJourney(v: unknown): v is ForgotPasswordRequestJourney {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as any;
+  if (typeof o.expiresAt !== 'number') return false;
+  if (typeof o.email !== 'string') return false;
+  if (o.challenge_id !== undefined && typeof o.challenge_id !== 'string') return false;
+  return true;
+}
 
 export default function ForgotPasswordRequestPage() {
   const navigate = useNavigate();
-  const [state, setState] = React.useState<State>(() => {
-    const cached = sessionStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        return { email: parsed.email ?? '', loading: false };
-      } catch {
-        // ignore
-      }
-    }
-    return { email: '', loading: false };
+  const journey = useJourneySessionStorage<ForgotPasswordRequestJourney>({
+    key: STORAGE_KEY,
+    isValid: isValidJourney,
   });
+
+  const [state, setState] = React.useState<State>(() => {
+    const cachedEmail = journey.data?.email ?? '';
+    return { email: cachedEmail, loading: false };
+  });
+
+  React.useEffect(() => {
+    // Si le journey est expiré, on réinitialise le champ email côté UI.
+    if (journey.expired) {
+      setState(prev => ({ ...prev, email: '' }));
+    }
+  }, [journey.expired]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,9 +67,12 @@ export default function ForgotPasswordRequestPage() {
 
     setState(prev => ({ ...prev, loading: true, error: undefined, success: undefined }));
     try {
-      const res = await forgotPasswordRequest(state.email.trim());
+      const email = state.email.trim();
+      const res = await forgotPasswordRequest(email);
 
       const challengeId = (res.challenge_id ?? '').trim();
+      const expiresAt = Date.now() + JOURNEY_TTL_MS;
+
       if (challengeId.length < MIN_CHALLENGE_ID_LENGTH) {
         setState(prev => ({
           ...prev,
@@ -56,11 +80,11 @@ export default function ForgotPasswordRequestPage() {
           success: 'Si le compte existe et que la 2FA est activée, réessaie dans quelques instants.',
           error: undefined,
         }));
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ email: state.email.trim() }));
+        journey.write({ email, expiresAt });
         return;
       }
 
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ email: state.email.trim(), challenge_id: challengeId }));
+      journey.write({ email, challenge_id: challengeId, expiresAt });
 
       setState(prev => ({
         ...prev,
@@ -74,13 +98,18 @@ export default function ForgotPasswordRequestPage() {
       if (status === 429) {
         setState(prev => ({ ...prev, loading: false, error: 'Trop de tentatives. Réessaie dans une minute.' }));
       } else {
+        const email = state.email.trim();
         setState(prev => ({
           ...prev,
           loading: false,
           success: 'Si le compte existe et que la 2FA est activée, réessaie dans quelques instants.',
           error: undefined,
         }));
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ email: state.email.trim() }));
+        if (email) {
+          journey.write({ email, expiresAt: Date.now() + JOURNEY_TTL_MS });
+        } else {
+          journey.clear();
+        }
       }
     }
   };
@@ -115,7 +144,14 @@ export default function ForgotPasswordRequestPage() {
                 onChange={(e) => {
                   const email = e.target.value;
                   setState(prev => ({ ...prev, email, error: undefined }));
-                  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ email }));
+                }}
+                onBlur={(e) => {
+                  const email = e.target.value.trim();
+                  if (!email) {
+                    journey.clear();
+                    return;
+                  }
+                  journey.write({ email, expiresAt: Date.now() + JOURNEY_TTL_MS });
                 }}
                 placeholder="tonemail@exemple.com"
                 aria-invalid={!!state.error}
