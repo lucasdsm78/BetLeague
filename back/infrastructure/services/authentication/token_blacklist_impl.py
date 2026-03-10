@@ -1,7 +1,8 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Set, Dict, Optional
+import time
 
 import jwt
 from collections import defaultdict
@@ -68,7 +69,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                     'user_id': user_id,
                     'token_id': token_id,
                     'expires_at': expires_at.isoformat(),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(UTC).isoformat()
                 })
 
                 self._stats['total_blacklisted'] += 1
@@ -101,7 +102,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
     async def cleanup_expired_tokens(self) -> int:
         async with self._lock:
             try:
-                now = datetime.utcnow()
+                now = datetime.now(UTC)
                 expired_tokens = []
 
                 for token_id, expires_at in self._token_expiry.items():
@@ -174,7 +175,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                     'action': 'blacklist_user_tokens_before',
                     'user_id': user_id,
                     'invalid_before': invalid_before.isoformat(),
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(UTC).isoformat(),
                 })
                 return True
             except Exception as e:
@@ -196,63 +197,125 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
 class RedisBackedTokenBlacklist(TokenBlacklistService):
     """Blacklist hybride.
 
-    - blacklist jti: in-memory (rapide)
-    - cutoff invalid_before global par user: Redis (distribué, robuste multi-workers/pods)
+    - blacklist jti: Redis (distribué)
+    - cutoff invalid_before global par user: Redis (distribué)
 
-    IMPORTANT: `is_token_globally_invalidated` est fail-closed si Redis est indisponible.
+    Fallback local: best-effort uniquement.
+    Mode panne Redis configurable: fail-open (par défaut) ou fail-closed.
     """
 
-    def __init__(self, *, redis: Redis, local: InMemoryTokenBlacklistImpl, prefix: str = "betleague:auth:tokens_invalid_before:"):
+    def __init__(
+        self,
+        *,
+        redis: Redis,
+        local: InMemoryTokenBlacklistImpl,
+        settings: Settings,
+        prefix_invalid_before: str = "betleague:auth:tokens_invalid_before:",
+        prefix_blacklisted_jti: str = "betleague:auth:blacklisted_jti:",
+    ):
         self._redis = redis
         self._local = local
-        self._prefix = prefix
+        self._settings = settings
+        self._prefix_invalid_before = prefix_invalid_before
+        self._prefix_blacklisted_jti = prefix_blacklisted_jti
 
-    def _key(self, user_id: str) -> str:
-        return f"{self._prefix}{user_id}"
+    def _key_invalid_before(self, user_id: str) -> str:
+        return f"{self._prefix_invalid_before}{user_id}"
+
+    def _key_blacklisted_jti(self, jti: str) -> str:
+        return f"{self._prefix_blacklisted_jti}{jti}"
+
+    def _redis_error_result(self) -> bool:
+        # True => token considéré invalide
+        return bool(getattr(self._settings, "auth_redis_fail_closed", False))
 
     async def blacklist_token(self, token: str, user_id: str, expires_at: datetime) -> bool:
-        return await self._local.blacklist_token(token, user_id, expires_at)
+        # extraire jti
+        token_info = await self._local._extract_token_info(token)
+        token_id = token_info.get('jti', token[:32]) if token_info else token[:32]
+
+        # Stocker en Redis avec TTL jusqu'à exp (+ marge)
+        now_s = int(time.time())
+        ttl = max(
+            1,
+            int(expires_at.timestamp()) - now_s + int(getattr(self._settings, "auth_blacklisted_jti_ttl_grace_s", 60)),
+        )
+
+        try:
+            await self._redis.setex(self._key_blacklisted_jti(token_id), ttl, b"1")
+        except Exception as e:
+            logging.error(f"🚨 Redis error blacklisting jti: {e}")
+            # fallback local quand même
+            await self._local.blacklist_token(token, user_id, expires_at)
+            return False
+
+        # Best-effort local (utile en dev)
+        await self._local.blacklist_token(token, user_id, expires_at)
+        return True
 
     async def is_token_blacklisted(self, token: str) -> bool:
-        return await self._local.is_token_blacklisted(token)
+        token_info = await self._local._extract_token_info(token)
+        token_id = token_info.get('jti', token[:32]) if token_info else token[:32]
+
+        try:
+            raw = await self._redis.get(self._key_blacklisted_jti(token_id))
+            if raw is None:
+                return False
+            return True
+        except Exception as e:
+            logging.error(f"🚨 Redis error checking blacklisted jti: {e}")
+            # fallback local si possible
+            try:
+                return await self._local.is_token_blacklisted(token)
+            except Exception:
+                return self._redis_error_result()
 
     async def blacklist_user_tokens_before(self, user_id: str, invalid_before: datetime) -> bool:
-        # Stocker en epoch seconds (iat est un int seconds en JWT)
         ts = int(invalid_before.timestamp())
+        key = self._key_invalid_before(user_id)
+
         try:
-            key = self._key(user_id)
-            # SET monotone: on stocke le max(current, ts)
-            # Lua atomic pour éviter race condition
             lua = r"""
 local key = KEYS[1]
 local new_ts = tonumber(ARGV[1])
+local ttl_s = tonumber(ARGV[2])
 local cur = redis.call('GET', key)
 if (not cur) or (tonumber(cur) < new_ts) then
   redis.call('SET', key, tostring(new_ts))
 end
+if ttl_s and ttl_s > 0 then
+  redis.call('EXPIRE', key, ttl_s)
+end
 return 1
 """
-            await self._redis.eval(lua, numkeys=1, keys=[key], args=[ts])
+            await self._redis.eval(
+                lua,
+                numkeys=1,
+                keys=[key],
+                args=[ts, int(getattr(self._settings, "auth_tokens_invalid_before_ttl_s", 60 * 60 * 24 * 90))],
+            )
         except Exception as e:
             logging.error(f"🚨 Redis error setting invalid_before: {e}")
-            return False
+            # fallback local
+            return await self._local.blacklist_user_tokens_before(user_id, invalid_before)
 
-        # Best-effort aussi en mémoire (utile en dev)
         await self._local.blacklist_user_tokens_before(user_id, invalid_before)
         return True
 
     async def is_token_globally_invalidated(self, *, user_id: str, token_issued_at: datetime) -> bool:
         try:
-            key = self._key(user_id)
-            raw = await self._redis.get(key)
+            raw = await self._redis.get(self._key_invalid_before(user_id))
             if raw is None:
                 return False
             cutoff_ts = int(raw)
             return int(token_issued_at.timestamp()) < cutoff_ts
         except Exception as e:
             logging.error(f"🚨 Redis error reading invalid_before: {e}")
-            # fail-closed
-            return True
+            # fallback local si possible
+            try:
+                return await self._local.is_token_globally_invalidated(user_id=user_id, token_issued_at=token_issued_at)
+            except Exception:
+                return self._redis_error_result()
 
     async def cleanup_expired_tokens(self) -> int:
         return await self._local.cleanup_expired_tokens()
@@ -260,51 +323,10 @@ return 1
     async def get_blacklist_stats(self) -> dict:
         stats = await self._local.get_blacklist_stats()
         stats["global_invalidation_store"] = "redis"
+        stats["jti_blacklist_store"] = "redis"
         return stats
 
 
-_blacklist_instance: Optional[TokenBlacklistService] = None
+# (Suppression du singleton interne: la construction se fait via DI)
+# _blacklist_instance / reset_token_blacklist_singleton_for_tests / _build_redis_client_from_settings sont supprimés.
 
-
-def _build_redis_client_from_settings(settings: Settings) -> Redis | None:
-    if not getattr(settings, "redis_url", None):
-        return None
-    try:
-        return Redis.from_url(
-            settings.redis_url,
-            decode_responses=False,
-            socket_connect_timeout=getattr(settings, "redis_socket_connect_timeout_s", 2),
-            socket_timeout=getattr(settings, "redis_socket_timeout_s", 2),
-            health_check_interval=getattr(settings, "redis_health_check_interval_s", 30),
-            retry_on_timeout=True,
-        )
-    except Exception:
-        return None
-
-
-def get_token_blacklist() -> TokenBlacklistService:
-    global _blacklist_instance
-    if _blacklist_instance is None:
-        local = InMemoryTokenBlacklistImpl()
-        settings = Settings()
-        r = _build_redis_client_from_settings(settings)
-        if r is not None:
-            _blacklist_instance = RedisBackedTokenBlacklist(redis=r, local=local)
-        else:
-            _blacklist_instance = local
-    return _blacklist_instance
-
-
-async def shutdown_token_blacklist():
-    global _blacklist_instance
-    if _blacklist_instance:
-        # shutdown local cleanup task if present
-        if isinstance(_blacklist_instance, RedisBackedTokenBlacklist):
-            await _blacklist_instance._local.shutdown()
-            try:
-                await _blacklist_instance._redis.aclose()
-            except Exception:
-                pass
-        elif isinstance(_blacklist_instance, InMemoryTokenBlacklistImpl):
-            await _blacklist_instance.shutdown()
-        _blacklist_instance = None

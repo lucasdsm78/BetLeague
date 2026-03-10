@@ -140,8 +140,22 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def manager_token_dependency(settings: Settings = Depends(get_settings)) -> ManagerToken:
-    return JwtManagerTokenImpl(settings=settings)
+from domain.services.authentication.token_blacklist import TokenBlacklistService
+from infrastructure.services.authentication.token_blacklist_impl import build_token_blacklist
+
+
+@lru_cache()
+def token_blacklist_singleton() -> TokenBlacklistService:
+    settings = get_settings()
+    r = redis_client_singleton()
+    return build_token_blacklist(settings=settings, redis=r)
+
+
+def manager_token_dependency(
+    settings: Settings = Depends(get_settings),
+    blacklist: TokenBlacklistService = Depends(token_blacklist_singleton),
+) -> ManagerToken:
+    return JwtManagerTokenImpl(settings=settings, blacklist=blacklist)
 
 
 def hash_dependency() -> Hash:
@@ -878,4 +892,3 @@ async def rate_limit_delete_my_account(
         )
 
     return True
-

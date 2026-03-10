@@ -43,21 +43,30 @@ async def test_redis_global_token_cutoff_is_stored_if_redis_available():
         pytest.skip("REDIS_URL non défini")
 
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, UTC
 
-        from infrastructure.services.authentication.token_blacklist_impl import get_token_blacklist
+        from redis.asyncio import Redis
+        from infrastructure.config import Settings
+        from infrastructure.services.authentication.token_blacklist_impl import (
+            build_token_blacklist,
+            RedisBackedTokenBlacklist,
+        )
 
-        bl = get_token_blacklist()
+        r = Redis.from_url(redis_url, decode_responses=False, socket_connect_timeout=1, socket_timeout=1)
+        try:
+            bl = build_token_blacklist(settings=Settings(), redis=r)
+            assert isinstance(bl, RedisBackedTokenBlacklist)
 
-        # On ne peut pas garantir la classe sans redis_url bien injecté; on valide le comportement de lecture/écriture.
-        user_id = "999"
-        cutoff = datetime.utcnow()
-        ok = await bl.blacklist_user_tokens_before(user_id, cutoff)
-        assert ok is True
+            user_id = "999"
+            cutoff = datetime.now(UTC)
+            ok = await bl.blacklist_user_tokens_before(user_id, cutoff)
+            assert ok is True
 
-        assert await bl.is_token_globally_invalidated(
-            user_id=user_id,
-            token_issued_at=cutoff - timedelta(seconds=5),
-        ) is True
+            assert await bl.is_token_globally_invalidated(
+                user_id=user_id,
+                token_issued_at=cutoff - timedelta(seconds=5),
+            ) is True
+        finally:
+            await r.aclose()
     except Exception:
         pytest.skip("Redis indisponible dans l'environnement de test")
