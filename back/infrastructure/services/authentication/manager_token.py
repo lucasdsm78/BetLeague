@@ -3,11 +3,10 @@ import logging
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Dict, Any
 import uuid
-import time
 
 import jwt  # PyJWT
 from jwt import ExpiredSignatureError, InvalidTokenError, InvalidAudienceError
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from domain.services.authentication.manager_token import ManagerToken
 from domain.services.authentication.token_blacklist import TokenBlacklistService
@@ -21,6 +20,8 @@ ALGORITHM = "RS256"
 class JwtManagerTokenImpl(ManagerToken, BaseModel):
     settings: Settings
     blacklist: TokenBlacklistService
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     async def generate_token_login(self, user: User) -> str:
         expire = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)

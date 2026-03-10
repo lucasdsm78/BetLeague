@@ -327,6 +327,12 @@ return 1
         return stats
 
 
+def build_token_blacklist(*, settings: Settings, redis: Redis | None) -> TokenBlacklistService:
+    local = InMemoryTokenBlacklistImpl()
+    if redis is None:
+        return local
+    return RedisBackedTokenBlacklist(redis=redis, local=local, settings=settings)
+
+
 # (Suppression du singleton interne: la construction se fait via DI)
 # _blacklist_instance / reset_token_blacklist_singleton_for_tests / _build_redis_client_from_settings sont supprimés.
-
