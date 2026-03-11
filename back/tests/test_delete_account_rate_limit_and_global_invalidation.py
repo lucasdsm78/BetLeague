@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import pytest
 
@@ -20,12 +20,18 @@ def test_delete_account_rate_limiter_blocks_after_limit():
     assert blocked.retry_after_s >= 1
 
 
+def test_in_memory_blacklist_can_be_instantiated_outside_running_loop():
+    blacklist = InMemoryTokenBlacklistImpl()
+    assert blacklist is not None
+    assert blacklist._cleanup_task is None
+
+
 @pytest.mark.asyncio
 async def test_global_invalidation_cutoff_invalidates_old_token_iat():
     bl = InMemoryTokenBlacklistImpl()
 
     user_id = "42"
-    cutoff = datetime.utcnow()
+    cutoff = datetime.now(UTC)
     ok = await bl.blacklist_user_tokens_before(user_id, cutoff)
     assert ok is True
 
@@ -38,4 +44,3 @@ async def test_global_invalidation_cutoff_invalidates_old_token_iat():
         user_id=user_id,
         token_issued_at=cutoff + timedelta(seconds=5),
     ) is False
-

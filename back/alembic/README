@@ -8,6 +8,16 @@ Migrations Alembic pour BetLeague.
 # Important
 - On n'utilise plus `Base.metadata.create_all()` au startup.
 - Les changements de schéma passent par des migrations versionnées.
+- Le service `backend` du `docker-compose.yml` exécute désormais `alembic upgrade head` avant `uvicorn`.
+
+# Correction rapide d'une DB déjà démarrée
+Si tu vois une erreur du type `column user.deleted_at does not exist`, applique immédiatement la migration en conteneur :
+
+    docker compose run --rm backend ./scripts/run_migrations.sh
+
+Puis redémarre le backend :
+
+    docker compose up -d backend
 
 # PROD — DB neuve (ton cas)
 Objectif: une migration `initial` qui crée *réellement* toutes les tables.
