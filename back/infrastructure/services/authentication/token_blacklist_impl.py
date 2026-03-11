@@ -30,11 +30,19 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
         }
 
         self._cleanup_task = None
+
+    def _start_cleanup_task(self) -> None:
+        if self._cleanup_task is not None and not self._cleanup_task.done():
+            return
+        asyncio.get_running_loop()  # RuntimeError si appelé hors boucle
+        self._cleanup_task = asyncio.create_task(self._background_cleanup())
+
+    async def start(self) -> None:
         self._start_cleanup_task()
 
-    def _start_cleanup_task(self):
+    def _ensure_cleanup_started(self) -> None:
         if self._cleanup_task is None or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._background_cleanup())
+            self._start_cleanup_task()
 
     async def _background_cleanup(self):
         while True:
@@ -55,6 +63,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
             return None
 
     async def blacklist_token(self, token: str, user_id: str, expires_at: datetime) -> bool:
+        self._ensure_cleanup_started()
         async with self._lock:
             try:
                 token_info = await self._extract_token_info(token)
@@ -83,6 +92,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 return False
 
     async def is_token_blacklisted(self, token: str) -> bool:
+        self._ensure_cleanup_started()
         try:
             token_info = await self._extract_token_info(token)
             token_id = token_info.get('jti', token[:32]) if token_info else token[:32]
@@ -100,6 +110,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
             return True
 
     async def cleanup_expired_tokens(self) -> int:
+        self._ensure_cleanup_started()
         async with self._lock:
             try:
                 now = datetime.now(UTC)
@@ -130,6 +141,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 return 0
 
     async def get_blacklist_stats(self) -> dict:
+        self._ensure_cleanup_started()
         async with self._lock:
             stats = self._stats.copy()
             stats.update({
@@ -146,6 +158,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
         return stats
 
     async def get_security_events(self, limit: int = 100) -> list:
+        self._ensure_cleanup_started()
         async with self._lock:
             return self._blacklist_events[-limit:] if self._blacklist_events else []
 
@@ -156,6 +169,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 await self._cleanup_task
             except asyncio.CancelledError:
                 pass
+        self._cleanup_task = None
 
         logging.info("🔒 Token blacklist service shutdown complete")
 
@@ -165,6 +179,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
             self._cleanup_task.cancel()
 
     async def blacklist_user_tokens_before(self, user_id: str, invalid_before: datetime) -> bool:
+        self._ensure_cleanup_started()
         async with self._lock:
             try:
                 current = self._user_invalid_before.get(user_id)
@@ -183,6 +198,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 return False
 
     async def is_token_globally_invalidated(self, *, user_id: str, token_issued_at: datetime) -> bool:
+        self._ensure_cleanup_started()
         try:
             async with self._lock:
                 cutoff = self._user_invalid_before.get(user_id)
@@ -228,6 +244,9 @@ class RedisBackedTokenBlacklist(TokenBlacklistService):
     def _redis_error_result(self) -> bool:
         # True => token considéré invalide
         return bool(getattr(self._settings, "auth_redis_fail_closed", False))
+
+    async def start(self) -> None:
+        await self._local.start()
 
     async def blacklist_token(self, token: str, user_id: str, expires_at: datetime) -> bool:
         # extraire jti
@@ -334,5 +353,24 @@ def build_token_blacklist(*, settings: Settings, redis: Redis | None) -> TokenBl
     return RedisBackedTokenBlacklist(redis=redis, local=local, settings=settings)
 
 
+async def start_token_blacklist_service(service: TokenBlacklistService) -> None:
+    if isinstance(service, RedisBackedTokenBlacklist):
+        await service.start()
+    elif isinstance(service, InMemoryTokenBlacklistImpl):
+        await service.start()
+
+
+async def shutdown_token_blacklist_service(service: TokenBlacklistService) -> None:
+    if isinstance(service, RedisBackedTokenBlacklist):
+        await service._local.shutdown()
+        try:
+            await service._redis.aclose()
+        except Exception:
+            pass
+    elif isinstance(service, InMemoryTokenBlacklistImpl):
+        await service.shutdown()
+
+
 # (Suppression du singleton interne: la construction se fait via DI)
 # _blacklist_instance / reset_token_blacklist_singleton_for_tests / _build_redis_client_from_settings sont supprimés.
+
