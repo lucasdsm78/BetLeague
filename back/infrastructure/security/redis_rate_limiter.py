@@ -69,9 +69,12 @@ class RedisSlidingWindowRateLimiter:
             try:
                 res = await self._redis.evalsha(
                     sha,
-                    numkeys=1,
-                    keys=[redis_key],
-                    args=[now_ms, window_ms, int(limit), ttl_s],
+                    1,
+                    redis_key,
+                    str(now_ms),
+                    str(window_ms),
+                    str(int(limit)),
+                    str(ttl_s),
                 )
             except Exception as e:
                 if "NOSCRIPT" in str(e):
@@ -79,9 +82,12 @@ class RedisSlidingWindowRateLimiter:
                     sha = await self._ensure_script_loaded()
                     res = await self._redis.evalsha(
                         sha,
-                        numkeys=1,
-                        keys=[redis_key],
-                        args=[now_ms, window_ms, int(limit), ttl_s],
+                        1,
+                        redis_key,
+                        str(now_ms),
+                        str(window_ms),
+                        str(int(limit)),
+                        str(ttl_s),
                     )
                 else:
                     raise
@@ -92,4 +98,3 @@ class RedisSlidingWindowRateLimiter:
         except Exception:
             # fail-closed: si Redis est down, on bloque
             return RateLimitResult(allowed=False, retry_after_s=max(int(window_s), 1))
-

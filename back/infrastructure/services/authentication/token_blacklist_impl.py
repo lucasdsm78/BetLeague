@@ -309,9 +309,10 @@ return 1
 """
             await self._redis.eval(
                 lua,
-                numkeys=1,
-                keys=[key],
-                args=[ts, int(getattr(self._settings, "auth_tokens_invalid_before_ttl_s", 60 * 60 * 24 * 90))],
+                1,
+                key,
+                str(ts),
+                str(int(getattr(self._settings, "auth_tokens_invalid_before_ttl_s", 60 * 60 * 24 * 90))),
             )
         except Exception as e:
             logging.error(f"🚨 Redis error setting invalid_before: {e}")
