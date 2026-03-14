@@ -155,11 +155,10 @@ const AccountInfo = memo<AccountInfoProps>(({ pseudo, email, onRefresh }) => {
 AccountInfo.displayName = 'AccountInfo';
 
 interface SecuritySettingsProps {
-  onLogout: () => void;
   isTwoFactorEnabled?: boolean;
 }
 
-const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEnabled }) => {
+const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) => {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const enable2faMutation = useEnableTwoFactorMutation();
@@ -400,18 +399,6 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
             <button className="btn btn-secondary">Changer le mot de passe</button>
           </div>
         </div>
-
-        <div className="security-option">
-          <div className="option-info">
-            <h4>Déconnexion</h4>
-            <p>Se déconnecter de tous les appareils</p>
-          </div>
-          <div className="option-action">
-            <button className="btn btn-outline danger" onClick={onLogout}>
-              Se déconnecter
-            </button>
-          </div>
-        </div>
       </div>
 
       <DeleteAccountCard isTwoFactorEnabled={!!enabled} />
@@ -639,7 +626,7 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
         )}
 
         {activeTab === 'security' && (
-          <SecuritySettings onLogout={handleLogout} isTwoFactorEnabled={profile.is_two_factor_enabled} />
+          <SecuritySettings isTwoFactorEnabled={profile.is_two_factor_enabled} />
         )}
       </div>
 
