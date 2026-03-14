@@ -157,6 +157,10 @@ class SecureApiClient {
     } catch (error) {
       this.logError(requestId, error);
 
+      if (error instanceof ApiClientError) {
+        throw error;
+      }
+
       if (error instanceof Response) {
         const headers = this.extractHeaders(error);
         const parsed = await this.parseErrorResponse(error);
