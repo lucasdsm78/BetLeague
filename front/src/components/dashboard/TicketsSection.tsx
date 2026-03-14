@@ -11,6 +11,106 @@ import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 
 type TabType = 'current' | 'finished';
 
+type FilterType = 'all' | 'league' | 'tournament';
+
+interface TicketFilter {
+  type: FilterType;
+  id?: number;
+  label: string;
+}
+
+const FILTER_ALL: TicketFilter = { type: 'all', label: 'Tous' };
+
+function extractFilters(tickets: TicketReadModel[]): TicketFilter[] {
+  const leagueMap = new Map<number, string>();
+  let hasTournament = false;
+
+  for (const t of tickets) {
+    if (t.league_summary?.id && t.league_summary.name) {
+      leagueMap.set(t.league_summary.id, t.league_summary.name);
+    }
+    if (t.tournament_match_summary) {
+      hasTournament = true;
+    }
+  }
+
+  const filters: TicketFilter[] = [FILTER_ALL];
+
+  const sortedLeagues = Array.from(leagueMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  for (const entry of sortedLeagues) {
+    filters.push({ type: 'league', id: entry[0], label: entry[1] });
+  }
+
+  if (hasTournament) {
+    filters.push({ type: 'tournament', label: 'Tournoi' });
+  }
+
+  return filters;
+}
+
+function applyFilter(tickets: TicketReadModel[], filter: TicketFilter): TicketReadModel[] {
+  if (filter.type === 'all') return tickets;
+  if (filter.type === 'league') {
+    return tickets.filter(t => t.league_summary?.id === filter.id);
+  }
+  return tickets.filter(t => t.tournament_match_summary != null);
+}
+
+const IconAll = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+  </svg>
+);
+
+const IconLeague = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+
+const IconTournament = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 15l-2 5l6-3l6 3l-2-5" transform="translate(-6, -4) scale(0.75)" /><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+  </svg>
+);
+
+const FilterChips: React.FC<{
+  filters: TicketFilter[];
+  active: TicketFilter;
+  onChange: (f: TicketFilter) => void;
+}> = memo(({ filters, active, onChange }) => {
+  if (filters.length <= 1) return null;
+
+  return (
+    <div className="ticket-filter-bar" role="group" aria-label="Filtrer par ligue ou tournoi">
+      {filters.map((f) => {
+        const key = f.type === 'all' ? 'all' : f.type === 'tournament' ? 'tournament' : `league-${f.id}`;
+        const isActive =
+          f.type === active.type &&
+          (f.type === 'all' || f.type === 'tournament' || f.id === active.id);
+
+        return (
+          <button
+            key={key}
+            type="button"
+            className={`filter-chip${isActive ? ' active'  : ''} filter-chip--${f.type}`}
+            onClick={() => onChange(f)}
+            aria-pressed={isActive}
+          >
+            <span className="filter-chip-icon" aria-hidden="true">
+              {f.type === 'all' && <IconAll />}
+              {f.type === 'league' && <IconLeague />}
+              {f.type === 'tournament' && <IconTournament />}
+            </span>
+            <span className="filter-chip-label">{f.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+FilterChips.displayName = 'FilterChips';
+
 type StatusLabel = 'En cours' | 'Gagné' | 'Perdu' | 'Brouillon';
 
 const normalizeStatus = (status?: string | null): string => (status || '').toLowerCase();
@@ -274,6 +374,7 @@ const SkeletonCard: React.FC = () => (
 
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
+  const [activeFilter, setActiveFilter] = useState<TicketFilter>(FILTER_ALL);
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
@@ -296,7 +397,7 @@ const TicketsSection: React.FC = memo(() => {
   const error = inProgressQuery.error?.message ?? null;
   const lastUpdated = inProgressQuery.dataUpdatedAt || null;
 
-  const filteredTickets = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
+  const ticketsWithoutDeleted = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
 
   // Data for finished tickets (manual refresh)
   const finishedQuery = useFinishedTicketsQuery();
@@ -304,6 +405,24 @@ const TicketsSection: React.FC = memo(() => {
   const loadingFinished = finishedQuery.isLoading;
   const errorFinished = finishedQuery.error?.message ?? null;
   const lastUpdatedFinished = finishedQuery.dataUpdatedAt || null;
+
+  // Extract available filters from current tab's tickets
+  const currentTabTickets = activeTab === 'current' ? ticketsWithoutDeleted : finishedTickets;
+  const availableFilters = useMemo(() => extractFilters(currentTabTickets), [currentTabTickets]);
+
+  // Reset filter when switching tabs if the current filter doesn't exist in the new tab
+  const handleTabChange = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    setActiveFilter(FILTER_ALL);
+  }, []);
+
+  // Apply filter
+  const filteredTickets = useMemo(
+    () => activeTab === 'current'
+      ? applyFilter(ticketsWithoutDeleted, activeFilter)
+      : applyFilter(finishedTickets, activeFilter),
+    [activeTab, ticketsWithoutDeleted, finishedTickets, activeFilter]
+  );
 
   const refetch = useCallback(async () => {
     await inProgressQuery.refetch();
@@ -390,20 +509,20 @@ const TicketsSection: React.FC = memo(() => {
         <button
           type="button"
           className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
-          onClick={() => setActiveTab('current')}
+          onClick={() => handleTabChange('current')}
           aria-label="Tickets en cours"
           aria-selected={activeTab === 'current'}
           role="tab"
         >
           <span className="tab-content-wrapper">
             <span className="tab-title">En cours</span>
-            <span className="tab-badge">{filteredTickets.length}</span>
+            <span className="tab-badge">{ticketsWithoutDeleted.length}</span>
           </span>
         </button>
         <button
           type="button"
           className={`tab-button ${activeTab === 'finished' ? 'active' : ''}`}
-          onClick={() => setActiveTab('finished')}
+          onClick={() => handleTabChange('finished')}
           aria-label="Tickets terminés"
           aria-selected={activeTab === 'finished'}
           role="tab"
@@ -414,6 +533,8 @@ const TicketsSection: React.FC = memo(() => {
           </span>
         </button>
       </div>
+
+      <FilterChips filters={availableFilters} active={activeFilter} onChange={setActiveFilter} />
 
       {activeTab === 'current' && (
         <>
@@ -437,8 +558,8 @@ const TicketsSection: React.FC = memo(() => {
             {!loading && filteredTickets.length === 0 && !error && (
               <div className="empty-state">
                 <span className="empty-icon">🎫</span>
-                <h3>Aucun ticket en cours</h3>
-                <p>Créez un ticket pour commencer à parier dans vos ligues.</p>
+                <h3>{activeFilter.type === 'all' ? 'Aucun ticket en cours' : `Aucun ticket pour "${activeFilter.label}"`}</h3>
+                <p>{activeFilter.type === 'all' ? 'Créez un ticket pour commencer à parier dans vos ligues.' : 'Essayez un autre filtre ou créez un nouveau ticket.'}</p>
               </div>
             )}
 
@@ -451,7 +572,7 @@ const TicketsSection: React.FC = memo(() => {
 
       {activeTab === 'finished' && (
         <>
-          <StatsPanelFinished tickets={finishedTickets} lastUpdated={lastUpdatedFinished} onRefresh={refetchFinished} loading={loadingFinished} />
+          <StatsPanelFinished tickets={filteredTickets} lastUpdated={lastUpdatedFinished} onRefresh={refetchFinished} loading={loadingFinished} />
 
           {errorFinished && (
             <div className="alert alert-danger" role="alert">
@@ -461,22 +582,22 @@ const TicketsSection: React.FC = memo(() => {
           )}
 
           <div className="tickets-grid modern">
-            {loadingFinished && finishedTickets.length === 0 && (
+            {loadingFinished && filteredTickets.length === 0 && (
               <>
                 <SkeletonCard />
                 <SkeletonCard />
               </>
             )}
 
-            {!loadingFinished && finishedTickets.length === 0 && !errorFinished && (
+            {!loadingFinished && filteredTickets.length === 0 && !errorFinished && (
               <div className="empty-state subtle">
                 <span className="empty-icon">✅</span>
-                <h3>Aucun ticket terminé</h3>
-                <p>Vous verrez ici vos tickets gagnés et perdus.</p>
+                <h3>{activeFilter.type === 'all' ? 'Aucun ticket terminé' : `Aucun ticket pour "${activeFilter.label}"`}</h3>
+                <p>{activeFilter.type === 'all' ? 'Vous verrez ici vos tickets gagnés et perdus.' : 'Essayez un autre filtre.'}</p>
               </div>
             )}
 
-            {finishedTickets.map((t) => (
+            {filteredTickets.map((t) => (
               <FinishedTicketCard key={t.id} ticket={t} onView={handleViewTicket} />
             ))}
           </div>
