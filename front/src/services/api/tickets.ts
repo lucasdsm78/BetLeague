@@ -14,11 +14,28 @@ import type {
 import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../../types/entities/ticket';
 import { mapApiTicketToUi, tryMapApiTicketToUi } from '../mappers/ticketMapper';
 
+export type TicketsListParams = {
+  page?: number;
+  pageSize?: number;
+  leagueId?: number | null;
+  isTournament?: boolean | null;
+};
+
+function buildTicketsQuery(params?: TicketsListParams): string {
+  const q = new URLSearchParams();
+  if (!params) return '';
+  if (typeof params.page === 'number') q.set('page', String(params.page));
+  if (typeof params.pageSize === 'number') q.set('page_size', String(params.pageSize));
+  if (typeof params.leagueId === 'number') q.set('league_id', String(params.leagueId));
+  if (params.isTournament === true) q.set('is_tournament', 'true');
+  return q.toString();
+}
+
 function normalizeInProgress(
   data: ApiTicketsInProgressResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown
 ): TicketsInProgressResponse {
-  const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
-  const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
+  const ticketsPayload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
+  const tickets = Array.isArray(ticketsPayload) ? (ticketsPayload as ApiTicketReadModel[]) : [];
 
   const mapped: TicketReadModel[] = [];
   for (const t of tickets) {
@@ -26,14 +43,18 @@ function normalizeInProgress(
     if (ui) mapped.push(ui);
   }
 
-  return { tickets: mapped };
+  const total = typeof (data as any)?.total === 'number' ? (data as any).total : undefined;
+  const page = typeof (data as any)?.page === 'number' ? (data as any).page : undefined;
+  const page_size = typeof (data as any)?.page_size === 'number' ? (data as any).page_size : undefined;
+
+  return { tickets: mapped, total, page, page_size };
 }
 
 function normalizeFinished(
   data: ApiTicketsFinishedResponse | { tickets?: ApiTicketReadModel[] } | ApiTicketReadModel[] | unknown
 ): TicketsFinishedResponse {
-  const payload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
-  const tickets = Array.isArray(payload) ? (payload as ApiTicketReadModel[]) : [];
+  const ticketsPayload = (data as any)?.tickets ?? (data as any)?.ticket ?? data;
+  const tickets = Array.isArray(ticketsPayload) ? (ticketsPayload as ApiTicketReadModel[]) : [];
 
   const mapped: TicketReadModel[] = [];
   for (const t of tickets) {
@@ -41,7 +62,11 @@ function normalizeFinished(
     if (ui) mapped.push(ui);
   }
 
-  return { tickets: mapped };
+  const total = typeof (data as any)?.total === 'number' ? (data as any).total : undefined;
+  const page = typeof (data as any)?.page === 'number' ? (data as any).page : undefined;
+  const page_size = typeof (data as any)?.page_size === 'number' ? (data as any).page_size : undefined;
+
+  return { tickets: mapped, total, page, page_size };
 }
 
 export async function createTicket(leagueId: number, payload: ApiTicketCreateRequest): Promise<ApiTicketCreateResponse> {
@@ -50,13 +75,15 @@ export async function createTicket(leagueId: number, payload: ApiTicketCreateReq
   return res.data as ApiTicketCreateResponse;
 }
 
-export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
+export async function getInProgressTickets(params?: TicketsListParams): Promise<TicketsInProgressResponse> {
   const endpoints = ['/tickets/in-progress', '/ticket/in-progress', '/tickets/in_progress', '/ticket/in_progress'];
+  const query = buildTicketsQuery(params);
 
   let lastError: unknown;
   for (const endpoint of endpoints) {
     try {
-      const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(endpoint, {
+      const url = query ? `${endpoint}?${query}` : endpoint;
+      const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(url, {
         skipCache: true,
         cache: 'no-store',
       });
@@ -69,13 +96,13 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
             ? raw
             : [];
         // eslint-disable-next-line no-console
-        console.log('[tickets][in-progress]', { endpoint, status: res.status, rawCount: rawTickets.length });
+        console.log('[tickets][in-progress]', { endpoint, status: res.status, rawCount: rawTickets.length, query });
       }
 
       const normalized = normalizeInProgress(res.data);
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.log('[tickets][in-progress][mapped]', { endpoint, mappedCount: normalized.tickets.length });
+        console.log('[tickets][in-progress][mapped]', { endpoint, mappedCount: normalized.tickets.length, total: normalized.total });
       }
       return normalized;
     } catch (e) {
@@ -86,9 +113,12 @@ export async function getInProgressTickets(): Promise<TicketsInProgressResponse>
   throw (lastError instanceof Error ? lastError : new Error('Récupération des tickets en cours échouée'));
 }
 
-export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
+export async function getFinishedTickets(params?: TicketsListParams): Promise<TicketsFinishedResponse> {
+  const query = buildTicketsQuery(params);
+
   try {
-    const res: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/tickets/finished', {
+    const url = query ? `/tickets/finished?${query}` : '/tickets/finished';
+    const res: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get(url, {
       skipCache: true,
       cache: 'no-store',
     });
@@ -97,7 +127,8 @@ export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
     // ignore pour tenter le fallback
   }
 
-  const fallback: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get('/ticket/finished', {
+  const fallbackUrl = query ? `/ticket/finished?${query}` : '/ticket/finished';
+  const fallback: ApiResponse<ApiTicketsFinishedResponse | ApiTicketReadModel[]> = await http.get(fallbackUrl, {
     skipCache: true,
     cache: 'no-store',
   });
