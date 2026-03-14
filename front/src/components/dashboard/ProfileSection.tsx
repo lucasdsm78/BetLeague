@@ -6,6 +6,7 @@ import { useEnableTwoFactorMutation, useVerifyTwoFactorMutation } from '../../ho
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
+import ChangePasswordModal from './ChangePasswordModal';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import type { TwoFactorSetup } from '../../types/entities/twoFactor';
 import PushNotificationToggle from '../notifications/PushNotificationToggle';
@@ -172,6 +173,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const startEnable = useCallback(async () => {
     setError(null);
@@ -252,6 +254,14 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
   const enabling = enable2faMutation.isPending;
   const verifying = verify2faMutation.isPending;
   const isBusy = enabling || verifying;
+
+  const openChangePassword = useCallback(() => {
+    setIsChangePasswordOpen(true);
+  }, []);
+
+  const closeChangePassword = useCallback(() => {
+    setIsChangePasswordOpen(false);
+  }, []);
 
   return (
     <div className="settings-section">
@@ -396,12 +406,18 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
             <p>Modifiez votre mot de passe régulièrement pour plus de sécurité</p>
           </div>
           <div className="option-action">
-            <button className="btn btn-secondary">Changer le mot de passe</button>
+            <button className="btn btn-secondary" onClick={openChangePassword}>
+              Changer le mot de passe
+            </button>
           </div>
         </div>
       </div>
 
       <DeleteAccountCard isTwoFactorEnabled={!!enabled} />
+
+      {isChangePasswordOpen && (
+        <ChangePasswordModal isTwoFactorEnabled={!!enabled} onClose={closeChangePassword} />
+      )}
     </div>
   );
 });

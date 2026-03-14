@@ -21,6 +21,12 @@ class DeleteMyAccountModel(BaseModel):
     two_fa_code: Optional[str] = Field(default=None, min_length=6, max_length=6)
 
 
+class ChangeMyPasswordModel(BaseModel):
+    current_password: str = Field(min_length=8, max_length=255)
+    new_password: str = Field(min_length=8, max_length=255)
+    two_fa_code: Optional[str] = Field(default=None, min_length=6, max_length=6)
+
+
 class UserCreateResponse(BaseModel):
     message: str = "The user is well created"
 
@@ -33,6 +39,11 @@ class UserUpdateResponse(BaseModel):
 
 class UserDeleteResponse(BaseModel):
     message: str = "Compte supprimé avec succès."
+
+
+class ChangeMyPasswordResponse(BaseModel):
+    message: str = "Mot de passe mis à jour."
+    reauth_required: bool = True
 
 
 class UserLoginModel(BaseModel):

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta, UTC
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel,
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel,
-    UserUpdateResponse, RefreshTokenResponse, DeleteMyAccountModel
+    UserUpdateResponse, RefreshTokenResponse, DeleteMyAccountModel,
+    ChangeMyPasswordModel, ChangeMyPasswordResponse,
 )
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
@@ -64,6 +65,11 @@ class UserCommandUseCase(ABC):
     @abstractmethod
     async def logout(self, user_id: str, token: str) -> dict:
         raise NotImplementedError
+
+    @abstractmethod
+    async def change_my_password(self, email: str, token: str, data: ChangeMyPasswordModel) -> ChangeMyPasswordResponse:
+        raise NotImplementedError
+
 
 class UserCommandUseCaseImpl(UserCommandUseCase):
 
@@ -339,3 +345,40 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 status_code=500,
                 detail="Erreur lors de la déconnexion"
             )
+
+    async def change_my_password(self, email: str, token: str, data: ChangeMyPasswordModel) -> ChangeMyPasswordResponse:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        if not await self.hasher.verify(data.current_password, user.password.password):
+            raise InvalidPasswordError(email)
+
+        if data.current_password == data.new_password:
+            raise HTTPException(status_code=400, detail={"message": "Mot de passe invalide.", "code": "INVALID_PASSWORD"})
+
+        if user.is_two_factor_enabled:
+            if not data.two_fa_code:
+                raise FARequiredError()
+            if not user.two_factor_secret:
+                raise HTTPException(status_code=500, detail="2FA secret missing for user")
+            secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+            if not data.two_fa_code.isdigit():
+                raise Invalid2FACodeError()
+            if not await self.totp_service.verify_code(secret, data.two_fa_code):
+                raise Invalid2FACodeError()
+
+        new_hash = await self.hasher.bcrypt(data.new_password)
+        user.password = Password(new_hash)
+
+        try:
+            await self.user_repository.update(user)
+            await self.user_repository.commit()
+        except Exception:
+            await self.user_repository.rollback()
+            raise
+
+        await self.manager_token.invalidate_token(token, str(user.id))
+        await self.manager_token.invalidate_all_user_tokens(str(user.id))
+
+        return ChangeMyPasswordResponse()
