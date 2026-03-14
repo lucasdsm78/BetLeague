@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
-    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse
+    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError
@@ -37,7 +37,11 @@ class LeagueQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_invitations(self, email: str, is_received: bool):
+    async def get_invitations(self, email: str, is_received: bool, status=None, page: int = 1, page_size: int = 20):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_invitation_counts(self, email: str, is_received: bool) -> dict:
         raise NotImplementedError
 
     @abstractmethod
@@ -182,22 +186,40 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             total_pages=total_pages,
         )
 
-    async def get_invitations(self, email: str, is_received: bool) -> List[InvitationReceivedReadModel]:
+    async def get_invitations(
+        self,
+        email: str,
+        is_received: bool,
+        status: InvitationStatus | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> "InvitationsReceivedResponse":
         try:
             user = await self.user_repository.find_by_email(email)
             if not user:
                 raise UserNotFoundError
 
-            grouped_invitations = await self.invitation_repository.find_invitations(
+            total = await self.invitation_repository.count_received_invitations(
                 user_id=user.id,
-                status=InvitationStatus.pending,
-                is_received=is_received
+                status=status,
             )
 
-            invitation_models = []
+            db_invitations = await self.invitation_repository.find_received_invitations(
+                user_id=user.id,
+                status=status,
+                page=page,
+                page_size=page_size,
+            )
 
-            for invitation in grouped_invitations.get("pending", []):
-                league = await self.league_repository.find_by_id(invitation.league_id)
+            result = InvitationsReceivedResponse(
+                total=total, page=page, page_size=page_size
+            )
+
+            if not db_invitations:
+                return result
+
+            for db_inv in db_invitations:
+                league = db_inv.league
 
                 league_summary = LeagueInvitationReceivedSummary(
                     id=league.id,
@@ -212,16 +234,22 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                     is_started=league.is_started
                 )
 
-                invitation_models.append(InvitationReceivedReadModel(
-                    id=invitation.id,
+                result.invitations.append(InvitationReceivedReadModel(
+                    id=db_inv.id,
                     league=league_summary,
-                    status=invitation.status.value
+                    status=db_inv.status
                 ))
 
-            return invitation_models
+            return result
 
         except Exception as e:
             raise e
+
+    async def get_invitation_counts(self, email: str, is_received: bool) -> dict:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+        return await self.invitation_repository.count_by_status(user.id, is_received)
 
     async def get_leagues_balances(self, email: str, league_ids: List[int]) -> LeagueBalancesBulkResponse:
         user = await self.user_repository.find_by_email(email)

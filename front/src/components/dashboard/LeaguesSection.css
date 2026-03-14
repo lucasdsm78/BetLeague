@@ -539,6 +539,111 @@
   color: white;
 }
 
+/* ===== Invitation Filter Bar ===== */
+.invitation-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem 0;
+  flex-wrap: wrap;
+}
+
+.invitation-filter-bar .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-full, 999px);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.invitation-filter-bar .filter-chip:hover {
+  border-color: var(--border-color-strong, var(--border-color));
+  color: var(--text-primary);
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.invitation-filter-bar .filter-chip:active {
+  transform: scale(0.96);
+}
+
+.invitation-filter-bar .filter-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(0, 210, 255, 0.22),
+    0 0 0 1px rgba(0, 210, 255, 0.55) inset;
+  border-color: rgba(0, 210, 255, 0.55);
+}
+
+.invitation-filter-bar .filter-chip:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+.invitation-filter-bar .filter-chip.active {
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.filter-chip--inv-all.active {
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+  box-shadow: 0 2px 10px rgba(0, 210, 255, 0.35);
+}
+
+.filter-chip--inv-pending.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+
+.filter-chip--inv-accepted.active {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.35);
+}
+
+.filter-chip--inv-refused.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+}
+
+.filter-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-chip-label {
+  line-height: 1;
+}
+
+.filter-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  line-height: 1;
+}
+
+.invitation-filter-bar .filter-chip:not(.active) .filter-chip-count {
+  background: var(--bg-tertiary, var(--bg-secondary));
+  color: var(--text-secondary);
+}
+
 /* Invitations */
 .invitations-list {
   display: flex;
@@ -560,6 +665,31 @@
 .invitation-card:hover {
   box-shadow: var(--shadow-sm);
 }
+
+.invitation-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.invitation-card-header-row .league-name {
+  margin: 0;
+}
+
+.invitation-card-header-row .badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-success { background: rgba(34, 197, 94, 0.15); color: var(--success-color); border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-danger  { background: rgba(239, 68, 68, 0.15); color: var(--danger-color); border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .invitation-info {
   flex: 1;
