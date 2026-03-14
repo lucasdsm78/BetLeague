@@ -86,6 +86,19 @@ class InvitationReceivedReadModel(BaseModel):
         arbitrary_types_allowed = True
 
 
+class InvitationsReceivedResponse(BaseModel):
+    invitations: List[InvitationReceivedReadModel] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    page_size: int = 20
+
+
+class InvitationCountsResponse(BaseModel):
+    pending: int = 0
+    accepted: int = 0
+    refused: int = 0
+
+
 class LeaguesListResponse(BaseModel):
     leagues: List[LeagueReadModel] = Field(default_factory=list)
     page: int

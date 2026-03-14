@@ -28,6 +28,24 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_received_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+            page: int = 1,
+            page_size: int = 20,
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_received_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_invitations(
             self,
             user_id: int,
@@ -36,6 +54,10 @@ class InvitationRepository(ABC):
             page: int = 1,
             limit: int = 10
     ) -> Dict[str, List[Invitation]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_by_status(self, user_id: int, is_received: bool) -> Dict[str, int]:
         raise NotImplementedError
 
     @abstractmethod
