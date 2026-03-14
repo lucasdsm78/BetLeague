@@ -26,6 +26,13 @@ export interface MatchChoiceSummary {
   match_odd_summary?: MatchOddSummary | null;
 }
 
+export interface TournamentMatchSummary {
+  tournament_match_id: number;
+  tournament_id: number;
+  stage_id: number;
+  type: string;
+}
+
 export interface TicketReadModel {
   id: number;
   mise: number;
@@ -33,7 +40,7 @@ export interface TicketReadModel {
   gain: number;
   status: string;
   league_summary?: TicketLeagueSummary | null;
-  tournament_match_summary?: unknown | null;
+  tournament_match_summary?: TournamentMatchSummary | null;
   match_choice_summaries: MatchChoiceSummary[];
 }
 
