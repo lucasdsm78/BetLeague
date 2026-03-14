@@ -596,11 +596,8 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
   padding: 0.25rem 0;
+  flex-wrap: wrap;
 }
 
 /* --- Chip base --- */
@@ -671,6 +668,115 @@
 .filter-chip--tournament.active {
   background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
   box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+
+/* --- Dropdown wrapper --- */
+.filter-chip-dropdown-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* --- Chevron & clear --- */
+.filter-chip-chevron {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -0.125rem;
+  opacity: 0.5;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.filter-chip[aria-expanded="true"] .filter-chip-chevron {
+  transform: rotate(180deg);
+  opacity: 0.8;
+}
+
+.filter-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.25);
+  margin-left: 0.125rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.filter-chip-clear:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* --- Dropdown menu --- */
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  min-width: 180px;
+  max-width: 280px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0.25rem;
+  margin: 0;
+  list-style: none;
+  z-index: var(--z-dropdown);
+  animation: filterDropdownIn 0.15s ease-out;
+}
+
+@keyframes filterDropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
+.filter-dropdown-item:focus-visible {
+  outline: none;
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3) inset;
+}
+
+.filter-dropdown-item.selected {
+  background: linear-gradient(135deg, rgba(58, 123, 213, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+  color: #3a7bd5;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .filter-dropdown {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .filter-dropdown-item:hover {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .filter-dropdown-item.selected {
+  background: linear-gradient(135deg, rgba(58, 123, 213, 0.2) 0%, rgba(129, 140, 248, 0.2) 100%);
+  color: #818cf8;
 }
 
 /* --- Icon --- */

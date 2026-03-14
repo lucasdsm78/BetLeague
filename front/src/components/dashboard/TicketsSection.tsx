@@ -1,6 +1,13 @@
-import React, { useState, useCallback, memo, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo, useMemo } from 'react';
 import './TicketsSection.css';
-import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTickets, type TicketsServerFilter } from '../../hooks/queries/useTicketsQueries';
+import {
+  useInProgressTicketsQuery,
+  useFinishedTicketsQuery,
+  useInvalidateTickets,
+  type TicketsServerFilter,
+  useInProgressTicketsMetaQuery,
+  useFinishedTicketsMetaQuery,
+} from '../../hooks/queries/useTicketsQueries';
 import { resolveTicketsFilterMode } from '../../hooks/queries/ticketsMode';
 import type { TicketReadModel, MatchChoiceSummary } from '../../types/entities/ticket';
 import TicketDetailModal from './TicketDetailModal';
@@ -20,33 +27,28 @@ interface TicketFilter {
   label: string;
 }
 
+interface LeagueOption {
+  id: number;
+  name: string;
+}
+
 const FILTER_ALL: TicketFilter = { type: 'all', label: 'Tous' };
+const FILTER_TOURNAMENT: TicketFilter = { type: 'tournament', label: 'Tournois' };
 
-function extractFilters(tickets: TicketReadModel[]): TicketFilter[] {
-  const leagueMap = new Map<number, string>();
-  let hasTournament = false;
-
+function extractLeagueOptions(tickets: TicketReadModel[]): LeagueOption[] {
+  const map = new Map<number, string>();
   for (const t of tickets) {
     if (t.league_summary?.id && t.league_summary.name) {
-      leagueMap.set(t.league_summary.id, t.league_summary.name);
-    }
-    if (t.tournament_match_summary) {
-      hasTournament = true;
+      map.set(t.league_summary.id, t.league_summary.name);
     }
   }
+  return Array.from(map.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
-  const filters: TicketFilter[] = [FILTER_ALL];
-
-  const sortedLeagues = Array.from(leagueMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  for (const entry of sortedLeagues) {
-    filters.push({ type: 'league', id: entry[0], label: entry[1] });
-  }
-
-  if (hasTournament) {
-    filters.push({ type: 'tournament', label: 'Tournoi' });
-  }
-
-  return filters;
+function hasTournamentTickets(tickets: TicketReadModel[]): boolean {
+  return tickets.some(t => t.tournament_match_summary != null);
 }
 
 function applyFilter(tickets: TicketReadModel[], filter: TicketFilter): TicketReadModel[] {
@@ -75,42 +77,155 @@ const IconTournament = () => (
   </svg>
 );
 
-const FilterChips: React.FC<{
-  filters: TicketFilter[];
+const IconChevron = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const IconClear = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const TicketFilterBar: React.FC<{
+  leagues: LeagueOption[];
+  hasTournaments: boolean;
   active: TicketFilter;
   onChange: (f: TicketFilter) => void;
-}> = memo(({ filters, active, onChange }) => {
-  if (filters.length <= 1) return null;
+}> = memo(({ leagues, hasTournaments, active, onChange }) => {
+  const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const hasFilters = leagues.length > 0 || hasTournaments;
+
+  useEffect(() => {
+    if (!leagueDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setLeagueDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [leagueDropdownOpen]);
+
+  useEffect(() => {
+    if (!leagueDropdownOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLeagueDropdownOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [leagueDropdownOpen]);
+
+  if (!hasFilters) return null;
+
+  const isAllActive = active.type === 'all';
+  const isLeagueActive = active.type === 'league';
+  const isTournamentActive = active.type === 'tournament';
+  const leagueChipLabel = isLeagueActive ? active.label : 'Ligues';
+
+  const handleLeagueChipClick = () => {
+    if (leagues.length === 1) {
+      if (isLeagueActive && active.id === leagues[0].id) {
+        onChange(FILTER_ALL);
+      } else {
+        onChange({ type: 'league', id: leagues[0].id, label: leagues[0].name });
+      }
+    } else {
+      setLeagueDropdownOpen(prev => !prev);
+    }
+  };
+
+  const handleLeagueSelect = (league: LeagueOption) => {
+    onChange({ type: 'league', id: league.id, label: league.name });
+    setLeagueDropdownOpen(false);
+  };
+
+  const handleClearLeague = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(FILTER_ALL);
+    setLeagueDropdownOpen(false);
+  };
 
   return (
     <div className="ticket-filter-bar" role="group" aria-label="Filtrer par ligue ou tournoi">
-      {filters.map((f) => {
-        const key = f.type === 'all' ? 'all' : f.type === 'tournament' ? 'tournament' : `league-${f.id}`;
-        const isActive =
-          f.type === active.type &&
-          (f.type === 'all' || f.type === 'tournament' || f.id === active.id);
+      <button
+        type="button"
+        className={`filter-chip filter-chip--all${isAllActive ? ' active' : ''}`}
+        onClick={() => onChange(FILTER_ALL)}
+        aria-pressed={isAllActive}
+      >
+        <span className="filter-chip-icon" aria-hidden="true"><IconAll /></span>
+        <span className="filter-chip-label">Tous</span>
+      </button>
 
-        return (
+      {leagues.length > 0 && (
+        <div className="filter-chip-dropdown-wrapper" ref={dropdownRef}>
           <button
-            key={key}
             type="button"
-            className={`filter-chip${isActive ? ' active'  : ''} filter-chip--${f.type}`}
-            onClick={() => onChange(f)}
-            aria-pressed={isActive}
+            className={`filter-chip filter-chip--league${isLeagueActive ? ' active' : ''}`}
+            onClick={handleLeagueChipClick}
+            aria-pressed={isLeagueActive}
+            aria-expanded={leagueDropdownOpen}
+            aria-haspopup={leagues.length > 1 ? 'listbox' : undefined}
           >
-            <span className="filter-chip-icon" aria-hidden="true">
-              {f.type === 'all' && <IconAll />}
-              {f.type === 'league' && <IconLeague />}
-              {f.type === 'tournament' && <IconTournament />}
-            </span>
-            <span className="filter-chip-label">{f.label}</span>
+            <span className="filter-chip-icon" aria-hidden="true"><IconLeague /></span>
+            <span className="filter-chip-label">{leagueChipLabel}</span>
+            {isLeagueActive && (
+              <span
+                className="filter-chip-clear"
+                onClick={handleClearLeague}
+                role="button"
+                aria-label="Retirer le filtre ligue"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClearLeague(e as any); }}
+              >
+                <IconClear />
+              </span>
+            )}
+            {!isLeagueActive && leagues.length > 1 && (
+              <span className="filter-chip-chevron" aria-hidden="true"><IconChevron /></span>
+            )}
           </button>
-        );
-      })}
+
+          {leagueDropdownOpen && leagues.length > 1 && (
+            <ul className="filter-dropdown" role="listbox" aria-label="Sélectionner une ligue">
+              {leagues.map((l) => (
+                <li
+                  key={l.id}
+                  role="option"
+                  aria-selected={isLeagueActive && active.id === l.id}
+                  className={`filter-dropdown-item${isLeagueActive && active.id === l.id ? ' selected' : ''}`}
+                  onClick={() => handleLeagueSelect(l)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleLeagueSelect(l); }}
+                  tabIndex={0}
+                >
+                  {l.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {hasTournaments && (
+        <button
+          type="button"
+          className={`filter-chip filter-chip--tournament${isTournamentActive ? ' active' : ''}`}
+          onClick={() => onChange(isTournamentActive ? FILTER_ALL : FILTER_TOURNAMENT)}
+          aria-pressed={isTournamentActive}
+        >
+          <span className="filter-chip-icon" aria-hidden="true"><IconTournament /></span>
+          <span className="filter-chip-label">Tournois</span>
+        </button>
+      )}
     </div>
   );
 });
-FilterChips.displayName = 'FilterChips';
+TicketFilterBar.displayName = 'TicketFilterBar';
 
 type StatusLabel = 'En cours' | 'Gagné' | 'Perdu' | 'Brouillon';
 
@@ -395,14 +510,13 @@ const TicketsSection: React.FC = memo(() => {
 
   const envForceServer = process.env.REACT_APP_TICKETS_SERVER_FILTER === 'true';
 
-  // 1) On récupère la page non filtrée (mode client) pour afficher et calculer total; page_size=100 pour limiter le coût.
-  // 2) Si le mode server est activé, on refetch avec query params selon le chip.
-  const baseInProgressQuery = useInProgressTicketsQuery({ page: 1, pageSize: 100 });
-  const baseFinishedQuery = useFinishedTicketsQuery({ page: 1, pageSize: 100 });
+  // Meta queries: 1 seul ticket pour obtenir `total` sans tirer toute la liste.
+  const inProgressMeta = useInProgressTicketsMetaQuery();
+  const finishedMeta = useFinishedTicketsMetaQuery();
 
   const baseTotal = activeTab === 'current'
-    ? (baseInProgressQuery.data?.total ?? baseInProgressQuery.data?.tickets?.length ?? 0)
-    : (baseFinishedQuery.data?.total ?? baseFinishedQuery.data?.tickets?.length ?? 0);
+    ? (inProgressMeta.data?.total ?? 0)
+    : (finishedMeta.data?.total ?? 0);
 
   const filterMode = useMemo(() => {
     return resolveTicketsFilterMode({
@@ -420,21 +534,30 @@ const TicketsSection: React.FC = memo(() => {
     return { leagueId: null, isTournament: null };
   }, [filterMode.mode, activeFilter]);
 
-  const serverInProgressQuery = useInProgressTicketsQuery(
-    filterMode.mode === 'server'
-      ? { page: 1, pageSize: 20, filter: serverFilter }
-      : undefined,
+  // Liste non filtrée: toujours active pour alimenter le dropdown de ligues (même en mode server).
+  const clientListPageSize = 100;
+
+  const clientInProgressQuery = useInProgressTicketsQuery(
+    { page: 1, pageSize: clientListPageSize },
     { refetchIntervalMs: 30_000 }
   );
 
-  const serverFinishedQuery = useFinishedTicketsQuery(
-    filterMode.mode === 'server'
-      ? { page: 1, pageSize: 20, filter: serverFilter }
-      : undefined
+  const clientFinishedQuery = useFinishedTicketsQuery(
+    { page: 1, pageSize: clientListPageSize },
   );
 
-  const inProgressQuery = filterMode.mode === 'server' ? serverInProgressQuery : baseInProgressQuery;
-  const finishedQuery = filterMode.mode === 'server' ? serverFinishedQuery : baseFinishedQuery;
+  const serverInProgressQuery = useInProgressTicketsQuery(
+    { page: 1, pageSize: 20, filter: serverFilter },
+    { enabled: filterMode.mode === 'server', refetchIntervalMs: 30_000 }
+  );
+
+  const serverFinishedQuery = useFinishedTicketsQuery(
+    { page: 1, pageSize: 20, filter: serverFilter },
+    { enabled: filterMode.mode === 'server' }
+  );
+
+  const inProgressQuery = filterMode.mode === 'server' ? serverInProgressQuery : clientInProgressQuery;
+  const finishedQuery = filterMode.mode === 'server' ? serverFinishedQuery : clientFinishedQuery;
 
   const tickets = inProgressQuery.data?.tickets ?? [];
   const loading = inProgressQuery.isLoading;
@@ -448,9 +571,12 @@ const TicketsSection: React.FC = memo(() => {
 
   const ticketsWithoutDeleted = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
 
-  // Extract available filters from current tab's tickets
-  const currentTabTickets = activeTab === 'current' ? ticketsWithoutDeleted : finishedTickets;
-  const availableFilters = useMemo(() => extractFilters(currentTabTickets), [currentTabTickets]);
+  // Extract filter options from UNFILTERED data (client queries) so dropdown always shows all leagues.
+  const allInProgressTickets = clientInProgressQuery.data?.tickets ?? [];
+  const allFinishedTickets = clientFinishedQuery.data?.tickets ?? [];
+  const allCurrentTabTickets = activeTab === 'current' ? allInProgressTickets : allFinishedTickets;
+  const leagueOptions = useMemo(() => extractLeagueOptions(allCurrentTabTickets), [allCurrentTabTickets]);
+  const showTournaments = useMemo(() => hasTournamentTickets(allCurrentTabTickets), [allCurrentTabTickets]);
 
   // Reset filter on tab change
   const handleTabChange = useCallback((tab: TabType) => {
@@ -578,7 +704,7 @@ const TicketsSection: React.FC = memo(() => {
         </button>
       </div>
 
-      <FilterChips filters={availableFilters} active={activeFilter} onChange={setActiveFilter} />
+      <TicketFilterBar leagues={leagueOptions} hasTournaments={showTournaments} active={activeFilter} onChange={setActiveFilter} />
 
       {activeTab === 'current' && (
         <>
