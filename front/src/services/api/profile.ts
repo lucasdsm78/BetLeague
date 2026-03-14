@@ -6,9 +6,6 @@ import type { ApiUpdateUserPayload, ApiUpdateUserResponse, ApiUserProfile } from
 
 export async function updateUserProfile(payload: ApiUpdateUserPayload): Promise<ApiUserProfile> {
   const res: ApiResponse<ApiUpdateUserResponse | ApiUserProfile> = await http.put('/auth/user', payload);
-  if (!res.success) {
-    throw new Error(res.error || 'Échec de la mise à jour du profil');
-  }
 
   const data: any = res.data;
   const user = data?.user ?? data;

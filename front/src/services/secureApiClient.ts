@@ -366,13 +366,13 @@ class SecureApiClient {
     }
 
     if (!response.ok) {
-      const { message } = await this.parseErrorResponse(response);
-      return {
-        success: false,
-        error: message,
+      const parsed = await this.parseErrorResponse(response);
+      throw new ApiClientError(parsed.message, {
         status,
+        code: parsed.code,
+        details: parsed.details,
         headers,
-      };
+      });
     }
 
     try {
@@ -408,12 +408,13 @@ class SecureApiClient {
         headers,
       };
     } catch (error) {
-      return {
-        success: false,
-        error: 'Failed to parse response',
+      // Parsing error => erreur cliente (statut conservé)
+      throw new ApiClientError('Failed to parse response', {
         status,
+        code: 'PARSE_ERROR',
+        details: error,
         headers,
-      };
+      });
     }
   }
 

@@ -108,31 +108,25 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
       const response = await updateProfileMutation.mutateAsync(updateData);
 
-      if (response.success) {
-        setSuccess(true);
+      setSuccess(true);
 
-        // Marquer si l'email a changé
-        if (hasEmailChanged) {
-          setEmailChanged(true);
-        }
-
-        toast.showSuccess(
-          'Profil mis à jour',
-          hasEmailChanged ? 'Email mis à jour. Votre session peut être rafraîchie.' : 'Modifications enregistrées.'
-        );
-
-        // Délai pour lire le message (plus long si email changé)
-        const delay = hasEmailChanged ? 2000 : 1500;
-
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, delay);
-      } else {
-        const msg = response.error || 'Échec de la mise à jour du profil';
-        setErrors({ general: msg });
-        toast.showError('Mise à jour impossible', msg);
+      // Marquer si l'email a changé
+      if (hasEmailChanged) {
+        setEmailChanged(true);
       }
+
+      toast.showSuccess(
+        'Profil mis à jour',
+        hasEmailChanged ? 'Email mis à jour. Votre session peut être rafraîchie.' : 'Modifications enregistrées.'
+      );
+
+      // Délai pour lire le message (plus long si email changé)
+      const delay = hasEmailChanged ? 2000 : 1500;
+
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, delay);
     } catch (error: any) {
       console.error('Erreur lors de la mise à jour du profil:', error);
 

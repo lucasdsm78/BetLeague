@@ -48,7 +48,6 @@ export function useJoinLeagueMutation() {
       if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
       // Backend: POST /league/{id}/join
       const res = await secureApiClient.post<{ message?: string }>(`/league/${leagueId}/join`);
-      if (!res.success) throw new Error(res.error || 'Impossible de rejoindre la ligue');
       return res.data ?? {};
     },
     onSuccess: async () => {

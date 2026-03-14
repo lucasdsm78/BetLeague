@@ -8,33 +8,24 @@ import type { ApiChangePasswordRequest, ApiChangePasswordResponse } from '../../
 
 export async function updateProfile(data: ApiUpdateProfileData): Promise<ApiUpdateProfileResponse> {
   const res: ApiResponse<ApiUpdateProfileResponse> = await http.put('/auth/user', data);
-  if (!res.success) {
-    throw new Error(res.error || 'Échec de la mise à jour du profil');
-  }
+  if (!res.data) throw new Error('Échec de la mise à jour du profil');
   return res.data as ApiUpdateProfileResponse;
 }
 
 export async function checkPseudoAvailability(pseudo: string): Promise<boolean> {
   const res: ApiResponse<{ available: boolean }> = await http.get(`/auth/check-pseudo?pseudo=${encodeURIComponent(pseudo)}`);
-  if (!res.success) {
-    // fallback: laisser le serveur valider
-    return true;
-  }
-  return res.data?.available ?? false;
+  return res.data?.available ?? true;
 }
 
 export async function checkEmailAvailability(email: string): Promise<boolean> {
   const res: ApiResponse<{ available: boolean }> = await http.get(`/auth/check-email?email=${encodeURIComponent(email)}`);
-  if (!res.success) {
-    return true;
-  }
-  return res.data?.available ?? false;
+  return res.data?.available ?? true;
 }
 
 export async function getCurrentUserProfile(): Promise<ApiUserProfile> {
   const res: ApiResponse<ApiUserProfile> = await http.get('/auth/me');
-  if (!res.success || !res.data) {
-    throw new Error(res.error || 'Impossible de récupérer le profil utilisateur');
+  if (!res.data) {
+    throw new Error('Impossible de récupérer le profil utilisateur');
   }
   return res.data as ApiUserProfile;
 }
@@ -44,8 +35,8 @@ export async function deleteMyAccount(payload: ApiDeleteMyAccountRequest): Promi
     body: JSON.stringify(payload),
   });
 
-  if (!res.success || !res.data) {
-    throw new Error(res.error || 'Suppression du compte impossible');
+  if (!res.data) {
+    throw new Error('Suppression du compte impossible');
   }
 
   return res.data as ApiDeleteMyAccountResponse;
@@ -53,8 +44,6 @@ export async function deleteMyAccount(payload: ApiDeleteMyAccountRequest): Promi
 
 export async function changeMyPassword(payload: ApiChangePasswordRequest): Promise<ApiChangePasswordResponse> {
   const res: ApiResponse<ApiChangePasswordResponse> = await http.post('/auth/change-password', payload);
-  if (!res.success || !res.data) {
-    throw new Error(res.error || 'Changement de mot de passe impossible');
-  }
+  if (!res.data) throw new Error('Changement de mot de passe impossible');
   return res.data as ApiChangePasswordResponse;
 }

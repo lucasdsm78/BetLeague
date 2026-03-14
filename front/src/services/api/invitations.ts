@@ -9,7 +9,6 @@ export type InvitationActionResponse = ApiInvitationActionResponse;
 
 export async function getReceivedInvitations(): Promise<ApiInvitationReceived[]> {
   const res: ApiResponse<ApiInvitationReceived[]> = await http.get('/invitations?is_received=true');
-  if (!res.success) throw new Error(res.error || 'Erreur lors du chargement des invitations');
 
   const data = res.data;
   if (!data) return [];
@@ -21,6 +20,5 @@ export async function updateInvitation(invitationId: number, accept: boolean): P
   if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
   const endpoint = `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`;
   const res: ApiResponse<InvitationActionResponse> = await http.put(endpoint);
-  if (!res.success) throw new Error(res.error || "Erreur lors de la mise à jour de l'invitation");
   return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
 }
