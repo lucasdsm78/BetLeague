@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     password_reset_token_ttl_s: int = Field(default=600, validation_alias="PASSWORD_RESET_TOKEN_TTL_S")
     password_reset_rate_limit_per_minute: int = Field(default=5, validation_alias="PASSWORD_RESET_RATE_LIMIT_PER_MINUTE")
     password_reset_log_notifier_enabled: bool = Field(default=False, validation_alias="PASSWORD_RESET_LOG_NOTIFIER_ENABLED")
+    delete_account_rate_limit_per_minute: int = Field(default=3, validation_alias="DELETE_ACCOUNT_RATE_LIMIT_PER_MINUTE")
+    delete_account_rate_limit_window_s: int = Field(default=60, validation_alias="DELETE_ACCOUNT_RATE_LIMIT_WINDOW_S")
+    auth_redis_fail_closed: bool = Field(default=False, validation_alias="AUTH_REDIS_FAIL_CLOSED")
+    auth_tokens_invalid_before_ttl_s: int = Field(default=60 * 60 * 24 * 90, validation_alias="AUTH_TOKENS_INVALID_BEFORE_TTL_S")
+    auth_blacklisted_jti_ttl_grace_s: int = Field(default=60, validation_alias="AUTH_BLACKLISTED_JTI_TTL_GRACE_S")
 
     class Config:
         env_file = ".env"

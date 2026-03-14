@@ -24,6 +24,8 @@ class DBUser(Base):
     password = Column(String(255), nullable=False)
     created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    deleted_at: Union[Optional[int], Column] = Column(BigInteger, index=True, nullable=True)
+    auth_revoked_at: Union[Optional[int], Column] = Column(BigInteger, nullable=True)
     pseudo: Union[str, Column] = Column(String, nullable=False)
     nb_win: Union[int, Column] = Column(Integer, default=0)
     nb_lose: Union[int, Column] = Column(Integer, default=0)
@@ -59,7 +61,9 @@ class DBUser(Base):
             btl_from_tickets=self.btl_from_tickets,
             two_factor_secret=self.two_factor_secret,
             is_two_factor_enabled=self.is_two_factor_enabled,
-            is_two_factor_verified=self.is_two_factor_verified
+            is_two_factor_verified=self.is_two_factor_verified,
+            deleted_at=self.deleted_at,
+            auth_revoked_at=self.auth_revoked_at,
         )
 
     @staticmethod
@@ -74,6 +78,8 @@ class DBUser(Base):
         user_db_to_update.created_at = user_db_to_update.created_at if db_user is not None else now
         user_db_to_update.is_tournament_subscriber = user.is_tournament_subscriber
         user_db_to_update.updated_at = now
+        user_db_to_update.deleted_at = user.deleted_at
+        user_db_to_update.auth_revoked_at = user.auth_revoked_at
         user_db_to_update.pseudo = user.pseudo
         user_db_to_update.nb_lose = user.nb_lose
         user_db_to_update.nb_btl = user.nb_btl

@@ -98,7 +98,10 @@ services:
       context: back
       dockerfile: Dockerfile
     container_name: fastapi_app
-    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    command:
+      - sh
+      - -lc
+      - ./scripts/run_migrations.sh && uvicorn main:app --host 0.0.0.0 --port 8001 --reload
     volumes:
       - ./back:/app
     ports:

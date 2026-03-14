@@ -4,8 +4,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 from contextlib import asynccontextmanager
 
-from dependency_injections import get_settings
+from dependency_injections import get_settings, token_blacklist_singleton
 from infrastructure.logging_config import setup_logging
+from infrastructure.services.authentication.token_blacklist_impl import shutdown_token_blacklist_service, start_token_blacklist_service
 
 from presentation.user.user_router import router as user_router
 from presentation.league.league_router import router as league_router
@@ -30,7 +31,12 @@ async def lifespan(app: FastAPI):
     # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
     init_models()
 
+    blacklist_service = token_blacklist_singleton()
+    await start_token_blacklist_service(blacklist_service)
+
     yield
+
+    await shutdown_token_blacklist_service(blacklist_service)
 
 
 app = FastAPI(lifespan=lifespan)

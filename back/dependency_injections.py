@@ -58,7 +58,7 @@ from domain.services.push.web_push_service import WebPushService
 from functools import lru_cache
 from typing import Iterator, AsyncGenerator, Callable
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm.session import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
@@ -140,8 +140,22 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def manager_token_dependency(settings: Settings = Depends(get_settings)) -> ManagerToken:
-    return JwtManagerTokenImpl(settings=settings)
+from domain.services.authentication.token_blacklist import TokenBlacklistService
+from infrastructure.services.authentication.token_blacklist_impl import build_token_blacklist
+
+
+@lru_cache()
+def token_blacklist_singleton() -> TokenBlacklistService:
+    settings = get_settings()
+    r = redis_client_singleton()
+    return build_token_blacklist(settings=settings, redis=r)
+
+
+def manager_token_dependency(
+    settings: Settings = Depends(get_settings),
+    blacklist: TokenBlacklistService = Depends(token_blacklist_singleton),
+) -> ManagerToken:
+    return JwtManagerTokenImpl(settings=settings, blacklist=blacklist)
 
 
 def hash_dependency() -> Hash:
@@ -600,11 +614,31 @@ async def authentication(
 
 async def current_user(
         token: str = Depends(authentication),
-        manager_token: ManagerToken = Depends(manager_token_dependency)
+        manager_token: ManagerToken = Depends(manager_token_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
 ) -> dict:
     decoded = await manager_token.verify_token(token)  # Use verify_token to check blacklist
-    if decoded:
-        decoded['token'] = token  # Add original token for logout operations
+    if not decoded:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide ou expiré",
+        )
+
+    user_email = decoded.get("email")
+    if not user_email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide",
+        )
+
+    user = await user_repository.find_by_email(user_email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Utilisateur non trouvé ou supprimé",
+        )
+
+    decoded['token'] = token  # Add original token for logout operations
     return decoded
 
 
@@ -799,3 +833,62 @@ def password_reset_usecase(
         totp_service=totp_service,
         settings=settings,
     )
+
+
+from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
+from infrastructure.security.redis_rate_limiter import RedisSlidingWindowRateLimiter
+
+
+@lru_cache()
+def delete_account_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "delete_account_rate_limit_per_minute", 3)),
+        window_s=int(getattr(settings, "delete_account_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_delete_account_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    # Singleton pour réutiliser _script_sha => évite SCRIPT LOAD à chaque requête
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_delete_my_account(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(delete_account_rate_limiter_singleton),
+):
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    key = f"delete_my_account:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "delete_account_rate_limit_per_minute", 3))
+    window_s = int(getattr(settings, "delete_account_rate_limit_window_s", 60))
+
+    redis_limiter = redis_delete_account_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(
+            key=key,
+            limit=limit,
+            window_s=window_s,
+        )
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True
