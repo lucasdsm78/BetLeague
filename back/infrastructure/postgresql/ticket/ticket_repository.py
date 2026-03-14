@@ -82,14 +82,28 @@ class TicketRepositoryImpl(TicketRepository):
         bet_db = result.scalar_one_or_none()
         return bet_db.to_entity() if bet_db else None
 
-    async def find_all_in_progress_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[DBTicket]:
+    async def find_all_in_progress_by_user_id(
+            self,
+            user_id: int,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> List[DBTicket]:
         offset = (page - 1) * page_size
+
+        filters = [
+            DBTicket.user_id == user_id,
+            DBTicket.status == TicketStatus.pending.value,
+        ]
+        if league_id is not None:
+            filters.append(DBTicket.league_id == int(league_id))
+        if is_tournament is True:
+            filters.append(DBTicket.tournament_match_id.is_not(None))
+
         query = (
             select(DBTicket)
-            .where(
-                DBTicket.user_id == user_id,
-                DBTicket.status == TicketStatus.pending.value
-            )
+            .where(*filters)
             .options(
                 selectinload(DBTicket.league),
                 selectinload(DBTicket.tournament_match),
@@ -104,23 +118,46 @@ class TicketRepositoryImpl(TicketRepository):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def count_in_progress_by_user_id(self, user_id: int) -> int:
-        result = await self.session.execute(
-            select(func.count(DBTicket.id)).where(
-                DBTicket.user_id == user_id,
-                DBTicket.status == TicketStatus.pending.value
-            )
-        )
+    async def count_in_progress_by_user_id(
+            self,
+            user_id: int,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> int:
+        filters = [
+            DBTicket.user_id == user_id,
+            DBTicket.status == TicketStatus.pending.value,
+        ]
+        if league_id is not None:
+            filters.append(DBTicket.league_id == int(league_id))
+        if is_tournament is True:
+            filters.append(DBTicket.tournament_match_id.is_not(None))
+
+        result = await self.session.execute(select(func.count(DBTicket.id)).where(*filters))
         return result.scalar_one()
 
-    async def find_all_finished_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[DBTicket]:
+    async def find_all_finished_by_user_id(
+            self,
+            user_id: int,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> List[DBTicket]:
         offset = (page - 1) * page_size
+
+        filters = [
+            DBTicket.user_id == user_id,
+            DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value]),
+        ]
+        if league_id is not None:
+            filters.append(DBTicket.league_id == int(league_id))
+        if is_tournament is True:
+            filters.append(DBTicket.tournament_match_id.is_not(None))
+
         query = (
             select(DBTicket)
-            .where(
-                DBTicket.user_id == user_id,
-                DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value])
-            )
+            .where(*filters)
             .options(
                 selectinload(DBTicket.league),
                 selectinload(DBTicket.tournament_match),
@@ -135,15 +172,23 @@ class TicketRepositoryImpl(TicketRepository):
         result = await self.session.execute(query)
         return result.scalars().all()
 
-    async def count_finished_by_user_id(self, user_id: int) -> int:
-        result = await self.session.execute(
-            select(func.count(DBTicket.id)).where(
-                DBTicket.user_id == user_id,
-                DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value])
-            )
-        )
-        return result.scalar_one()
+    async def count_finished_by_user_id(
+            self,
+            user_id: int,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> int:
+        filters = [
+            DBTicket.user_id == user_id,
+            DBTicket.status.in_([TicketStatus.correct.value, TicketStatus.wrong.value]),
+        ]
+        if league_id is not None:
+            filters.append(DBTicket.league_id == int(league_id))
+        if is_tournament is True:
+            filters.append(DBTicket.tournament_match_id.is_not(None))
 
+        result = await self.session.execute(select(func.count(DBTicket.id)).where(*filters))
+        return result.scalar_one()
 
     async def update(self, ticket: Ticket):
         result = await self.session.execute(

@@ -242,16 +242,32 @@ async def update_ticket(
 async def get_tickets_in_progress(
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100),
+        league_id: int | None = Query(None, ge=1),
+        is_tournament: bool | None = Query(None),
         ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        tickets = await ticket_query_usecase.get_tickets_in_progress(current_user.get('email', ''), page, page_size)
+        if league_id is not None and is_tournament is True:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Choisissez soit league_id soit is_tournament=true (pas les deux).",
+            )
+
+        tickets = await ticket_query_usecase.get_tickets_in_progress(
+            current_user.get('email', ''),
+            page,
+            page_size,
+            league_id=league_id,
+            is_tournament=is_tournament,
+        )
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -259,6 +275,7 @@ async def get_tickets_in_progress(
         )
 
     return tickets
+
 
 @router.get(
     "/tickets/finished",
@@ -269,16 +286,32 @@ async def get_tickets_in_progress(
 async def get_tickets_finished(
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100),
+        league_id: int | None = Query(None, ge=1),
+        is_tournament: bool | None = Query(None),
         ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        tickets = await ticket_query_usecase.get_tickets_finished(current_user.get('email', ''), page, page_size)
+        if league_id is not None and is_tournament is True:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Choisissez soit league_id soit is_tournament=true (pas les deux).",
+            )
+
+        tickets = await ticket_query_usecase.get_tickets_finished(
+            current_user.get('email', ''),
+            page,
+            page_size,
+            league_id=league_id,
+            is_tournament=is_tournament,
+        )
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

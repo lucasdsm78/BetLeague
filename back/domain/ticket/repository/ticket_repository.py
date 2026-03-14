@@ -15,19 +15,43 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all_in_progress_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[Ticket]:
+    async def find_all_in_progress_by_user_id(
+            self,
+            user_id: int,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> List[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    async def count_in_progress_by_user_id(self, user_id: int) -> int:
+    async def count_in_progress_by_user_id(
+            self,
+            user_id: int,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all_finished_by_user_id(self, user_id: int, page: int = 1, page_size: int = 20) -> List[Ticket]:
+    async def find_all_finished_by_user_id(
+            self,
+            user_id: int,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> List[Ticket]:
         raise NotImplementedError
 
     @abstractmethod
-    async def count_finished_by_user_id(self, user_id: int) -> int:
+    async def count_finished_by_user_id(
+            self,
+            user_id: int,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod
