@@ -7,7 +7,8 @@ from fastapi.responses import StreamingResponse
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
     UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
-    InvalidPasswordError, DeleteMyAccountModel
+    InvalidPasswordError, DeleteMyAccountModel,
+    ChangeMyPasswordModel, ChangeMyPasswordResponse,
 )
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
@@ -37,6 +38,7 @@ from presentation.user.user_error_message import (
 from dependency_injections import (
     current_user, user_command_usecase, user_query_usecase, password_reset_usecase,
     rate_limit_delete_my_account,
+    rate_limit_change_my_password,
 )
 
 router = APIRouter(
@@ -518,3 +520,65 @@ async def forgot_password_confirm(
         return PasswordResetConfirmResponse()
     except PasswordResetInvalidTokenError as e:
         raise HTTPException(status_code=400, detail={"message": e.message, "code": "INVALID_TOKEN"})
+
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_200_OK,
+    summary="Change current authenticated user password",
+    response_model=ChangeMyPasswordResponse,
+    dependencies=[Depends(rate_limit_change_my_password)],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Mot de passe invalide ou utilisateur non authentifié"},
+        status.HTTP_403_FORBIDDEN: {"description": "Code 2FA invalide"},
+    },
+)
+async def change_my_password(
+    data: ChangeMyPasswordModel,
+    user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+    current_user: dict = Depends(current_user),
+):
+    try:
+        user_email = current_user.get("email")
+        token = current_user.get("token")
+        if not user_email or not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Utilisateur non authentifié",
+            )
+
+        return await user_command_usecase.change_my_password(user_email, token, data)
+
+    except InvalidPasswordError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Mot de passe incorrect.",
+                "code": "INVALID_CREDENTIALS",
+            },
+        )
+    except FARequiredError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "2FA code required.",
+                "code": "TWO_FACTOR_REQUIRED",
+                "two_factor_required": True,
+            },
+        )
+    except Invalid2FACodeError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Invalid 2FA code.",
+                "code": "INVALID_2FA_CODE",
+                "two_factor_required": True,
+            },
+        )
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors du changement de mot de passe",
+        )

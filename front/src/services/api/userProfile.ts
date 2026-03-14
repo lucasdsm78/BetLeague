@@ -4,6 +4,7 @@
 import http, { type ApiResponse } from '../http';
 import type { ApiUserProfile, ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
 import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
+import type { ApiChangePasswordRequest, ApiChangePasswordResponse } from '../../types/api/changePassword';
 
 export async function updateProfile(data: ApiUpdateProfileData): Promise<ApiUpdateProfileResponse> {
   const res: ApiResponse<ApiUpdateProfileResponse> = await http.put('/auth/user', data);
@@ -48,4 +49,12 @@ export async function deleteMyAccount(payload: ApiDeleteMyAccountRequest): Promi
   }
 
   return res.data as ApiDeleteMyAccountResponse;
+}
+
+export async function changeMyPassword(payload: ApiChangePasswordRequest): Promise<ApiChangePasswordResponse> {
+  const res: ApiResponse<ApiChangePasswordResponse> = await http.post('/auth/change-password', payload);
+  if (!res.success || !res.data) {
+    throw new Error(res.error || 'Changement de mot de passe impossible');
+  }
+  return res.data as ApiChangePasswordResponse;
 }

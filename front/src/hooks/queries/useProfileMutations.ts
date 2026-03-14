@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiResponse } from '../../services/http';
-import { updateProfile, deleteMyAccount } from '../../services/api/userProfile';
+import { updateProfile, deleteMyAccount, changeMyPassword } from '../../services/api/userProfile';
 import type { ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
 import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
+import type { ApiChangePasswordRequest, ApiChangePasswordResponse } from '../../types/api/changePassword';
 import twoFactorService from '../../services/twoFactorService';
 import type { TwoFactorSetup, TwoFactorStatus } from '../../types/entities/twoFactor';
 import { profileKeys } from './profileKeys';
@@ -58,6 +59,27 @@ export function useDeleteMyAccountMutation() {
         await authService.logout();
       } finally {
         useAuthStore.getState().logout();
+      }
+    },
+  });
+}
+
+export function useChangeMyPasswordMutation() {
+  const qc = useQueryClient();
+
+  return useMutation<ApiChangePasswordResponse, Error, ApiChangePasswordRequest>({
+    mutationFn: changeMyPassword,
+    onSuccess: async (data) => {
+      // backend révoque les tokens => on purge l'état local et on force logout
+      if (data.reauth_required) {
+        qc.clear();
+        try {
+          await authService.logout();
+        } finally {
+          useAuthStore.getState().logout();
+        }
+      } else {
+        qc.invalidateQueries({ queryKey: profileKeys.me() });
       }
     },
   });

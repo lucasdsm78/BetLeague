@@ -892,3 +892,57 @@ async def rate_limit_delete_my_account(
         )
 
     return True
+
+
+@lru_cache()
+def change_password_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "change_password_rate_limit_per_minute", 5)),
+        window_s=int(getattr(settings, "change_password_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_change_password_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_change_my_password(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(change_password_rate_limiter_singleton),
+):
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    key = f"change_my_password:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "change_password_rate_limit_per_minute", 5))
+    window_s = int(getattr(settings, "change_password_rate_limit_window_s", 60))
+
+    redis_limiter = redis_change_password_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(
+            key=key,
+            limit=limit,
+            window_s=window_s,
+        )
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True

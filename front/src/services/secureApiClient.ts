@@ -41,6 +41,22 @@ interface QueuedRequest {
   reject: (error: any) => void;
 }
 
+export class ApiClientError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly details?: unknown;
+  public readonly headers: Record<string, string>;
+
+  constructor(message: string, opts: { status: number; code?: string; details?: unknown; headers?: Record<string, string> }) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.status = opts.status;
+    this.code = opts.code;
+    this.details = opts.details;
+    this.headers = opts.headers ?? {};
+  }
+}
+
 class SecureApiClient {
   private config: ApiClientConfig;
   private isRefreshing = false;
@@ -140,6 +156,18 @@ class SecureApiClient {
       return result;
     } catch (error) {
       this.logError(requestId, error);
+
+      if (error instanceof Response) {
+        const headers = this.extractHeaders(error);
+        const parsed = await this.parseErrorResponse(error);
+        throw new ApiClientError(parsed.message, {
+          status: error.status,
+          code: parsed.code,
+          details: parsed.details,
+          headers,
+        });
+      }
+
       throw this.handleError(error);
     }
   }
@@ -338,10 +366,10 @@ class SecureApiClient {
     }
 
     if (!response.ok) {
-      const error = await this.parseErrorResponse(response);
+      const { message } = await this.parseErrorResponse(response);
       return {
         success: false,
-        error: error.message,
+        error: message,
         status,
         headers,
       };
@@ -389,16 +417,40 @@ class SecureApiClient {
     }
   }
 
-  private async parseErrorResponse(response: Response): Promise<Error> {
+  private async parseErrorResponse(response: Response): Promise<{ message: string; details?: unknown; code?: string }> {
+    const status = response.status;
+
     try {
-      const errorData = await response.json();
-      const message = errorData.detail || errorData.message || 'Request failed';
-      return new AuthError(message, response.status, errorData.code);
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData: any = await response.json();
+        const detail = errorData?.detail;
+
+        const message =
+          (typeof detail === 'string' && detail) ||
+          (detail?.message as string) ||
+          (errorData?.message as string) ||
+          response.statusText ||
+          'Request failed';
+
+        const code = detail?.code || errorData?.code;
+
+        return {
+          message,
+          details: errorData,
+          code,
+        };
+      }
+
+      const text = await response.text();
+      return {
+        message: text || response.statusText || 'Request failed',
+        details: text,
+      };
     } catch {
-      return new AuthError(
-        response.statusText || 'Request failed',
-        response.status
-      );
+      return {
+        message: response.statusText || 'Request failed',
+      };
     }
   }
 
@@ -424,16 +476,27 @@ class SecureApiClient {
     return metaTag?.getAttribute('content') || null;
   }
 
-  private handleError(error: any): AuthError {
+  private handleError(error: any): ApiClientError {
+    // Erreur déjà normalisée
+    if (error instanceof ApiClientError) return error;
+
+    // Timeout / network issus de AuthError
     if (error instanceof AuthError) {
-      return error;
+      return new ApiClientError(error.message, {
+        status: (error as any).status ?? 0,
+        code: (error as any).code,
+        details: (error as any).data ?? (error as any).details,
+        headers: {},
+      });
     }
 
-    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-      return new AuthError('Network error', 0, 'NETWORK_ERROR');
+    // fetch network error
+    if (error?.name === 'TypeError' && String(error?.message || '').includes('Failed to fetch')) {
+      return new ApiClientError('Network error', { status: 0, code: 'NETWORK_ERROR', details: error, headers: {} });
     }
 
-    return new AuthError(error.message || 'Unknown error', 0, 'UNKNOWN_ERROR');
+    // Fallback
+    return new ApiClientError(error?.message || 'Unknown error', { status: 0, code: 'UNKNOWN_ERROR', details: error, headers: {} });
   }
 
   // ==========================================
