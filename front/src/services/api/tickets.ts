@@ -47,45 +47,43 @@ function normalizeFinished(
 export async function createTicket(leagueId: number, payload: ApiTicketCreateRequest): Promise<ApiTicketCreateResponse> {
   const query = new URLSearchParams({ league_id: String(leagueId) });
   const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/ticket/create?${query.toString()}`, payload);
-  if (!res.success) {
-    throw new Error(res.error || 'Création du ticket échouée');
-  }
   return res.data as ApiTicketCreateResponse;
 }
 
 export async function getInProgressTickets(): Promise<TicketsInProgressResponse> {
   const endpoints = ['/tickets/in-progress', '/ticket/in-progress', '/tickets/in_progress', '/ticket/in_progress'];
 
-  let lastError: string | undefined;
+  let lastError: unknown;
   for (const endpoint of endpoints) {
-    const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(endpoint, {
-      skipCache: true,
-      cache: 'no-store',
-    });
-    if (process.env.NODE_ENV === 'development') {
-      const raw = (res as any)?.data;
-      const rawTickets = Array.isArray((raw as any)?.tickets)
-        ? (raw as any).tickets
-        : Array.isArray(raw)
-          ? raw
-          : [];
-      // Log sans contenu sensible: uniquement tailles + status
-      // eslint-disable-next-line no-console
-      console.log('[tickets][in-progress]', { endpoint, success: res.success, status: res.status, rawCount: rawTickets.length });
-    }
+    try {
+      const res: ApiResponse<ApiTicketsInProgressResponse | ApiTicketReadModel[]> = await http.get(endpoint, {
+        skipCache: true,
+        cache: 'no-store',
+      });
 
-    if (res.success) {
+      if (process.env.NODE_ENV === 'development') {
+        const raw = (res as any)?.data;
+        const rawTickets = Array.isArray((raw as any)?.tickets)
+          ? (raw as any).tickets
+          : Array.isArray(raw)
+            ? raw
+            : [];
+        // eslint-disable-next-line no-console
+        console.log('[tickets][in-progress]', { endpoint, status: res.status, rawCount: rawTickets.length });
+      }
+
       const normalized = normalizeInProgress(res.data);
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
         console.log('[tickets][in-progress][mapped]', { endpoint, mappedCount: normalized.tickets.length });
       }
       return normalized;
+    } catch (e) {
+      lastError = e;
     }
-    lastError = res.error;
   }
 
-  throw new Error(lastError || 'Récupération des tickets en cours échouée');
+  throw (lastError instanceof Error ? lastError : new Error('Récupération des tickets en cours échouée'));
 }
 
 export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
@@ -94,9 +92,7 @@ export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
       skipCache: true,
       cache: 'no-store',
     });
-    if (res.success) {
-      return normalizeFinished(res.data);
-    }
+    return normalizeFinished(res.data);
   } catch {
     // ignore pour tenter le fallback
   }
@@ -105,9 +101,6 @@ export async function getFinishedTickets(): Promise<TicketsFinishedResponse> {
     skipCache: true,
     cache: 'no-store',
   });
-  if (!fallback.success) {
-    throw new Error(fallback.error || 'Récupération des tickets terminés échouée');
-  }
   return normalizeFinished(fallback.data);
 }
 
@@ -129,25 +122,17 @@ export async function getTicketDetail(
 
   try {
     const resPlural: ApiResponse<ApiTicketDetailResponse> = await http.get(`/tickets/${ticketId}`, { signal: options?.signal });
-    if (resPlural.success) {
-      return tryParse(resPlural.data as ApiTicketDetailResponse);
-    }
+    return tryParse(resPlural.data as ApiTicketDetailResponse);
   } catch {
     // ignore et tente le fallback
   }
 
   const resSingular: ApiResponse<ApiTicketDetailResponse> = await http.get(`/ticket/${ticketId}`, { signal: options?.signal });
-  if (!resSingular.success) {
-    throw new Error(resSingular.error || 'Récupération du ticket échouée');
-  }
   return tryParse(resSingular.data as ApiTicketDetailResponse);
 }
 
 export async function deleteTicket(ticketId: number | string): Promise<{ success: boolean; message?: string }> {
   const res: ApiResponse<{ message?: string }> = await http.delete(`/ticket/${ticketId}`);
-  if (!res.success) {
-    throw new Error(res.error || 'Suppression du ticket échouée');
-  }
   return { success: true, message: res.data?.message };
 }
 
@@ -157,8 +142,5 @@ export async function createTournamentBet(
   payload: ApiTicketCreateRequest
 ): Promise<ApiTicketCreateResponse> {
   const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/tournament/${tournamentId}/match/${matchId}/bet`, payload);
-  if (!res.success) {
-    throw new Error(res.error || 'Création du pari de tournoi échouée');
-  }
   return res.data as ApiTicketCreateResponse;
 }

@@ -8,10 +8,6 @@ export async function getMatchesPage(page: number, pageSize: number): Promise<Ma
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   const res: ApiResponse<MatchesListResponse> = await http.get(`/matches?${query.toString()}`);
 
-  if (!res.success) {
-    throw new Error(res.error || 'Impossible de récupérer les matchs');
-  }
-
   const data = res.data as MatchesListResponse | undefined;
   if (!data || !Array.isArray((data as any).matches)) {
     throw new Error('Format de réponse invalide');

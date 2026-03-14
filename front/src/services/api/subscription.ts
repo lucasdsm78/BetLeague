@@ -10,16 +10,12 @@ import type {
 
 export async function createSubscriptionIntent(request: ApiCreateSubscriptionRequest): Promise<ApiCreateSubscriptionResponse> {
   const response: ApiResponse<ApiCreateSubscriptionResponse> = await http.post('/subscription/create-intent', request);
-  if (!response.success || !response.data) {
-    throw new Error(response.error || "Impossible de créer l'abonnement");
-  }
+  if (!response.data) throw new Error("Impossible de créer l'abonnement");
   return response.data;
 }
 
 export async function cancelSubscription(): Promise<ApiCancelSubscriptionResponse> {
   const response: ApiResponse<ApiCancelSubscriptionResponse> = await http.post('/subscription/cancel');
-  if (!response.success || !response.data) {
-    throw new Error(response.error || "Impossible d'annuler l'abonnement");
-  }
+  if (!response.data) throw new Error("Impossible d'annuler l'abonnement");
   return response.data;
 }

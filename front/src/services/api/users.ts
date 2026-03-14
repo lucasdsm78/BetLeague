@@ -14,7 +14,6 @@ export async function searchUsers(query: string): Promise<UserSearchResult[]> {
     `/auth/users/search?q=${encodeURIComponent(trimmed)}`
   );
 
-  if (!res.success) throw new Error(res.error || 'Erreur lors de la recherche utilisateur');
   const users = Array.isArray(res.data?.users) ? res.data!.users : [];
   return users.map(mapApiUserSearchResultToUi);
 }

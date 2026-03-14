@@ -141,7 +141,7 @@ export async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegis
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
     const response = await http.get<VapidKeyResponse>('/push/vapid-public-key');
-    if (!response.success || !response.data) {
+    if (!response.data) {
       console.error('[Push] Failed to fetch VAPID public key');
       return null;
     }
@@ -158,10 +158,7 @@ export async function getVapidPublicKey(): Promise<string | null> {
 export async function getPushStatus(): Promise<PushSubscriptionStatus | null> {
   try {
     const response = await http.get<PushSubscriptionStatus>('/push/status');
-    if (!response.success || !response.data) {
-      return null;
-    }
-    return response.data;
+    return response.data ?? null;
   } catch (error) {
     console.error('[Push] Error fetching push status:', error);
     return null;
@@ -236,15 +233,11 @@ export async function subscribeToPush(): Promise<boolean> {
     const p256dh = toBase64Url(new Uint8Array(rawKey));
     const auth = toBase64Url(new Uint8Array(rawAuth));
 
-    const response = await http.post('/push/subscribe', {
+    await http.post('/push/subscribe', {
       endpoint: subscription.endpoint,
       keys: { p256dh, auth },
     });
 
-    if (!response.success) {
-      console.error('[Push] Backend subscription failed');
-      return false;
-    }
 
     console.log('[Push] Successfully subscribed to push notifications');
     return true;

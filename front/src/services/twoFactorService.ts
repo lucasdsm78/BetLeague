@@ -11,8 +11,8 @@ import { mapApiTwoFactorSetupToUi } from './mappers/twoFactorMapper';
 
 async function enableTwoFactor(): Promise<TwoFactorSetup> {
   const res: ApiResponse<ApiTwoFactorSetupRawResponse> = await http.post('/auth/user/enable-2fa');
-  if (!res.success || !res.data) {
-    throw new Error(res.error || "Échec de l'activation 2FA");
+  if (!res.data) {
+    throw new Error("Échec de l'activation 2FA");
   }
   return mapApiTwoFactorSetupToUi(res.data);
 }
@@ -24,9 +24,6 @@ async function verifyTwoFactor(code: string): Promise<TwoFactorStatus> {
   }
   const endpoint = `/auth/user/verify-2fa?code=${encodeURIComponent(clean)}`;
   const res: ApiResponse<{ message?: string }> = await http.post(endpoint);
-  if (!res.success) {
-    throw new Error(res.error || 'Vérification 2FA échouée');
-  }
   return { enabled: true, message: res.data?.message };
 }
 

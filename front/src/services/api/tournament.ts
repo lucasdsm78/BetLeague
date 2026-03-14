@@ -2,6 +2,7 @@
 // API module: tournament (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
+import { ApiClientError } from '../secureApiClient';
 import type {
   TournamentCreateRequest,
   TournamentCreateResponse,
@@ -25,77 +26,61 @@ export async function createTournament(data: TournamentCreateRequest): Promise<T
     ...(typeof data.start_date === 'number' ? { start_date: data.start_date } : {}),
   };
 
-  const response: ApiResponse<TournamentCreateResponse> = await http.post('/tournament/create', payload);
-
-  if (!response.success) {
-    const status = response.status;
-    const detail = response.error || response.message;
-
-    if (status === 402) {
-      throw new Error(detail || "Vous devez être abonné à l'option tournoi pour créer un tournoi.");
+  try {
+    const response: ApiResponse<TournamentCreateResponse> = await http.post('/tournament/create', payload);
+    return response.data as TournamentCreateResponse;
+  } catch (e) {
+    if (e instanceof ApiClientError) {
+      if (e.status === 402) throw new Error("Vous devez être abonné à l'option tournoi pour créer un tournoi.");
+      if (e.status === 409) throw new Error('Ce nom de tournoi est déjà utilisé.');
+      if (e.status === 400 || e.status === 422) throw new Error('Données invalides.');
     }
-    if (status === 409) {
-      throw new Error(detail || 'Ce nom de tournoi est déjà utilisé.');
-    }
-    if (status === 400 || status === 422) {
-      throw new Error(detail || 'Données invalides.');
-    }
-
-    throw new Error(detail || 'Création du tournoi échouée');
+    throw e;
   }
-
-  return response.data as TournamentCreateResponse;
 }
 
 export async function getTournaments(page = 1, pageSize = 10): Promise<TournamentsResponse> {
   const response: ApiResponse<TournamentsResponse> = await http.get(`/tournaments?page=${page}&page_size=${pageSize}`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer les tournois');
   return response.data as TournamentsResponse;
 }
 
 export async function joinTournament(tournamentId: number): Promise<{ message: string }> {
   const response: ApiResponse<{ message: string }> = await http.post(`/tournament/${tournamentId}/join`);
-  if (!response.success) throw new Error(response.error || 'Impossible de rejoindre le tournoi');
   return response.data as { message: string };
 }
 
 export async function getTournamentDetails(tournamentId: number): Promise<Tournament> {
   const response: ApiResponse<Tournament> = await http.get(`/tournament/${tournamentId}`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer le tournoi');
   return response.data as Tournament;
 }
 
 export async function getTournamentStages(tournamentId: number): Promise<TournamentStagesResponse> {
   const response: ApiResponse<TournamentStagesResponse> = await http.get(`/tournament/${tournamentId}/stages`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer les phases du tournoi');
   return response.data as TournamentStagesResponse;
 }
 
 export async function getMyTournaments(page = 1, pageSize = 10): Promise<MyTournamentsResponse> {
   const response: ApiResponse<MyTournamentsResponse> = await http.get(`/tournaments/my?page=${page}&page_size=${pageSize}`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer vos tournois');
   return response.data as MyTournamentsResponse;
 }
 
 export async function getStageMatches(tournamentId: number, stageType: string): Promise<StageMatchesResponse> {
   const response: ApiResponse<StageMatchesResponse> = await http.get(`/tournament/${tournamentId}/stage/${stageType}/matches`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer les matchs de tournoi');
   return response.data as StageMatchesResponse;
 }
 
 export async function getMyCreatedTournaments(page = 1, pageSize = 10): Promise<CreatedTournamentsResponse> {
-  const response: ApiResponse<CreatedTournamentsResponse> = await http.get(
-    `/tournaments/my/created?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`
-  );
-  if (!response.success) {
-    const status = response.status;
-    const detail = response.error || response.message;
-    if (status === 402) {
-      throw new Error(detail || "Abonnement tournoi requis pour accéder à vos tournois créés.");
+  try {
+    const response: ApiResponse<CreatedTournamentsResponse> = await http.get(
+      `/tournaments/my/created?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`
+    );
+    return response.data as CreatedTournamentsResponse;
+  } catch (e) {
+    if (e instanceof ApiClientError && e.status === 402) {
+      throw new Error("Abonnement tournoi requis pour accéder à vos tournois créés.");
     }
-    throw new Error(detail || 'Impossible de récupérer vos tournois créés');
+    throw e;
   }
-  return response.data as CreatedTournamentsResponse;
 }
 
 export async function leaveTournament(tournamentId: number): Promise<{ message: string }> {
@@ -103,33 +88,23 @@ export async function leaveTournament(tournamentId: number): Promise<{ message: 
     throw new Error('ID de tournoi invalide');
   }
 
-  const response: ApiResponse<{ message: string }> = await http.delete(
-    `/tournament/${tournamentId}/player/me`
-  );
-
-  if (!response.success) {
-    const status = response.status;
-    const detail = response.error || response.message;
-
-    if (status === 401) {
-      throw new Error(detail || 'Le tournoi a déjà commencé ou session expirée.');
+  try {
+    const response: ApiResponse<{ message: string }> = await http.delete(
+      `/tournament/${tournamentId}/player/me`
+    );
+    return (response.data ?? { message: '' }) as { message: string };
+  } catch (e) {
+    if (e instanceof ApiClientError) {
+      if (e.status === 401) throw new Error('Le tournoi a déjà commencé ou session expirée.');
+      if (e.status === 402) throw new Error('Abonnement tournoi requis.');
+      if (e.status === 404) throw new Error('Tournoi ou utilisateur introuvable.');
     }
-    if (status === 402) {
-      throw new Error(detail || "Abonnement tournoi requis.");
-    }
-    if (status === 404) {
-      throw new Error(detail || 'Tournoi ou utilisateur introuvable.');
-    }
-
-    throw new Error(detail || 'Impossible de quitter le tournoi');
+    throw e;
   }
-
-  return (response.data ?? { message: '' }) as { message: string };
 }
 
 export async function getFinishedTournaments(page = 1, pageSize = 10): Promise<TournamentsFinishedResponse> {
   const response: ApiResponse<TournamentsFinishedResponse> = await http.get(`/tournaments/my/finished?page=${page}&page_size=${pageSize}`);
-  if (!response.success) throw new Error(response.error || 'Impossible de récupérer les tournois terminés');
   return response.data as TournamentsFinishedResponse;
 }
 
