@@ -9,6 +9,7 @@ import BTLPurchaseModal from './BTLPurchaseModal';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import type { TwoFactorSetup } from '../../types/entities/twoFactor';
 import PushNotificationToggle from '../notifications/PushNotificationToggle';
+import DeleteAccountCard from './DeleteAccountCard';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -412,6 +413,8 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ onLogout, isTwoFactorEna
           </div>
         </div>
       </div>
+
+      <DeleteAccountCard isTwoFactorEnabled={!!enabled} />
     </div>
   );
 });

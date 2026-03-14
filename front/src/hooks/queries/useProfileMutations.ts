@@ -1,10 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiResponse } from '../../services/http';
-import { updateProfile } from '../../services/api/userProfile';
+import { updateProfile, deleteMyAccount } from '../../services/api/userProfile';
 import type { ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
+import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
 import twoFactorService from '../../services/twoFactorService';
 import type { TwoFactorSetup, TwoFactorStatus } from '../../types/entities/twoFactor';
 import { profileKeys } from './profileKeys';
+import authService from '../../services/authService';
+import { useAuthStore } from '../../store/authStore';
 
 export function useUpdateProfileMutation() {
   const qc = useQueryClient();
@@ -40,6 +43,22 @@ export function useVerifyTwoFactorMutation() {
     onSuccess: () => {
       // le backend a activé la 2FA côté compte, on refresh /auth/me
       qc.invalidateQueries({ queryKey: profileKeys.me() });
+    },
+  });
+}
+
+export function useDeleteMyAccountMutation() {
+  const qc = useQueryClient();
+
+  return useMutation<ApiDeleteMyAccountResponse, Error, ApiDeleteMyAccountRequest>({
+    mutationFn: deleteMyAccount,
+    onSuccess: async () => {
+      qc.clear();
+      try {
+        await authService.logout();
+      } finally {
+        useAuthStore.getState().logout();
+      }
     },
   });
 }

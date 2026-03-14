@@ -1,0 +1,88 @@
+:root {
+  --danger-accent: rgba(255, 90, 90, 0.85);
+  --danger-border: rgba(255, 90, 90, 0.22);
+}
+
+.deleteAccount {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem; /* espace visuel après le bloc Déconnexion */
+}
+
+.deleteAccount__panel {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.deleteAccount__callout {
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.deleteAccount__callout code {
+  padding: 0.125rem 0.375rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.deleteAccount__label {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.deleteAccount__input {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.deleteAccount__input:focus {
+  border-color: rgba(255, 90, 90, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.12);
+}
+
+.deleteAccount__hint {
+  margin-top: -0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.deleteAccount__actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+  .deleteAccount__actions {
+    justify-content: stretch;
+  }
+
+  .deleteAccount__actions .btn {
+    width: 100%;
+  }
+}
+
+/* Fallback si le thème ne définit pas .btn-danger */
+.btn-danger {
+  background: #ff5353;
+  color: #0b0b0b;
+  border: 0;
+}
+
+.btn-danger:disabled {
+  opacity: 0.65;
+}
