@@ -3,6 +3,7 @@
 
 import http, { type ApiResponse } from '../http';
 import type { ApiUserProfile, ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
+import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
 
 export async function updateProfile(data: ApiUpdateProfileData): Promise<ApiUpdateProfileResponse> {
   const res: ApiResponse<ApiUpdateProfileResponse> = await http.put('/auth/user', data);
@@ -35,4 +36,16 @@ export async function getCurrentUserProfile(): Promise<ApiUserProfile> {
     throw new Error(res.error || 'Impossible de récupérer le profil utilisateur');
   }
   return res.data as ApiUserProfile;
+}
+
+export async function deleteMyAccount(payload: ApiDeleteMyAccountRequest): Promise<ApiDeleteMyAccountResponse> {
+  const res: ApiResponse<ApiDeleteMyAccountResponse> = await http.delete('/auth/me', {
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.success || !res.data) {
+    throw new Error(res.error || 'Suppression du compte impossible');
+  }
+
+  return res.data as ApiDeleteMyAccountResponse;
 }
