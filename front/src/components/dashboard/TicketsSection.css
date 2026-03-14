@@ -591,6 +591,178 @@
   transform: scale(1.1);
 }
 
+/* ===== Filter Bar ===== */
+.ticket-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem 0;
+  flex-wrap: wrap;
+}
+
+/* --- Chip base --- */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.filter-chip:hover {
+  border-color: var(--border-color-strong);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.filter-chip:active {
+  transform: scale(0.96);
+}
+
+.filter-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(0, 210, 255, 0.22),
+    0 0 0 1px rgba(0, 210, 255, 0.55) inset;
+  border-color: rgba(0, 210, 255, 0.55);
+}
+
+/* Evite un focus ring 'moche' sur clic souris */
+.filter-chip:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+/* --- Active state --- */
+.filter-chip.active {
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* "Tous" active */
+.filter-chip--all.active {
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+  box-shadow: 0 2px 10px rgba(0, 210, 255, 0.35);
+}
+
+/* "League" active */
+.filter-chip--league.active {
+  background: linear-gradient(135deg, #3a7bd5 0%, #6366f1 100%);
+  box-shadow: 0 2px 10px rgba(58, 123, 213, 0.35);
+}
+
+/* "Tournoi" active */
+.filter-chip--tournament.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+
+/* ===== Filter dropdown (Ligues) ===== */
+.filter-chip-dropdown-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.filter-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.filter-chip--league:not(.active) .filter-chip-clear {
+  display: none;
+}
+
+.filter-chip-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.25rem;
+  opacity: 0.8;
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  min-width: 14rem;
+  max-width: min(18rem, 90vw);
+  max-height: 16rem;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+
+  z-index: 50;
+  padding: 0.375rem;
+  margin: 0;
+  list-style: none;
+
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.875rem;
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.16),
+    0 2px 10px rgba(0, 0, 0, 0.10);
+}
+
+.filter-dropdown-item {
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.filter-dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
+.filter-dropdown-item:focus-visible {
+  background: rgba(0, 210, 255, 0.12);
+  box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.35) inset;
+}
+
+.filter-dropdown-item.selected {
+  background: rgba(0, 210, 255, 0.12);
+  border: 1px solid rgba(0, 210, 255, 0.28);
+}
+
+[data-theme="dark"] .filter-dropdown {
+  background: var(--bg-primary);
+}
+
+/* Mobile: dropdown plein écran light (plus facile à toucher) */
+@media (max-width: 640px) {
+  .filter-dropdown {
+    min-width: 12rem;
+    max-width: 92vw;
+  }
+
+  .filter-dropdown-item {
+    padding: 0.75rem 0.875rem;
+  }
+}
+
 /* Modern tickets grid */
 .tickets-grid.modern {
   display: grid;

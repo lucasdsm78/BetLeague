@@ -49,11 +49,25 @@ class TicketQueryUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_tickets_in_progress(self, email: str, page: int = 1, page_size: int = 20) -> TicketsInProgressResponse:
+    async def get_tickets_in_progress(
+            self,
+            email: str,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> TicketsInProgressResponse:
         raise NotImplementedError
 
     @abstractmethod
-    async def get_tickets_finished(self, email: str, page: int = 1, page_size: int = 20) -> TicketsFinishedResponse:
+    async def get_tickets_finished(
+            self,
+            email: str,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> TicketsFinishedResponse:
         raise NotImplementedError
 
 
@@ -113,16 +127,26 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         raise LeagueNotFoundError
                     league_summary = LeagueSummary(id=league.id, name=league.name)
 
+                # tournament_match est eager-load via joinedload dans `TicketRepositoryImpl.find_by_id`.
                 if ticket.tournament_match_id:
-                    tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
-                    if not tournament_match:
-                        raise TournamentMatchNotFoundError
-                    tournament_match_summary = TournamentMatchSummary(
-                        tournament_match_id=tournament_match.id,
-                        tournament_id=tournament_match.tournament_id,
-                        type=tournament_match.type.value,
-                        stage_id=tournament_match.stage_id
-                    )
+                    tm = getattr(ticket, 'tournament_match', None)
+                    if tm is None:
+                        tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                        if not tournament_match:
+                            raise TournamentMatchNotFoundError
+                        tournament_match_summary = TournamentMatchSummary(
+                            tournament_match_id=tournament_match.id,
+                            tournament_id=tournament_match.tournament_id,
+                            type=tournament_match.type.value,
+                            stage_id=tournament_match.stage_id
+                        )
+                    else:
+                        tournament_match_summary = TournamentMatchSummary(
+                            tournament_match_id=tm.id,
+                            tournament_id=tm.tournament_id,
+                            type=tm.type,
+                            stage_id=tm.stage_id
+                        )
 
                 choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
 
@@ -169,20 +193,32 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     match_choice_summaries=match_choice_summaries
                 )
 
-    async def get_tickets_in_progress(self, email: str, page: int = 1, page_size: int = 20) -> TicketsInProgressResponse:
+    async def get_tickets_in_progress(
+            self,
+            email: str,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> TicketsInProgressResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 user_repo          = UserRepositoryImpl(session)
                 ticket_repo        = TicketRepositoryImpl(session)
-                tournament_match_repo = TournamentMatchRepositoryImpl(session)
                 match_odd_repo = MatchOddRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                total = await ticket_repo.count_in_progress_by_user_id(user.id)
-                db_tickets = await ticket_repo.find_all_in_progress_by_user_id(user.id, page, page_size)
+                total = await ticket_repo.count_in_progress_by_user_id(user.id, league_id=league_id, is_tournament=is_tournament)
+                db_tickets = await ticket_repo.find_all_in_progress_by_user_id(
+                    user.id,
+                    page,
+                    page_size,
+                    league_id=league_id,
+                    is_tournament=is_tournament,
+                )
 
                 result = TicketsInProgressResponse(total=total, page=page, page_size=page_size)
                 if not db_tickets:
@@ -206,14 +242,14 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         league_summary = LeagueSummary(id=db_ticket.league.id, name=db_ticket.league.name)
 
                     if db_ticket.tournament_match_id:
-                        tournament_match = await tournament_match_repo.find_by_id(db_ticket.tournament_match_id)
-                        if not tournament_match:
+                        tm = getattr(db_ticket, 'tournament_match', None)
+                        if tm is None:
                             raise TournamentMatchNotFoundError
                         tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tournament_match.id,
-                            tournament_id=tournament_match.tournament_id,
-                            type=tournament_match.type.value,
-                            stage_id=tournament_match.stage_id
+                            tournament_match_id=tm.id,
+                            tournament_id=tm.tournament_id,
+                            type=tm.type,
+                            stage_id=tm.stage_id
                         )
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
@@ -254,22 +290,34 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 return result
 
-    async def get_tickets_finished(self, email: str, page: int = 1, page_size: int = 20) -> TicketsFinishedResponse:
+    async def get_tickets_finished(
+            self,
+            email: str,
+            page: int = 1,
+            page_size: int = 20,
+            league_id: Optional[int] = None,
+            is_tournament: Optional[bool] = None,
+    ) -> TicketsFinishedResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 user_repo   = UserRepositoryImpl(session)
                 ticket_repo = TicketRepositoryImpl(session)
-                tournament_match_repo = TournamentMatchRepositoryImpl(session)
                 match_odd_repo = MatchOddRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
 
-                total = await ticket_repo.count_finished_by_user_id(user.id)
+                total = await ticket_repo.count_finished_by_user_id(user.id, league_id=league_id, is_tournament=is_tournament)
                 result = TicketsFinishedResponse(total=total, page=page, page_size=page_size)
 
-                db_tickets = await ticket_repo.find_all_finished_by_user_id(user.id, page, page_size)
+                db_tickets = await ticket_repo.find_all_finished_by_user_id(
+                    user.id,
+                    page,
+                    page_size,
+                    league_id=league_id,
+                    is_tournament=is_tournament,
+                )
                 if not db_tickets:
                     return result
 
@@ -291,19 +339,19 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         league_summary = LeagueSummary(id=db_ticket.league.id, name=db_ticket.league.name)
 
                     if db_ticket.tournament_match_id:
-                        tournament_match = await tournament_match_repo.find_by_id(db_ticket.tournament_match_id)
-                        if not tournament_match:
+                        tm = getattr(db_ticket, 'tournament_match', None)
+                        if tm is None:
                             raise TournamentMatchNotFoundError
                         tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tournament_match.id,
-                            tournament_id=tournament_match.tournament_id,
-                            type=tournament_match.type.value,
-                            stage_id=tournament_match.stage_id
+                            tournament_match_id=tm.id,
+                            tournament_id=tm.tournament_id,
+                            type=tm.type,
+                            stage_id=tm.stage_id
                         )
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
                     for db_choice in db_ticket.match_choices:
-                        match = db_choice.match  # déjà pré-chargé
+                        match = db_choice.match
                         if not match:
                             continue
 
