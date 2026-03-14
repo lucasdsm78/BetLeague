@@ -13,6 +13,11 @@ export type TicketsListQueryArgs = {
   filter?: TicketsServerFilter;
 };
 
+export type TicketsQueryOptions = {
+  refetchIntervalMs?: number;
+  enabled?: boolean;
+};
+
 function stableFilter(filter?: TicketsServerFilter) {
   return {
     leagueId: typeof filter?.leagueId === 'number' ? filter!.leagueId : null,
@@ -40,10 +45,33 @@ export const ticketsKeys = {
       filter: stableFilter(args?.filter),
     },
   ] as const,
+  inProgressMeta: () => [...ticketsKeys.all, 'in_progress', 'meta'] as const,
+  finishedMeta: () => [...ticketsKeys.all, 'finished', 'meta'] as const,
   detail: (id: number | string) => [...ticketsKeys.all, 'detail', id] as const,
 };
 
-export function useInProgressTicketsQuery(args?: TicketsListQueryArgs, options?: { refetchIntervalMs?: number }) {
+/**
+ * Query "meta": récupère uniquement le total (page_size=1) pour décider si on bascule en mode serveur.
+ */
+export function useInProgressTicketsMetaQuery(options?: TicketsQueryOptions) {
+  return useQuery<TicketsInProgressResponse, Error>({
+    queryKey: ticketsKeys.inProgressMeta(),
+    queryFn: async () => getInProgressTickets({ page: 1, pageSize: 1 }),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchIntervalMs,
+  });
+}
+
+export function useFinishedTicketsMetaQuery(options?: TicketsQueryOptions) {
+  return useQuery<TicketsFinishedResponse, Error>({
+    queryKey: ticketsKeys.finishedMeta(),
+    queryFn: async () => getFinishedTickets({ page: 1, pageSize: 1 }),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchIntervalMs,
+  });
+}
+
+export function useInProgressTicketsQuery(args?: TicketsListQueryArgs, options?: TicketsQueryOptions) {
   return useQuery<TicketsInProgressResponse, Error>({
     queryKey: ticketsKeys.inProgress(args),
     queryFn: async () => {
@@ -54,11 +82,12 @@ export function useInProgressTicketsQuery(args?: TicketsListQueryArgs, options?:
         isTournament: stableFilter(args?.filter).isTournament,
       });
     },
+    enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchIntervalMs,
   });
 }
 
-export function useFinishedTicketsQuery(args?: TicketsListQueryArgs, options?: { refetchIntervalMs?: number }) {
+export function useFinishedTicketsQuery(args?: TicketsListQueryArgs, options?: TicketsQueryOptions) {
   return useQuery<TicketsFinishedResponse, Error>({
     queryKey: ticketsKeys.finished(args),
     queryFn: async () => {
@@ -69,6 +98,7 @@ export function useFinishedTicketsQuery(args?: TicketsListQueryArgs, options?: {
         isTournament: stableFilter(args?.filter).isTournament,
       });
     },
+    enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchIntervalMs,
   });
 }
