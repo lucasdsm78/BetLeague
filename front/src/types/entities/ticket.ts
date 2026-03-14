@@ -46,8 +46,14 @@ export interface TicketReadModel {
 
 export interface TicketsInProgressResponse {
   tickets: TicketReadModel[];
+  total?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface TicketsFinishedResponse {
   tickets: TicketReadModel[];
+  total?: number;
+  page?: number;
+  page_size?: number;
 }

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo, useMemo } from 'react';
 import './TicketsSection.css';
-import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTickets } from '../../hooks/queries/useTicketsQueries';
+import { useInProgressTicketsQuery, useFinishedTicketsQuery, useInvalidateTickets, type TicketsServerFilter } from '../../hooks/queries/useTicketsQueries';
+import { resolveTicketsFilterMode } from '../../hooks/queries/ticketsMode';
 import type { TicketReadModel, MatchChoiceSummary } from '../../types/entities/ticket';
 import TicketDetailModal from './TicketDetailModal';
 import DeleteTicketModal from './DeleteTicketModal';
@@ -372,6 +373,8 @@ const SkeletonCard: React.FC = () => (
   </div>
 );
 
+const SERVER_FILTER_THRESHOLD = 300;
+
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
   const [activeFilter, setActiveFilter] = useState<TicketFilter>(FILTER_ALL);
@@ -390,39 +393,80 @@ const TicketsSection: React.FC = memo(() => {
   const refetchProfile = useCallback(() => profileQuery.refetch(), [profileQuery]);
   const invalidateTickets = useInvalidateTickets();
 
-  // Data for current (in-progress)
-  const inProgressQuery = useInProgressTicketsQuery({ refetchIntervalMs: 30_000 });
-  const tickets = inProgressQuery.data ?? [];
+  const envForceServer = process.env.REACT_APP_TICKETS_SERVER_FILTER === 'true';
+
+  // 1) On récupère la page non filtrée (mode client) pour afficher et calculer total; page_size=100 pour limiter le coût.
+  // 2) Si le mode server est activé, on refetch avec query params selon le chip.
+  const baseInProgressQuery = useInProgressTicketsQuery({ page: 1, pageSize: 100 });
+  const baseFinishedQuery = useFinishedTicketsQuery({ page: 1, pageSize: 100 });
+
+  const baseTotal = activeTab === 'current'
+    ? (baseInProgressQuery.data?.total ?? baseInProgressQuery.data?.tickets?.length ?? 0)
+    : (baseFinishedQuery.data?.total ?? baseFinishedQuery.data?.tickets?.length ?? 0);
+
+  const filterMode = useMemo(() => {
+    return resolveTicketsFilterMode({
+      total: baseTotal,
+      threshold: SERVER_FILTER_THRESHOLD,
+      envForceServer,
+      locationSearch: typeof window !== 'undefined' ? window.location.search : '',
+    });
+  }, [baseTotal, envForceServer]);
+
+  const serverFilter: TicketsServerFilter | undefined = useMemo(() => {
+    if (filterMode.mode !== 'server') return undefined;
+    if (activeFilter.type === 'league') return { leagueId: activeFilter.id ?? null, isTournament: null };
+    if (activeFilter.type === 'tournament') return { leagueId: null, isTournament: true };
+    return { leagueId: null, isTournament: null };
+  }, [filterMode.mode, activeFilter]);
+
+  const serverInProgressQuery = useInProgressTicketsQuery(
+    filterMode.mode === 'server'
+      ? { page: 1, pageSize: 20, filter: serverFilter }
+      : undefined,
+    { refetchIntervalMs: 30_000 }
+  );
+
+  const serverFinishedQuery = useFinishedTicketsQuery(
+    filterMode.mode === 'server'
+      ? { page: 1, pageSize: 20, filter: serverFilter }
+      : undefined
+  );
+
+  const inProgressQuery = filterMode.mode === 'server' ? serverInProgressQuery : baseInProgressQuery;
+  const finishedQuery = filterMode.mode === 'server' ? serverFinishedQuery : baseFinishedQuery;
+
+  const tickets = inProgressQuery.data?.tickets ?? [];
   const loading = inProgressQuery.isLoading;
-  const error = inProgressQuery.error?.message ?? null;
-  const lastUpdated = inProgressQuery.dataUpdatedAt || null;
+  const error = (inProgressQuery.error as any)?.message ?? null;
+  const lastUpdated = inProgressQuery.dataUpdatedAt ?? null;
+
+  const finishedTickets = finishedQuery.data?.tickets ?? [];
+  const loadingFinished = finishedQuery.isLoading;
+  const errorFinished = (finishedQuery.error as any)?.message ?? null;
+  const lastUpdatedFinished = finishedQuery.dataUpdatedAt ?? null;
 
   const ticketsWithoutDeleted = useMemo(() => tickets.filter(t => !deletedIds.has(t.id)), [tickets, deletedIds]);
-
-  // Data for finished tickets (manual refresh)
-  const finishedQuery = useFinishedTicketsQuery();
-  const finishedTickets = finishedQuery.data ?? [];
-  const loadingFinished = finishedQuery.isLoading;
-  const errorFinished = finishedQuery.error?.message ?? null;
-  const lastUpdatedFinished = finishedQuery.dataUpdatedAt || null;
 
   // Extract available filters from current tab's tickets
   const currentTabTickets = activeTab === 'current' ? ticketsWithoutDeleted : finishedTickets;
   const availableFilters = useMemo(() => extractFilters(currentTabTickets), [currentTabTickets]);
 
-  // Reset filter when switching tabs if the current filter doesn't exist in the new tab
+  // Reset filter on tab change
   const handleTabChange = useCallback((tab: TabType) => {
     setActiveTab(tab);
     setActiveFilter(FILTER_ALL);
   }, []);
 
-  // Apply filter
-  const filteredTickets = useMemo(
-    () => activeTab === 'current'
+  // Apply filter (client mode only). In server mode, tickets are already filtered by backend.
+  const filteredTickets = useMemo(() => {
+    if (filterMode.mode === 'server') {
+      return activeTab === 'current' ? ticketsWithoutDeleted : finishedTickets;
+    }
+    return activeTab === 'current'
       ? applyFilter(ticketsWithoutDeleted, activeFilter)
-      : applyFilter(finishedTickets, activeFilter),
-    [activeTab, ticketsWithoutDeleted, finishedTickets, activeFilter]
-  );
+      : applyFilter(finishedTickets, activeFilter);
+  }, [filterMode.mode, activeTab, ticketsWithoutDeleted, finishedTickets, activeFilter]);
 
   const refetch = useCallback(async () => {
     await inProgressQuery.refetch();

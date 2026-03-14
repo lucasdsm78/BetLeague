@@ -603,10 +603,6 @@
   padding: 0.25rem 0;
 }
 
-.ticket-filter-bar::-webkit-scrollbar {
-  display: none;
-}
-
 /* --- Chip base --- */
 .filter-chip {
   display: inline-flex;
@@ -629,16 +625,6 @@
   overflow: hidden;
 }
 
-.filter-chip::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-}
-
 .filter-chip:hover {
   border-color: var(--border-color-strong);
   color: var(--text-primary);
@@ -647,6 +633,19 @@
 
 .filter-chip:active {
   transform: scale(0.96);
+}
+
+.filter-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(0, 210, 255, 0.22),
+    0 0 0 1px rgba(0, 210, 255, 0.55) inset;
+  border-color: rgba(0, 210, 255, 0.55);
+}
+
+/* Evite un focus ring 'moche' sur clic souris */
+.filter-chip:focus:not(:focus-visible) {
+  box-shadow: none;
 }
 
 /* --- Active state --- */
