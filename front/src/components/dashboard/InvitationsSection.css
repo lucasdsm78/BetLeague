@@ -19,115 +19,6 @@
   margin: 0;
 }
 
-/* ===== Filter Bar ===== */
-.inv-filter-bar {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  padding: 0.25rem 0;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.inv-filter-bar .inv-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.125rem;
-  border-radius: var(--radius-full);
-  border: 1.5px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.inv-filter-bar .inv-chip:hover {
-  border-color: var(--border-color-strong);
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.inv-filter-bar .inv-chip:active {
-  transform: scale(0.96);
-}
-
-.inv-filter-bar .inv-chip:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px rgba(0, 210, 255, 0.22),
-    0 0 0 1px rgba(0, 210, 255, 0.55) inset;
-  border-color: rgba(0, 210, 255, 0.55);
-}
-
-.inv-filter-bar .inv-chip:focus:not(:focus-visible) {
-  box-shadow: none;
-}
-
-/* Active state */
-.inv-filter-bar .inv-chip.active {
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.inv-chip--all.active {
-  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-  box-shadow: 0 2px 10px rgba(0, 210, 255, 0.35);
-}
-
-.inv-chip--pending.active {
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
-}
-
-.inv-chip--accepted.active {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.35);
-}
-
-.inv-chip--refused.active {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
-}
-
-.inv-chip-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.inv-chip-label {
-  line-height: 1;
-}
-
-.inv-chip-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  height: 1.25rem;
-  padding: 0 0.35rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.2);
-  line-height: 1;
-}
-
-.inv-filter-bar .inv-chip:not(.active) .inv-chip-count {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-}
-
 /* ===== Invitations Grid ===== */
 .inv-grid {
   display: grid;
@@ -521,37 +412,9 @@
   .invitations-section .section-header h2 {
     font-size: 1.5rem;
   }
-
-  .inv-filter-bar {
-    overflow-x: auto;
-    overflow-y: hidden;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-
-    /* important: permet d’atteindre la dernière chip (Refusées) */
-    padding: 0.25rem 0.75rem 0.5rem;
-    margin-left: -0.75rem;
-    margin-right: -0.75rem;
-
-    scroll-snap-type: x proximity;
-  }
-
-  .inv-filter-bar .inv-chip {
-    flex: 0 0 auto;
-    scroll-snap-align: start;
-  }
-
-  .inv-filter-bar::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 @media (max-width: 380px) {
-  .inv-chip-label {
-    font-size: 0.75rem;
-  }
-
   .inv-card-league-name {
     font-size: 0.9375rem;
   }
@@ -559,11 +422,6 @@
 
 /* ===== Touch ===== */
 @media (pointer: coarse) {
-  .inv-filter-bar .inv-chip {
-    min-height: 44px;
-    touch-action: manipulation;
-  }
-
   .inv-card-actions .inv-btn {
     min-height: 48px;
     touch-action: manipulation;
@@ -612,7 +470,6 @@
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
   .inv-card,
-  .inv-filter-bar .inv-chip,
   .inv-card-actions .inv-btn {
     transition: none;
   }

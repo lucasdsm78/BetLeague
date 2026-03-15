@@ -5,24 +5,11 @@ import {
   useReceivedInvitationsQuery,
   useInvitationCountsQuery,
   useInvalidateInvitations,
-  type InvitationStatusFilter,
 } from '../../hooks/queries/useInvitationsQueries';
 import type { InvitationReceivedReadModel } from '../../types/entities/invitation';
 import { useGlobalToast } from '../../toast/ToastProvider';
 
 /* ───── SVG Icons ───── */
-
-const IconAll = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-  </svg>
-);
-
-const IconPending = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-  </svg>
-);
 
 const IconAccepted = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -47,60 +34,6 @@ const IconX = () => (
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
-
-/* ───── Filter Bar ───── */
-
-const InvitationFilterBar: React.FC<{
-  active: InvitationStatusFilter | null;
-  counts: { pending: number; accepted: number; refused: number };
-  onChange: (f: InvitationStatusFilter | null) => void;
-}> = memo(({ active, counts, onChange }) => (
-  <div className="inv-filter-bar" role="group" aria-label="Filtrer par statut">
-    <button
-      type="button"
-      className={`inv-chip inv-chip--all${active === null ? ' active' : ''}`}
-      onClick={() => onChange(null)}
-      aria-pressed={active === null}
-    >
-      <span className="inv-chip-icon" aria-hidden="true"><IconAll /></span>
-      <span className="inv-chip-label">Toutes</span>
-    </button>
-
-    <button
-      type="button"
-      className={`inv-chip inv-chip--pending${active === 'PENDING' ? ' active' : ''}`}
-      onClick={() => onChange(active === 'PENDING' ? null : 'PENDING')}
-      aria-pressed={active === 'PENDING'}
-    >
-      <span className="inv-chip-icon" aria-hidden="true"><IconPending /></span>
-      <span className="inv-chip-label">En attente</span>
-      {counts.pending > 0 && <span className="inv-chip-count">{counts.pending}</span>}
-    </button>
-
-    <button
-      type="button"
-      className={`inv-chip inv-chip--accepted${active === 'ACCEPTED' ? ' active' : ''}`}
-      onClick={() => onChange(active === 'ACCEPTED' ? null : 'ACCEPTED')}
-      aria-pressed={active === 'ACCEPTED'}
-    >
-      <span className="inv-chip-icon" aria-hidden="true"><IconAccepted /></span>
-      <span className="inv-chip-label">Acceptées</span>
-      {counts.accepted > 0 && <span className="inv-chip-count">{counts.accepted}</span>}
-    </button>
-
-    <button
-      type="button"
-      className={`inv-chip inv-chip--refused${active === 'REFUSED' ? ' active' : ''}`}
-      onClick={() => onChange(active === 'REFUSED' ? null : 'REFUSED')}
-      aria-pressed={active === 'REFUSED'}
-    >
-      <span className="inv-chip-icon" aria-hidden="true"><IconRefused /></span>
-      <span className="inv-chip-label">Refusées</span>
-      {counts.refused > 0 && <span className="inv-chip-count">{counts.refused}</span>}
-    </button>
-  </div>
-));
-InvitationFilterBar.displayName = 'InvitationFilterBar';
 
 /* ───── Skeleton Card ───── */
 
@@ -221,14 +154,13 @@ type InvitationsTab = 'received';
 
 const InvitationsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<InvitationsTab>('received');
-  const [activeFilter, setActiveFilter] = useState<InvitationStatusFilter | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const { showSuccess, showError } = useGlobalToast();
   const invalidate = useInvalidateInvitations();
 
   const invitationsQuery = useReceivedInvitationsQuery(
-    activeTab === 'received' ? { page: 1, pageSize: 20, filter: { status: activeFilter } } : undefined,
+    activeTab === 'received' ? { page: 1, pageSize: 20, filter: { status: null } } : undefined,
     { refetchIntervalMs: 30_000, enabled: activeTab === 'received' },
   );
 
@@ -265,11 +197,6 @@ const InvitationsSection: React.FC = memo(() => {
     }
   }, [invalidate, showSuccess, showError]);
 
-  const filterLabel = activeFilter === 'PENDING' ? 'en attente'
-    : activeFilter === 'ACCEPTED' ? 'acceptée'
-    : activeFilter === 'REFUSED' ? 'refusée'
-    : '';
-
   return (
     <div className="invitations-section" data-section="invitations">
       <div className="section-header">
@@ -285,14 +212,12 @@ const InvitationsSection: React.FC = memo(() => {
           onClick={() => setActiveTab('received')}
         >
           <span className="tab-title">Reçues</span>
-          <span className="tab-badge">{counts.pending + counts.accepted + counts.refused}</span>
+          <span className="tab-badge">{counts.pending}</span>
         </button>
       </div>
 
       {activeTab === 'received' && (
         <>
-          <InvitationFilterBar active={activeFilter} counts={counts} onChange={setActiveFilter} />
-
           {loading ? (
             <div className="inv-grid">
               <InvitationSkeleton />
@@ -327,8 +252,8 @@ const InvitationsSection: React.FC = memo(() => {
           ) : (
             <div className="inv-empty">
               <span className="inv-empty-icon">📨</span>
-              <h3>{activeFilter ? `Aucune invitation ${filterLabel}` : 'Aucune invitation'}</h3>
-              <p>{activeFilter ? 'Essayez un autre filtre.' : 'Vos invitations apparaîtront ici.'}</p>
+              <h3>Aucune invitation</h3>
+              <p>Vos invitations apparaîtront ici.</p>
             </div>
           )}
         </>
