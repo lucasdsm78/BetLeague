@@ -26,6 +26,7 @@
   margin-bottom: 1.5rem;
   padding: 0.25rem 0;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .inv-filter-bar .inv-chip {
@@ -523,10 +524,22 @@
 
   .inv-filter-bar {
     overflow-x: auto;
+    overflow-y: hidden;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding-bottom: 0.25rem;
+
+    /* important: permet d’atteindre la dernière chip (Refusées) */
+    padding: 0.25rem 0.75rem 0.5rem;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+
+    scroll-snap-type: x proximity;
+  }
+
+  .inv-filter-bar .inv-chip {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
   }
 
   .inv-filter-bar::-webkit-scrollbar {
