@@ -1,11 +1,9 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import './InvitationsSection.css';
 import { updateInvitation } from '../../services/api/invitations';
 import {
   useReceivedInvitationsQuery,
-  useInvitationCountsQuery,
   useInvalidateInvitations,
-  type InvitationStatusFilter,
 } from '../../hooks/queries/useInvitationsQueries';
 import type { InvitationReceivedReadModel } from '../../types/entities/invitation';
 import { useGlobalToast } from '../../toast/ToastProvider';
@@ -166,44 +164,21 @@ InvitationCard.displayName = 'InvitationCard';
 
 type InvitationsTab = 'received';
 
-type InvitationFilterOption = {
-  key: InvitationStatusFilter | null;
-  label: string;
-  count: number;
-  icon: React.ReactNode;
-};
-
 const InvitationsSection: React.FC = memo(() => {
-  const [activeTab, setActiveTab] = useState<InvitationsTab>('received');
-  const [activeFilter, setActiveFilter] = useState<InvitationStatusFilter | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const { showSuccess, showError } = useGlobalToast();
   const invalidate = useInvalidateInvitations();
 
   const invitationsQuery = useReceivedInvitationsQuery(
-    activeTab === 'received' ? { page: 1, pageSize: 20, filter: { status: activeFilter } } : undefined,
-    { refetchIntervalMs: 30_000, enabled: activeTab === 'received' },
+    { page: 1, pageSize: 20, filter: { status: 'PENDING' } },
+    { refetchIntervalMs: 30_000, enabled: true },
   );
-
-  const countsQuery = useInvitationCountsQuery({ refetchIntervalMs: 60_000 });
 
   const invitations = invitationsQuery.data?.invitations ?? [];
+  const pendingCount = invitationsQuery.data?.total ?? invitations.length;
   const loading = invitationsQuery.isLoading;
   const error = (invitationsQuery.error as any)?.message ?? null;
-  const counts = countsQuery.data ?? { pending: 0, accepted: 0, refused: 0 };
-
-  const totalCount = counts.pending + counts.accepted + counts.refused;
-
-  const filterOptions = useMemo<InvitationFilterOption[]>(
-    () => [
-      { key: null, label: 'Toutes', count: totalCount, icon: <IconAll /> },
-      { key: 'PENDING', label: 'En attente', count: counts.pending, icon: <IconPending /> },
-      { key: 'ACCEPTED', label: 'Acceptées', count: counts.accepted, icon: <IconAccepted /> },
-      { key: 'REFUSED', label: 'Refusées', count: counts.refused, icon: <IconRefused /> },
-    ],
-    [counts.accepted, counts.pending, counts.refused, totalCount],
-  );
 
   const handleAccept = useCallback(async (invitation: InvitationReceivedReadModel) => {
     setLoadingId(invitation.id);
@@ -231,18 +206,6 @@ const InvitationsSection: React.FC = memo(() => {
     }
   }, [invalidate, showSuccess, showError]);
 
-  const emptyTitle = activeFilter === 'PENDING'
-    ? 'Aucune invitation en attente'
-    : activeFilter === 'ACCEPTED'
-      ? 'Aucune invitation acceptée'
-      : activeFilter === 'REFUSED'
-        ? 'Aucune invitation refusée'
-        : 'Aucune invitation';
-
-  const emptyText = activeFilter
-    ? 'Essayez un autre filtre ou revenez plus tard.'
-    : 'Vos invitations apparaîtront ici.';
-
   return (
     <div className="invitations-section" data-section="invitations">
       <div className="section-header">
@@ -252,100 +215,64 @@ const InvitationsSection: React.FC = memo(() => {
       <div className="invitations-tabs" role="tablist" aria-label="Invitations">
         <button
           type="button"
-          className={`tab-button ${activeTab === 'received' ? 'active' : ''}`}
+          className="tab-button active"
           role="tab"
-          aria-selected={activeTab === 'received'}
+          aria-selected={true}
           aria-controls="invitations-panel-received"
           id="invitations-tab-received"
-          onClick={() => setActiveTab('received')}
         >
           <span className="tab-content-wrapper">
             <span className="tab-title">Reçues</span>
-            <span className="tab-badge">{totalCount}</span>
+            <span className="tab-badge">{pendingCount}</span>
           </span>
         </button>
       </div>
 
-      {activeTab === 'received' && (
-        <section
-          id="invitations-panel-received"
-          role="tabpanel"
-          aria-labelledby="invitations-tab-received"
-          className="invitations-panel"
-        >
-          <div className="invitation-filter-tabs" role="tablist" aria-label="Filtrer les invitations reçues">
-            {filterOptions.map((option) => {
-              const isActive = option.key === activeFilter;
-              const tabId = `invitation-filter-tab-${option.key ?? 'all'}`;
-              const panelId = `invitation-filter-panel-${option.key ?? 'all'}`;
-
-              return (
-                <button
-                  key={option.key ?? 'all'}
-                  type="button"
-                  id={tabId}
-                  role="tab"
-                  aria-selected={isActive}
-                  aria-controls={panelId}
-                  className={`invitation-filter-tab ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveFilter(option.key)}
-                >
-                  <span className="tab-content-wrapper">
-                    <span className="filter-tab-icon" aria-hidden="true">{option.icon}</span>
-                    <span className="tab-title">{option.label}</span>
-                    <span className="tab-badge">{option.count}</span>
-                  </span>
-                </button>
-              );
-            })}
+      <section
+        id="invitations-panel-received"
+        role="tabpanel"
+        aria-labelledby="invitations-tab-received"
+        className="invitations-panel"
+      >
+        {loading ? (
+          <div className="inv-grid">
+            <InvitationSkeleton />
+            <InvitationSkeleton />
+            <InvitationSkeleton />
           </div>
-
-          <div
-            id={`invitation-filter-panel-${activeFilter ?? 'all'}`}
-            role="tabpanel"
-            aria-labelledby={`invitation-filter-tab-${activeFilter ?? 'all'}`}
-          >
-            {loading ? (
-              <div className="inv-grid">
-                <InvitationSkeleton />
-                <InvitationSkeleton />
-                <InvitationSkeleton />
-              </div>
-            ) : error ? (
-              <div className="inv-empty">
-                <span className="inv-empty-icon">⚠️</span>
-                <h3>Erreur de chargement</h3>
-                <p>{error}</p>
-                <button
-                  className="inv-btn inv-btn--accept"
-                  onClick={() => invitationsQuery.refetch()}
-                  style={{ marginTop: '0.5rem', flex: 'none', padding: '0.5rem 1.5rem' }}
-                >
-                  Réessayer
-                </button>
-              </div>
-            ) : invitations.length > 0 ? (
-              <div className="inv-grid">
-                {invitations.map(inv => (
-                  <InvitationCard
-                    key={inv.id}
-                    invitation={inv}
-                    onAccept={handleAccept}
-                    onDecline={handleDecline}
-                    loading={loadingId === inv.id}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="inv-empty">
-                <span className="inv-empty-icon">📨</span>
-                <h3>{emptyTitle}</h3>
-                <p>{emptyText}</p>
-              </div>
-            )}
+        ) : error ? (
+          <div className="inv-empty">
+            <span className="inv-empty-icon">⚠️</span>
+            <h3>Erreur de chargement</h3>
+            <p>{error}</p>
+            <button
+              className="inv-btn inv-btn--accept"
+              onClick={() => invitationsQuery.refetch()}
+              style={{ marginTop: '0.5rem', flex: 'none', padding: '0.5rem 1.5rem' }}
+            >
+              Réessayer
+            </button>
           </div>
-        </section>
-      )}
+        ) : invitations.length > 0 ? (
+          <div className="inv-grid">
+            {invitations.map(inv => (
+              <InvitationCard
+                key={inv.id}
+                invitation={inv}
+                onAccept={handleAccept}
+                onDecline={handleDecline}
+                loading={loadingId === inv.id}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="inv-empty">
+            <span className="inv-empty-icon">📨</span>
+            <h3>Aucune invitation en attente</h3>
+            <p>Vos invitations reçues apparaîtront ici.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 });
