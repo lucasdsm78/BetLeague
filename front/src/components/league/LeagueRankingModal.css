@@ -1,7 +1,4 @@
-/**
- * LeagueRankingModal - Styles intégrés au design system BetLeague
- * Modal responsive et optimisée pour le thème paris sportifs
- */
+/* League Ranking Modal - Dark Premium Sports Betting Theme */
 
 /* ========== MODAL OVERLAY ========== */
 
@@ -11,8 +8,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(5, 12, 30, 0.75);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,10 +31,10 @@
 /* ========== MODAL CONTAINER ========== */
 
 .ranking-modal {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-secondary);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 900px;
   max-height: 90vh;
@@ -66,7 +64,7 @@
   justify-content: space-between;
   padding: var(--space-6);
   border-bottom: 1px solid var(--border-primary);
-  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--bg-secondary) 100%);
+  background: var(--bg-elevated);
   flex-shrink: 0;
 }
 
@@ -84,7 +82,7 @@
 
 .ranking-modal__title-icon {
   font-size: var(--text-2xl);
-  color: var(--color-secondary-500);
+  color: var(--color-gold);
   animation: trophyGlow 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -101,7 +99,7 @@
 }
 
 .ranking-modal__close {
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-primary);
   border-radius: 50%;
   width: 40px;
@@ -111,21 +109,20 @@
   justify-content: center;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition-all);
+  transition: all var(--transition-fast) ease;
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   flex-shrink: 0;
 }
 
 .ranking-modal__close:hover {
-  background: var(--color-error-100);
-  color: var(--color-error-600);
-  border-color: var(--color-error-200);
+  background: var(--bg-hover);
+  color: var(--text-primary);
   transform: scale(1.05);
 }
 
 .ranking-modal__close:focus-visible {
-  outline: 2px solid var(--color-primary-500);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -133,7 +130,7 @@
   transform: scale(0.95);
 }
 
-/* ========== HEADER ACTIONS (COPY + CLOSE) ========== */
+/* ========== HEADER ACTIONS ========== */
 
 .ranking-modal__header-actions {
   display: flex;
@@ -143,21 +140,21 @@
 }
 
 .ranking-modal__copy {
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
   color: var(--text-primary);
   cursor: pointer;
-  transition: var(--transition-all);
+  transition: all var(--transition-fast) ease;
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
   white-space: nowrap;
 }
 
 .ranking-modal__copy:hover {
-  background: var(--color-secondary-50);
-  border-color: var(--color-secondary-200);
+  background: var(--color-gold-subtle);
+  border-color: var(--border-accent);
   transform: translateY(-1px);
 }
 
@@ -166,7 +163,7 @@
 }
 
 .ranking-modal__copy:focus-visible {
-  outline: 2px solid var(--color-primary-500);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -191,7 +188,6 @@
   position: relative;
 }
 
-/* Masquer le header du composant de classement dans la modal */
 .ranking-modal__content .league-ranking {
   background: transparent;
   border: none;
@@ -211,26 +207,26 @@
 /* ========== SCROLLBAR STYLING ========== */
 
 .ranking-modal__content::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .ranking-modal__content::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 .ranking-modal__content::-webkit-scrollbar-thumb {
-  background: var(--color-primary-300);
+  background: var(--bg-surface);
   border-radius: var(--radius-full);
 }
 
 .ranking-modal__content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-400);
+  background: var(--color-primary);
 }
 
 /* Firefox */
 .ranking-modal__content {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-primary-300) var(--bg-secondary);
+  scrollbar-color: var(--bg-surface) transparent;
 }
 
 /* ========== ACCESSIBILITY ========== */
@@ -257,7 +253,7 @@
 
   .ranking-modal {
     max-width: 100%;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
   }
 
   .ranking-modal__header {
@@ -290,7 +286,7 @@
   .ranking-modal {
     width: 100%;
     max-height: calc(100vh - 4rem);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
   }
 
   .ranking-modal__header {
@@ -330,7 +326,7 @@
 
   .ranking-modal {
     max-height: calc(100vh - 2rem);
-    border-radius: var(--radius-base);
+    border-radius: var(--radius-lg);
   }
 
   .ranking-modal__header {
@@ -352,18 +348,6 @@
     top: var(--space-2);
     right: var(--space-2);
   }
-}
-
-/* ========== DARK THEME SUPPORT ========== */
-
-[data-theme="dark"] .ranking-modal__title-icon {
-  color: var(--color-secondary-400);
-}
-
-[data-theme="dark"] .ranking-modal__close:hover {
-  background: var(--color-error-900);
-  color: var(--color-error-300);
-  border-color: var(--color-error-700);
 }
 
 /* ========== REDUCED MOTION ========== */
@@ -414,7 +398,7 @@
   outline: none;
 }
 
-/* ========== LOADING STATE INSIDE MODAL ========== */
+/* ========== LOADING STATE ========== */
 
 .ranking-modal__content .league-ranking__loading {
   padding: var(--space-16) var(--space-6);
@@ -425,7 +409,7 @@
   margin: var(--space-6);
 }
 
-/* ========== MODAL BACKDROP CLICK PREVENTION ========== */
+/* ========== MODAL BACKDROP ========== */
 
 .ranking-modal {
   pointer-events: auto;

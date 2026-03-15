@@ -1,3 +1,7 @@
+/* ============================================
+   TOURNAMENTS SECTION - Dark Premium Sports Betting Theme
+   ============================================ */
+
 .tournaments-section {
   max-width: 1200px;
   margin: 0 auto;
@@ -22,16 +26,17 @@
 .tournaments-title {
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
 }
 
 .tournaments-subtitle {
   font-size: 1.15rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
   font-weight: 500;
 }
@@ -41,26 +46,26 @@
   padding: 0.625rem 1.125rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  background: var(--gradient-gold) !important;
   border: none;
-  border-radius: 10px;
-  color: white !important;
+  border-radius: var(--radius-md, 10px);
+  color: var(--text-inverse) !important;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+  transition: var(--transition-base, all 0.2s);
+  box-shadow: var(--shadow-glow-gold, 0 3px 10px rgba(245, 166, 35, 0.3));
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .btn-create-tournament-header:hover {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  background: var(--gradient-premium) !important;
   transform: translateY(-2px);
-  box-shadow: 0 5px 14px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 5px 18px rgba(245, 166, 35, 0.45);
 }
 
 .btn-create-tournament-header:active {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  background: var(--gradient-gold) !important;
   transform: translateY(0);
 }
 
@@ -76,9 +81,9 @@
   display: flex;
   gap: 1rem;
   padding: 0.5rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.08) 100%);
+  background: var(--bg-secondary);
   border-radius: 16px;
-  border: 2px solid rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--border-primary);
   margin-bottom: 2rem;
 }
 
@@ -94,18 +99,12 @@
   background: transparent;
   border: 2px solid transparent;
   border-radius: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  /* Create a local stacking context so z-index behaves predictably */
   z-index: 0;
-}
-
-/* Ensure the label/icon always paint above the background layer */
-.tab-btn {
-  color: #6b7280;
 }
 
 .tab-btn::before {
@@ -115,7 +114,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   opacity: 0;
   transition: opacity 0.3s ease;
   border-radius: 10px;
@@ -128,21 +127,21 @@
   z-index: 1;
 }
 
-/* Active tab: force readable label color */
+/* Active tab */
 .tab-btn.tab-active .tab-label,
 .tab-btn.tab-active .tab-icon {
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
-/* Keep the existing span rule but increase specificity for safety */
 .tab-btn > span {
   position: relative;
   z-index: 2;
 }
 
 .tab-btn:hover:not(.tab-active) {
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.2);
+  color: var(--color-gold);
+  border-color: var(--color-gold-glow);
+  background: var(--color-gold-glow);
   transform: translateY(-2px);
 }
 
@@ -151,10 +150,10 @@
 }
 
 .tab-active {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #ffffff;
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
   border-color: transparent;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.35);
 }
 
 .tab-active::before {
@@ -172,7 +171,7 @@
   z-index: 1;
 }
 
-/* Mobile: allow tabs to scroll instead of shrinking text until it disappears */
+/* Mobile: allow tabs to scroll */
 @media (max-width: 640px) {
   .tournaments-section {
     padding: 1rem;
@@ -199,12 +198,18 @@
   }
 }
 
-/* Tournaments Content */
+/* ============================================
+   TOURNAMENTS CONTENT
+   ============================================ */
+
 .tournaments-content {
   padding: 2rem 0;
 }
 
-/* Tournaments Grid */
+/* ============================================
+   TOURNAMENTS GRID
+   ============================================ */
+
 .tournaments-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -212,7 +217,10 @@
   margin-bottom: 2rem;
 }
 
-/* Loading State */
+/* ============================================
+   LOADING STATE
+   ============================================ */
+
 .tournaments-loading {
   display: flex;
   flex-direction: column;
@@ -225,8 +233,8 @@
 .loading-spinner {
   width: 60px;
   height: 60px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #f59e0b;
+  border: 4px solid var(--bg-surface);
+  border-top-color: var(--color-gold);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -238,11 +246,14 @@
 .loading-text {
   margin-top: 1.5rem;
   font-size: 1.125rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
-/* Error State */
+/* ============================================
+   ERROR STATE
+   ============================================ */
+
 .tournaments-error {
   display: flex;
   flex-direction: column;
@@ -251,6 +262,9 @@
   padding: 4rem 2rem;
   text-align: center;
   min-height: 400px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border-primary);
 }
 
 .error-icon {
@@ -261,13 +275,13 @@
 .tournaments-error h3 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary);
   margin: 0 0 1rem 0;
 }
 
 .tournaments-error p {
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin: 0 0 2rem 0;
   max-width: 500px;
 }
@@ -276,21 +290,24 @@
   padding: 0.875rem 1.75rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: var(--gradient-gold);
   border: none;
   border-radius: 12px;
-  color: white;
+  color: var(--text-inverse);
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: var(--transition-base, all 0.2s);
+  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
 }
 
 .btn-retry:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 16px rgba(245, 166, 35, 0.4);
 }
 
-/* Empty State */
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
 .tournaments-empty {
   display: flex;
   flex-direction: column;
@@ -298,8 +315,8 @@
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border: 2px dashed rgba(245, 158, 11, 0.3);
+  background: var(--bg-secondary);
+  border: 2px dashed var(--color-gold-dark);
   border-radius: 24px;
   min-height: 400px;
 }
@@ -318,13 +335,13 @@
 .tournaments-empty h3 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary);
   margin: 0 0 0.75rem 0;
 }
 
 .tournaments-empty p {
   font-size: 1.0625rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   max-width: 500px;
   margin: 0 0 2rem 0;
   line-height: 1.6;
@@ -334,13 +351,13 @@
   padding: 1rem 2rem;
   font-size: 1.0625rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   border: none;
   border-radius: 12px;
-  color: white;
+  color: var(--text-inverse);
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  transition: var(--transition-base, all 0.3s);
+  box-shadow: var(--shadow-glow-gold, 0 4px 12px rgba(245, 166, 35, 0.3));
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
@@ -348,14 +365,17 @@
 
 .btn-create-tournament-cta:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.45);
 }
 
 .btn-create-tournament-cta .btn-icon {
   font-size: 1.25rem;
 }
 
-/* Pagination */
+/* ============================================
+   PAGINATION
+   ============================================ */
+
 .tournaments-pagination {
   display: flex;
   align-items: center;
@@ -371,22 +391,23 @@
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   border: none;
   border-radius: 12px;
-  color: white;
+  color: var(--text-inverse);
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  transition: var(--transition-base, all 0.2s);
+  box-shadow: 0 2px 8px rgba(245, 166, 35, 0.25);
 }
 
 .pagination-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 14px rgba(245, 166, 35, 0.4);
 }
 
 .pagination-btn:disabled {
-  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -397,16 +418,19 @@
 
 .pagination-info {
   font-size: 1rem;
-  color: #4b5563;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .pagination-info strong {
-  color: #f59e0b;
+  color: var(--color-gold);
   font-weight: 800;
 }
 
-/* Mobile Responsive */
+/* ============================================
+   RESPONSIVE - TABLET
+   ============================================ */
+
 @media (max-width: 768px) {
   .tournaments-section {
     padding: 1.5rem;
@@ -461,6 +485,10 @@
   }
 }
 
+/* ============================================
+   RESPONSIVE - MOBILE
+   ============================================ */
+
 @media (max-width: 480px) {
   .tournaments-section {
     padding: 1rem;
@@ -485,10 +513,21 @@
   }
 }
 
-/* Accessibility */
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
 @media (prefers-reduced-motion: reduce) {
   .tab-btn,
   .tab-btn::before {
     transition: none;
+  }
+
+  .empty-icon {
+    animation: none;
+  }
+
+  .loading-spinner {
+    animation-duration: 1.5s;
   }
 }

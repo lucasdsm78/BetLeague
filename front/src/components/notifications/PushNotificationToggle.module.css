@@ -1,7 +1,5 @@
 /**
- * PushNotificationToggle Styles
- *
- * Sports betting themed toggle for push notifications
+ * PushNotificationToggle - Dark Premium Theme
  */
 
 .container {
@@ -9,9 +7,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 16px;
-  background: linear-gradient(135deg, rgba(30, 30, 45, 0.95), rgba(20, 20, 35, 0.98));
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
 }
 
 .content {
@@ -27,27 +25,27 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
 }
 
 .icon {
   width: 20px;
   height: 20px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   transition: color 0.3s ease, filter 0.3s ease;
 }
 
 .iconActive {
-  color: #00ff88;
-  filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.5));
+  color: var(--color-primary);
+  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.5));
 }
 
 .iconBlocked {
   width: 20px;
   height: 20px;
-  color: #ff6b6b;
+  color: var(--color-danger);
 }
 
 .activeDot {
@@ -57,8 +55,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #00ff88;
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+  background: var(--color-primary);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
   animation: pulse 2s infinite;
 }
 
@@ -84,17 +82,17 @@
 .label {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
   letter-spacing: 0.01em;
 }
 
 .status {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
 }
 
 .statusActive {
-  color: #00ff88;
+  color: var(--color-primary);
 }
 
 /* Toggle Switch */
@@ -120,19 +118,19 @@
   width: 100%;
   height: 100%;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .toggle:hover:not(:disabled) .toggleTrack {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .toggleActive .toggleTrack {
-  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  background: var(--gradient-primary);
   border-color: transparent;
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .toggleThumb {
@@ -154,14 +152,14 @@
 /* Help text */
 .helpText {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-tertiary);
   padding-left: 52px;
 }
 
 /* Error message */
 .error {
   font-size: 12px;
-  color: #ff6b6b;
+  color: var(--color-danger);
   padding-left: 52px;
 }
 
@@ -218,7 +216,7 @@
 
 /* Focus styles for accessibility */
 .toggle:focus-visible .toggleTrack {
-  outline: 2px solid #00ff88;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -243,11 +241,11 @@
 
 .profileVariant {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 .profileVariant .iconWrapper {
-  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .profileVariant .label {
@@ -260,34 +258,34 @@
 }
 
 .profileVariant .toggleTrack {
-  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  background: var(--bg-surface);
+  border-color: var(--border-primary);
 }
 
 .profileVariant .toggle:hover:not(:disabled) .toggleTrack {
-  border-color: color-mix(in srgb, var(--text-primary) 16%, transparent);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .profileVariant .icon {
-  color: color-mix(in srgb, var(--text-primary) 60%, transparent);
+  color: var(--text-tertiary);
 }
 
 .profileVariant .error {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .profileVariant:hover {
-  border-color: color-mix(in srgb, var(--text-primary) 14%, var(--border-color));
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .profileVariant .statusActive {
-  color: var(--success-color);
+  color: var(--color-success);
 }
 
 .profileVariant .toggleActive .toggleTrack {
-  background: linear-gradient(135deg, var(--success-color), color-mix(in srgb, var(--success-color) 80%, #000));
+  background: linear-gradient(135deg, var(--color-success), var(--color-success-dark));
   border-color: transparent;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--success-color) 45%, transparent);
+  box-shadow: var(--shadow-glow-success);
 }
 
 .compact {
