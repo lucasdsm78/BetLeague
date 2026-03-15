@@ -1,4 +1,4 @@
-/* NotificationsPanel - Sports Betting Theme */
+/* NotificationsPanel - Dark Premium Theme */
 
 /* ============================================================================
    Panel Container
@@ -22,7 +22,7 @@
   gap: 12px;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .headerLeft {
@@ -34,14 +34,14 @@
   margin: 0;
   font-size: 18px;
   font-weight: 800;
-  color: #f1f5f9;
+  color: var(--text-primary);
   letter-spacing: -0.01em;
 }
 
 .subtitle {
   margin: 4px 0 0;
   font-size: 13px;
-  color: rgba(148, 163, 184, 0.8);
+  color: var(--text-secondary);
 }
 
 .markAllBtn {
@@ -50,24 +50,25 @@
   gap: 6px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  background: rgba(34, 197, 94, 0.08);
-  color: #4ade80;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
     transform 100ms ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .markAllBtn:hover {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.4);
+  background: var(--color-primary-glow);
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .markAllBtn:active {
@@ -95,16 +96,16 @@
 
 .rowWrap {
   position: relative;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .rowBg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.15) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 14px;
+  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(230, 57, 70, 0.1) 100%);
+  border: 1px solid rgba(255, 71, 87, 0.2);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -118,13 +119,13 @@
 .rowBgIcon {
   width: 18px;
   height: 18px;
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 .rowBgText {
   font-size: 12px;
   font-weight: 600;
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 /* ============================================================================
@@ -139,24 +140,24 @@
   width: 100%;
   padding: 14px;
   text-align: left;
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 14px;
-  background: rgba(30, 41, 59, 0.5);
-  color: #e2e8f0;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: pan-y;
   will-change: transform;
   transition:
     transform 120ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .item:hover {
-  background: rgba(30, 41, 59, 0.7);
-  border-color: rgba(148, 163, 184, 0.15);
+  background: var(--bg-surface);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .item:active {
@@ -164,29 +165,29 @@
 }
 
 .item:focus-visible {
-  outline: 2px solid var(--color-primary-500, #22c55e);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 /* Unread State */
 .unread {
-  border-color: rgba(34, 197, 94, 0.25);
+  border-color: rgba(0, 212, 255, 0.2);
   background: linear-gradient(
     135deg,
-    rgba(34, 197, 94, 0.06) 0%,
-    rgba(30, 41, 59, 0.5) 100%
+    var(--color-primary-subtle) 0%,
+    var(--bg-elevated) 100%
   );
   box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.08),
-    0 4px 16px rgba(0, 0, 0, 0.15);
+    0 0 0 1px rgba(0, 212, 255, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .unread:hover {
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: rgba(0, 212, 255, 0.3);
   background: linear-gradient(
     135deg,
-    rgba(34, 197, 94, 0.1) 0%,
-    rgba(30, 41, 59, 0.6) 100%
+    var(--color-primary-glow) 0%,
+    var(--bg-surface) 100%
   );
 }
 
@@ -208,16 +209,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: rgba(148, 163, 184, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
 }
 
 .typeIcon {
   width: 20px;
   height: 20px;
-  color: rgba(148, 163, 184, 0.7);
-  transition: color 150ms ease;
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
 }
 
 .unreadDot {
@@ -227,8 +228,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 0 0 2px rgba(30, 41, 59, 0.9);
+  background: var(--gradient-primary);
+  box-shadow: 0 0 0 2px var(--bg-elevated);
   animation: dotPulse 2s ease-in-out infinite;
 }
 
@@ -243,18 +244,18 @@
 
 /* Win - Gold/Trophy */
 .typeWin .iconWrap {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+  background: linear-gradient(135deg, var(--color-gold-glow) 0%, rgba(245, 166, 35, 0.06) 100%);
 }
 .typeWin .typeIcon {
-  color: #fbbf24;
+  color: var(--color-gold);
 }
 
 /* Loss - Red */
 .typeLoss .iconWrap {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(185, 28, 28, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(230, 57, 70, 0.06) 100%);
 }
 .typeLoss .typeIcon {
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 /* Invitation - Blue */
@@ -267,10 +268,10 @@
 
 /* Match Result - Green */
 .typeMatch .iconWrap {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-success-glow) 0%, rgba(0, 200, 83, 0.06) 100%);
 }
 .typeMatch .typeIcon {
-  color: #4ade80;
+  color: var(--color-success);
 }
 
 /* League Events - Purple */
@@ -291,10 +292,10 @@
 
 /* Account Update - Cyan */
 .typeAccount .iconWrap {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(8, 145, 178, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-primary-glow) 0%, rgba(0, 163, 204, 0.06) 100%);
 }
 .typeAccount .typeIcon {
-  color: #22d3ee;
+  color: var(--color-primary);
 }
 
 /* ============================================================================
@@ -319,7 +320,7 @@
 .itemTitle {
   font-size: 14px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--text-primary);
   line-height: 1.3;
   flex: 1;
   min-width: 0;
@@ -332,7 +333,7 @@
 .itemTime {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(148, 163, 184, 0.6);
+  color: var(--text-tertiary);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -341,7 +342,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(203, 213, 225, 0.85);
+  color: var(--text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -359,9 +360,9 @@
   transform: translateY(-50%);
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  background: rgba(30, 41, 59, 0.8);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -369,25 +370,25 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity 150ms ease,
-    background-color 150ms ease,
-    border-color 150ms ease;
+    opacity var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .deleteIcon {
   width: 16px;
   height: 16px;
-  color: rgba(148, 163, 184, 0.7);
-  transition: color 150ms ease;
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
 }
 
 .deleteFallback:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: var(--color-danger-subtle);
+  border-color: rgba(255, 71, 87, 0.3);
 }
 
 .deleteFallback:hover .deleteIcon {
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -419,23 +420,25 @@
   width: 100%;
   max-width: 280px;
   height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(22, 163, 74, 0.05) 100%);
-  color: #4ade80;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 163, 204, 0.04) 100%);
+  color: var(--color-primary);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
     transform 100ms ease,
-    opacity 150ms ease;
+    opacity var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .loadMore:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(22, 163, 74, 0.1) 100%);
-  border-color: rgba(34, 197, 94, 0.35);
+  background: linear-gradient(135deg, var(--color-primary-glow) 0%, rgba(0, 163, 204, 0.08) 100%);
+  border-color: rgba(0, 212, 255, 0.35);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .loadMore:active:not(:disabled) {
@@ -450,8 +453,8 @@
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(74, 222, 128, 0.2);
-  border-top-color: #4ade80;
+  border: 2px solid rgba(0, 212, 255, 0.2);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 800ms linear infinite;
 }
@@ -463,7 +466,7 @@
 .endText {
   margin: 0;
   font-size: 13px;
-  color: rgba(148, 163, 184, 0.5);
+  color: var(--text-tertiary);
 }
 
 /* ============================================================================
@@ -483,21 +486,21 @@
   width: 80px;
   height: 80px;
   margin-bottom: 20px;
-  color: rgba(148, 163, 184, 0.4);
+  color: var(--text-tertiary);
 }
 
 .emptyTitle {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 700;
-  color: rgba(148, 163, 184, 0.8);
+  color: var(--text-secondary);
 }
 
 .emptyText {
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: rgba(148, 163, 184, 0.5);
+  color: var(--text-tertiary);
   max-width: 260px;
 }
 
@@ -510,20 +513,20 @@
   align-items: flex-start;
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.08);
-  border-radius: 14px;
-  background: rgba(30, 41, 59, 0.3);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
 }
 
 .skeletonIcon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     90deg,
-    rgba(148, 163, 184, 0.06) 0%,
-    rgba(148, 163, 184, 0.12) 50%,
-    rgba(148, 163, 184, 0.06) 100%
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -539,12 +542,12 @@
 
 .skeletonLine {
   height: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
-    rgba(148, 163, 184, 0.06) 0%,
-    rgba(148, 163, 184, 0.12) 50%,
-    rgba(148, 163, 184, 0.06) 100%
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -594,13 +597,13 @@
   .item {
     padding: 12px;
     gap: 10px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
   }
 
   .iconWrap {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
   }
 
   .typeIcon {
@@ -664,7 +667,7 @@
   .iconWrap {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
   }
 
   .typeIcon {
@@ -713,6 +716,6 @@
 
 .pushToggle {
   margin-top: 16px;
-  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  border-top: 1px solid var(--border-primary);
   padding-top: 16px;
 }

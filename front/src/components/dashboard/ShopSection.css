@@ -21,9 +21,9 @@
 .shop-title {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -31,18 +31,19 @@
 
 .shop-subtitle {
   font-size: 1rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
 }
 
 .shop-balance-card {
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: var(--gradient-primary);
   padding: 1.25rem 1.75rem;
-  border-radius: 16px;
-  color: white;
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
   text-align: center;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
   min-width: 200px;
+  border: 1px solid var(--color-primary-subtle);
 }
 
 .balance-label {
@@ -50,19 +51,21 @@
   opacity: 0.9;
   margin-bottom: 0.25rem;
   font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .balance-value {
   font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.5px;
+  color: #fff;
 }
 
 .shop-tabs {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
-  border-bottom: 2px solid var(--border-color, #e0e0e0);
+  border-bottom: 2px solid var(--border-primary);
 }
 
 .shop-tab {
@@ -73,22 +76,22 @@
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   margin-bottom: -2px;
 }
 
 .shop-tab:hover {
-  color: var(--primary-color, #2563eb);
-  background: rgba(37, 99, 235, 0.05);
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
 }
 
 .shop-tab.active {
-  color: var(--primary-color, #2563eb);
-  border-bottom-color: var(--primary-color, #2563eb);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
 .tab-icon {
@@ -96,11 +99,11 @@
 }
 
 .shop-content {
-  background: var(--background-secondary, #ffffff);
-  border-radius: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--border-color, #e0e0e0);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-primary);
 }
 
 .section-header {
@@ -111,13 +114,13 @@
 .section-header h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .section-header p {
   font-size: 1rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -129,18 +132,19 @@
 }
 
 .feature-card {
-  background: var(--background-tertiary, #f9fafb);
+  background: var(--bg-secondary);
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   text-align: center;
-  border: 1px solid var(--border-color, #e0e0e0);
-  transition: all 0.2s ease;
+  border: 1px solid var(--border-primary);
+  transition: var(--transition-fast);
 }
 
 .feature-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: var(--primary-color, #2563eb);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary);
+  background: var(--bg-elevated);
 }
 
 .feature-icon {
@@ -151,13 +155,13 @@
 .feature-card h3 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .feature-card p {
   font-size: 0.9rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.5;
 }
@@ -165,9 +169,10 @@
 .cta-section {
   text-align: center;
   padding: 2.5rem 1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
-  border-radius: 16px;
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-xl);
   margin-bottom: 2.5rem;
+  border: 1px solid rgba(0, 212, 255, 0.1);
 }
 
 .shop-cta {
@@ -178,15 +183,19 @@
   font-size: 1.125rem;
   font-weight: 700;
   margin-bottom: 0.75rem;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  background: var(--gradient-primary);
   border: none;
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
-  transition: all 0.3s ease;
+  color: var(--text-inverse);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
+  transition: var(--transition-base);
+  cursor: pointer;
 }
 
 .shop-cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+  box-shadow: var(--shadow-xl), var(--shadow-glow-primary);
+  filter: brightness(1.1);
 }
 
 .cta-icon {
@@ -195,7 +204,7 @@
 
 .cta-description {
   font-size: 0.95rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -206,7 +215,7 @@
 .info-section h3 {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 1.5rem 0;
   text-align: center;
 }
@@ -218,37 +227,44 @@
 }
 
 .step-card {
-  background: var(--background-tertiary, #f9fafb);
+  background: var(--bg-elevated);
   padding: 1.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   text-align: center;
-  border: 2px solid var(--border-color, #e0e0e0);
+  border: 2px solid var(--border-primary);
+  transition: var(--transition-fast);
+}
+
+.step-card:hover {
+  border-color: var(--color-primary-dark);
+  box-shadow: var(--shadow-md);
 }
 
 .step-number {
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-  color: white;
-  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 800;
   margin: 0 auto 1rem auto;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .step-card h4 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .step-card p {
   font-size: 0.9rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.6;
 }
@@ -262,10 +278,11 @@
   max-width: 500px;
   margin: 2rem auto;
   padding: 2.5rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%);
-  border: 2px solid var(--border-color, #e0e0e0);
-  border-radius: 16px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-xl);
   position: relative;
+  box-shadow: var(--shadow-lg);
 }
 
 .subscription-badge {
@@ -273,21 +290,21 @@
   top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: #1a1a1a;
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
   padding: 0.5rem 1.5rem;
-  border-radius: 20px;
+  border-radius: var(--radius-full);
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .subscription-card h3 {
   font-size: 1.75rem;
   font-weight: 800;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 1.5rem 0;
 }
 
@@ -302,12 +319,12 @@
 .subscription-price .price {
   font-size: 3rem;
   font-weight: 800;
-  color: var(--primary-color, #2563eb);
+  color: var(--color-gold);
 }
 
 .subscription-price .period {
   font-size: 1.125rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
 }
 
 .subscription-features {
@@ -323,8 +340,8 @@
   gap: 0.75rem;
   padding: 0.75rem 0;
   font-size: 1rem;
-  color: var(--text-primary, #1a1a1a);
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .subscription-features li:last-child {
@@ -335,23 +352,24 @@
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  background: var(--success-color, #10b981);
-  color: white;
-  border-radius: 50%;
+  background: var(--color-success);
+  color: var(--text-inverse);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.875rem;
   font-weight: 700;
+  box-shadow: var(--shadow-glow-success);
 }
 
 .info-box {
   max-width: 600px;
   margin: 2rem auto;
   padding: 1.5rem;
-  background: rgba(37, 99, 235, 0.05);
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  border-radius: 12px;
+  background: var(--color-info-subtle);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-lg);
   display: flex;
   gap: 1rem;
   text-align: left;
@@ -365,13 +383,13 @@
 .info-content h4 {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
 
 .info-content p {
   font-size: 0.95rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.6;
 }
@@ -455,18 +473,19 @@
 .subscription-status-banner {
   margin-bottom: 2rem;
   padding: 1rem 1.5rem;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .status-active {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: var(--success-color);
-  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  background: var(--color-success-subtle);
   padding: 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .status-inactive {
@@ -474,9 +493,9 @@
   align-items: center;
   gap: 0.75rem;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   padding: 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .status-icon {
@@ -489,21 +508,23 @@
 }
 
 .subscription-card.tournament {
-  background: linear-gradient(135deg, #fff 0%, #fef3c7 100%);
-  border: 2px solid #f59e0b;
+  background: var(--bg-elevated);
+  border: 2px solid var(--color-gold);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
 }
 
 .subscription-badge-new {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
   padding: 0.5rem 1rem;
-  border-radius: 20px;
+  border-radius: var(--radius-full);
   font-size: 0.875rem;
   font-weight: 700;
   margin-bottom: 1rem;
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .badge-icon {
@@ -511,19 +532,25 @@
 }
 
 .tournament-subscribe-btn {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   margin: 0 auto;
-  transition: all 0.3s ease;
+  transition: var(--transition-base);
+  color: var(--text-inverse);
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 2rem;
+  cursor: pointer;
 }
 
 .tournament-subscribe-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
+  filter: brightness(1.1);
 }
 
 .btn-icon {
@@ -544,16 +571,17 @@
 
 .benefit-card {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: var(--transition-fast);
 }
 
 .benefit-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-gold-dark);
 }
 
 .benefit-icon {
@@ -576,8 +604,8 @@
 }
 
 .info-box.tournament-info {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border-color: rgba(245, 158, 11, 0.2);
+  background: var(--color-gold-subtle);
+  border-color: rgba(245, 166, 35, 0.2);
 }
 
 /* Subscription Success Modal */
@@ -586,7 +614,8 @@
 }
 
 .success-icon-large.tournament {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .subscription-success-features {
@@ -596,7 +625,8 @@
   margin-top: 1.5rem;
   padding: 1.5rem;
   background: var(--bg-secondary);
-  border-radius: var(--border-radius);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
 }
 
 .success-feature {
@@ -610,15 +640,16 @@
 .success-feature-icon {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.875rem;
   font-weight: 700;
   flex-shrink: 0;
+  box-shadow: var(--shadow-glow-success);
 }
 
 @media (max-width: 768px) {
@@ -651,9 +682,9 @@
 
 /* Tournament Explanation Section - New Compact Design */
 .tournament-explanation {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, rgba(217, 119, 6, 0.03) 100%);
-  border: 2px solid rgba(245, 158, 11, 0.15);
-  border-radius: 20px;
+  background: var(--color-gold-subtle);
+  border: 2px solid rgba(245, 166, 35, 0.15);
+  border-radius: var(--radius-xl);
   padding: 2rem;
   margin-top: 2rem;
 }
@@ -679,7 +710,7 @@
   font-size: 2rem;
   font-weight: 800;
   margin: 0;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -698,12 +729,12 @@
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
   padding: 2rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
-  border: 2px solid rgba(245, 158, 11, 0.2);
+  box-shadow: var(--shadow-md);
+  border: 2px solid rgba(245, 166, 35, 0.2);
 }
 
 .tournament-intro-highlight {
@@ -716,7 +747,7 @@
 .highlight-number {
   font-size: 3.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -732,18 +763,18 @@
 
 .tournament-intro-arrow {
   font-size: 2.5rem;
-  color: #f59e0b;
+  color: var(--color-gold);
   font-weight: 700;
 }
 
 /* Tournament Compact Section */
 .tournament-compact-section {
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(245, 158, 11, 0.1);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(245, 166, 35, 0.1);
 }
 
 .tournament-pitch {
@@ -755,7 +786,7 @@
 }
 
 .tournament-pitch strong {
-  color: #f59e0b;
+  color: var(--color-gold);
   font-weight: 700;
 }
 
@@ -765,13 +796,13 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
   padding: 2rem 1rem;
   margin-bottom: 1.5rem;
   overflow-x: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(245, 158, 11, 0.1);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(245, 166, 35, 0.1);
 }
 
 .stage-item {
@@ -780,37 +811,37 @@
   align-items: center;
   gap: 0.5rem;
   padding: 1rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border-radius: 12px;
-  border: 2px solid rgba(245, 158, 11, 0.2);
+  background: var(--color-gold-subtle);
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(245, 166, 35, 0.2);
   min-width: 100px;
-  transition: all 0.3s ease;
+  transition: var(--transition-base);
 }
 
 .stage-item:hover {
   transform: translateY(-5px);
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.2);
-  border-color: #f59e0b;
+  box-shadow: var(--shadow-glow-gold);
+  border-color: var(--color-gold);
 }
 
 .stage-item-final {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
-  border-color: #f59e0b;
+  background: rgba(245, 166, 35, 0.15);
+  border-color: var(--color-gold);
   border-width: 3px;
 }
 
 .stage-badge {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #f59e0b;
-  background: white;
+  color: var(--color-gold);
+  background: var(--bg-primary);
   width: 45px;
   height: 45px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #f59e0b;
+  border: 2px solid var(--color-gold);
 }
 
 .stage-name {
@@ -822,7 +853,7 @@
 .stage-players {
   font-size: 1rem;
   font-weight: 600;
-  color: #f59e0b;
+  color: var(--color-gold);
 }
 
 .stage-duration {
@@ -833,7 +864,7 @@
 
 .stage-arrow {
   font-size: 1.5rem;
-  color: #f59e0b;
+  color: var(--color-gold);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -850,18 +881,18 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: white;
+  background: var(--bg-elevated);
   padding: 1.25rem;
-  border-radius: 12px;
-  border: 1px solid rgba(245, 158, 11, 0.1);
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(245, 166, 35, 0.1);
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
 .key-feature:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: var(--shadow-lg), rgba(245, 166, 35, 0.15) 0 6px 16px;
+  border-color: rgba(245, 166, 35, 0.3);
 }
 
 .key-feature-icon {
@@ -888,17 +919,17 @@
 
 /* Tournament CTA Box */
 .tournament-cta-box {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border-radius: 16px;
+  background: var(--gradient-gold);
+  border-radius: var(--radius-xl);
   padding: 1.5rem 2rem;
   text-align: center;
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
 }
 
 .tournament-cta-text {
   font-size: 1.1rem;
   font-weight: 600;
-  color: white;
+  color: var(--text-inverse);
   margin: 0;
   line-height: 1.6;
 }
@@ -971,7 +1002,7 @@
 @media (max-width: 480px) {
   .tournament-explanation {
     padding: 1rem;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
   }
 
   .tournament-hero-badge {

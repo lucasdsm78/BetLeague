@@ -1,44 +1,38 @@
 /**
- * AuthMonitor Styles - Mobile-first notification system
+ * AuthMonitor Styles - Dark Premium Theme
  */
 
-/* Notification Toast */
 .auth-notification {
   position: fixed;
   top: 1rem;
   right: 1rem;
   max-width: 400px;
   min-width: 300px;
-  background: var(--bg-primary, #ffffff);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  border-left: 4px solid var(--primary-color, #3b82f6);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-primary);
+  border-left: 4px solid var(--color-primary);
   z-index: 9999;
   animation: slideInRight 0.3s ease-out;
   overflow: hidden;
 }
 
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .auth-notification--warning {
-  border-left-color: var(--warning-color, #f59e0b);
+  border-left-color: var(--color-warning);
 }
 
 .auth-notification--error {
-  border-left-color: var(--danger-color, #ef4444);
+  border-left-color: var(--color-danger);
 }
 
 .auth-notification--info {
-  border-left-color: var(--success-color, #10b981);
+  border-left-color: var(--color-success);
 }
 
 .auth-notification__content {
@@ -56,33 +50,33 @@
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary);
   line-height: 1.25;
 }
 
 .auth-notification__close {
   background: none;
   border: none;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-tertiary);
   cursor: pointer;
   padding: 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   line-height: 1;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   flex-shrink: 0;
   margin-left: 0.5rem;
 }
 
 .auth-notification__close:hover {
-  background: var(--bg-hover, #f3f4f6);
-  color: var(--text-primary, #1f2937);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .auth-notification__message {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 0.75rem;
 }
@@ -94,67 +88,71 @@
 }
 
 .auth-notification__action {
-  background: var(--primary-color, #3b82f6);
-  color: white;
+  background: var(--color-primary);
+  color: var(--text-inverse);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   line-height: 1;
 }
 
 .auth-notification__action:hover {
-  background: var(--primary-dark, #2563eb);
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
 }
 
 .auth-notification--warning .auth-notification__action {
-  background: var(--warning-color, #f59e0b);
+  background: var(--color-warning);
+  color: var(--text-inverse);
 }
 
 .auth-notification--warning .auth-notification__action:hover {
-  background: var(--warning-dark, #d97706);
+  background: var(--color-warning-dark);
 }
 
 .auth-notification--error .auth-notification__action {
-  background: var(--danger-color, #ef4444);
+  background: var(--color-danger);
+  color: white;
 }
 
 .auth-notification--error .auth-notification__action:hover {
-  background: var(--danger-dark, #dc2626);
+  background: var(--color-danger-dark);
 }
 
 .auth-notification--info .auth-notification__action {
-  background: var(--success-color, #10b981);
+  background: var(--color-success);
+  color: var(--text-inverse);
 }
 
 .auth-notification--info .auth-notification__action:hover {
-  background: var(--success-dark, #059669);
+  background: var(--color-success-dark);
 }
 
-/* Session Debug Info (Development only) */
+/* Session Debug Info */
 .auth-session-info {
   position: fixed;
   bottom: 1rem;
   left: 1rem;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  border-radius: 8px;
+  background: rgba(10, 22, 40, 0.95);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
   padding: 0.75rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   z-index: 9998;
   max-width: 250px;
   backdrop-filter: blur(8px);
+  border: 1px solid var(--border-primary);
 }
 
 .auth-session-info__content h5 {
   margin: 0 0 0.5rem 0;
   font-size: 0.75rem;
-  color: #fbbf24;
+  color: var(--color-gold);
   font-weight: 600;
 }
 
@@ -168,14 +166,14 @@
   display: flex;
   justify-content: space-between;
   padding: 0.125rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .auth-session-info__stats > div:last-child {
   border-bottom: none;
 }
 
-/* Mobile Optimizations */
+/* Mobile */
 @media (max-width: 768px) {
   .auth-notification {
     top: 0.5rem;
@@ -183,7 +181,7 @@
     left: 0.5rem;
     max-width: none;
     min-width: auto;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
 
   .auth-notification__content {
@@ -211,13 +209,8 @@
     max-width: none;
     font-size: 0.65rem;
   }
-
-  .auth-session-info__content h5 {
-    font-size: 0.7rem;
-  }
 }
 
-/* Tablet Optimizations */
 @media (max-width: 1024px) and (min-width: 769px) {
   .auth-notification {
     max-width: 350px;
@@ -225,39 +218,6 @@
   }
 }
 
-/* High DPI Displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .auth-notification {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  }
-}
-
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .auth-notification {
-    background: var(--bg-primary-dark, #1f2937);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  }
-
-  .auth-notification__title {
-    color: var(--text-primary-dark, #f9fafb);
-  }
-
-  .auth-notification__message {
-    color: var(--text-secondary-dark, #d1d5db);
-  }
-
-  .auth-notification__close {
-    color: var(--text-secondary-dark, #9ca3af);
-  }
-
-  .auth-notification__close:hover {
-    background: var(--bg-hover-dark, #374151);
-    color: var(--text-primary-dark, #f9fafb);
-  }
-}
-
-/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   .auth-notification {
     animation: none;
@@ -272,7 +232,6 @@
   }
 }
 
-/* Print Styles */
 @media print {
   .auth-notification,
   .auth-session-info {
