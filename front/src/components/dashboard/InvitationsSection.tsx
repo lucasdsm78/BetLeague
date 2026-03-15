@@ -10,18 +10,6 @@ import { useGlobalToast } from '../../toast/ToastProvider';
 
 /* ───── SVG Icons ───── */
 
-const IconAccepted = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-
-const IconRefused = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
-  </svg>
-);
-
 const IconCheck = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
@@ -48,13 +36,6 @@ InvitationSkeleton.displayName = 'InvitationSkeleton';
 
 /* ───── Invitation Card ───── */
 
-function getStatusInfo(status: string) {
-  const s = status.toUpperCase();
-  if (s === 'ACCEPTED') return { key: 'accepted' as const, badgeLabel: 'Acceptée' };
-  if (s === 'REFUSED') return { key: 'refused' as const, badgeLabel: 'Refusée' };
-  return { key: 'pending' as const, badgeLabel: 'En attente' };
-}
-
 function formatDate(raw?: string | number): string {
   if (!raw) return '—';
   const d = new Date(typeof raw === 'number' ? raw * 1000 : raw);
@@ -74,8 +55,6 @@ interface InvitationCardProps {
 }
 
 const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAccept, onDecline, loading }) => {
-  const { key, badgeLabel } = getStatusInfo(invitation.status);
-  const isPending = key === 'pending';
   const league = invitation.league;
 
   const inviterName = league?.user_creator?.pseudo || 'Inconnu';
@@ -83,13 +62,13 @@ const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAcce
   const maxMembers = league?.max_players || 0;
 
   return (
-    <div className={`inv-card inv-card--${key}`}>
+    <div className="inv-card inv-card--pending">
       {/* Header: league name + badge */}
       <div className="inv-card-header">
         <div className="left">
           <h4 className="inv-card-league-name">{league?.name || '—'}</h4>
         </div>
-        <span className={`inv-badge inv-badge--${key}`}>{badgeLabel}</span>
+        <span className="inv-badge inv-badge--pending">En attente</span>
       </div>
 
       {/* Inviter */}
@@ -114,34 +93,24 @@ const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAcce
       </div>
 
       {/* Actions */}
-      {isPending ? (
-        <div className="inv-card-actions">
-          <button
-            type="button"
-            className="inv-btn inv-btn--accept"
-            onClick={() => onAccept(invitation)}
-            disabled={loading}
-          >
-            <IconCheck /> Accepter
-          </button>
-          <button
-            type="button"
-            className="inv-btn inv-btn--decline"
-            onClick={() => onDecline(invitation)}
-            disabled={loading}
-          >
-            <IconX /> Refuser
-          </button>
-        </div>
-      ) : key === 'accepted' ? (
-        <div className="inv-card-resolved inv-card-resolved--accepted">
-          <IconAccepted /> Vous avez rejoint cette ligue
-        </div>
-      ) : (
-        <div className="inv-card-resolved inv-card-resolved--refused">
-          <IconRefused /> Invitation refusée
-        </div>
-      )}
+      <div className="inv-card-actions">
+        <button
+          type="button"
+          className="inv-btn inv-btn--accept"
+          onClick={() => onAccept(invitation)}
+          disabled={loading}
+        >
+          <IconCheck /> Accepter
+        </button>
+        <button
+          type="button"
+          className="inv-btn inv-btn--decline"
+          onClick={() => onDecline(invitation)}
+          disabled={loading}
+        >
+          <IconX /> Refuser
+        </button>
+      </div>
     </div>
   );
 });
