@@ -20,6 +20,17 @@ class EnhancedAuthService {
   private refreshPromise: Promise<TokenPair>|null=null; private lastRefreshAttempt=0; private refreshRetryCount=0;
   private readonly ACCESS_TOKEN_KEY='auth_access_token'; private readonly REFRESH_TOKEN_KEY='auth_refresh_token'; private readonly TOKEN_EXPIRY_KEY='auth_token_expiry';
   constructor(config: Partial<AuthServiceConfig> = {}) { this.config={ baseURL: process.env.REACT_APP_API_URL||'http://localhost:8001/api', tokenRefreshBuffer:5*60*1000, maxRefreshRetries:3, refreshCooldown:30*1000, requestTimeout:10000, ...config}; }
+
+  private isNonRefreshAuthEndpoint(endpoint: string): boolean {
+    return [
+      '/auth/login',
+      '/auth/register',
+      '/auth/logout',
+      '/auth/logout-all',
+      '/auth/logout-others',
+      '/auth/refresh',
+    ].some((path) => endpoint.includes(path));
+  }
   private secureStorage={ set:(k:string,v:string)=>{try{localStorage.setItem(k,v);}catch(e){console.warn('Failed store',k,e);} }, get:(k:string):string|null=>{try{return localStorage.getItem(k);}catch(e){return null;}}, remove:(k:string)=>{try{localStorage.removeItem(k);}catch(e){console.warn('Failed remove',k,e);}}, clear:()=>{this.secureStorage.remove(this.ACCESS_TOKEN_KEY);this.secureStorage.remove(this.REFRESH_TOKEN_KEY);this.secureStorage.remove(this.TOKEN_EXPIRY_KEY);} };
   private storeTokenPair(tp:TokenPair){
     this.secureStorage.set(this.ACCESS_TOKEN_KEY,tp.accessToken);
@@ -39,17 +50,17 @@ class EnhancedAuthService {
   }
   private async makeRequest<T=any>(endpoint:string,options:RequestInit={}):Promise<T>{
     const url=`${this.config.baseURL}${endpoint}`;
-    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+    const isAuthEndpoint = this.isNonRefreshAuthEndpoint(endpoint);
     if(!isAuthEndpoint) await this.ensureValidToken();
     const token=this.getCurrentAccessToken();
-    const headers={ 'Content-Type':'application/json','Accept':'application/json', ...(token&&!isAuthEndpoint&&{'X-Authentication':`Bearer ${token}`,'Authorization':`Bearer ${token}`}), ...(options.headers||{})};
+    const headers={ 'Content-Type':'application/json','Accept':'application/json', ...(token&&!isAuthEndpoint&&{'X-Authentication':`Bearer ${token}`,'Authorization':`Bearer ${token}`}), ...(token&&endpoint.includes('/auth/logout')&&{'X-Authentication':`Bearer ${token}`,'Authorization':`Bearer ${token}`}), ...(options.headers||{})};
     const controller=new AbortController();
     const timeout=setTimeout(()=>{controller.abort();}, this.config.requestTimeout);
     const cfg={...options,headers,signal:controller.signal};
     try{
       const resp=await fetch(url,cfg);
       clearTimeout(timeout);
-      // Pour login/register, ne PAS tenter de refresh sur 401 - propager l'erreur directement
+      // Pour login/register/logout/logout-all/logout-others/refresh, ne PAS tenter de refresh sur 401
       if(resp.status===401 && !isAuthEndpoint){
         const refreshed=await this.refreshTokenIfNeeded(true);
         if(refreshed){
@@ -148,7 +159,30 @@ class EnhancedAuthService {
     } catch(error){ console.error('❌ Registration failed:',error); throw error instanceof AuthError?error:new AuthError('Registration failed'); }
   }
   async validateToken():Promise<{user:User}>{ const token=this.getCurrentAccessToken(); if(!token) throw new AuthError('No token available',401,'NO_TOKEN'); try { const tokenPayload=JSON.parse(atob(token.split('.')[1])); const user={ id:tokenPayload.id||tokenPayload.user_id, email:tokenPayload.sub||tokenPayload.email, username:tokenPayload.username||tokenPayload.pseudo, pseudo:tokenPayload.pseudo }; return {user}; } catch(err){ throw new AuthError('Invalid token format',401,'INVALID_TOKEN'); } }
-  async logout():Promise<void>{ try { await this.makeRequest('/auth/logout',{method:'POST'}); } catch(e){ console.warn('Server logout failed:',e); } finally { this.secureStorage.clear(); this.refreshPromise=null; this.refreshRetryCount=0; localStorage.removeItem('auth_token');localStorage.removeItem('refresh_token');localStorage.removeItem('user_data');localStorage.removeItem('token_expiry'); sessionStorage.clear(); (window as any).__AUTH_INITIALIZED__=false; useAuthStore.getState().logout(); } }
+  private clearSession(): void {
+    this.secureStorage.clear();
+    this.refreshPromise=null;
+    this.refreshRetryCount=0;
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('token_expiry');
+    sessionStorage.clear();
+    (window as any).__AUTH_INITIALIZED__=false;
+    useAuthStore.getState().logout();
+  }
+  async logout(options: { server?: boolean } = {}):Promise<void>{
+    const { server = true } = options;
+    try {
+      if (server) {
+        await this.makeRequest('/auth/logout',{method:'POST'});
+      }
+    } catch(e){
+      console.warn('Server logout failed:',e);
+    } finally {
+      this.clearSession();
+    }
+  }
   isAuthenticated():boolean{ const p=this.getStoredTokenPair(); if(!p) return false; return !this.isTokenExpired(p.expiresAt); }
   getCurrentToken():string|null{ return this.getCurrentAccessToken(); }
   getTokenExpiryTime():number|null{ const p=this.getStoredTokenPair(); return p?.expiresAt||null; }

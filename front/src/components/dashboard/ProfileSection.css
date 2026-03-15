@@ -1037,37 +1037,16 @@
     padding: 0.875rem 1.25rem;
     font-size: 0.875rem;
   }
+
+  /* Mobile: on garde l’avatar mais on masque le header texte (pseudo + email) */
+  .profile-header .profile-info {
+    display: none;
+  }
 }
 
+/* Sur très petits écrans, on renforce aussi le masquage si un autre breakpoint s'applique */
 @media (max-width: 480px) {
-  .profile-header {
-    padding: 1.25rem;
-  }
-
-  .profile-avatar {
-    width: 70px;
-    height: 70px;
-  }
-
-  .change-avatar-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 0.875rem;
-  }
-
-  .profile-name h2 {
-    font-size: 1.25rem;
-  }
-
-  .stat-card {
-    padding: 1rem;
-  }
-
-  .profile-section .stat-value {
-    font-size: 1.5rem;
-  }
-
-  .profile-section .stat-label {
-    font-size: 0.7rem;
+  .profile-header .profile-info {
+    display: none;
   }
 }
