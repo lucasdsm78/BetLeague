@@ -54,7 +54,7 @@
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 0.9375rem;
-  cursor: pointer;
+  cursor: default;
   transition: all 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
@@ -71,23 +71,9 @@
   right: 0;
   height: 3px;
   background: var(--gradient-primary, var(--primary-color));
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(0, 212, 255, 0.25));
-}
-
-.invitations-tabs .tab-button:hover {
-  color: var(--color-primary, var(--primary-color));
-  background: rgba(0, 212, 255, 0.06);
-}
-
-.invitations-tabs .tab-button.active {
-  color: var(--color-primary, var(--primary-color));
-}
-
-.invitations-tabs .tab-button.active::after {
   transform: scaleX(1);
+  transform-origin: center;
+  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(0, 212, 255, 0.25));
 }
 
 .tab-content-wrapper {
@@ -99,13 +85,8 @@
 
 .tab-title {
   font-size: 0.9375rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  transition: all 0.2s ease;
-}
-
-.invitations-tabs .tab-button.active .tab-title {
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .tab-badge {
@@ -115,125 +96,13 @@
   min-width: 1.75rem;
   height: 1.75rem;
   padding: 0 0.5rem;
-  background: var(--bg-elevated, var(--bg-secondary));
-  color: var(--text-secondary);
+  background: var(--gradient-primary, var(--primary-color));
+  color: var(--text-inverse, white);
   border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;
-  transition: all 0.2s ease;
   border: 2px solid transparent;
-}
-
-.invitations-tabs .tab-button:hover .tab-badge {
-  background: rgba(0, 212, 255, 0.12);
-  color: var(--color-primary, var(--primary-color));
-  border-color: var(--color-primary, var(--primary-color));
-}
-
-.invitations-tabs .tab-button.active .tab-badge {
-  background: var(--gradient-primary, var(--primary-color));
-  color: var(--text-inverse, white);
-  border-color: transparent;
-  transform: scale(1.08);
   box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(0, 212, 255, 0.25));
-}
-
-/* ===== Filter Tabs ===== */
-.invitation-filter-tabs {
-  display: flex;
-  gap: 0.25rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 0.375rem;
-  border: 1px solid var(--border-primary, var(--border-color));
-  border-radius: var(--radius-lg, 16px);
-  background: var(--bg-secondary, var(--bg-primary));
-  box-shadow: var(--shadow-sm);
-}
-
-.invitation-filter-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.invitation-filter-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.875rem 1.125rem;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  position: relative;
-  border-radius: var(--radius-md, 12px);
-  transition: all 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.invitation-filter-tab:hover {
-  color: var(--color-primary, var(--primary-color));
-  background: rgba(0, 212, 255, 0.06);
-}
-
-.invitation-filter-tab:hover .tab-badge {
-  background: rgba(0, 212, 255, 0.12);
-  color: var(--color-primary, var(--primary-color));
-  border-color: rgba(0, 212, 255, 0.22);
-}
-
-.invitation-filter-tab.active {
-  color: var(--text-inverse, white);
-  background: var(--gradient-primary, var(--primary-color));
-  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(0, 212, 255, 0.22));
-}
-
-.invitation-filter-tab.active .tab-badge {
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--text-inverse, white);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.invitation-filter-tab:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px rgba(0, 212, 255, 0.22),
-    inset 0 0 0 1px rgba(0, 212, 255, 0.30);
-}
-
-.filter-tab-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 999px;
-  background: rgba(0, 212, 255, 0.08);
-  color: var(--color-primary, var(--primary-color));
-  border: 1px solid rgba(0, 212, 255, 0.14);
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.invitation-filter-tab:hover .filter-tab-icon {
-  background: rgba(0, 212, 255, 0.14);
-  border-color: rgba(0, 212, 255, 0.24);
-}
-
-.invitation-filter-tab.active .filter-tab-icon {
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--text-inverse, white);
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.filter-tab-icon svg {
-  width: 0.9rem;
-  height: 0.9rem;
 }
 
 /* ===== Grid ===== */
@@ -667,11 +536,6 @@
   border-color: var(--border-primary);
 }
 
-[data-theme="dark"] .invitation-filter-tabs {
-  background: var(--bg-secondary, var(--bg-primary));
-  border-color: var(--border-primary);
-}
-
 [data-theme="dark"] .inv-btn--decline {
   background: rgba(255, 255, 255, 0.04);
   border-color: var(--border-primary);
@@ -695,14 +559,12 @@
 
 /* ===== Motion / Touch ===== */
 @media (pointer: coarse) {
-  .inv-card-actions .inv-btn,
-  .invitation-filter-tab {
+  .inv-card-actions .inv-btn {
     min-height: 48px;
     touch-action: manipulation;
   }
 
-  .inv-card-actions .inv-btn:active:not(:disabled),
-  .invitation-filter-tab:active {
+  .inv-card-actions .inv-btn:active:not(:disabled) {
     transform: scale(0.98);
   }
 }
@@ -710,8 +572,7 @@
 @media (prefers-reduced-motion: reduce) {
   .inv-card,
   .inv-card-actions .inv-btn,
-  .invitations-tabs .tab-button,
-  .invitation-filter-tab {
+  .invitations-tabs .tab-button {
     transition: none;
   }
 
@@ -761,30 +622,10 @@
     font-size: 0.6875rem;
     padding: 0 0.375rem;
   }
-
-  .invitation-filter-tabs {
-    margin-inline: -0.25rem;
-    padding: 0.3rem;
-  }
-
-  .invitation-filter-tab {
-    padding: 0.8rem 0.9rem;
-    font-size: 0.8125rem;
-  }
 }
 
 @media (max-width: 380px) {
   .inv-card-league-name {
     font-size: 0.9375rem;
   }
-
-  .invitation-filter-tab {
-    padding: 0.75rem 0.8rem;
-  }
-
-  .invitation-filter-tab .tab-title {
-    font-size: 0.75rem;
-  }
 }
-
-
