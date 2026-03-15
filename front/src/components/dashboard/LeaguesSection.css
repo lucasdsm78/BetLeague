@@ -1,4 +1,4 @@
-/* Leagues Section Styles */
+/* ========== LEAGUES SECTION - Dark Premium Sports Betting Theme ========== */
 
 .leagues-section {
   max-width: 1200px;
@@ -17,16 +17,17 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .header-actions .btn {
   padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
-/* Tabs - Sports Betting Style */
+/* ========== TABS - Sports Betting Style ========== */
 .leagues-tabs {
   display: flex;
   gap: 0;
@@ -36,7 +37,7 @@
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   background: transparent;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border-primary);
   position: relative;
 }
 
@@ -70,10 +71,11 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: var(--primary-color);
+  background: var(--gradient-primary);
   transform: scaleX(0);
   transform-origin: center;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .tab-content-wrapper {
@@ -97,7 +99,7 @@
   min-width: 1.75rem;
   height: 1.75rem;
   padding: 0 0.5rem;
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   border-radius: 50%;
   font-size: 0.75rem;
@@ -107,18 +109,18 @@
 }
 
 .tab-button:hover {
-  color: var(--primary-color);
-  background: rgba(59, 130, 246, 0.05);
+  color: var(--color-primary);
+  background: rgba(0, 212, 255, 0.06);
 }
 
 .tab-button:hover .tab-badge {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--primary-color);
-  border-color: var(--primary-color);
+  background: rgba(0, 212, 255, 0.12);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .tab-button.active {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .tab-button.active::after {
@@ -130,13 +132,14 @@
 }
 
 .tab-button.active .tab-badge {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  border-color: transparent;
   transform: scale(1.1);
+  box-shadow: var(--shadow-glow-primary);
 }
 
-/* Leagues Grid */
+/* ========== LEAGUES GRID ========== */
 .leagues-grid {
   display: grid;
   gap: 1.5rem;
@@ -144,25 +147,44 @@
 }
 
 .league-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.league-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-primary-glow), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .league-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
   transform: translateY(-2px);
+  border-color: var(--border-accent);
+}
+
+.league-card:hover::before {
+  opacity: 1;
 }
 
 .league-card.private {
-  border-left: 4px solid var(--warning-color);
+  border-left: 4px solid var(--color-warning);
 }
 
 .league-card.public {
-  border-left: 4px solid var(--success-color);
+  border-left: 4px solid var(--color-success);
 }
 
 .league-header {
@@ -197,29 +219,31 @@
   font-weight: 500;
 }
 
-/* BTL Stats Styling */
+/* ========== BTL STATS STYLING ========== */
 .stat-btl {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border: 2px solid #fbbf24;
-  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-gold-subtle), rgba(245, 166, 35, 0.15));
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-lg);
   padding: 0.75rem !important;
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .stat-value-btl {
-  color: #92400e !important;
+  color: var(--color-gold) !important;
   font-weight: 700 !important;
   font-size: 1.375rem !important;
+  text-shadow: 0 0 12px var(--color-gold-glow);
 }
 
 .stat-free {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 2px solid #6ee7b7;
-  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-success-subtle), rgba(0, 230, 118, 0.1));
+  border: 2px solid var(--color-success);
+  border-radius: var(--radius-lg);
   padding: 0.75rem !important;
 }
 
 .stat-value-free {
-  color: #065f46 !important;
+  color: var(--color-success) !important;
   font-weight: 600 !important;
   font-size: 1rem !important;
 }
@@ -233,7 +257,7 @@
 
 .rank-badge {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
@@ -242,6 +266,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: 1.125rem;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .rank-label {
@@ -250,15 +275,16 @@
   text-align: center;
 }
 
-/* League Stats */
+/* ========== LEAGUE STATS ========== */
 .league-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
 }
 
 .leagues-section .stat {
@@ -271,7 +297,7 @@
 .leagues-section .stat-value {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-primary);
 }
 
 .leagues-section .stat-label {
@@ -285,7 +311,8 @@
 .league-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 0.5rem;
+  align-items: center;
   margin-top: var(--space-2);
 }
 
@@ -295,6 +322,14 @@
   min-height: 34px;
   border-radius: var(--radius-md);
   gap: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: var(--transition-base);
 }
 
 .league-actions .btn .action-icon {
@@ -324,7 +359,7 @@
 }
 
 .league-actions .btn-action:focus-visible {
-  outline: 2px solid var(--color-primary-500);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -347,58 +382,90 @@
   transform: scale(1.1);
 }
 
-/* ========== UNIFIED ACTION BUTTONS (Details, Ranking, Invite, Edit) ========== */
+/* ========== VIEW / RANKING BUTTONS (Cyan Gradient) ========== */
 .btn-action--view,
-.btn-action--ranking,
-.btn-action--invite,
-.btn-action--edit {
+.btn-action--ranking {
   background: transparent;
-  border-color: var(--color-info-500);
-  color: var(--color-info-600);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .btn-action--view:hover:not(:disabled),
-.btn-action--ranking:hover:not(:disabled),
-.btn-action--invite:hover:not(:disabled),
-.btn-action--edit:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600));
-  border-color: var(--color-info-600);
-  color: white;
+.btn-action--ranking:hover:not(:disabled) {
+  background: var(--gradient-primary);
+  border-color: var(--color-primary);
+  color: var(--text-inverse);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .btn-action--view:active:not(:disabled),
-.btn-action--ranking:active:not(:disabled),
-.btn-action--invite:active:not(:disabled),
+.btn-action--ranking:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ========== INVITE BUTTON (Info / Cyan lighter) ========== */
+.btn-action--invite {
+  background: transparent;
+  border-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+}
+
+.btn-action--invite:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+  border-color: var(--color-primary-light);
+  color: var(--text-inverse);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.btn-action--invite:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ========== EDIT BUTTON (Warning / Gold) ========== */
+.btn-action--edit {
+  background: transparent;
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.btn-action--edit:hover:not(:disabled) {
+  background: var(--gradient-gold);
+  border-color: var(--color-warning);
+  color: var(--text-inverse);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-gold);
+}
+
 .btn-action--edit:active:not(:disabled) {
   transform: translateY(0);
 }
 
-/* ========== LEAVE BUTTON ========== */
+/* ========== LEAVE BUTTON (Danger / Red) ========== */
 .btn-action--leave {
   background: transparent;
-  border-color: var(--color-error-500);
-  color: var(--color-error-600);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .btn-action--leave:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-error-500), var(--color-error-600));
-  border-color: var(--color-error-600);
+  background: var(--gradient-danger);
+  border-color: var(--color-danger);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--shadow-glow-danger);
 }
 
 .btn-action--leave:active:not(:disabled) {
   transform: translateY(0);
 }
 
-/* ========== JOIN BUTTON ========== */
+/* ========== JOIN BUTTON (Success / Green) ========== */
 .btn-action--join {
-  background: linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-500));
+  background: var(--gradient-success);
   border-color: transparent;
-  color: white;
+  color: var(--text-inverse);
   font-weight: var(--font-bold);
   position: relative;
   overflow: hidden;
@@ -411,7 +478,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
   transition: left 0.5s ease;
 }
 
@@ -420,9 +487,9 @@
 }
 
 .btn-action--join:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-primary-600), var(--color-secondary-600));
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  box-shadow: var(--shadow-glow-success);
+  filter: brightness(1.1);
 }
 
 .btn-action--join:active:not(:disabled) {
@@ -447,7 +514,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ========== MOBILE RESPONSIVE ========== */
+/* ========== MOBILE RESPONSIVE (Action Buttons) ========== */
 @media (max-width: 640px) {
   .league-actions {
     grid-template-columns: 1fr 1fr;
@@ -493,53 +560,32 @@
   }
 }
 
-/* ========== DARK THEME SUPPORT ========== */
-[data-theme="dark"] .btn-action--view,
-[data-theme="dark"] .btn-action--ranking,
-[data-theme="dark"] .btn-action--invite,
-[data-theme="dark"] .btn-action--edit {
-  border-color: var(--color-info-400);
-  color: var(--color-info-400);
-}
-
-[data-theme="dark"] .btn-action--view:hover:not(:disabled),
-[data-theme="dark"] .btn-action--ranking:hover:not(:disabled),
-[data-theme="dark"] .btn-action--invite:hover:not(:disabled),
-[data-theme="dark"] .btn-action--edit:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600));
-  border-color: var(--color-info-500);
-}
-
-[data-theme="dark"] .btn-action--leave {
-  border-color: var(--color-error-400);
-  color: var(--color-error-400);
-}
-
 /* Legacy button styles - kept for backwards compatibility */
 .btn-secondary {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   color: var(--text-primary);
 }
 
 .btn-secondary:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  border-color: var(--color-primary);
 }
 
 .btn-outline {
   background: transparent;
-  border: 1px solid var(--primary-color);
-  color: var(--primary-color);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
 }
 
 .btn-outline:hover {
-  background: var(--primary-color);
-  color: white;
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-glow-primary);
 }
 
-/* Invitations */
+/* ========== INVITATIONS ========== */
 .invitations-list {
   display: flex;
   flex-direction: column;
@@ -547,22 +593,40 @@
 }
 
 .invitation-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-left: 3px solid var(--color-gold);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: var(--transition);
+  transition: var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.invitation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--color-gold-subtle), transparent 60%);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .invitation-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md), var(--shadow-glow-gold);
+  border-color: var(--color-gold);
 }
 
 .invitation-info {
   flex: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .invitation-info .league-name {
@@ -581,12 +645,14 @@
   display: flex;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: var(--text-tertiary);
 }
 
 .invitation-actions {
   display: flex;
   gap: 0.75rem;
+  position: relative;
+  z-index: 1;
 }
 
 .btn-sm {
@@ -594,7 +660,7 @@
   font-size: 0.875rem;
 }
 
-/* Join League Section */
+/* ========== JOIN LEAGUE SECTION ========== */
 .join-league-section {
   display: flex;
   flex-direction: column;
@@ -602,9 +668,9 @@
 }
 
 .join-form {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 2rem;
   text-align: center;
 }
@@ -630,21 +696,28 @@
 .join-input {
   flex: 1;
   padding: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   font-size: 1rem;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: var(--transition-base);
+}
+
+.join-input::placeholder {
+  color: var(--text-tertiary);
 }
 
 .join-input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .public-leagues {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 2rem;
   text-align: center;
 }
@@ -660,14 +733,15 @@
   color: var(--text-secondary);
 }
 
-/* Modal */
+/* ========== MODAL ========== */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(5, 12, 30, 0.75);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -676,13 +750,14 @@
 }
 
 .modal-content {
-  background: var(--bg-primary);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-header {
@@ -690,7 +765,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .modal-header h3 {
@@ -710,16 +785,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: var(--transition);
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
 }
 
 .modal-close:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-/* Create League Form */
+/* ========== CREATE LEAGUE FORM ========== */
 .create-league-form {
   padding: 1.5rem;
 }
@@ -740,18 +815,25 @@
 .form-group textarea {
   width: 100%;
   padding: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   font-size: 1rem;
-  transition: var(--transition);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: var(--transition-base);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--text-tertiary);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .form-row {
@@ -765,16 +847,16 @@
   gap: 0.75rem;
   justify-content: flex-end;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-primary);
 }
 
 .modal-actions .btn {
   padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 500;
 }
 
-/* Empty State */
+/* ========== EMPTY STATE ========== */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -782,6 +864,16 @@
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-primary);
+  border-radius: var(--radius-lg);
+  margin: 2rem 0;
+  transition: var(--transition-base);
+}
+
+.empty-state:hover {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.04) 0%, transparent 100%);
 }
 
 .leagues-section .empty-icon {
@@ -801,7 +893,7 @@
   color: var(--text-secondary);
 }
 
-/* Button Styles */
+/* ========== BUTTON STYLES ========== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -809,40 +901,57 @@
   border: none;
   cursor: pointer;
   text-decoration: none;
-  transition: var(--transition);
+  transition: var(--transition-base);
   font-family: inherit;
 }
 
 .btn-primary {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-primary:hover::before {
+  left: 100%;
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 /* Danger Button - For Leave League */
 .btn-danger {
-  background: linear-gradient(135deg, var(--danger-color), #dc2626);
+  background: var(--gradient-danger);
   color: white;
   border: none;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
 .btn-danger:hover {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  filter: brightness(1.1);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--shadow-glow-danger);
 }
 
 .btn-danger:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
 }
 
 .btn-leave {
@@ -854,17 +963,17 @@
   font-size: 1rem;
 }
 
-/* Mini skeleton loader pour la valeur 'Mon solde' */
+/* ========== BALANCE SKELETON LOADER ========== */
 .balance-skeleton {
   display: inline-block;
   width: 2.5rem;
   height: 1.1em;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.55) 50%,
-    rgba(255, 255, 255, 0.25) 100%
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.06) 100%
   );
   background-size: 200% 100%;
   animation: balanceShimmer 1.1s ease-in-out infinite;
@@ -880,13 +989,13 @@
   }
 }
 
-/* Meilleur rendu sur fond jaune (stat-btl) */
+/* Skeleton on gold stat background */
 .stat-btl .balance-skeleton {
   background: linear-gradient(
     90deg,
-    rgba(146, 64, 14, 0.08) 0%,
-    rgba(146, 64, 14, 0.16) 50%,
-    rgba(146, 64, 14, 0.08) 100%
+    rgba(245, 166, 35, 0.1) 0%,
+    rgba(245, 166, 35, 0.25) 50%,
+    rgba(245, 166, 35, 0.1) 100%
   );
   background-size: 200% 100%;
 }
@@ -897,7 +1006,7 @@
   }
 }
 
-/* Responsive Design */
+/* ========== RESPONSIVE DESIGN ========== */
 @media (min-width: 640px) {
   .leagues-grid {
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -941,7 +1050,7 @@
 
   .leagues-tabs {
     margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-primary);
     padding-bottom: 0;
   }
 
@@ -1011,9 +1120,34 @@
   .join-form .form-group {
     flex-direction: column;
   }
+
+  .league-actions .btn {
+    width: 100%;
+    flex: none;
+  }
+
+  .leagues-section .loading-spinner {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .invite-icon {
+    font-size: 0.875rem;
+    margin-right: 0.25rem;
+  }
+
+  .ranking-icon {
+    font-size: 0.875rem;
+    margin-right: 0.25rem;
+  }
+
+  .btn-ranking {
+    font-size: 0.875rem;
+    padding: 0.75rem 0.5rem;
+  }
 }
 
-/* Very small screens - stack vertically */
+/* Very small screens */
 @media (max-width: 380px) {
   .tab-button {
     padding: 0.75rem 0.5rem;
@@ -1030,64 +1164,38 @@
   }
 }
 
-/* Enhanced visual distinction for different league types */
+/* Ultra small screens */
+@media (max-width: 360px) {
+  .league-actions .btn {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .loading-spinner {
+    margin-right: 0.25rem;
+  }
+}
+
+/* ========== ENHANCED LEAGUE TYPE VISUAL DISTINCTION ========== */
 .leagues-grid[data-tab="myLeagues"] .league-card {
-  border-left: 4px solid var(--primary-color);
-  background: linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, transparent 100%);
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.04) 0%, var(--bg-secondary) 100%);
 }
 
 .leagues-grid[data-tab="availableLeagues"] .league-card {
-  border-left: 4px solid var(--success-color);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+  border-left: 4px solid var(--color-success);
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.04) 0%, var(--bg-secondary) 100%);
 }
 
 .leagues-grid[data-tab="myLeagues"] .league-card::before {
-  background: linear-gradient(90deg, var(--primary-color), rgba(0, 210, 255, 0.7));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-glow));
 }
 
 .leagues-grid[data-tab="availableLeagues"] .league-card::before {
-  background: linear-gradient(90deg, var(--success-color), rgba(16, 185, 129, 0.7));
+  background: linear-gradient(90deg, var(--color-success), var(--color-success-glow));
 }
 
-/* Dark theme support for tabs */
-[data-theme="dark"] .leagues-tabs {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .tab-button::after {
-  background: var(--primary-color);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
-}
-
-[data-theme="dark"] .tab-button:hover {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-[data-theme="dark"] .tab-badge {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="dark"] .tab-button:hover .tab-badge {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: var(--primary-color);
-}
-
-/* Enhanced empty states with better spacing */
-.empty-state {
-  background: var(--bg-secondary);
-  border: 2px dashed var(--border-color);
-  border-radius: var(--border-radius);
-  margin: 2rem 0;
-  transition: var(--transition);
-}
-
-.empty-state:hover {
-  border-color: var(--primary-color);
-  background: linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, transparent 100%);
-}
-
-/* Loading spinner for join button */
+/* ========== LOADING SPINNER ========== */
 .leagues-section .loading-spinner {
   display: inline-block;
   width: 0.875rem;
@@ -1099,7 +1207,7 @@
   margin-right: 0.5rem;
 }
 
-/* Enhanced button states for joining leagues */
+/* ========== DISABLED BUTTON STATES ========== */
 .btn[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
@@ -1107,33 +1215,19 @@
 }
 
 .btn-primary:disabled {
-  background: var(--text-secondary);
-  border-color: var(--text-secondary);
+  background: var(--bg-surface);
+  border-color: var(--border-primary);
+  color: var(--text-tertiary);
 }
 
 .btn-primary:disabled:hover {
-  background: var(--text-secondary);
-  border-color: var(--text-secondary);
+  background: var(--bg-surface);
+  border-color: var(--border-primary);
   transform: none;
   box-shadow: none;
 }
 
-/* Enhanced league actions for join functionality */
-.league-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.league-actions .btn {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Success/error feedback animations */
+/* ========== SUCCESS/ERROR FEEDBACK ANIMATIONS ========== */
 @keyframes successPulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
@@ -1144,30 +1238,7 @@
   animation: successPulse 0.6s ease-in-out;
 }
 
-/* Sports betting theme for join buttons */
-.btn-primary {
-  background: var(--gradient-primary);
-  border: 2px solid transparent;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.btn-primary:hover::before {
-  left: 100%;
-}
-
-/* Touch-friendly interactions */
+/* ========== TOUCH-FRIENDLY INTERACTIONS ========== */
 @media (pointer: coarse) {
   .btn,
   .tab-button {
@@ -1184,94 +1255,46 @@
     min-height: 48px;
   }
 
-  /* Better spacing for mobile join buttons */
   .league-actions {
     gap: 0.5rem;
   }
-}
 
-/* Mobile optimizations for join functionality */
-@media (max-width: 640px) {
-  .league-actions {
-    flex-direction: column;
-    gap: 0.5rem;
+  .btn-outline:active {
+    transform: scale(0.98);
   }
 
-  .league-actions .btn {
-    width: 100%;
-    flex: none;
-  }
-
-  .leagues-section .loading-spinner {
-    width: 0.75rem;
-    height: 0.75rem;
+  .btn-ranking:active {
+    transform: scale(0.98);
   }
 }
 
-/* Ultra small screens */
-@media (max-width: 360px) {
-  .league-actions .btn {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .loading-spinner {
-    margin-right: 0.25rem;
-  }
-}
-
-/* Invitation button styling */
+/* ========== INVITATION BUTTON STYLING ========== */
 .invite-icon {
   font-size: 1rem;
   margin-right: 0.375rem;
 }
 
 .btn-outline .invite-icon {
-  transition: var(--transition);
+  transition: var(--transition-fast);
 }
 
 .btn-outline:hover .invite-icon {
   transform: scale(1.1);
 }
 
-/* Enhanced league actions for better UX */
-.league-actions .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  transition: var(--transition);
-}
-
-/* Mobile optimizations for invite button */
-@media (max-width: 640px) {
-  .invite-icon {
-    font-size: 0.875rem;
-    margin-right: 0.25rem;
-  }
-}
-
-/* Touch feedback for invite button */
-@media (pointer: coarse) {
-  .btn-outline:active {
-    transform: scale(0.98);
-  }
-}
-
 /* ========== RANKING BUTTON STYLES ========== */
-
 .btn-ranking {
-  background: linear-gradient(135deg, var(--color-secondary-500), var(--color-secondary-600));
-  color: white;
-  border: 1px solid var(--color-secondary-600);
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
+  border: 1px solid var(--color-gold);
   position: relative;
   overflow: hidden;
 }
 
 .btn-ranking:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-secondary-600), var(--color-secondary-700));
-  border-color: var(--color-secondary-700);
+  filter: brightness(1.1);
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.4);
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .btn-ranking:active {
@@ -1285,7 +1308,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
   transition: left 0.5s ease;
 }
 
@@ -1296,7 +1319,7 @@
 .ranking-icon {
   font-size: 1rem;
   margin-right: 0.375rem;
-  transition: var(--transition-all);
+  transition: transform 0.2s ease;
 }
 
 .btn-ranking:hover .ranking-icon {
@@ -1313,51 +1336,12 @@
   }
 }
 
-/* Enhanced league actions spacing for ranking button */
-.league-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* Mobile optimizations for ranking button */
-@media (max-width: 640px) {
-  .ranking-icon {
-    font-size: 0.875rem;
-    margin-right: 0.25rem;
-  }
-
-  .btn-ranking {
-    font-size: 0.875rem;
-    padding: 0.75rem 0.5rem;
-  }
-}
-
-/* Touch feedback for ranking button */
-@media (pointer: coarse) {
-  .btn-ranking:active {
-    transform: scale(0.98);
-  }
-}
-
-/* Dark theme support for ranking button */
-[data-theme="dark"] .btn-ranking {
-  background: linear-gradient(135deg, var(--color-secondary-600), var(--color-secondary-700));
-  border-color: var(--color-secondary-700);
-}
-
-[data-theme="dark"] .btn-ranking:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--color-secondary-500), var(--color-secondary-600));
-  border-color: var(--color-secondary-600);
-  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.3);
-}
-/* Edit Button Styles */
+/* ========== EDIT BUTTON STYLES ========== */
 .btn-edit {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
 .edit-icon {
@@ -1372,9 +1356,9 @@
 .btn-edit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  border-color: var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  border-color: var(--border-primary);
 }
 
 .btn-edit:disabled .edit-icon {

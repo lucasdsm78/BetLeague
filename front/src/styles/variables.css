@@ -1,106 +1,103 @@
 /**
- * CSS Variables - Design System Foundation
- * Mobile-first responsive design system for BetLeague
+ * BetLeague Design System - Dark Premium Sports Betting Theme
+ * Single source of truth for all design tokens
  */
 
 :root {
   /* ========== COLOR PALETTE ========== */
 
-  /* Primary Colors - Football Theme */
-  --color-primary-50: #f0fdf4;
-  --color-primary-100: #dcfce7;
-  --color-primary-200: #bbf7d0;
-  --color-primary-300: #86efac;
-  --color-primary-400: #4ade80;
-  --color-primary-500: #22c55e;
-  --color-primary-600: #16a34a;
-  --color-primary-700: #15803d;
-  --color-primary-800: #166534;
-  --color-primary-900: #14532d;
-  --color-primary-950: #052e16;
+  /* Background Scale - Deep Navy Sports Theme */
+  --bg-deep: #0A1628;
+  --bg-primary: #0F1D32;
+  --bg-secondary: #152238;
+  --bg-elevated: #1C2D47;
+  --bg-surface: #243B56;
+  --bg-hover: #2C4666;
 
-  /* Secondary Colors - Gold/Trophy */
-  --color-secondary-50: #fffbeb;
-  --color-secondary-100: #fef3c7;
-  --color-secondary-200: #fde68a;
-  --color-secondary-300: #fcd34d;
-  --color-secondary-400: #fbbf24;
-  --color-secondary-500: #f59e0b;
-  --color-secondary-600: #d97706;
-  --color-secondary-700: #b45309;
-  --color-secondary-800: #92400e;
-  --color-secondary-900: #78350f;
-  --color-secondary-950: #451a03;
+  /* Primary - Electric Cyan */
+  --color-primary: #00D4FF;
+  --color-primary-light: #33DDFF;
+  --color-primary-dark: #00A8CC;
+  --color-primary-glow: rgba(0, 212, 255, 0.15);
+  --color-primary-subtle: rgba(0, 212, 255, 0.08);
 
-  /* Neutral Colors */
-  --color-neutral-0: #ffffff;
-  --color-neutral-50: #fafafa;
-  --color-neutral-100: #f5f5f5;
-  --color-neutral-200: #e5e5e5;
-  --color-neutral-300: #d4d4d4;
-  --color-neutral-400: #a3a3a3;
-  --color-neutral-500: #737373;
-  --color-neutral-600: #525252;
-  --color-neutral-700: #404040;
-  --color-neutral-800: #262626;
-  --color-neutral-900: #171717;
-  --color-neutral-950: #0a0a0a;
+  /* Success - Emerald */
+  --color-success: #00E676;
+  --color-success-light: #69F0AE;
+  --color-success-dark: #00C853;
+  --color-success-glow: rgba(0, 230, 118, 0.15);
+  --color-success-subtle: rgba(0, 230, 118, 0.08);
 
-  /* Semantic Colors */
-  --color-success-50: #f0fdf4;
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
-  --color-success-700: #15803d;
+  /* Danger - Red */
+  --color-danger: #FF4757;
+  --color-danger-light: #FF6B7A;
+  --color-danger-dark: #E63946;
+  --color-danger-glow: rgba(255, 71, 87, 0.15);
+  --color-danger-subtle: rgba(255, 71, 87, 0.08);
 
-  --color-warning-50: #fffbeb;
-  --color-warning-400: #fbbf24;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-warning-700: #b45309;
+  /* Warning - Amber */
+  --color-warning: #FFB800;
+  --color-warning-light: #FFCA33;
+  --color-warning-dark: #E6A600;
+  --color-warning-glow: rgba(255, 184, 0, 0.15);
+  --color-warning-subtle: rgba(255, 184, 0, 0.08);
 
-  --color-error-50: #fef2f2;
-  --color-error-400: #f87171;
-  --color-error-500: #ef4444;
-  --color-error-600: #dc2626;
-  --color-error-700: #b91c1c;
+  /* Gold - Premium/Tournaments */
+  --color-gold: #F5A623;
+  --color-gold-light: #FFD166;
+  --color-gold-dark: #D4900A;
+  --color-gold-glow: rgba(245, 166, 35, 0.15);
+  --color-gold-subtle: rgba(245, 166, 35, 0.08);
 
-  --color-info-50: #eff6ff;
-  --color-info-400: #60a5fa;
-  --color-info-500: #3b82f6;
-  --color-info-600: #2563eb;
-  --color-info-700: #1d4ed8;
+  /* Info - Blue */
+  --color-info: #3B82F6;
+  --color-info-light: #60A5FA;
+  --color-info-dark: #2563EB;
+  --color-info-glow: rgba(59, 130, 246, 0.15);
+  --color-info-subtle: rgba(59, 130, 246, 0.08);
+
+  /* Text Colors */
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-tertiary: #6E7681;
+  --text-inverse: #0A1628;
+
+  /* Border Colors - Blue-tinted */
+  --border-primary: rgba(100, 160, 255, 0.12);
+  --border-secondary: rgba(100, 160, 255, 0.2);
+  --border-accent: rgba(0, 212, 255, 0.3);
+
+  /* ========== GRADIENTS ========== */
+  --gradient-primary: linear-gradient(135deg, #00D4FF 0%, #0099CC 100%);
+  --gradient-success: linear-gradient(135deg, #00E676 0%, #00C853 100%);
+  --gradient-danger: linear-gradient(135deg, #FF4757 0%, #E63946 100%);
+  --gradient-gold: linear-gradient(135deg, #F5A623 0%, #D4900A 100%);
+  --gradient-premium: linear-gradient(135deg, #FFD166 0%, #F5A623 50%, #D4900A 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(0, 200, 83, 0.03) 100%);
+  --gradient-hero: linear-gradient(180deg, #0A1628 0%, #0F1D32 40%, #132640 100%);
 
   /* ========== TYPOGRAPHY ========== */
 
-  /* Font Families */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-secondary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 
-  /* Font Sizes - Mobile First */
-  --text-xs: 0.75rem;    /* 12px */
-  --text-sm: 0.875rem;   /* 14px */
-  --text-base: 1rem;     /* 16px */
-  --text-lg: 1.125rem;   /* 18px */
-  --text-xl: 1.25rem;    /* 20px */
-  --text-2xl: 1.5rem;    /* 24px */
-  --text-3xl: 1.875rem;  /* 30px */
-  --text-4xl: 2.25rem;   /* 36px */
-  --text-5xl: 3rem;      /* 48px */
-  --text-6xl: 3.75rem;   /* 60px */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
 
-  /* Line Heights */
   --leading-none: 1;
   --leading-tight: 1.25;
   --leading-snug: 1.375;
   --leading-normal: 1.5;
   --leading-relaxed: 1.625;
-  --leading-loose: 2;
 
-  /* Font Weights */
-  --font-thin: 100;
-  --font-light: 300;
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
@@ -110,234 +107,198 @@
 
   /* ========== SPACING ========== */
 
-  /* Spacing Scale */
   --space-0: 0;
   --space-px: 1px;
-  --space-0-5: 0.125rem;  /* 2px */
-  --space-1: 0.25rem;     /* 4px */
-  --space-1-5: 0.375rem;  /* 6px */
-  --space-2: 0.5rem;      /* 8px */
-  --space-2-5: 0.625rem;  /* 10px */
-  --space-3: 0.75rem;     /* 12px */
-  --space-3-5: 0.875rem;  /* 14px */
-  --space-4: 1rem;        /* 16px */
-  --space-5: 1.25rem;     /* 20px */
-  --space-6: 1.5rem;      /* 24px */
-  --space-7: 1.75rem;     /* 28px */
-  --space-8: 2rem;        /* 32px */
-  --space-9: 2.25rem;     /* 36px */
-  --space-10: 2.5rem;     /* 40px */
-  --space-11: 2.75rem;    /* 44px */
-  --space-12: 3rem;       /* 48px */
-  --space-14: 3.5rem;     /* 56px */
-  --space-16: 4rem;       /* 64px */
-  --space-20: 5rem;       /* 80px */
-  --space-24: 6rem;       /* 96px */
-  --space-28: 7rem;       /* 112px */
-  --space-32: 8rem;       /* 128px */
+  --space-0-5: 0.125rem;
+  --space-1: 0.25rem;
+  --space-1-5: 0.375rem;
+  --space-2: 0.5rem;
+  --space-2-5: 0.625rem;
+  --space-3: 0.75rem;
+  --space-3-5: 0.875rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 2.25rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-14: 3.5rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
 
   /* ========== LAYOUT ========== */
 
-  /* Breakpoints */
-  --breakpoint-xs: 480px;
-  --breakpoint-sm: 640px;
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 1024px;
-  --breakpoint-xl: 1280px;
-  --breakpoint-2xl: 1536px;
-
-  /* Container Sizes */
-  --container-xs: 100%;
   --container-sm: 640px;
   --container-md: 768px;
   --container-lg: 1024px;
   --container-xl: 1280px;
   --container-2xl: 1400px;
 
-  /* Z-Index Scale */
   --z-behind: -1;
   --z-default: 1;
   --z-docked: 10;
   --z-dropdown: 1000;
   --z-sticky: 1020;
-  --z-banner: 1030;
   --z-overlay: 1040;
   --z-modal: 1050;
-  --z-popover: 1060;
-  --z-skiplink: 1070;
   --z-toast: 1080;
   --z-tooltip: 1090;
 
   /* ========== EFFECTS ========== */
 
-  /* Border Radius */
-  --radius-none: 0;
-  --radius-sm: 0.125rem;   /* 2px */
-  --radius-base: 0.25rem;  /* 4px */
-  --radius-md: 0.375rem;   /* 6px */
-  --radius-lg: 0.5rem;     /* 8px */
-  --radius-xl: 0.75rem;    /* 12px */
-  --radius-2xl: 1rem;      /* 16px */
-  --radius-3xl: 1.5rem;    /* 24px */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-base: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-xs: 0 1px 2px rgba(5, 12, 25, 0.4);
+  --shadow-sm: 0 2px 4px rgba(5, 12, 25, 0.4);
+  --shadow-md: 0 4px 12px rgba(5, 12, 25, 0.5);
+  --shadow-lg: 0 8px 24px rgba(5, 12, 25, 0.6);
+  --shadow-xl: 0 16px 48px rgba(5, 12, 25, 0.7);
+  --shadow-glow-primary: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
+  --shadow-glow-success: 0 0 20px rgba(0, 230, 118, 0.3), 0 0 40px rgba(0, 230, 118, 0.1);
+  --shadow-glow-gold: 0 0 20px rgba(245, 166, 35, 0.3), 0 0 40px rgba(245, 166, 35, 0.1);
+  --shadow-glow-danger: 0 0 20px rgba(255, 71, 87, 0.3), 0 0 40px rgba(255, 71, 87, 0.1);
+
+  /* Glass Effect - Navy tinted */
+  --glass-bg: rgba(15, 29, 50, 0.85);
+  --glass-border: rgba(100, 160, 255, 0.1);
+  --glass-blur: blur(16px);
 
   /* Transitions */
-  --transition-all: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-colors: color, background-color, border-color, text-decoration-color, fill, stroke 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-opacity: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-shadow: box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-transform: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Timing Functions */
-  --ease-linear: linear;
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* ========== COMPONENT TOKENS ========== */
 
-  /* ========== COMPONENT SPECIFIC ========== */
+  --button-height-sm: 2rem;
+  --button-height-base: 2.5rem;
+  --button-height-lg: 3rem;
+  --button-height-xl: 3.5rem;
 
-  /* Button Variables */
-  --button-height-sm: 2rem;      /* 32px */
-  --button-height-base: 2.5rem;  /* 40px */
-  --button-height-lg: 3rem;      /* 48px */
-  --button-height-xl: 3.5rem;    /* 56px */
-
-  --button-padding-x-sm: var(--space-3);
-  --button-padding-x-base: var(--space-4);
-  --button-padding-x-lg: var(--space-6);
-  --button-padding-x-xl: var(--space-8);
-
-  /* Input Variables */
   --input-height-sm: 2rem;
-  --input-height-base: 2.5rem;
-  --input-height-lg: 3rem;
-  --input-height-xl: 3.5rem;
+  --input-height-base: 2.75rem;
+  --input-height-lg: 3.25rem;
 
-  --input-padding-x-sm: var(--space-3);
-  --input-padding-x-base: var(--space-4);
-  --input-padding-x-lg: var(--space-4);
-  --input-padding-x-xl: var(--space-5);
-
-  /* Card Variables */
   --card-padding: var(--space-6);
   --card-padding-sm: var(--space-4);
   --card-padding-lg: var(--space-8);
 
-  /* Header Variables */
-  --header-height: 4rem;           /* 64px */
-  --header-height-mobile: 3.5rem;  /* 56px */
+  --header-height: 4rem;
+  --header-height-mobile: 3.5rem;
+  --sidebar-width: 260px;
 
-  /* Sidebar Variables */
-  --sidebar-width: 16rem;          /* 256px */
-  --sidebar-width-collapsed: 4rem; /* 64px */
+  /* ========== ANIMATIONS ========== */
 
-  /* ========== DARK MODE ========== */
-
-  /* Dark mode will be handled via CSS custom properties */
-  /* These will be overridden in the dark theme */
-  --bg-primary: var(--color-neutral-0);
-  --bg-secondary: var(--color-neutral-50);
-  --bg-tertiary: var(--color-neutral-100);
-
-  --text-primary: var(--color-neutral-900);
-  --text-secondary: var(--color-neutral-700);
-  --text-tertiary: var(--color-neutral-500);
-
-  --border-primary: var(--color-neutral-200);
-  --border-secondary: var(--color-neutral-300);
-
-  /* ========== ANIMATION ========== */
-
-  /* Keyframes will be defined separately */
   --animation-spin: spin 1s linear infinite;
-  --animation-ping: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animation-bounce: bounce 1s infinite;
-}
+  --animation-ping: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 
-/* ========== DARK THEME ========== */
-[data-theme="dark"] {
-  --bg-primary: var(--color-neutral-900);
-  --bg-secondary: var(--color-neutral-800);
-  --bg-tertiary: var(--color-neutral-750);
+  /* ========== LEGACY ALIASES ========== */
 
-  --text-primary: var(--color-neutral-50);
-  --text-secondary: var(--color-neutral-300);
-  --text-tertiary: var(--color-neutral-400);
+  --primary-color: var(--color-primary);
+  --primary-dark: var(--color-primary-dark);
+  --secondary-color: var(--color-info);
+  --accent-color: var(--color-success);
+  --danger-color: var(--color-danger);
+  --warning-color: var(--color-warning);
+  --success-color: var(--color-success);
+  --border-color: var(--border-primary);
+  --border-dark: var(--border-secondary);
+  --bg-dark: var(--bg-deep);
+  --text-light: var(--text-tertiary);
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --transition: var(--transition-base);
+  --z-header: 1000;
 
-  --border-primary: var(--color-neutral-700);
-  --border-secondary: var(--color-neutral-600);
+  --color-primary-50: var(--color-primary-subtle);
+  --color-primary-100: var(--color-primary-glow);
+  --color-primary-500: var(--color-primary);
+  --color-primary-600: var(--color-primary);
+  --color-primary-700: var(--color-primary-dark);
+  --color-primary-800: var(--color-primary-dark);
+
+  --color-secondary-100: var(--color-gold-subtle);
+  --color-secondary-500: var(--color-gold);
+  --color-secondary-600: var(--color-gold);
+  --color-secondary-700: var(--color-gold-dark);
+  --color-secondary-800: var(--color-gold-dark);
+
+  --color-success-50: var(--color-success-subtle);
+  --color-success-100: var(--color-success-subtle);
+  --color-success-200: rgba(0, 230, 118, 0.2);
+  --color-success-400: var(--color-success-light);
+  --color-success-500: var(--color-success);
+  --color-success-600: var(--color-success);
+  --color-success-700: var(--color-success-dark);
+  --color-success-800: var(--color-success-dark);
+
+  --color-warning-50: var(--color-warning-subtle);
+  --color-warning-100: var(--color-warning-subtle);
+  --color-warning-200: rgba(255, 184, 0, 0.2);
+  --color-warning-400: var(--color-warning-light);
+  --color-warning-500: var(--color-warning);
+  --color-warning-600: var(--color-warning);
+  --color-warning-700: var(--color-warning-dark);
+  --color-warning-800: var(--color-warning-dark);
+
+  --color-error-50: var(--color-danger-subtle);
+  --color-error-100: var(--color-danger-subtle);
+  --color-error-200: rgba(255, 71, 87, 0.2);
+  --color-error-400: var(--color-danger-light);
+  --color-error-500: var(--color-danger);
+  --color-error-600: var(--color-danger);
+  --color-error-700: var(--color-danger-dark);
+  --color-error-800: var(--color-danger-dark);
+
+  --color-info-50: var(--color-info-subtle);
+  --color-info-100: var(--color-info-subtle);
+  --color-info-200: rgba(59, 130, 246, 0.2);
+  --color-info-400: var(--color-info-light);
+  --color-info-500: var(--color-info);
+  --color-info-600: var(--color-info);
+  --color-info-700: var(--color-info-dark);
+  --color-info-800: var(--color-info-dark);
+
+  --color-neutral-0: var(--text-primary);
+  --color-neutral-50: var(--text-primary);
+  --color-neutral-100: #C9D1D9;
+  --color-neutral-200: var(--text-secondary);
+  --color-neutral-300: var(--text-secondary);
+  --color-neutral-400: var(--text-tertiary);
+  --color-neutral-500: var(--text-tertiary);
+  --color-neutral-600: var(--bg-surface);
+  --color-neutral-700: var(--bg-elevated);
+  --color-neutral-800: var(--bg-secondary);
+  --color-neutral-900: var(--bg-primary);
+  --color-neutral-950: var(--bg-deep);
 }
 
 /* ========== RESPONSIVE TYPOGRAPHY ========== */
-/* Fluid typography for better mobile experience */
 @media (min-width: 640px) {
   :root {
-    --text-lg: 1.25rem;    /* 20px */
-    --text-xl: 1.5rem;     /* 24px */
-    --text-2xl: 1.875rem;  /* 30px */
-    --text-3xl: 2.25rem;   /* 36px */
-    --text-4xl: 3rem;      /* 48px */
-    --text-5xl: 4rem;      /* 64px */
-    --text-6xl: 5rem;      /* 80px */
+    --text-lg: 1.25rem;
+    --text-xl: 1.5rem;
+    --text-2xl: 1.875rem;
+    --text-3xl: 2.25rem;
+    --text-4xl: 3rem;
+    --text-5xl: 4rem;
   }
 }
 
 @media (min-width: 1024px) {
   :root {
-    --text-4xl: 3.5rem;    /* 56px */
-    --text-5xl: 4.5rem;    /* 72px */
-    --text-6xl: 6rem;      /* 96px */
+    --text-4xl: 3.5rem;
+    --text-5xl: 4.5rem;
+    --text-6xl: 6rem;
   }
-}
-
-/* ========== ALIASES FOR LEGACY VARIABLES (Compatibility) ========== */
-:root {
-  /* Primary/Secondary aliases */
-  --primary-color: var(--color-primary-600);
-  --primary-color-hover: var(--color-primary-700);
-  --secondary-color: var(--color-secondary-600);
-  --secondary-color-hover: var(--color-secondary-700);
-
-  /* Semantic aliases */
-  --success-color: var(--color-success-600);
-  --warning-color: var(--color-warning-600);
-  --danger-color: var(--color-error-600);
-  --info-color: var(--color-info-600);
-
-  /* Text aliases */
-  --text-light: var(--text-tertiary);
-
-  /* Border aliases */
-  --border-color: var(--border-primary);
-  --border-color-strong: var(--border-secondary);
-
-  /* Radius aliases */
-  --border-radius-sm: var(--radius-md);
-  --border-radius: var(--radius-lg);
-  --border-radius-lg: var(--radius-xl);
-
-  /* Gradient aliases */
-  --gradient-primary: linear-gradient(135deg, var(--color-primary-600), var(--color-secondary-500));
-}
-
-/* Dark theme overrides for aliases */
-[data-theme="dark"] {
-  --primary-color: var(--color-primary-500);
-  --primary-color-hover: var(--color-primary-600);
-  --secondary-color: var(--color-secondary-500);
-  --secondary-color-hover: var(--color-secondary-600);
-  --text-light: var(--text-tertiary);
-  --border-color: var(--border-primary);
-  --gradient-primary: linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-500));
 }
