@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from './useAuth.enhanced';
 import { useGlobalToast } from '../toast/ToastProvider';
 import secureApiClient from '../services/secureApiClient';
+import enhancedAuthService from '../services/authService.enhanced';
 
 export type LogoutOption = 'current' | 'all_devices' | 'except_current';
 export type LogoutTrigger = 'manual' | 'inactivity' | 'security' | 'session_expired';
@@ -83,7 +84,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
 
   // Dependencies
   const navigate = useNavigate();
-  const { logout: authLogout, isAuthenticated } = useEnhancedAuth();
+  const { isAuthenticated } = useEnhancedAuth();
   const { showSuccess, showError } = useGlobalToast();
 
   // State
@@ -213,7 +214,9 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
           userAgent: navigator.userAgent,
         }, {
           signal,
-          timeout: trigger === 'security' ? 2000 : 5000, // Shorter timeout for security logouts
+          timeout: trigger === 'security' ? 2000 : 5000,
+          skipRetry: true,
+          skipCache: true,
         });
 
 
@@ -243,7 +246,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
       updateProgress('auth_cleanup', 'Nettoyage de la session...');
 
       // Always perform client-side logout (most important for security)
-      await authLogout();
+      await enhancedAuthService.logout({ server: false });
 
       // Stage 4: Navigation (95%)
       if (autoNavigate) {
@@ -306,7 +309,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
         console.warn('🔐 Attempting emergency logout fallback...');
 
         try {
-          await authLogout();
+          await enhancedAuthService.logout({ server: false });
           if (autoNavigate) {
             window.location.href = fallbackUrl;
           }
@@ -336,7 +339,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
     return success;
   }, [
     isLoggingOut,
-    authLogout,
+    isAuthenticated,
     navigate,
     autoNavigate,
     fallbackUrl,

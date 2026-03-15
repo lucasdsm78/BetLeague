@@ -1,166 +1,351 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
-import './LeaguesSection.css';
-import { getReceivedInvitations, updateInvitation } from '../../services/api/invitations';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import './InvitationsSection.css';
+import { updateInvitation } from '../../services/api/invitations';
+import {
+  useReceivedInvitationsQuery,
+  useInvitationCountsQuery,
+  useInvalidateInvitations,
+  type InvitationStatusFilter,
+} from '../../hooks/queries/useInvitationsQueries';
+import type { InvitationReceivedReadModel } from '../../types/entities/invitation';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
-interface InvitationUI {
-  id: number;
-  leagueName: string;
-  inviterName: string;
-  inviteDate: string;
-  members: number;
-  maxMembers: number;
+/* ───── SVG Icons ───── */
+
+const IconAccepted = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
+
+const IconRefused = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+  </svg>
+);
+
+const IconCheck = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const IconX = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const IconAll = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+  </svg>
+);
+
+const IconPending = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+/* ───── Skeleton Card ───── */
+
+const InvitationSkeleton: React.FC = memo(() => (
+  <div className="inv-card skeleton">
+    <div className="inv-skeleton-bar header" />
+    <div className="inv-skeleton-bar sub" />
+    <div className="inv-skeleton-bar stats" />
+    <div className="inv-skeleton-bar actions" />
+  </div>
+));
+InvitationSkeleton.displayName = 'InvitationSkeleton';
+
+/* ───── Invitation Card ───── */
+
+function getStatusInfo(status: string) {
+  const s = status.toUpperCase();
+  if (s === 'ACCEPTED') return { key: 'accepted' as const, badgeLabel: 'Acceptée' };
+  if (s === 'REFUSED') return { key: 'refused' as const, badgeLabel: 'Refusée' };
+  return { key: 'pending' as const, badgeLabel: 'En attente' };
+}
+
+function formatDate(raw?: string | number): string {
+  if (!raw) return '—';
+  const d = new Date(typeof raw === 'number' ? raw * 1000 : raw);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getInitial(name?: string): string {
+  return (name ?? '?').charAt(0).toUpperCase();
 }
 
 interface InvitationCardProps {
-  invitation: InvitationUI;
-  onAccept: (invitation: InvitationUI) => void;
-  onDecline: (invitation: InvitationUI) => void;
+  invitation: InvitationReceivedReadModel;
+  onAccept: (inv: InvitationReceivedReadModel) => void;
+  onDecline: (inv: InvitationReceivedReadModel) => void;
+  loading?: boolean;
 }
 
-const InvitationCard: React.FC<InvitationCardProps> = ({ invitation, onAccept, onDecline }) => (
-  <div className="invitation-card">
-    <div className="invitation-info">
-      <h4 className="league-name">{invitation.leagueName}</h4>
-      <p className="invitation-text">
-        <strong>{invitation.inviterName}</strong> vous invite à rejoindre cette ligue
-      </p>
-      <div className="invitation-meta">
-        <span>{invitation.members}/{invitation.maxMembers} participants</span>
-        <span>•</span>
-        <span>{new Date(invitation.inviteDate).toLocaleDateString('fr-FR')}</span>
-      </div>
-    </div>
-    <div className="invitation-actions">
-      <button className="btn btn-primary btn-sm" onClick={() => onAccept(invitation)}>
-        Accepter
-      </button>
-      <button className="btn btn-outline btn-sm" onClick={() => onDecline(invitation)}>
-        Refuser
-      </button>
-    </div>
-  </div>
-);
+const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAccept, onDecline, loading }) => {
+  const { key, badgeLabel } = getStatusInfo(invitation.status);
+  const isPending = key === 'pending';
+  const league = invitation.league;
 
-const InvitationsSection: React.FC = memo(() => {
-  const [activeTab, setActiveTab] = useState<'received'>('received');
-  const [invitations, setInvitations] = useState<InvitationUI[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [error, setError] = useState<string>('');
-
-  const loadReceived = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getReceivedInvitations();
-      const mapped: InvitationUI[] = (data as any[]).map((inv: any) => ({
-        id: Number(inv.id),
-        leagueName: String(inv.league?.name || ''),
-        inviterName: String(inv.league?.user_creator?.pseudo || 'Inconnu'),
-        inviteDate: String(new Date(inv.league?.start_date || Date.now()).toISOString()),
-        members: Number((inv.league?.max_players || 0) - (inv.league?.nb_players_remaining || 0)),
-        maxMembers: Number(inv.league?.max_players || 0),
-      }));
-      setInvitations(mapped);
-    } catch (e: any) {
-      setError(e?.message || "Erreur lors du chargement des invitations");
-      setInvitations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadReceived();
-  }, [loadReceived]);
-
-  const handleAccept = useCallback(async (invitation: InvitationUI) => {
-    try {
-      const res = await updateInvitation(invitation.id, true);
-      setSuccessMessage(res.message || 'Invitation acceptée');
-      setTimeout(() => setSuccessMessage(''), 4000);
-      loadReceived();
-    } catch (e: any) {
-      setError(e?.message || "Erreur lors de l'acceptation de l'invitation");
-    }
-  }, [loadReceived]);
-
-  const handleDecline = useCallback(async (invitation: InvitationUI) => {
-    try {
-      const res = await updateInvitation(invitation.id, false);
-      setSuccessMessage(res.message || 'Invitation refusée');
-      setTimeout(() => setSuccessMessage(''), 3000);
-      loadReceived();
-    } catch (e: any) {
-      setError(e?.message || "Erreur lors du refus de l'invitation");
-    }
-  }, [loadReceived]);
+  const inviterName = league?.user_creator?.pseudo || 'Inconnu';
+  const members = (league?.max_players || 0) - (league?.nb_players_remaining || 0);
+  const maxMembers = league?.max_players || 0;
 
   return (
-    <div className="leagues-section" data-section="invitations">
-      {/* Messages */}
-      {successMessage && (
-        <div style={{
-          background: 'var(--success-color)', color: 'white', padding: '0.75rem 1rem', marginBottom: '1rem',
-          borderRadius: 'var(--border-radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <span>✅ {successMessage}</span>
-          <button onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem' }}>×</button>
+    <div className={`inv-card inv-card--${key}`}>
+      {/* Header: league name + badge */}
+      <div className="inv-card-header">
+        <div className="left">
+          <h4 className="inv-card-league-name">{league?.name || '—'}</h4>
         </div>
-      )}
-      {error && (
-        <div style={{
-          background: 'var(--danger-color)', color: 'white', padding: '0.75rem 1rem', marginBottom: '1rem',
-          borderRadius: 'var(--border-radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem' }}>×</button>
-        </div>
-      )}
-
-      <div className="section-header">
-        <h2>Mes Invitations</h2>
+        <span className={`inv-badge inv-badge--${key}`}>{badgeLabel}</span>
       </div>
 
-      {/* Menu (onglets) */}
-      <div className="leagues-tabs" role="tablist" aria-label="Menu des invitations">
+      {/* Inviter */}
+      <div className="inv-card-body">
+        <div className="inv-card-inviter">
+          <span className="inv-card-inviter-avatar">{getInitial(inviterName)}</span>
+          <span>Invité par <strong>{inviterName}</strong></span>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="inv-card-stats">
+        <div className="inv-card-stat">
+          <span className="label">Joueurs</span>
+          <span className="value">{members}/{maxMembers}</span>
+        </div>
+        <span className="divider" />
+        <div className="inv-card-stat primary">
+          <span className="label">Début</span>
+          <span className="value">{formatDate(league?.start_date)}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      {isPending ? (
+        <div className="inv-card-actions">
+          <button
+            type="button"
+            className="inv-btn inv-btn--accept"
+            onClick={() => onAccept(invitation)}
+            disabled={loading}
+          >
+            <IconCheck /> Accepter
+          </button>
+          <button
+            type="button"
+            className="inv-btn inv-btn--decline"
+            onClick={() => onDecline(invitation)}
+            disabled={loading}
+          >
+            <IconX /> Refuser
+          </button>
+        </div>
+      ) : key === 'accepted' ? (
+        <div className="inv-card-resolved inv-card-resolved--accepted">
+          <IconAccepted /> Vous avez rejoint cette ligue
+        </div>
+      ) : (
+        <div className="inv-card-resolved inv-card-resolved--refused">
+          <IconRefused /> Invitation refusée
+        </div>
+      )}
+    </div>
+  );
+});
+InvitationCard.displayName = 'InvitationCard';
+
+/* ───── Main Section ───── */
+
+type InvitationsTab = 'received';
+
+type InvitationFilterOption = {
+  key: InvitationStatusFilter | null;
+  label: string;
+  count: number;
+  icon: React.ReactNode;
+};
+
+const InvitationsSection: React.FC = memo(() => {
+  const [activeTab, setActiveTab] = useState<InvitationsTab>('received');
+  const [activeFilter, setActiveFilter] = useState<InvitationStatusFilter | null>(null);
+  const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  const { showSuccess, showError } = useGlobalToast();
+  const invalidate = useInvalidateInvitations();
+
+  const invitationsQuery = useReceivedInvitationsQuery(
+    activeTab === 'received' ? { page: 1, pageSize: 20, filter: { status: activeFilter } } : undefined,
+    { refetchIntervalMs: 30_000, enabled: activeTab === 'received' },
+  );
+
+  const countsQuery = useInvitationCountsQuery({ refetchIntervalMs: 60_000 });
+
+  const invitations = invitationsQuery.data?.invitations ?? [];
+  const loading = invitationsQuery.isLoading;
+  const error = (invitationsQuery.error as any)?.message ?? null;
+  const counts = countsQuery.data ?? { pending: 0, accepted: 0, refused: 0 };
+
+  const totalCount = counts.pending + counts.accepted + counts.refused;
+
+  const filterOptions = useMemo<InvitationFilterOption[]>(
+    () => [
+      { key: null, label: 'Toutes', count: totalCount, icon: <IconAll /> },
+      { key: 'PENDING', label: 'En attente', count: counts.pending, icon: <IconPending /> },
+      { key: 'ACCEPTED', label: 'Acceptées', count: counts.accepted, icon: <IconAccepted /> },
+      { key: 'REFUSED', label: 'Refusées', count: counts.refused, icon: <IconRefused /> },
+    ],
+    [counts.accepted, counts.pending, counts.refused, totalCount],
+  );
+
+  const handleAccept = useCallback(async (invitation: InvitationReceivedReadModel) => {
+    setLoadingId(invitation.id);
+    try {
+      const res = await updateInvitation(invitation.id, true);
+      showSuccess('Invitation acceptée', res.message || 'Vous avez rejoint la ligue !');
+      invalidate.invalidateAll();
+    } catch (e: any) {
+      showError('Erreur', e?.message || "Erreur lors de l'acceptation de l'invitation");
+    } finally {
+      setLoadingId(null);
+    }
+  }, [invalidate, showSuccess, showError]);
+
+  const handleDecline = useCallback(async (invitation: InvitationReceivedReadModel) => {
+    setLoadingId(invitation.id);
+    try {
+      const res = await updateInvitation(invitation.id, false);
+      showSuccess('Invitation refusée', res.message || 'Invitation refusée');
+      invalidate.invalidateAll();
+    } catch (e: any) {
+      showError('Erreur', e?.message || "Erreur lors du refus de l'invitation");
+    } finally {
+      setLoadingId(null);
+    }
+  }, [invalidate, showSuccess, showError]);
+
+  const emptyTitle = activeFilter === 'PENDING'
+    ? 'Aucune invitation en attente'
+    : activeFilter === 'ACCEPTED'
+      ? 'Aucune invitation acceptée'
+      : activeFilter === 'REFUSED'
+        ? 'Aucune invitation refusée'
+        : 'Aucune invitation';
+
+  const emptyText = activeFilter
+    ? 'Essayez un autre filtre ou revenez plus tard.'
+    : 'Vos invitations apparaîtront ici.';
+
+  return (
+    <div className="invitations-section" data-section="invitations">
+      <div className="section-header">
+        <h2>Invitations</h2>
+      </div>
+
+      <div className="invitations-tabs" role="tablist" aria-label="Invitations">
         <button
+          type="button"
           className={`tab-button ${activeTab === 'received' ? 'active' : ''}`}
           role="tab"
           aria-selected={activeTab === 'received'}
+          aria-controls="invitations-panel-received"
+          id="invitations-tab-received"
           onClick={() => setActiveTab('received')}
         >
           <span className="tab-content-wrapper">
-            <span className="tab-title">Reçus</span>
-            <span className="tab-badge">{invitations.length}</span>
+            <span className="tab-title">Reçues</span>
+            <span className="tab-badge">{totalCount}</span>
           </span>
         </button>
       </div>
 
-      {/* Contenu */}
-      <div className="tab-content">
-        {activeTab === 'received' && (
-          <div className="invitations-list">
+      {activeTab === 'received' && (
+        <section
+          id="invitations-panel-received"
+          role="tabpanel"
+          aria-labelledby="invitations-tab-received"
+          className="invitations-panel"
+        >
+          <div className="invitation-filter-tabs" role="tablist" aria-label="Filtrer les invitations reçues">
+            {filterOptions.map((option) => {
+              const isActive = option.key === activeFilter;
+              const tabId = `invitation-filter-tab-${option.key ?? 'all'}`;
+              const panelId = `invitation-filter-panel-${option.key ?? 'all'}`;
+
+              return (
+                <button
+                  key={option.key ?? 'all'}
+                  type="button"
+                  id={tabId}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={panelId}
+                  className={`invitation-filter-tab ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveFilter(option.key)}
+                >
+                  <span className="tab-content-wrapper">
+                    <span className="filter-tab-icon" aria-hidden="true">{option.icon}</span>
+                    <span className="tab-title">{option.label}</span>
+                    <span className="tab-badge">{option.count}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            id={`invitation-filter-panel-${activeFilter ?? 'all'}`}
+            role="tabpanel"
+            aria-labelledby={`invitation-filter-tab-${activeFilter ?? 'all'}`}
+          >
             {loading ? (
-              <div className="empty-state">
-                <span className="empty-icon">⏳</span>
-                <h3>Chargement des invitations…</h3>
-                <p>Merci de patienter</p>
+              <div className="inv-grid">
+                <InvitationSkeleton />
+                <InvitationSkeleton />
+                <InvitationSkeleton />
+              </div>
+            ) : error ? (
+              <div className="inv-empty">
+                <span className="inv-empty-icon">⚠️</span>
+                <h3>Erreur de chargement</h3>
+                <p>{error}</p>
+                <button
+                  className="inv-btn inv-btn--accept"
+                  onClick={() => invitationsQuery.refetch()}
+                  style={{ marginTop: '0.5rem', flex: 'none', padding: '0.5rem 1.5rem' }}
+                >
+                  Réessayer
+                </button>
               </div>
             ) : invitations.length > 0 ? (
-              invitations.map(inv => (
-                <InvitationCard key={inv.id} invitation={inv} onAccept={handleAccept} onDecline={handleDecline} />
-              ))
+              <div className="inv-grid">
+                {invitations.map(inv => (
+                  <InvitationCard
+                    key={inv.id}
+                    invitation={inv}
+                    onAccept={handleAccept}
+                    onDecline={handleDecline}
+                    loading={loadingId === inv.id}
+                  />
+                ))}
+              </div>
             ) : (
-              <div className="empty-state">
-                <span className="empty-icon">📨</span>
-                <h3>Aucune invitation reçue</h3>
-                <p>Vos invitations apparaîtront ici</p>
+              <div className="inv-empty">
+                <span className="inv-empty-icon">📨</span>
+                <h3>{emptyTitle}</h3>
+                <p>{emptyText}</p>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </section>
+      )}
     </div>
   );
 });
@@ -168,4 +353,3 @@ const InvitationsSection: React.FC = memo(() => {
 InvitationsSection.displayName = 'InvitationsSection';
 
 export default InvitationsSection;
-
