@@ -1,45 +1,11 @@
-/* League Detail Component - Mobile-First Sports Betting Theme */
+/* League Detail Component - Dark Premium Sports Betting Theme */
 
 .league-detail-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
   min-height: 100vh;
-  background: var(--bg-primary);
-}
-
-/* CSS Variables (inherited from parent but defined for standalone use) */
-:root {
-  --primary-color: #00d2ff;
-  --secondary-color: #0066cc;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-light: #9ca3af;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --border-color: #e5e7eb;
-  --border-radius: 12px;
-  --border-radius-sm: 8px;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --transition: all 0.2s ease-in-out;
-  --gradient-primary: linear-gradient(135deg, #00d2ff 0%, #0066cc 100%);
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-light: #9ca3af;
-    --bg-primary: #1f2937;
-    --bg-secondary: #374151;
-    --border-color: #4b5563;
-  }
+  background: var(--bg-deep);
 }
 
 /* Header */
@@ -49,27 +15,28 @@
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .back-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: none;
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   color: var(--text-secondary);
   padding: 0.75rem 1rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
   font-weight: 500;
 }
 
 .back-button:hover {
-  background: var(--bg-secondary);
+  background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .back-icon {
@@ -92,13 +59,14 @@
   min-height: 50vh;
   text-align: center;
   padding: 2rem;
+  color: var(--text-secondary);
 }
 
 .loading-spinner-large {
   width: 3rem;
   height: 3rem;
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--primary-color);
+  border: 4px solid var(--bg-surface);
+  border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1.5rem;
@@ -136,10 +104,11 @@
   background: var(--gradient-primary);
   color: white;
   padding: 2rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--radius-xl);
   margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .league-hero::before {
@@ -149,7 +118,7 @@
   right: -10%;
   width: 200px;
   height: 200px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 50%;
   transform: rotate(45deg);
 }
@@ -163,6 +132,7 @@
   font-weight: 700;
   margin: 0 0 0.5rem 0;
   line-height: 1.2;
+  color: #fff;
 }
 
 .league-status {
@@ -203,20 +173,21 @@
 }
 
 .stat-card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  transition: var(--transition);
+  transition: var(--transition-base);
   box-shadow: var(--shadow-sm);
 }
 
 .stat-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: var(--color-primary);
 }
 
 .stat-icon {
@@ -241,10 +212,11 @@
 .code-value {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.875rem;
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  color: var(--color-primary);
 }
 
 .stat-label {
@@ -256,7 +228,8 @@
 /* Actions Section */
 .league-actions-section {
   background: var(--bg-secondary);
-  border-radius: var(--border-radius);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 2rem;
   margin-top: 2rem;
 }
@@ -280,11 +253,11 @@
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
   border: none;
   font-family: inherit;
   font-size: 0.875rem;
@@ -294,13 +267,14 @@
 
 .btn-primary {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   border: 2px solid transparent;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-glow-primary), var(--shadow-md);
 }
 
 .btn-primary:disabled {
@@ -310,26 +284,26 @@
 }
 
 .btn-secondary {
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-secondary:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  border-color: var(--color-primary);
 }
 
 .btn-outline {
   background: transparent;
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 .btn-outline:hover {
-  background: var(--primary-color);
-  color: white;
+  background: var(--color-primary);
+  color: var(--text-inverse);
 }
 
 /* Animations */
@@ -443,7 +417,7 @@
   background: linear-gradient(
     90deg,
     var(--bg-secondary) 25%,
-    rgba(255, 255, 255, 0.5) 50%,
+    var(--bg-elevated) 50%,
     var(--bg-secondary) 75%
   );
   background-size: 200% 100%;
@@ -475,18 +449,18 @@
 /* Optimized animations for mobile performance */
 @media (max-width: 768px) {
   .stat-card:hover {
-    transform: none; /* Disable hover effects on mobile */
+    transform: none;
   }
 
   .btn:hover {
-    transform: none; /* Disable hover effects on mobile */
+    transform: none;
   }
 }
 
 /* Accessibility */
 .btn:focus,
 .back-button:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 

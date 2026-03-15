@@ -1,28 +1,32 @@
-/* Tournament Subscription Modal - Modern Design */
+/* Tournament Subscription Modal - Dark Premium Sports Betting Theme */
 
 .tournament-subscription-modal {
   max-width: 600px;
   width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
 }
 
 .tournament-subscription-modal .modal-header {
   position: relative;
   text-align: center;
   padding: 2rem 2.5rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
 }
 
 .subscription-icon {
   width: 70px;
   height: 70px;
   margin: 0 auto 1rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 2.5rem;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
+  box-shadow: var(--shadow-glow-gold);
   animation: iconFloat 3s ease-in-out infinite;
 }
 
@@ -53,21 +57,38 @@
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  font-size: 1.25rem;
+}
+
+.tournament-subscription-modal .modal-close:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* Subscription Plan Card */
 .subscription-plan-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
   padding: 0;
   margin: 1.5rem 0;
   overflow: hidden;
 }
 
 .plan-header {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
   padding: 1.5rem 2rem;
   text-align: center;
 }
@@ -99,7 +120,7 @@
 /* Features Section */
 .plan-features {
   padding: 2rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .plan-features h4 {
@@ -122,14 +143,14 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
 }
 
 .feature-item:hover {
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .feature-icon {
@@ -137,8 +158,8 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
+  background: var(--gradient-success);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -181,8 +202,8 @@
 /* Modal Footer */
 .tournament-subscription-modal .modal-footer {
   padding: 1.5rem 2rem;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-primary);
   display: flex;
   gap: 1rem;
   justify-content: space-between;
@@ -190,18 +211,21 @@
 
 .btn-subscribe {
   flex: 1;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--gradient-gold);
   border: none;
+  color: var(--text-inverse);
   font-weight: 600;
   font-size: 1rem;
   padding: 0.875rem 1.5rem;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base) ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .btn-subscribe::before {
@@ -214,7 +238,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.15),
     transparent
   );
   transition: left 0.5s ease;
@@ -226,7 +250,7 @@
 
 .btn-subscribe:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .btn-subscribe:active {
@@ -247,9 +271,9 @@
 .tournament-subscription-modal .error-banner {
   margin-bottom: 1.5rem;
   padding: 1rem 1.25rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--border-radius);
+  background: var(--color-danger-subtle);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -262,7 +286,7 @@
 
 .error-text {
   flex: 1;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: 0.9375rem;
   font-weight: 500;
 }
