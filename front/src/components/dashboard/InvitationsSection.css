@@ -1,0 +1,693 @@
+/* ===== Invitations Section - Sports Betting Theme ===== */
+
+.invitations-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.invitations-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.invitations-section .section-header h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ===== Filter Bar ===== */
+.inv-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem 0;
+  flex-wrap: wrap;
+}
+
+.inv-filter-bar .inv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.125rem;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.inv-filter-bar .inv-chip:hover {
+  border-color: var(--border-color-strong);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.inv-filter-bar .inv-chip:active {
+  transform: scale(0.96);
+}
+
+.inv-filter-bar .inv-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(0, 210, 255, 0.22),
+    0 0 0 1px rgba(0, 210, 255, 0.55) inset;
+  border-color: rgba(0, 210, 255, 0.55);
+}
+
+.inv-filter-bar .inv-chip:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+/* Active state */
+.inv-filter-bar .inv-chip.active {
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.inv-chip--all.active {
+  background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+  box-shadow: 0 2px 10px rgba(0, 210, 255, 0.35);
+}
+
+.inv-chip--pending.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.35);
+}
+
+.inv-chip--accepted.active {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.35);
+}
+
+.inv-chip--refused.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+}
+
+.inv-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inv-chip-label {
+  line-height: 1;
+}
+
+.inv-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  line-height: 1;
+}
+
+.inv-filter-bar .inv-chip:not(.active) .inv-chip-count {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+/* ===== Invitations Grid ===== */
+.inv-grid {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .inv-grid {
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  }
+}
+
+.inv-grid > * {
+  min-width: 0;
+}
+
+/* ===== Invitation Card ===== */
+.inv-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.inv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Status-specific left border */
+.inv-card--pending {
+  border-left: 4px solid var(--warning-color);
+}
+
+.inv-card--accepted {
+  border-left: 4px solid var(--success-color);
+}
+
+.inv-card--refused {
+  border-left: 4px solid var(--danger-color);
+}
+
+/* Card Header */
+.inv-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.inv-card-header .left {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.inv-card-league-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-card-header .inv-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.inv-badge--pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning-color);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.inv-badge--accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success-color);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.inv-badge--refused {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger-color);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Card Body: Inviter info */
+.inv-card-body {
+  margin-bottom: 0.75rem;
+}
+
+.inv-card-inviter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.inv-card-inviter-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-500));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.inv-card-inviter strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Card Stats Row */
+.inv-card-stats {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.inv-card-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+  text-align: center;
+}
+
+.inv-card-stat .label {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.inv-card-stat .value {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.inv-card-stat.primary .value {
+  color: var(--primary-color);
+}
+
+.inv-card-stats .divider {
+  width: 1px;
+  height: 100%;
+  min-height: 28px;
+  background: var(--border-color);
+}
+
+/* Card Actions */
+.inv-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.inv-card-actions .inv-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.inv-card-actions .inv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Accept Button */
+.inv-btn--accept {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-500));
+  color: white;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.inv-btn--accept::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.inv-btn--accept:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.inv-btn--accept:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+}
+
+.inv-btn--accept:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Decline Button */
+.inv-btn--decline {
+  background: transparent;
+  border: 1.5px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.inv-btn--decline:hover:not(:disabled) {
+  border-color: var(--color-error-500);
+  color: var(--color-error-600);
+  background: rgba(239, 68, 68, 0.06);
+  transform: translateY(-1px);
+}
+
+.inv-btn--decline:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Accepted/Refused resolved state */
+.inv-card-resolved {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.inv-card-resolved--accepted {
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--success-color);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.inv-card-resolved--refused {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger-color);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.inv-card-resolved svg {
+  flex-shrink: 0;
+}
+
+/* ===== Empty State ===== */
+.invitations-section .inv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+  transition: var(--transition);
+}
+
+.invitations-section .inv-empty:hover {
+  border-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.04) 0%, transparent 100%);
+}
+
+.inv-empty-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.inv-empty h3 {
+  margin: 0.5rem 0 0;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.inv-empty p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ===== Loading Skeleton ===== */
+.inv-card.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.inv-skeleton-bar {
+  height: 14px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  margin: 8px 0;
+}
+
+.inv-skeleton-bar.header {
+  width: 55%;
+  height: 18px;
+}
+
+.inv-skeleton-bar.sub {
+  width: 70%;
+}
+
+.inv-skeleton-bar.stats {
+  height: 48px;
+  width: 100%;
+}
+
+.inv-skeleton-bar.actions {
+  height: 36px;
+  width: 100%;
+}
+
+/* Shimmer animation */
+.inv-card.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: invShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes invShimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .invitations-section .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .invitations-section .section-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .inv-filter-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+  }
+
+  .inv-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .inv-chip-label {
+    font-size: 0.75rem;
+  }
+
+  .inv-card-league-name {
+    font-size: 0.9375rem;
+  }
+}
+
+/* ===== Touch ===== */
+@media (pointer: coarse) {
+  .inv-filter-bar .inv-chip {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .inv-card-actions .inv-btn {
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+
+  .inv-card-actions .inv-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* ===== Dark Theme ===== */
+[data-theme="dark"] .inv-card {
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .inv-card-stats {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-btn--decline {
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .inv-btn--decline:hover:not(:disabled) {
+  border-color: var(--color-error-400);
+  color: var(--color-error-400);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+[data-theme="dark"] .inv-card.skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 100%
+  );
+}
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  .inv-card,
+  .inv-filter-bar .inv-chip,
+  .inv-card-actions .inv-btn {
+    transition: none;
+  }
+
+  .inv-card:hover {
+    transform: none;
+  }
+
+  .inv-card.skeleton::after {
+    animation: none;
+  }
+}
+
+/* ===== Tabs (Invitations) ===== */
+.invitations-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.invitations-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.invitations-tabs .tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.95rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.invitations-tabs .tab-button:hover {
+  color: var(--primary-color);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.invitations-tabs .tab-button.active {
+  color: var(--primary-color);
+}
+
+.invitations-tabs .tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary-color);
+}
+
+.invitations-tabs .tab-title {
+  font-weight: 700;
+}
+
+.invitations-tabs .tab-badge {
+  margin-left: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.invitations-tabs .tab-button.active .tab-badge {
+  background: var(--primary-color);
+  color: white;
+}
