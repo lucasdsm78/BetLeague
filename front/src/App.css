@@ -1,45 +1,5 @@
-/* CSS Variables globales */
-:root {
-  --primary-color: #00d2ff;
-  --primary-dark: #0099cc;
-  --secondary-color: #1e40af;
-  --accent-color: #10b981;
-  --danger-color: #ef4444;
-  --warning-color: #f59e0b;
-  --success-color: #22c55e;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-light: #9ca3af;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-dark: #1e293b;
-  --border-color: #e5e7eb;
-  --border-dark: #374151;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  --gradient-secondary: linear-gradient(135deg, #667eea, #764ba2);
-  --border-radius: 12px;
-  --border-radius-sm: 8px;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --z-header: 1000;
-  --z-modal: 2000;
-  --z-toast: 3000;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-light: #6b7280;
-    --bg-primary: #1f2937;
-    --bg-secondary: #111827;
-    --bg-dark: #0f172a;
-    --border-color: #374151;
-  }
-}
+/* BetLeague - App & Landing Page Styles */
+/* Dark Premium Sports Betting Theme */
 
 * {
   margin: 0;
@@ -48,29 +8,28 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: var(--font-primary);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-overflow-scrolling: touch;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-/* Styles pour les pages d'authentification */
+/* Auth pages background */
 body:has(.app:not(.dashboard-mode)) {
-  background: linear-gradient(135deg, #0a1628 0%, #1a2332 25%, #2a3441 100%);
-  color: #fff;
+  background: var(--gradient-hero);
 }
 
-/* Fallback pour les navigateurs sans :has */
 .app:not(.dashboard-mode) {
-  background: linear-gradient(135deg, #0a1628 0%, #1a2332 25%, #2a3441 100%);
-  color: #fff;
+  background: var(--gradient-hero);
+  color: var(--text-primary);
 }
 
-/* Styles pour le dashboard */
 .app.dashboard-mode {
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   color: var(--text-primary);
 }
 
@@ -82,14 +41,12 @@ body:has(.app:not(.dashboard-mode)) {
   padding: 20px;
 }
 
-/* Container pour les pages d'auth */
 .app .container {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   margin: 0 auto;
 }
 
-/* Container pour le dashboard - prend toute la largeur */
 .app.dashboard-mode {
   padding: 0;
   align-items: stretch;
@@ -106,9 +63,27 @@ body:has(.app:not(.dashboard-mode)) {
   margin: 0;
 }
 
+/* ========== HOME SCREEN ========== */
+
 .home-screen {
   text-align: center;
   animation: slideIn 0.6s ease-out;
+  position: relative;
+}
+
+.home-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 40%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 230, 118, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(245, 166, 35, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .hero-section {
@@ -125,19 +100,19 @@ body:has(.app:not(.dashboard-mode)) {
 
 .logo-icon {
   font-size: clamp(2.5rem, 8vw, 3.5rem);
-  filter: drop-shadow(0 6px 12px rgba(16, 185, 129, 0.3));
-  animation: pulse 2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 6px 20px rgba(0, 212, 255, 0.3));
+  animation: logoFloat 3s ease-in-out infinite;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.05); }
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .logo h1 {
   font-size: clamp(2rem, 6vw, 2.8rem);
   font-weight: 800;
-  background: linear-gradient(135deg, #10b981, #34d399, #6ee7b7);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light), var(--color-success));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -146,10 +121,12 @@ body:has(.app:not(.dashboard-mode)) {
 
 .tagline {
   font-size: 1.1rem;
-  opacity: 0.9;
+  color: var(--text-secondary);
   margin-bottom: 20px;
+  line-height: 1.6;
 }
 
+/* Features Grid */
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -164,11 +141,11 @@ body:has(.app:not(.dashboard-mode)) {
   align-items: center;
   gap: 12px;
   padding: 24px 16px;
-  background: rgba(16, 185, 129, 0.15);
-  border-radius: 20px;
+  background: rgba(0, 212, 255, 0.06);
+  border-radius: var(--radius-2xl);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  transition: var(--transition-base);
   position: relative;
   overflow: hidden;
 }
@@ -180,15 +157,15 @@ body:has(.app:not(.dashboard-mode)) {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  transition: left 0.5s ease;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.08), transparent);
+  transition: left 0.6s ease;
 }
 
 .feature:hover {
   transform: translateY(-4px);
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.5);
-  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+  background: rgba(0, 212, 255, 0.10);
+  border-color: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.12);
 }
 
 .feature:hover::before {
@@ -202,8 +179,11 @@ body:has(.app:not(.dashboard-mode)) {
 .feature span:last-child {
   font-size: 0.9rem;
   text-align: center;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
+/* Auth Buttons */
 .auth-buttons {
   display: flex;
   flex-direction: column;
@@ -214,22 +194,24 @@ body:has(.app:not(.dashboard-mode)) {
 .btn {
   padding: 15px 30px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: var(--transition-base);
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
-  position: relative;
-  overflow: hidden;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.25);
 }
 
 .btn-primary::before {
@@ -245,8 +227,7 @@ body:has(.app:not(.dashboard-mode)) {
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.4);
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .btn-primary:hover::before {
@@ -255,15 +236,13 @@ body:has(.app:not(.dashboard-mode)) {
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
 }
 
 .btn-secondary {
   background: transparent;
-  color: white;
-  border: 2px solid rgba(16, 185, 129, 0.4);
-  position: relative;
-  overflow: hidden;
+  color: var(--color-primary);
+  border: 2px solid rgba(0, 212, 255, 0.3);
 }
 
 .btn-secondary::before {
@@ -273,15 +252,15 @@ body:has(.app:not(.dashboard-mode)) {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.08), transparent);
   transition: left 0.5s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.15);
 }
 
 .btn-secondary:hover::before {
@@ -289,43 +268,52 @@ body:has(.app:not(.dashboard-mode)) {
 }
 
 .btn:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
 }
 
+/* ========== LOADING ========== */
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--bg-surface);
+  border-top: 3px solid var(--color-primary);
+  border-radius: 50%;
+  animation: var(--animation-spin);
+  margin-bottom: var(--space-4);
+}
+
+/* ========== ANIMATIONS ========== */
+
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(40px) scale(0.98);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-/* Ajout d'effets visuels avancés */
-.home-screen::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(52, 211, 153, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 80%, rgba(110, 231, 183, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: -1;
+@keyframes pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.03); }
 }
 
-.home-screen {
-  position: relative;
-}
+/* ========== RESPONSIVE ========== */
 
-/* Responsive optimisé */
 @media (max-width: 480px) {
   .container {
     max-width: 100%;
@@ -367,7 +355,6 @@ body:has(.app:not(.dashboard-mode)) {
   .btn {
     padding: 16px 24px;
     font-size: 16px;
-    font-weight: 600;
   }
 }
 
@@ -407,4 +394,16 @@ body:has(.app:not(.dashboard-mode)) {
   }
 }
 
-/* Styles de base pour le dashboard sont maintenant dans Dashboard.css */
+/* ========== ACCESSIBILITY ========== */
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon,
+  .feature,
+  .spinner {
+    animation: none;
+  }
+
+  * {
+    transition: none !important;
+  }
+}

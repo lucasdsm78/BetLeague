@@ -1,38 +1,6 @@
-/* League Details Modal - Mobile-First Sports Betting Theme */
-
-/* CSS Variables (inherited from parent but defined for standalone use) */
-:root {
-  --primary-color: #00d2ff;
-  --secondary-color: #0066cc;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-light: #9ca3af;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --border-color: #e5e7eb;
-  --border-radius: 12px;
-  --border-radius-sm: 8px;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --transition: all 0.2s ease-in-out;
-  --gradient-primary: linear-gradient(135deg, #00d2ff 0%, #0066cc 100%);
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-light: #9ca3af;
-    --bg-primary: #1f2937;
-    --bg-secondary: #374151;
-    --border-color: #4b5563;
-  }
-}
+/* ============================================
+   LEAGUE DETAILS MODAL - Dark Premium Sports Betting
+   ============================================ */
 
 /* Modal Overlay */
 .league-modal-overlay {
@@ -41,8 +9,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,9 +24,10 @@
 
 /* Modal Content */
 .league-modal-content {
-  background: var(--bg-primary);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
@@ -74,10 +44,10 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
   background: var(--gradient-primary);
   color: white;
-  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .league-title-section {
@@ -112,15 +82,16 @@
   color: white;
   font-size: 1.25rem;
   padding: 0.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: var(--transition);
+  transition: all var(--transition-base);
   flex-shrink: 0;
   margin-left: 1rem;
 }
 
 .modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
 }
 
 /* Loading States */
@@ -138,8 +109,8 @@
 .loading-spinner-large {
   width: 3rem;
   height: 3rem;
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--primary-color);
+  border: 4px solid var(--bg-surface);
+  border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1.5rem;
@@ -179,20 +150,21 @@
 }
 
 .stat-card-modal {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  transition: var(--transition);
+  transition: all var(--transition-base);
   min-height: 70px;
 }
 
 .stat-card-modal:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-glow-primary);
   transform: translateY(-1px);
+  border-color: var(--color-primary);
 }
 
 .stat-card-modal.full-width {
@@ -221,11 +193,12 @@
 .code-value {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.875rem;
-  background: var(--bg-primary);
+  background: var(--bg-surface);
   padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
   word-break: break-all;
+  color: var(--color-primary);
 }
 
 .stat-label {
@@ -239,9 +212,9 @@
   display: flex;
   gap: 0.75rem;
   padding: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   flex-wrap: wrap;
 }
 
@@ -258,25 +231,26 @@
 }
 
 .btn-copy-link.copy-success {
-  border-color: var(--success-color);
-  color: var(--success-color);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  box-shadow: 0 0 12px var(--color-success-glow);
 }
 
 .btn-copy-link.copy-success:hover {
-  background: var(--success-color);
-  border-color: var(--success-color);
-  color: #fff;
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--text-inverse);
 }
 
 .btn-copy-link.copy-error {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .btn-copy-link.copy-error:hover {
-  background: var(--danger-color);
-  border-color: var(--danger-color);
-  color: #fff;
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--text-inverse);
 }
 
 /* Button Styles */
@@ -285,11 +259,11 @@
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all var(--transition-base);
   border: none;
   font-family: inherit;
   font-size: 0.875rem;
@@ -300,13 +274,14 @@
 
 .btn-primary {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .btn-primary:disabled {
@@ -317,25 +292,27 @@
 
 .btn-outline {
   background: transparent;
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 .btn-outline:hover {
-  background: var(--primary-color);
-  color: white;
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .btn-secondary {
-  background: var(--bg-primary);
+  background: var(--bg-surface);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 .btn-secondary:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 /* Animations */
@@ -380,7 +357,7 @@
 
   .league-modal-content {
     max-height: 95vh;
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     animation: slideInFromBottom 0.3s ease-out;
   }
 
@@ -468,7 +445,7 @@
   }
 }
 
-/* Enhanced touch feedback for mobile */
+/* Enhanced touch feedback */
 .btn:active {
   transform: scale(0.98);
 }
@@ -484,7 +461,7 @@
 /* Accessibility */
 .btn:focus,
 .modal-close-btn:focus {
-  outline: 2px solid var(--primary-color);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
@@ -516,7 +493,6 @@
     min-height: 80px;
   }
 
-  /* Disable hover effects on touch devices */
   .stat-card-modal:hover {
     transform: none;
   }

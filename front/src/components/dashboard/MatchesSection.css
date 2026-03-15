@@ -1,4 +1,4 @@
-/* Matches Section - Design moderne pour paris sportifs */
+/* Matches Section - Dark Premium Sports Betting Theme */
 
 .matches-section {
   max-width: 1200px;
@@ -16,6 +16,7 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 0.5rem 0;
+  letter-spacing: -0.025em;
 }
 
 .section-header p {
@@ -30,9 +31,10 @@
   gap: 0.75rem;
   margin-bottom: 2rem;
   padding: 0.5rem;
-  background: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  backdrop-filter: var(--glass-blur);
 }
 
 .mode-btn {
@@ -44,24 +46,24 @@
   padding: 0.875rem 1.5rem;
   background: transparent;
   border: 2px solid transparent;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
 .mode-btn:hover {
-  background: var(--bg-primary);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .mode-btn.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-sm);
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .mode-icon {
@@ -74,10 +76,11 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%);
-  border-left: 3px solid var(--primary-color);
-  border-radius: var(--border-radius-sm);
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.1) 0%, rgba(245, 166, 35, 0.03) 100%);
+  border-left: 3px solid var(--color-gold);
+  border-radius: var(--radius-md);
   margin-bottom: 1rem;
+  backdrop-filter: var(--glass-blur);
 }
 
 .tournament-icon {
@@ -97,10 +100,11 @@
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background: var(--bg-primary);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-primary);
+  backdrop-filter: var(--glass-blur);
 }
 
 .search-input {
@@ -111,17 +115,22 @@
 .search-field {
   width: 100%;
   padding: 0.875rem 1rem 0.875rem 2.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   background: var(--bg-secondary);
-  transition: var(--transition);
+  color: var(--text-primary);
+  transition: var(--transition-base);
+}
+
+.search-field::placeholder {
+  color: var(--text-tertiary);
 }
 
 .search-field:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 .search-icon {
@@ -129,7 +138,7 @@
   left: 0.875rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-light);
+  color: var(--text-tertiary);
   font-size: 1rem;
 }
 
@@ -142,19 +151,20 @@
 .sort-select {
   flex: 1;
   padding: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   background: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
 .competition-select:focus,
 .sort-select:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 /* Matches Grid */
@@ -176,32 +186,38 @@
 .spinner-large {
   width: 3rem;
   height: 3rem;
-  border: 3px solid var(--border-color);
-  border-top: 3px solid var(--primary-color);
+  border: 3px solid var(--border-primary);
+  border-top: 3px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Match Card */
 .match-card {
-  background: var(--bg-primary);
-  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-  transition: var(--transition);
+  border: 1px solid var(--border-primary);
+  transition: var(--transition-base);
   position: relative;
+  backdrop-filter: var(--glass-blur);
 }
 
 .match-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
+  border-color: var(--border-accent);
 }
 
 .match-card.live {
-  border-left: 4px solid var(--success-color);
-  background: rgba(34, 197, 94, 0.02);
+  border-left: 4px solid var(--color-success);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--color-success-subtle) 100%);
 }
 
 .trending-badge {
@@ -209,12 +225,13 @@
   top: -0.5rem;
   right: 1rem;
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   padding: 0.25rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 600;
   z-index: 1;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .match-header {
@@ -233,7 +250,7 @@
 .competition {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
@@ -250,16 +267,17 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--success-color);
+  color: var(--color-success);
   font-weight: 600;
 }
 
 .live-dot {
   width: 0.5rem;
   height: 0.5rem;
-  background: var(--success-color);
+  background: var(--color-success);
   border-radius: 50%;
   animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: var(--shadow-glow-success);
 }
 
 @keyframes pulse {
@@ -269,6 +287,7 @@
 
 .date {
   font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .time {
@@ -305,7 +324,6 @@
   font-weight: 600;
   color: var(--text-primary);
   font-size: 1rem;
-  /* Afficher tout: autoriser le retour à la ligne au lieu de tronquer */
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -313,7 +331,7 @@
 
 .score {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
@@ -322,22 +340,24 @@
   justify-content: center;
   font-weight: 700;
   font-size: 1.125rem;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .vs-separator {
   font-weight: 600;
-  color: var(--text-light);
+  color: var(--text-tertiary);
   font-size: 0.875rem;
   min-width: 3rem;
   text-align: center;
 }
 
 .match-card.live .vs-separator {
-  background: var(--success-color);
-  color: white;
+  background: var(--color-success);
+  color: var(--text-inverse);
   padding: 0.25rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
+  box-shadow: var(--shadow-glow-success);
 }
 
 /* Odds Section */
@@ -353,18 +373,19 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.875rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
   font-weight: 600;
 }
 
 .odd-button:hover:not(:disabled) {
-  border-color: var(--primary-color);
-  background: rgba(0, 210, 255, 0.05);
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
   transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .odd-button:active:not(:disabled) {
@@ -372,23 +393,32 @@
 }
 
 .odd-button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
+.odd-button.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  box-shadow: var(--shadow-glow-primary);
+}
+
 .odd-button.home:hover:not(:disabled) {
-  border-color: var(--success-color);
-  background: rgba(34, 197, 94, 0.05);
+  border-color: var(--color-success);
+  background: var(--color-success-subtle);
+  box-shadow: var(--shadow-glow-success);
 }
 
 .odd-button.draw:hover:not(:disabled) {
-  border-color: var(--warning-color);
-  background: rgba(245, 158, 11, 0.05);
+  border-color: var(--color-warning);
+  background: rgba(255, 184, 0, 0.08);
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .odd-button.away:hover:not(:disabled) {
-  border-color: var(--danger-color);
-  background: rgba(239, 68, 68, 0.05);
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  box-shadow: var(--shadow-glow-danger);
 }
 
 .odd-label {
@@ -399,25 +429,26 @@
 
 .odd-value {
   font-size: 1.25rem;
-  color: var(--text-primary);
+  color: var(--color-primary);
   font-weight: 700;
 }
 
-/* Desktop Bet Sidebar - Elegant fixed sidebar */
+/* Desktop Bet Sidebar - Glass-morphism panel */
 .desktop-bet-sidebar {
   position: fixed;
   top: var(--header-height);
   right: 0;
   width: 380px;
   height: calc(100vh - var(--header-height));
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-xl);
   z-index: var(--z-docked);
-  display: none; /* Caché par défaut, affiché en desktop */
+  display: none;
   flex-direction: column;
   overflow: hidden;
-  transition: var(--transition-transform);
+  transition: var(--transition-base);
+  backdrop-filter: var(--glass-blur);
 }
 
 @media (min-width: 1024px) {
@@ -425,7 +456,6 @@
     display: flex;
   }
 
-  /* Adjust matches grid to account for sidebar */
   .matches-section {
     margin-right: 380px;
   }
@@ -436,8 +466,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
   flex-shrink: 0;
 }
 
@@ -462,28 +492,29 @@
   height: 22px;
   padding: 0 var(--space-2);
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .clear-all-btn {
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
   color: var(--text-secondary);
   padding: var(--space-1-5) var(--space-2-5);
   border-radius: var(--radius-md);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: var(--transition-colors);
+  transition: var(--transition-fast);
 }
 
 .clear-all-btn:hover {
-  background: var(--color-error-50);
-  border-color: var(--danger-color);
-  color: var(--danger-color);
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .sidebar-content {
@@ -506,7 +537,7 @@
 }
 
 .sidebar-content::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--bg-surface);
   border-radius: var(--radius-full);
 }
 
@@ -528,7 +559,7 @@
 
 .empty-icon {
   font-size: 3rem;
-  opacity: 0.4;
+  opacity: 0.3;
   filter: grayscale(100%);
 }
 
@@ -546,7 +577,7 @@
   max-width: 250px;
 }
 
-/* Bets List - Plus compact */
+/* Bets List */
 .bets-list {
   display: flex;
   flex-direction: column;
@@ -565,7 +596,7 @@
 }
 
 .bets-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--bg-surface);
   border-radius: var(--radius-full);
 }
 
@@ -575,10 +606,10 @@
   justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-3);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  transition: var(--transition-all);
+  transition: var(--transition-fast);
   animation: slideIn 0.2s ease-out;
 }
 
@@ -594,7 +625,7 @@
 }
 
 .bet-item:hover {
-  border-color: var(--primary-color);
+  border-color: var(--border-accent);
   box-shadow: var(--shadow-sm);
 }
 
@@ -611,7 +642,6 @@
   font-weight: var(--font-semibold);
   color: var(--text-primary);
   line-height: var(--leading-tight);
-  /* Afficher tout le texte (pas d'ellipsis) */
   overflow: visible;
   text-overflow: clip;
   display: block;
@@ -635,7 +665,7 @@
   min-width: 20px;
   height: 20px;
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   border-radius: var(--radius-base);
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
@@ -644,7 +674,7 @@
 .pick-odd {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
-  color: var(--text-primary);
+  color: var(--color-primary);
 }
 
 .remove-btn {
@@ -654,30 +684,30 @@
   width: 24px;
   height: 24px;
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  color: var(--text-light);
+  color: var(--text-tertiary);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: var(--transition-all);
+  transition: var(--transition-fast);
   flex-shrink: 0;
 }
 
 .remove-btn:hover {
-  background: var(--color-error-50);
-  border-color: var(--danger-color);
-  color: var(--danger-color);
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
   transform: scale(1.1);
 }
 
 /* Sidebar Divider */
 .sidebar-divider {
   height: 1px;
-  background: var(--border-color);
+  background: var(--border-primary);
   margin: var(--space-1) 0;
 }
 
-/* Form Elements - Plus compact */
+/* Form Elements */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -695,45 +725,46 @@
 .form-select {
   width: 100%;
   padding: var(--space-2-5) var(--space-3);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   color: var(--text-primary);
   font-weight: var(--font-medium);
   cursor: pointer;
-  transition: var(--transition-all);
+  transition: var(--transition-fast);
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23737373' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238B949E' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   padding-right: var(--space-8);
 }
 
 .form-select:hover {
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .form-select:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .form-select:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Balance Display - Plus compact */
+/* Balance Display */
 .balance-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3);
-  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-secondary-50) 100%);
-  border: 1px solid var(--color-primary-200);
+  background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 212, 255, 0.03) 100%);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
+  backdrop-filter: var(--glass-blur);
 }
 
 .balance-label {
@@ -745,10 +776,10 @@
 .balance-value {
   font-size: var(--text-base);
   font-weight: var(--font-bold);
-  color: var(--text-primary);
+  color: var(--color-primary);
 }
 
-/* Stake Input - Plus compact */
+/* Stake Input */
 .stake-input-wrapper {
   position: relative;
   display: flex;
@@ -760,27 +791,27 @@
   width: 100%;
   padding: var(--space-3) var(--space-3);
   padding-right: var(--space-12);
-  background: var(--bg-secondary);
-  border: 2px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-primary);
   border-radius: var(--radius-md);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  transition: var(--transition-all);
+  transition: var(--transition-fast);
 }
 
 .stake-input:hover {
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .stake-input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .stake-input::placeholder {
-  color: var(--text-light);
+  color: var(--text-tertiary);
   font-weight: var(--font-normal);
 }
 
@@ -797,15 +828,15 @@
   margin: 0;
   margin-top: var(--space-1);
   font-size: var(--text-xs);
-  color: var(--danger-color);
+  color: var(--color-danger);
   font-weight: var(--font-medium);
 }
 
-/* Summary Card - Plus compact */
+/* Summary Card */
 .summary-card {
   padding: var(--space-3) var(--space-4);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -820,7 +851,7 @@
 
 .summary-row.highlight {
   padding-top: var(--space-2);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-primary);
   margin-top: var(--space-1);
 }
 
@@ -850,13 +881,13 @@
   background-clip: text;
 }
 
-/* Error Message - Plus compact */
+/* Error Message */
 .error-message {
   padding: var(--space-3);
-  background: var(--color-error-50);
-  border: 1px solid var(--danger-color);
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
-  color: var(--danger-color);
+  color: var(--color-danger);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   animation: shake 0.3s ease-in-out;
@@ -868,24 +899,26 @@
   75% { transform: translateX(5px); }
 }
 
-/* Create Ticket Button - Plus compact */
+/* Create Ticket Button */
 .create-ticket-btn {
   width: 100%;
   padding: var(--space-3) var(--space-5);
   background: var(--gradient-primary);
   border: none;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--text-inverse);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   cursor: pointer;
-  transition: var(--transition-all);
-  box-shadow: var(--shadow-sm);
+  transition: var(--transition-base);
+  box-shadow: var(--shadow-glow-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .create-ticket-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-glow-primary), var(--shadow-lg);
 }
 
 .create-ticket-btn:active:not(:disabled) {
@@ -893,9 +926,10 @@
 }
 
 .create-ticket-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .panel-header {
@@ -903,7 +937,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
 }
 
 .panel-header h3 {
@@ -916,16 +951,16 @@
 .clear-all-btn {
   background: none;
   border: none;
-  color: var(--danger-color);
+  color: var(--color-danger);
   font-size: 0.875rem;
   cursor: pointer;
   padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius-sm);
-  transition: var(--transition);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
 }
 
 .clear-all-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--color-danger-subtle);
 }
 
 .selected-bets {
@@ -940,7 +975,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.875rem 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .selected-bet:last-child {
@@ -969,7 +1004,7 @@
 .remove-bet-btn {
   background: none;
   border: none;
-  color: var(--text-light);
+  color: var(--text-tertiary);
   cursor: pointer;
   width: 1.5rem;
   height: 1.5rem;
@@ -977,12 +1012,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: var(--transition);
+  transition: var(--transition-fast);
 }
 
 .remove-bet-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger-color);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
 }
 
 .panel-footer {
@@ -990,8 +1025,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
 }
 
 .total-odds {
@@ -1000,19 +1035,20 @@
 }
 
 .total-odds strong {
-  color: var(--text-primary);
+  color: var(--color-primary);
   font-size: 1.25rem;
 }
 
 .create-ticket-btn {
   background: var(--gradient-primary);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   padding: 0.875rem 1.5rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 /* No Matches State */
@@ -1029,7 +1065,7 @@
 .no-matches-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .no-matches h3 {
@@ -1041,9 +1077,10 @@
 .no-matches p {
   margin: 0;
   font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
-/* Zone scrollable et sentinel */
+/* Scrollable zone and sentinel */
 .matches-scroll-area {
   position: relative;
 }
@@ -1056,37 +1093,41 @@
 .error-banner {
   margin: 0 0 1rem 0;
   padding: 0.75rem 1rem;
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--danger-color);
-  background: rgba(239, 68, 68, 0.08);
-  color: var(--danger-color);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
   font-size: 0.9rem;
 }
 
-/* --- Nettoyage: on garde UNIQUEMENT le nouveau système (BetSidebarDesktop + BetDrawerMobile) --- */
-
-/* Ancien FAB (non utilisé) */
+/* Old FAB (unused) */
 .fab-ticket {
   display: none !important;
 }
 
-/* Nouveau FAB (MatchesSection.tsx) */
+/* New FAB (MatchesSection.tsx) */
 .ticket-fab {
   position: fixed;
   right: 1rem;
   bottom: 5rem;
   width: 3.25rem;
   height: 3.25rem;
-  border-radius: 999px;
-  display: none; /* activé en mobile/tablette */
+  border-radius: var(--radius-full);
+  display: none;
   align-items: center;
   justify-content: center;
   background: var(--gradient-primary);
-  color: #fff;
+  color: var(--text-inverse);
   border: none;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-glow-primary), 0 10px 30px rgba(0, 0, 0, 0.4);
   z-index: calc(var(--z-header) + 2);
   cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.ticket-fab:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow-primary), 0 14px 40px rgba(0, 0, 0, 0.5);
 }
 
 .ticket-fab-badge {
@@ -1096,68 +1137,66 @@
   min-width: 1.25rem;
   height: 1.25rem;
   padding: 0 0.35rem;
-  border-radius: 999px;
-  background: var(--danger-color);
-  color: #fff;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: var(--text-primary);
   font-size: 0.75rem;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-secondary);
   line-height: 1;
+  box-shadow: var(--shadow-glow-danger);
 }
 
-/* Drawer overlay: composant BetDrawerMobile */
+/* Drawer overlay */
 .ticket-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(5, 12, 30, 0.65);
+  backdrop-filter: blur(4px);
   z-index: calc(var(--z-header) + 1);
 }
 
-/* Bouton fermer du drawer (BetDrawerMobile) */
+/* Drawer close button */
 .drawer-close {
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: 1.1rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: var(--transition);
+  transition: var(--transition-fast);
 }
 
 .drawer-close:hover {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
 }
 
 /* Responsive */
 @media (max-width: 1023px) {
-  /* Afficher le FAB du nouveau système */
   .ticket-fab {
     display: inline-flex;
   }
 
-  /* Ancien FAB reste désactivé */
   .fab-ticket {
     display: none !important;
   }
 }
 
 @media (min-width: 1024px) {
-  /* Desktop: uniquement sidebar fixe */
   .ticket-fab {
     display: none !important;
   }
 
-  /* Si un ancien overlay existe encore dans le DOM, on le masque */
   .drawer-overlay {
     display: none !important;
   }
@@ -1166,7 +1205,6 @@
 /* Responsive Design */
 
 @media (min-width: 769px) {
-  /* Desktop: grille standard */
   .matches-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1179,7 +1217,6 @@
 }
 
 @media (max-width: 1023px) {
-  /* Mobile et Tablet: layout vertical simple */
   .matches-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1193,22 +1230,18 @@
     max-width: 100%;
   }
 
-  /* Afficher le FAB et le tiroir en mobile et tablet */
   .fab-ticket {
     display: flex;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1023px) {
-  /* Tablet: grille 2 colonnes */
   .matches-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1024px) {
-  /* Sur desktop uniquement (1024px+), masquer le tiroir, overlay et FAB */
-  /* car le sidebar desktop est visible */
   .drawer-overlay,
   .ticket-drawer,
   .fab-ticket {
@@ -1223,18 +1256,19 @@
 .more-odds-toggle {
   width: 100%;
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   font-weight: 700;
   color: var(--text-primary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
 }
 
 .more-odds-toggle:hover {
-  border-color: var(--primary-color);
-  background: rgba(0, 210, 255, 0.05);
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .more-odds-content {
@@ -1245,12 +1279,13 @@
 }
 
 .market-block {
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
   padding: 0.75rem;
   max-width: 100%;
   overflow: hidden;
+  backdrop-filter: var(--glass-blur);
 }
 
 .market-title {
@@ -1264,7 +1299,6 @@
 
 .market-odds-grid {
   display: grid;
-  /* Un peu plus large pour éviter le tronquage agressif */
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 0.5rem;
   width: 100%;
@@ -1278,12 +1312,25 @@
   justify-content: center;
   gap: 0.25rem;
   padding: 0.75rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-base);
   min-width: 0;
+}
+
+.market-odd:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  box-shadow: var(--shadow-glow-primary);
+  transform: translateY(-1px);
+}
+
+.market-odd.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .market-odd-label {
@@ -1293,7 +1340,6 @@
   text-align: left;
   white-space: normal;
   overflow: hidden;
-  /* Wrap mais lisible: max 2 lignes */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1305,14 +1351,14 @@
 .market-odd-value {
   font-size: 1rem;
   font-weight: 900;
-  color: var(--text-primary);
+  color: var(--color-primary);
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   font-variant-numeric: tabular-nums;
 }
 
-/* Marchés très longs (ex: EXACT SCORE) : on limite la hauteur et on scroll */
+/* Long markets (e.g., EXACT SCORE): limit height and scroll */
 .more-odds-content .market-block {
   max-width: 100%;
 }
@@ -1323,9 +1369,17 @@
   padding-right: 2px;
 }
 
-@media (min-width: 1024px) {
-  /* NOTE: on ne force pas repeat(4,...) ici; auto-fit gère selon la largeur */
-  /* .market-odds-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } */
+.more-odds-content .market-odds-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.more-odds-content .market-odds-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.more-odds-content .market-odds-grid::-webkit-scrollbar-thumb {
+  background: var(--bg-surface);
+  border-radius: var(--radius-full);
 }
 
 @media (max-width: 360px) {
@@ -1334,9 +1388,8 @@
   }
 }
 
-/* --- Layout Mon ticket : desktop à droite, mobile via drawer + bouton --- */
+/* Layout wrapper */
 .matches-layout {
-  /* ce conteneur est juste un wrapper React; sur desktop on ne veut pas qu'il crée une zone en bas */
   display: contents;
 }
 
@@ -1353,27 +1406,25 @@
     right: 0;
     width: 380px;
     height: calc(100vh - var(--header-height));
-    background: var(--bg-primary);
-    border-left: 1px solid var(--border-color);
-    box-shadow: var(--shadow-lg);
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-xl);
     z-index: var(--z-docked);
     flex-direction: column;
     overflow: hidden;
+    backdrop-filter: var(--glass-blur);
   }
 
-  /* Laisser de la place à droite pour le contenu principal */
   .matches-section {
     margin-right: 380px;
   }
 
-  /* Sur desktop, pas de FAB mobile */
   .ticket-fab {
     display: none !important;
   }
 }
 
 @media (max-width: 1023px) {
-  /* Mobile/tablet: pas de sidebar; FAB visible */
   .bet-sidebar.desktop {
     display: none !important;
   }
@@ -1387,17 +1438,16 @@
   }
 }
 
-/* Ancien système sidebar (non utilisé) */
+/* Old sidebar system (unused) */
 .desktop-bet-sidebar {
   display: none !important;
 }
 
 /* =========================
-   Mon ticket (nouveaux composants)
+   Mon ticket (new components)
    ========================= */
 
 .bet-sidebar.desktop {
-  /* le positionnement (fixed, width...) est géré dans les media queries plus bas */
   overflow: hidden;
 }
 
@@ -1407,8 +1457,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
 }
 
 .bet-sidebar.desktop .sidebar-header h3,
@@ -1421,28 +1471,28 @@
 
 .bet-sidebar.desktop .clear-btn {
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
   padding: 0.4rem 0.6rem;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-fast);
 }
 
 .bet-sidebar.desktop .clear-btn:hover:not(:disabled) {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
 }
 
 .bet-sidebar.desktop .clear-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Liste des paris */
+/* Bets list */
 .bet-sidebar.desktop .selected-bets,
 .ticket-drawer .selected-bets {
   padding: 1rem 1.25rem;
@@ -1456,9 +1506,15 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 0.75rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+}
+
+.bet-sidebar.desktop .bet-item:hover,
+.ticket-drawer .bet-item:hover {
+  border-color: var(--border-accent);
 }
 
 .bet-sidebar.desktop .bet-info,
@@ -1495,16 +1551,17 @@
   height: 22px;
   padding: 0 0.35rem;
   background: var(--gradient-primary);
-  color: #fff;
+  color: var(--text-inverse);
   border-radius: 8px;
   font-weight: 900;
   font-size: 0.75rem;
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .bet-sidebar.desktop .bet-odd,
 .ticket-drawer .bet-odd {
   font-weight: 900;
-  color: var(--text-primary);
+  color: var(--color-primary);
 }
 
 .bet-sidebar.desktop .remove-btn,
@@ -1512,34 +1569,34 @@
   width: 28px;
   height: 28px;
   border-radius: 10px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-surface);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: var(--transition-fast);
   flex-shrink: 0;
 }
 
 .bet-sidebar.desktop .remove-btn:hover:not(:disabled),
 .ticket-drawer .remove-btn:hover:not(:disabled) {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
-  background: rgba(239, 68, 68, 0.08);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
 }
 
 .bet-sidebar.desktop .remove-btn:disabled,
 .ticket-drawer .remove-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* État vide */
+/* Empty state */
 .bet-sidebar.desktop .empty-bet,
 .ticket-drawer .empty-bet {
   padding: 1.25rem;
-  border: 1px dashed var(--border-color);
-  border-radius: var(--border-radius);
-  background: var(--bg-primary);
+  border: 1px dashed var(--border-primary);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -1548,7 +1605,7 @@
 .ticket-drawer .empty-icon {
   display: block;
   font-size: 2.25rem;
-  opacity: 0.6;
+  opacity: 0.4;
   margin-bottom: 0.5rem;
 }
 
@@ -1556,8 +1613,8 @@
 .bet-sidebar.desktop .bet-form,
 .ticket-drawer .bet-form {
   padding: 1rem 1.25rem 1.25rem;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -1585,18 +1642,26 @@
 .ticket-drawer .select-field {
   width: 100%;
   padding: 0.7rem 0.8rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-weight: 700;
+  transition: var(--transition-fast);
+}
+
+.bet-sidebar.desktop .select-field:focus,
+.ticket-drawer .select-field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .bet-sidebar.desktop .balance-indicator,
 .ticket-drawer .balance-indicator {
   font-size: 0.85rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: var(--color-primary);
   opacity: 0.9;
 }
 
@@ -1609,12 +1674,20 @@
 .ticket-drawer .stake-input {
   width: 100%;
   padding: 0.8rem 2.8rem 0.8rem 0.8rem;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-primary);
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-weight: 900;
   font-size: 1.05rem;
+  transition: var(--transition-fast);
+}
+
+.bet-sidebar.desktop .stake-input:focus,
+.ticket-drawer .stake-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
 .bet-sidebar.desktop .input-suffix,
@@ -1632,15 +1705,15 @@
   margin: 0.25rem 0 0;
   font-size: 0.85rem;
   font-weight: 800;
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .bet-sidebar.desktop .summary-card,
 .ticket-drawer .summary-card {
   padding: 0.8rem 0.9rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1656,7 +1729,7 @@
 .bet-sidebar.desktop .summary-row.highlight,
 .ticket-drawer .summary-row.highlight {
   padding-top: 0.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-primary);
 }
 
 .bet-sidebar.desktop .summary-label,
@@ -1672,13 +1745,21 @@
   font-weight: 900;
 }
 
+.bet-sidebar.desktop .summary-row.highlight .summary-value,
+.ticket-drawer .summary-row.highlight .summary-value {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .bet-sidebar.desktop .error-message,
 .ticket-drawer .error-message {
   padding: 0.7rem 0.85rem;
-  border-radius: var(--border-radius-sm);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid var(--danger-color);
-  color: var(--danger-color);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
   font-weight: 800;
 }
 
@@ -1686,25 +1767,28 @@
 .ticket-drawer .create-ticket-btn {
   width: 100%;
   padding: 0.85rem 1rem;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--radius-md);
   border: none;
   background: var(--gradient-primary);
-  color: #fff;
+  color: var(--text-inverse);
   font-weight: 900;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
+  box-shadow: var(--shadow-glow-primary);
+  transition: var(--transition-base);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .bet-sidebar.desktop .create-ticket-btn:hover:not(:disabled),
 .ticket-drawer .create-ticket-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-glow-primary), var(--shadow-lg);
 }
 
 .bet-sidebar.desktop .create-ticket-btn:disabled,
 .ticket-drawer .create-ticket-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
