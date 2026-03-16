@@ -1,5 +1,5 @@
 /* ============================================
-   TOURNAMENTS SECTION - Dark Premium Sports Betting Theme
+   TOURNAMENTS SECTION - Light Premium Sports Betting Theme
    ============================================ */
 
 .tournaments-section {
@@ -52,7 +52,7 @@
   color: var(--text-inverse) !important;
   cursor: pointer;
   transition: var(--transition-base, all 0.2s);
-  box-shadow: var(--shadow-glow-gold, 0 3px 10px rgba(245, 166, 35, 0.3));
+  box-shadow: var(--shadow-glow-gold, 0 3px 10px rgba(180, 83, 9, 0.3));
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -61,7 +61,7 @@
 .btn-create-tournament-header:hover {
   background: var(--gradient-premium) !important;
   transform: translateY(-2px);
-  box-shadow: 0 5px 18px rgba(245, 166, 35, 0.45);
+  box-shadow: 0 5px 18px rgba(180, 83, 9, 0.45);
 }
 
 .btn-create-tournament-header:active {
@@ -153,7 +153,7 @@
   background: var(--gradient-gold);
   color: var(--text-inverse);
   border-color: transparent;
-  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.35);
+  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.35);
 }
 
 .tab-active::before {
@@ -296,12 +296,12 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: var(--transition-base, all 0.2s);
-  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.3);
 }
 
 .btn-retry:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 6px 16px rgba(180, 83, 9, 0.4);
 }
 
 /* ============================================
@@ -357,7 +357,7 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: var(--transition-base, all 0.3s);
-  box-shadow: var(--shadow-glow-gold, 0 4px 12px rgba(245, 166, 35, 0.3));
+  box-shadow: var(--shadow-glow-gold, 0 4px 12px rgba(180, 83, 9, 0.3));
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
@@ -365,7 +365,7 @@
 
 .btn-create-tournament-cta:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.45);
+  box-shadow: 0 8px 24px rgba(180, 83, 9, 0.45);
 }
 
 .btn-create-tournament-cta .btn-icon {
@@ -397,12 +397,12 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: var(--transition-base, all 0.2s);
-  box-shadow: 0 2px 8px rgba(245, 166, 35, 0.25);
+  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.25);
 }
 
 .pagination-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.4);
 }
 
 .pagination-btn:disabled {

@@ -12,7 +12,7 @@
   padding: 1rem;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 71, 87, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.15);
 }
 
 .deleteAccount__callout {
@@ -50,7 +50,7 @@
 }
 
 .deleteAccount__input:focus {
-  border-color: rgba(255, 71, 87, 0.55);
+  border-color: rgba(220, 38, 38, 0.55);
   box-shadow: 0 0 0 3px var(--color-danger-glow);
 }
 
@@ -85,7 +85,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-base);
-  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.25);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
 }
 
 .btn-danger:hover:not(:disabled) {

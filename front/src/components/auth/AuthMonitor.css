@@ -1,5 +1,5 @@
 /**
- * AuthMonitor Styles - Dark Premium Theme
+ * AuthMonitor Styles - Light Premium Sports Betting Theme
  */
 
 .auth-notification {
@@ -137,7 +137,7 @@
   position: fixed;
   bottom: 1rem;
   left: 1rem;
-  background: rgba(13, 17, 23, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--text-primary);
   border-radius: var(--radius-lg);
   padding: 0.75rem;

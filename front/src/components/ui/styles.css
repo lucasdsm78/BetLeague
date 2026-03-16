@@ -130,7 +130,7 @@
 .btn-primary {
   background: var(--gradient-primary);
   color: var(--text-inverse);
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(8, 145, 178, 0.25);
 }
 
 .btn-primary:hover:not(.btn-disabled):not(.btn-loading) {
@@ -141,12 +141,12 @@
 .btn-secondary {
   background: var(--bg-elevated);
   color: var(--color-primary);
-  border: 2px solid rgba(0, 212, 255, 0.3);
+  border: 2px solid rgba(8, 145, 178, 0.3);
 }
 
 .btn-secondary:hover:not(.btn-disabled):not(.btn-loading) {
   background: var(--color-primary-subtle);
-  border-color: rgba(0, 212, 255, 0.5);
+  border-color: rgba(8, 145, 178, 0.5);
   transform: translateY(-1px);
 }
 

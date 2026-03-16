@@ -43,7 +43,7 @@
   align-items: center;
   padding: 1.5rem;
   background: var(--bg-elevated);
-  border-bottom: 1px solid rgba(255, 71, 87, 0.2);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .leave-title-section {
@@ -162,7 +162,7 @@
   margin-bottom: 1.5rem;
   padding: 1rem;
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: var(--radius-lg);
   color: var(--color-danger);
   animation: shake 0.4s ease;
@@ -278,7 +278,7 @@
   background: var(--gradient-danger);
   color: white;
   border: none;
-  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -288,7 +288,7 @@
 
 .btn-danger:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .btn-danger:disabled {

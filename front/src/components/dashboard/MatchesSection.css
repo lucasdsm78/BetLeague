@@ -1,4 +1,4 @@
-/* Matches Section - Dark Premium Sports Betting Theme */
+/* Matches Section - Light Premium Sports Betting Theme */
 
 .matches-section {
   max-width: 1200px;
@@ -76,7 +76,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(245, 166, 35, 0.1) 0%, rgba(245, 166, 35, 0.03) 100%);
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.1) 0%, rgba(180, 83, 9, 0.03) 100%);
   border-left: 3px solid var(--color-gold);
   border-radius: var(--radius-md);
   margin-bottom: 1rem;
@@ -411,7 +411,7 @@
 
 .odd-button.draw:hover:not(:disabled) {
   border-color: var(--color-warning);
-  background: rgba(255, 184, 0, 0.08);
+  background: rgba(217, 119, 6, 0.08);
   box-shadow: var(--shadow-glow-gold);
 }
 
@@ -761,7 +761,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3);
-  background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 212, 255, 0.03) 100%);
+  background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(8, 145, 178, 0.03) 100%);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-md);
   backdrop-filter: var(--glass-blur);

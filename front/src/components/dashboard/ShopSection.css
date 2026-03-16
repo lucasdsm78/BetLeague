@@ -172,7 +172,7 @@
   background: var(--color-primary-subtle);
   border-radius: var(--radius-xl);
   margin-bottom: 2.5rem;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(8, 145, 178, 0.1);
 }
 
 .shop-cta {
@@ -368,7 +368,7 @@
   margin: 2rem auto;
   padding: 1.5rem;
   background: var(--color-info-subtle);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(29, 78, 216, 0.2);
   border-radius: var(--radius-lg);
   display: flex;
   gap: 1rem;
@@ -605,7 +605,7 @@
 
 .info-box.tournament-info {
   background: var(--color-gold-subtle);
-  border-color: rgba(245, 166, 35, 0.2);
+  border-color: rgba(180, 83, 9, 0.2);
 }
 
 /* Subscription Success Modal */
@@ -683,7 +683,7 @@
 /* Tournament Explanation Section - New Compact Design */
 .tournament-explanation {
   background: var(--color-gold-subtle);
-  border: 2px solid rgba(245, 166, 35, 0.15);
+  border: 2px solid rgba(180, 83, 9, 0.15);
   border-radius: var(--radius-xl);
   padding: 2rem;
   margin-top: 2rem;
@@ -734,7 +734,7 @@
   padding: 2rem;
   margin-bottom: 1.5rem;
   box-shadow: var(--shadow-md);
-  border: 2px solid rgba(245, 166, 35, 0.2);
+  border: 2px solid rgba(180, 83, 9, 0.2);
 }
 
 .tournament-intro-highlight {
@@ -774,7 +774,7 @@
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(180, 83, 9, 0.1);
 }
 
 .tournament-pitch {
@@ -802,7 +802,7 @@
   margin-bottom: 1.5rem;
   overflow-x: auto;
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(180, 83, 9, 0.1);
 }
 
 .stage-item {
@@ -813,7 +813,7 @@
   padding: 1rem;
   background: var(--color-gold-subtle);
   border-radius: var(--radius-lg);
-  border: 2px solid rgba(245, 166, 35, 0.2);
+  border: 2px solid rgba(180, 83, 9, 0.2);
   min-width: 100px;
   transition: var(--transition-base);
 }
@@ -825,7 +825,7 @@
 }
 
 .stage-item-final {
-  background: rgba(245, 166, 35, 0.15);
+  background: rgba(180, 83, 9, 0.15);
   border-color: var(--color-gold);
   border-width: 3px;
 }
@@ -884,15 +884,15 @@
   background: var(--bg-elevated);
   padding: 1.25rem;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(245, 166, 35, 0.1);
+  border: 1px solid rgba(180, 83, 9, 0.1);
   transition: var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
 
 .key-feature:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-lg), rgba(245, 166, 35, 0.15) 0 6px 16px;
-  border-color: rgba(245, 166, 35, 0.3);
+  box-shadow: var(--shadow-lg), rgba(180, 83, 9, 0.15) 0 6px 16px;
+  border-color: rgba(180, 83, 9, 0.3);
 }
 
 .key-feature-icon {

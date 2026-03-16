@@ -1,5 +1,5 @@
 /* ============================================
-   TOURNAMENT STAGES - Dark Premium Sports Betting
+   TOURNAMENT STAGES - Light Premium Sports Betting
    ============================================ */
 
 .tournament-stages {
@@ -11,7 +11,7 @@
 /* Header */
 .stages-header {
   margin-bottom: 2rem;
-  border-bottom: 3px solid rgba(245, 166, 35, 0.2);
+  border-bottom: 3px solid rgba(180, 83, 9, 0.2);
   padding-bottom: 1rem;
 }
 
@@ -80,8 +80,8 @@
   justify-content: center;
   padding: 3rem 2rem;
   text-align: center;
-  background: rgba(255, 71, 87, 0.06);
-  border: 2px solid rgba(255, 71, 87, 0.2);
+  background: rgba(220, 38, 38, 0.06);
+  border: 2px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-xl);
 }
 
@@ -114,12 +114,12 @@
   color: white;
   cursor: pointer;
   transition: all var(--transition-fast);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
 }
 
 .btn-retry-stages:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 16px rgba(29, 78, 216, 0.4);
 }
 
 /* Empty State */
@@ -131,7 +131,7 @@
   padding: 4rem 2rem;
   text-align: center;
   background: var(--color-gold-subtle);
-  border: 2px dashed rgba(245, 166, 35, 0.3);
+  border: 2px dashed rgba(180, 83, 9, 0.3);
   border-radius: var(--radius-xl);
   min-height: 300px;
 }
@@ -189,7 +189,7 @@
 
 /* Active Stage */
 .stage-active {
-  background: linear-gradient(135deg, rgba(0, 230, 118, 0.06) 0%, var(--bg-secondary) 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.06) 0%, var(--bg-secondary) 100%);
   border-color: var(--color-success);
   box-shadow: var(--shadow-glow-success);
 }
@@ -225,7 +225,7 @@
   justify-content: space-between;
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid rgba(245, 166, 35, 0.1);
+  border-bottom: 2px solid rgba(180, 83, 9, 0.1);
   gap: 1rem;
   flex-wrap: wrap;
 }
@@ -318,7 +318,7 @@
   padding: 0.875rem;
   background: var(--color-gold-subtle);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(245, 166, 35, 0.15);
+  border: 1px solid rgba(180, 83, 9, 0.15);
 }
 
 .stage-info-label {
@@ -369,7 +369,7 @@
 
 .btn-view-matches:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 6px 20px rgba(180, 83, 9, 0.4);
 }
 
 .btn-view-matches:active {
@@ -398,7 +398,7 @@
 .connector-line {
   width: 3px;
   height: 40px;
-  background: linear-gradient(180deg, var(--color-gold) 0%, rgba(245, 166, 35, 0.4) 100%);
+  background: linear-gradient(180deg, var(--color-gold) 0%, rgba(180, 83, 9, 0.4) 100%);
   border-radius: 2px;
 }
 

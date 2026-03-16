@@ -1,5 +1,5 @@
 /* ============================================================
-   Tickets Section – Dark Premium Sports Betting Theme
+   Tickets Section – Light Premium Sports Betting Theme
    ============================================================ */
 
 .tickets-section {
@@ -174,17 +174,17 @@
 
 .tickets-section .stat-item.success {
   background: var(--color-success-subtle);
-  border: 1px solid rgba(0, 230, 118, 0.2);
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
 .tickets-section .stat-item.danger {
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .tickets-section .stat-item.warning {
   background: var(--color-gold-subtle);
-  border: 1px solid rgba(255, 184, 0, 0.2);
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 .tickets-section .stat-value {
@@ -856,19 +856,19 @@
 .badge-warning {
   background: var(--color-gold-subtle);
   color: var(--color-warning);
-  border: 1px solid rgba(255, 184, 0, 0.3);
+  border: 1px solid rgba(217, 119, 6, 0.3);
 }
 
 .badge-success {
   background: var(--color-success-subtle);
   color: var(--color-success);
-  border: 1px solid rgba(0, 230, 118, 0.3);
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .badge-danger {
   background: var(--color-danger-subtle);
   color: var(--color-danger);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 /* ===== Choice Chips ===== */
@@ -1103,7 +1103,7 @@
 
 .alert-danger {
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.25);
+  border: 1px solid rgba(220, 38, 38, 0.25);
   color: var(--color-danger);
 }
 

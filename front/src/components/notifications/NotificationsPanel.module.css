@@ -51,7 +51,7 @@
   height: 34px;
   padding: 0 12px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(0, 212, 255, 0.25);
+  border: 1px solid rgba(8, 145, 178, 0.25);
   background: var(--color-primary-subtle);
   color: var(--color-primary);
   font-size: 13px;
@@ -67,7 +67,7 @@
 
 .markAllBtn:hover {
   background: var(--color-primary-glow);
-  border-color: rgba(0, 212, 255, 0.4);
+  border-color: rgba(8, 145, 178, 0.4);
   box-shadow: var(--shadow-glow-primary);
 }
 
@@ -103,8 +103,8 @@
 .rowBg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(230, 57, 70, 0.1) 100%);
-  border: 1px solid rgba(255, 71, 87, 0.2);
+  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(185, 28, 28, 0.1) 100%);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -171,19 +171,19 @@
 
 /* Unread State */
 .unread {
-  border-color: rgba(0, 212, 255, 0.2);
+  border-color: rgba(8, 145, 178, 0.2);
   background: linear-gradient(
     135deg,
     var(--color-primary-subtle) 0%,
     var(--bg-elevated) 100%
   );
   box-shadow:
-    0 0 0 1px rgba(0, 212, 255, 0.06),
+    0 0 0 1px rgba(8, 145, 178, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .unread:hover {
-  border-color: rgba(0, 212, 255, 0.3);
+  border-color: rgba(8, 145, 178, 0.3);
   background: linear-gradient(
     135deg,
     var(--color-primary-glow) 0%,
@@ -244,7 +244,7 @@
 
 /* Win - Gold/Trophy */
 .typeWin .iconWrap {
-  background: linear-gradient(135deg, var(--color-gold-glow) 0%, rgba(245, 166, 35, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-gold-glow) 0%, rgba(180, 83, 9, 0.06) 100%);
 }
 .typeWin .typeIcon {
   color: var(--color-gold);
@@ -252,7 +252,7 @@
 
 /* Loss - Red */
 .typeLoss .iconWrap {
-  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(230, 57, 70, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-danger-glow) 0%, rgba(185, 28, 28, 0.06) 100%);
 }
 .typeLoss .typeIcon {
   color: var(--color-danger);
@@ -260,7 +260,7 @@
 
 /* Invitation - Blue */
 .typeInvite .iconWrap {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%);
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.12) 0%, rgba(29, 78, 216, 0.06) 100%);
 }
 .typeInvite .typeIcon {
   color: #60a5fa;
@@ -268,7 +268,7 @@
 
 /* Match Result - Green */
 .typeMatch .iconWrap {
-  background: linear-gradient(135deg, var(--color-success-glow) 0%, rgba(0, 200, 83, 0.06) 100%);
+  background: linear-gradient(135deg, var(--color-success-glow) 0%, rgba(5, 150, 105, 0.06) 100%);
 }
 .typeMatch .typeIcon {
   color: var(--color-success);
@@ -384,7 +384,7 @@
 
 .deleteFallback:hover {
   background: var(--color-danger-subtle);
-  border-color: rgba(255, 71, 87, 0.3);
+  border-color: rgba(220, 38, 38, 0.3);
 }
 
 .deleteFallback:hover .deleteIcon {
@@ -421,7 +421,7 @@
   max-width: 280px;
   height: 44px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  border: 1px solid rgba(8, 145, 178, 0.2);
   background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 163, 204, 0.04) 100%);
   color: var(--color-primary);
   font-size: 14px;
@@ -437,7 +437,7 @@
 
 .loadMore:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-primary-glow) 0%, rgba(0, 163, 204, 0.08) 100%);
-  border-color: rgba(0, 212, 255, 0.35);
+  border-color: rgba(8, 145, 178, 0.35);
   box-shadow: var(--shadow-glow-primary);
 }
 
@@ -453,7 +453,7 @@
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 212, 255, 0.2);
+  border: 2px solid rgba(8, 145, 178, 0.2);
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 800ms linear infinite;
