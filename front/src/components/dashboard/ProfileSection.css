@@ -602,321 +602,136 @@
   flex-shrink: 0;
 }
 
-/* Button Styles */
-.btn {
+.option-action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.625rem;
+  min-width: min(260px, 100%);
+}
+
+.twofa-feedback {
+  border-radius: var(--radius-md);
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.twofa-feedback.is-error {
+  border-color: rgba(255, 107, 107, 0.45);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ffb4b4;
+}
+
+.twofa-feedback.is-success {
+  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(45, 212, 191, 0.08);
+  color: #8ff3e7;
+}
+
+.twofa-attempts-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  transition: var(--transition-fast);
-  font-family: inherit;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-.btn-primary {
-  background: var(--gradient-primary);
-  color: var(--text-inverse);
-  box-shadow: var(--shadow-glow-primary);
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow-primary), var(--shadow-md);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn-secondary {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-}
-
-.btn-success {
-  background: var(--gradient-success);
-  color: var(--text-inverse);
-  box-shadow: var(--shadow-glow-success);
-  border: none;
-}
-
-.btn-success:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow-success), var(--shadow-md);
-}
-
-.btn-success:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn-success:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: var(--color-primary);
-  color: var(--text-inverse);
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-}
-
-.btn-outline {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
-}
-
-.btn-outline:hover:not(:disabled) {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  background: var(--color-primary-subtle);
-}
-
-.btn-outline.danger {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
-
-.btn-outline.danger:hover:not(:disabled) {
-  background: var(--color-danger);
-  color: var(--text-inverse);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-glow-danger);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Tabs - Modern Sports Betting Style */
-.profile-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid var(--border-primary);
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.profile-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-
-.profile-tabs::-webkit-scrollbar-track {
-  background: var(--bg-elevated);
-}
-
-.profile-tabs::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
-  border-radius: var(--radius-sm);
-}
-
-.tab-button {
-  padding: 1rem 1.5rem;
-  border: none;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: var(--transition-base);
-  white-space: nowrap;
-  position: relative;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-}
-
-.tab-button::before {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--gradient-primary);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.3s ease;
-}
-
-.tab-button:hover:not(.active) {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.tab-button.active {
-  color: var(--color-primary);
-  background: var(--bg-secondary);
-}
-
-.tab-button.active::before {
-  transform: scaleX(1);
-}
-
-/* Loading Skeleton */
-.profile-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.skeleton {
-  background: var(--bg-elevated);
-  border-radius: var(--radius-md);
-  position: relative;
-  overflow: hidden;
-}
-
-.skeleton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, var(--color-primary-subtle), transparent);
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  to {
-    left: 100%;
-  }
-}
-
-.skeleton-header {
-  height: 200px;
-}
-
-.skeleton-stats {
-  height: 150px;
-}
-
-.skeleton-section {
-  height: 300px;
-}
-
-/* 2FA Setup - Two-Factor Authentication */
-.twofa-setup {
-  margin-top: 1rem;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  padding: 1rem 1.25rem 1.25rem;
-  background: var(--bg-elevated);
-  animation: fadeIn 0.25s ease;
-}
-
-.twofa-setup-header {
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-primary);
-}
-
-.twofa-setup-header::before {
-  content: '🔐';
-}
-
-.twofa-setup-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.twofa-qr {
-  width: 160px;
-  height: 160px;
-  border: 4px solid var(--bg-surface);
-  align-self: flex-start;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  background: var(--text-primary);
-}
-
-.twofa-secret {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-}
-
-.twofa-secret .secret-label {
-  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  color: #b7d3ff;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+  text-align: center;
 }
 
-.secret-row {
+.twofa-attempts-chip.is-blocked {
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.32);
+  color: #ffb4b4;
+}
+
+.twofa-instructions-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(10, 14, 20, 0.96));
+}
+
+.twofa-instructions-card.warning {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: linear-gradient(135deg, rgba(71, 49, 8, 0.35), rgba(17, 24, 39, 0.94));
+}
+
+.twofa-instructions-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.twofa-instructions-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.twofa-attempts-inline {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  background: rgba(45, 212, 191, 0.12);
+  color: #8ff3e7;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.twofa-code-field {
+  width: 100%;
+}
+
+.twofa-lockout-banner {
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.08);
+  color: #ffb4b4;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.twofa-actions-row {
   flex-wrap: wrap;
 }
 
-.secret-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.95rem;
-  color: var(--color-primary);
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--radius-md);
+.twofa-disable-panel {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
   border: 1px solid var(--border-primary);
-  background: var(--bg-deep);
-  flex: 1;
-  min-width: min(280px, 100%);
-  user-select: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: var(--transition-base);
 }
 
-.secret-value.is-hidden {
-  filter: blur(6px);
-  opacity: 0.75;
+.form-input:focus {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
-.secret-value.is-visible {
-  filter: none;
-  opacity: 1;
-  user-select: text;
-}
-
-.secret-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.secret-hint {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
+.form-input::placeholder {
   color: var(--text-tertiary);
-}
-
-@media (max-width: 600px) {
-  .secret-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .secret-actions {
-    width: 100%;
-  }
-
-  .secret-actions .btn {
-    width: 100%;
-  }
 }
 
 /* Responsive Design */
@@ -973,14 +788,25 @@
     width: 100%;
   }
 
+  .option-action-stack {
+    width: 100%;
+    min-width: 0;
+  }
+
   .option-action .btn {
     width: 100%;
   }
 
-  .info-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+  .twofa-attempts-chip {
+    width: 100%;
+  }
+
+  .twofa-actions-row {
+    width: 100%;
+  }
+
+  .twofa-instructions-card {
+    padding: 0.875rem;
   }
 
   .form-actions {
@@ -1041,6 +867,23 @@
   /* Mobile: on garde l’avatar mais on masque le header texte (pseudo + email) */
   .profile-header .profile-info {
     display: none;
+  }
+
+  .twofa-setup {
+    padding: 0.95rem;
+  }
+
+  .twofa-qr {
+    width: min(100%, 220px);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    align-self: center;
+  }
+
+  .twofa-feedback,
+  .twofa-lockout-banner,
+  .twofa-instructions-card {
+    font-size: 0.88rem;
   }
 }
 

@@ -1,6 +1,7 @@
 import asyncio
+import base64
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Optional
 
 import shortuuid
 from cryptography.fernet import Fernet
@@ -13,6 +14,8 @@ from application.user.user_command_model import (
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel,
     UserUpdateResponse, RefreshTokenResponse, DeleteMyAccountModel,
     ChangeMyPasswordModel, ChangeMyPasswordResponse,
+    TwoFactorSetupResponse, TwoFactorStatusResponse,
+    VerifyTwoFactorModel, DisableTwoFactorModel, DisableTwoFactorResponse,
 )
 from domain.services.authentication.hash import Hash
 from domain.services.authentication.manager_token import ManagerToken
@@ -51,11 +54,15 @@ class UserCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def enable_2fa(self, email: str) -> bytes:
+    async def enable_2fa(self, email: str) -> TwoFactorSetupResponse:
         raise NotImplementedError
 
     @abstractmethod
-    async def verify_2fa(self, email: str, code: str) -> bool:
+    async def verify_2fa(self, email: str, data: VerifyTwoFactorModel, attempts_remaining: Optional[int] = None) -> TwoFactorStatusResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def disable_2fa(self, email: str, token: str, data: DisableTwoFactorModel) -> DisableTwoFactorResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -189,7 +196,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         await self.manager_token.invalidate_all_user_tokens(str(user.id))
         return UserDeleteResponse()
 
-    async def enable_2fa(self, email: str) -> bytes:
+    async def enable_2fa(self, email: str) -> TwoFactorSetupResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 repo = UserRepositoryImpl(session)
@@ -197,31 +204,63 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 if not user:
                     raise UserNotFoundError
                 if user.is_two_factor_enabled:
-                    raise HTTPException(status_code=400, detail="2FA already enabled.")
+                    raise HTTPException(status_code=400, detail={"message": "2FA déjà activée.", "code": "TWO_FACTOR_ALREADY_ENABLED"})
                 secret = await self.totp_service.generate_secret()
                 encrypted = await self.totp_service.encrypt_secret(secret, self.cipher_suite)
-                user.two_factor_secret = encrypted
-                user.is_two_factor_enabled = True
+                user.begin_two_factor_setup(encrypted)
                 await repo.update(user)
-        uri = await self.totp_service.get_totp_uri(secret, user.email.value, "BetLeague")
-        return await self.totp_service.generate_qr_code(uri)
+        otpauth_url = await self.totp_service.get_totp_uri(secret, user.email.value, "BetLeague")
+        qr_code_bytes = await self.totp_service.generate_qr_code(otpauth_url)
+        qr_code_data_url = f"data:image/png;base64,{base64.b64encode(qr_code_bytes).decode('ascii')}"
+        return TwoFactorSetupResponse(
+            qr_code=qr_code_data_url,
+            secret=secret,
+            otpauth_url=otpauth_url,
+            message="Scannez le QR code puis confirmez avec un code à 6 chiffres.",
+        )
 
-    async def verify_2fa(self, email: str, code: str) -> bool:
+    async def verify_2fa(self, email: str, data: VerifyTwoFactorModel, attempts_remaining: Optional[int] = None) -> TwoFactorStatusResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 repo = UserRepositoryImpl(session)
                 user = await repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
-                if not user.is_two_factor_enabled:
-                    raise HTTPException(status_code=400, detail="2FA not enabled.")
+                if user.is_two_factor_enabled:
+                    raise HTTPException(status_code=400, detail={"message": "2FA déjà activée.", "code": "TWO_FACTOR_ALREADY_ENABLED", "attempts_remaining": attempts_remaining})
+                if not user.two_factor_secret:
+                    raise HTTPException(status_code=400, detail={"message": "Aucune configuration 2FA en attente.", "code": "TWO_FACTOR_SETUP_REQUIRED", "attempts_remaining": attempts_remaining})
                 secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
-                valid = await self.totp_service.verify_code(secret, code)
+                valid = await self.totp_service.verify_code(secret, data.code)
                 if not valid:
-                    raise HTTPException(status_code=400, detail="Invalid 2FA code.")
-                user.is_two_factor_verified = True
+                    raise Invalid2FACodeError()
+                user.confirm_two_factor_setup()
                 await repo.update(user)
-        return True
+        return TwoFactorStatusResponse(
+            enabled=True,
+            message="Authentification à deux facteurs activée avec succès.",
+            attempts_remaining=attempts_remaining,
+        )
+
+    async def disable_2fa(self, email: str, token: str, data: DisableTwoFactorModel) -> DisableTwoFactorResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                repo = UserRepositoryImpl(session)
+                user = await repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+                if not user.is_two_factor_enabled or not user.two_factor_secret:
+                    raise HTTPException(status_code=400, detail={"message": "2FA non activée.", "code": "TWO_FACTOR_NOT_ENABLED"})
+                if not await self.hasher.verify(data.current_password, user.password.password):
+                    raise InvalidPasswordError(email)
+                secret = await self.totp_service.decrypt_secret(user.two_factor_secret, self.cipher_suite)
+                if not await self.totp_service.verify_code(secret, data.code):
+                    raise Invalid2FACodeError()
+                user.disable_two_factor()
+                await repo.update(user)
+        await self.manager_token.invalidate_token(token, str(user.id))
+        await self.manager_token.invalidate_all_user_tokens(str(user.id))
+        return DisableTwoFactorResponse()
 
     async def update_user_profile(
             self, email: str, data: UserUpdateModel

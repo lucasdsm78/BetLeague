@@ -73,3 +73,19 @@ class User:
             pseudo=self.pseudo,
             id=self.id
         )
+
+    def begin_two_factor_setup(self, encrypted_secret: str) -> None:
+        self.two_factor_secret = encrypted_secret
+        self.is_two_factor_enabled = False
+        self.is_two_factor_verified = False
+
+    def confirm_two_factor_setup(self) -> None:
+        if not self.two_factor_secret:
+            raise ValueError("2FA secret missing")
+        self.is_two_factor_enabled = True
+        self.is_two_factor_verified = True
+
+    def disable_two_factor(self) -> None:
+        self.two_factor_secret = None
+        self.is_two_factor_enabled = False
+        self.is_two_factor_verified = False

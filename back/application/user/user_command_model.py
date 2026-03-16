@@ -88,3 +88,33 @@ class InvalidPasswordError(Exception):
 
     def __str__(self):
         return f"Password invalid for user {self.email}"
+
+
+class VerifyTwoFactorModel(BaseModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class DisableTwoFactorModel(BaseModel):
+    current_password: str = Field(min_length=8, max_length=255)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class TwoFactorSetupResponse(BaseModel):
+    qr_code: str
+    secret: str
+    otpauth_url: str
+    message: str = "2FA setup ready."
+
+
+class TwoFactorStatusResponse(BaseModel):
+    enabled: bool
+    message: str
+    attempts_remaining: Optional[int] = None
+
+
+class DisableTwoFactorResponse(BaseModel):
+    enabled: bool = False
+    message: str = "Authentification à deux facteurs désactivée."
+    sessions_revoked: bool = True
+    reauth_required: bool = True
+

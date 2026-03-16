@@ -5,7 +5,7 @@ import type { ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types
 import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
 import type { ApiChangePasswordRequest, ApiChangePasswordResponse } from '../../types/api/changePassword';
 import twoFactorService from '../../services/twoFactorService';
-import type { TwoFactorSetup, TwoFactorStatus } from '../../types/entities/twoFactor';
+import type { TwoFactorSetup, TwoFactorStatus, DisableTwoFactorPayload } from '../../types/entities/twoFactor';
 import { profileKeys } from './profileKeys';
 import authService from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
@@ -44,6 +44,26 @@ export function useVerifyTwoFactorMutation() {
     onSuccess: () => {
       // le backend a activé la 2FA côté compte, on refresh /auth/me
       qc.invalidateQueries({ queryKey: profileKeys.me() });
+    },
+  });
+}
+
+export function useDisableTwoFactorMutation() {
+  const qc = useQueryClient();
+
+  return useMutation<TwoFactorStatus, Error, DisableTwoFactorPayload>({
+    mutationFn: (payload) => twoFactorService.disableTwoFactor(payload),
+    onSuccess: async (data) => {
+      if (data.reauthRequired) {
+        qc.clear();
+        try {
+          await authService.logout();
+        } finally {
+          useAuthStore.getState().logout();
+        }
+      } else {
+        qc.invalidateQueries({ queryKey: profileKeys.me() });
+      }
     },
   });
 }

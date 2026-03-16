@@ -10,10 +10,11 @@ from redis.asyncio import Redis
 class RateLimitResult:
     allowed: bool
     retry_after_s: int
+    remaining_attempts: int
 
 
 # Sliding window via ZSET.
-# Returns: [allowed(0/1), retry_after_seconds]
+# Returns: [allowed(0/1), retry_after_seconds, remaining_attempts]
 _LUA_SLIDING_WINDOW = r"""
 local key = KEYS[1]
 local now_ms = tonumber(ARGV[1])
@@ -31,18 +32,20 @@ local count = redis.call('ZCARD', key)
 redis.call('EXPIRE', key, ttl_s)
 
 if count <= limit then
-  return {1, 0}
+  local remaining = limit - count
+  if remaining < 0 then remaining = 0 end
+  return {1, 0, remaining}
 end
 
 local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
 if oldest[2] == nil then
-  return {0, math.floor(window_ms / 1000)}
+  return {0, math.floor(window_ms / 1000), 0}
 end
 
 local oldest_ms = tonumber(oldest[2])
 local retry_ms = (oldest_ms + window_ms) - now_ms
 if retry_ms < 1000 then retry_ms = 1000 end
-return {0, math.floor(retry_ms / 1000)}
+return {0, math.floor(retry_ms / 1000), 0}
 """
 
 
@@ -94,7 +97,8 @@ class RedisSlidingWindowRateLimiter:
 
             allowed = bool(int(res[0]))
             retry_after = int(res[1])
-            return RateLimitResult(allowed=allowed, retry_after_s=retry_after)
+            remaining_attempts = int(res[2]) if len(res) > 2 else 0
+            return RateLimitResult(allowed=allowed, retry_after_s=retry_after, remaining_attempts=remaining_attempts)
         except Exception:
             # fail-closed: si Redis est down, on bloque
-            return RateLimitResult(allowed=False, retry_after_s=max(int(window_s), 1))
+            return RateLimitResult(allowed=False, retry_after_s=max(int(window_s), 1), remaining_attempts=0)
