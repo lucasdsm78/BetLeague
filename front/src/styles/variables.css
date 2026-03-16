@@ -6,13 +6,13 @@
 :root {
   /* ========== COLOR PALETTE ========== */
 
-  /* Background Scale - Deep Navy Sports Theme */
-  --bg-deep: #0A1628;
-  --bg-primary: #0F1D32;
-  --bg-secondary: #152238;
-  --bg-elevated: #1C2D47;
-  --bg-surface: #243B56;
-  --bg-hover: #2C4666;
+  /* Background Scale - Dark Theme */
+  --bg-deep: #080B12;
+  --bg-primary: #0D1117;
+  --bg-secondary: #161B22;
+  --bg-elevated: #21262D;
+  --bg-surface: #2D333B;
+  --bg-hover: #363D47;
 
   /* Primary - Electric Cyan */
   --color-primary: #00D4FF;
@@ -60,11 +60,11 @@
   --text-primary: #E6EDF3;
   --text-secondary: #8B949E;
   --text-tertiary: #6E7681;
-  --text-inverse: #0A1628;
+  --text-inverse: #0D1117;
 
-  /* Border Colors - Blue-tinted */
-  --border-primary: rgba(100, 160, 255, 0.12);
-  --border-secondary: rgba(100, 160, 255, 0.2);
+  /* Border Colors */
+  --border-primary: rgba(139, 148, 158, 0.15);
+  --border-secondary: rgba(139, 148, 158, 0.25);
   --border-accent: rgba(0, 212, 255, 0.3);
 
   /* ========== GRADIENTS ========== */
@@ -74,7 +74,7 @@
   --gradient-gold: linear-gradient(135deg, #F5A623 0%, #D4900A 100%);
   --gradient-premium: linear-gradient(135deg, #FFD166 0%, #F5A623 50%, #D4900A 100%);
   --gradient-surface: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(0, 200, 83, 0.03) 100%);
-  --gradient-hero: linear-gradient(180deg, #0A1628 0%, #0F1D32 40%, #132640 100%);
+  --gradient-hero: linear-gradient(180deg, #080B12 0%, #0D1117 40%, #121820 100%);
 
   /* ========== TYPOGRAPHY ========== */
 
@@ -157,19 +157,19 @@
   --radius-3xl: 1.5rem;
   --radius-full: 9999px;
 
-  --shadow-xs: 0 1px 2px rgba(5, 12, 25, 0.4);
-  --shadow-sm: 0 2px 4px rgba(5, 12, 25, 0.4);
-  --shadow-md: 0 4px 12px rgba(5, 12, 25, 0.5);
-  --shadow-lg: 0 8px 24px rgba(5, 12, 25, 0.6);
-  --shadow-xl: 0 16px 48px rgba(5, 12, 25, 0.7);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
   --shadow-glow-primary: 0 0 20px rgba(0, 212, 255, 0.3), 0 0 40px rgba(0, 212, 255, 0.1);
   --shadow-glow-success: 0 0 20px rgba(0, 230, 118, 0.3), 0 0 40px rgba(0, 230, 118, 0.1);
   --shadow-glow-gold: 0 0 20px rgba(245, 166, 35, 0.3), 0 0 40px rgba(245, 166, 35, 0.1);
   --shadow-glow-danger: 0 0 20px rgba(255, 71, 87, 0.3), 0 0 40px rgba(255, 71, 87, 0.1);
 
-  /* Glass Effect - Navy tinted */
-  --glass-bg: rgba(15, 29, 50, 0.85);
-  --glass-border: rgba(100, 160, 255, 0.1);
+  /* Glass Effect */
+  --glass-bg: rgba(22, 27, 34, 0.8);
+  --glass-border: rgba(139, 148, 158, 0.12);
   --glass-blur: blur(16px);
 
   /* Transitions */
