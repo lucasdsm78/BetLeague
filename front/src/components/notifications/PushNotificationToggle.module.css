@@ -39,7 +39,7 @@
 
 .iconActive {
   color: var(--color-primary);
-  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.5));
+  filter: drop-shadow(0 0 6px rgba(8, 145, 178, 0.5));
 }
 
 .iconBlocked {
@@ -56,7 +56,7 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary);
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 8px rgba(8, 145, 178, 0.6);
   animation: pulse 2s infinite;
 }
 

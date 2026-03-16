@@ -45,7 +45,7 @@
   align-items: center;
   padding: 1.5rem;
   background: var(--color-danger-subtle);
-  border-bottom: 1px solid rgba(255, 71, 87, 0.2);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .leave-tournament-title-section {
@@ -70,7 +70,7 @@
 }
 
 .leave-tournament-close-btn {
-  background: rgba(255, 71, 87, 0.15);
+  background: rgba(220, 38, 38, 0.15);
   border: none;
   color: var(--color-danger);
   font-size: 1.5rem;
@@ -87,7 +87,7 @@
 }
 
 .leave-tournament-close-btn:hover:not(:disabled) {
-  background: rgba(255, 71, 87, 0.25);
+  background: rgba(220, 38, 38, 0.25);
   transform: scale(1.05);
   box-shadow: var(--shadow-glow-danger);
 }
@@ -135,7 +135,7 @@
   margin-top: 1.25rem;
   padding: 1rem;
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: var(--radius-lg);
   color: var(--color-danger);
   animation: leaveTournamentShake 0.4s ease;
@@ -196,7 +196,7 @@
   background: var(--gradient-danger);
   color: white;
   border: 2px solid transparent;
-  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .leave-tournament-btn-danger:hover:not(:disabled) {

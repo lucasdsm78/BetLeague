@@ -207,7 +207,7 @@
 /* Banners */
 .error-banner {
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   padding: 0.875rem 1rem;
   border-radius: var(--radius-md);
   animation: shake 0.4s ease;
@@ -246,7 +246,7 @@
 
 .success-banner {
   background: var(--color-success-subtle);
-  border: 1px solid rgba(0, 230, 118, 0.3);
+  border: 1px solid rgba(5, 150, 105, 0.3);
   padding: 0.875rem 1rem;
   border-radius: var(--radius-md);
   animation: slideDown 0.3s ease;

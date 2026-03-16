@@ -1,5 +1,5 @@
 /* BetLeague - App & Landing Page Styles */
-/* Dark Premium Sports Betting Theme */
+/* Light Premium Sports Betting Theme */
 
 * {
   margin: 0;
@@ -79,9 +79,9 @@ body:has(.app:not(.dashboard-mode)) {
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(circle at 20% 40%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(0, 230, 118, 0.06) 0%, transparent 50%),
-    radial-gradient(circle at 50% 80%, rgba(245, 166, 35, 0.04) 0%, transparent 50%);
+    radial-gradient(circle at 20% 40%, rgba(8, 145, 178, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(5, 150, 105, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(180, 83, 9, 0.04) 0%, transparent 50%);
   pointer-events: none;
   z-index: -1;
 }
@@ -100,7 +100,7 @@ body:has(.app:not(.dashboard-mode)) {
 
 .logo-icon {
   font-size: clamp(2.5rem, 8vw, 3.5rem);
-  filter: drop-shadow(0 6px 20px rgba(0, 212, 255, 0.3));
+  filter: drop-shadow(0 6px 20px rgba(8, 145, 178, 0.3));
   animation: logoFloat 3s ease-in-out infinite;
 }
 
@@ -141,10 +141,10 @@ body:has(.app:not(.dashboard-mode)) {
   align-items: center;
   gap: 12px;
   padding: 24px 16px;
-  background: rgba(0, 212, 255, 0.06);
+  background: rgba(8, 145, 178, 0.06);
   border-radius: var(--radius-2xl);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(8, 145, 178, 0.12);
   transition: var(--transition-base);
   position: relative;
   overflow: hidden;
@@ -157,15 +157,15 @@ body:has(.app:not(.dashboard-mode)) {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.08), transparent);
   transition: left 0.6s ease;
 }
 
 .feature:hover {
   transform: translateY(-4px);
-  background: rgba(0, 212, 255, 0.10);
-  border-color: rgba(0, 212, 255, 0.25);
-  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.12);
+  background: rgba(8, 145, 178, 0.10);
+  border-color: rgba(8, 145, 178, 0.25);
+  box-shadow: 0 10px 30px rgba(8, 145, 178, 0.12);
 }
 
 .feature:hover::before {
@@ -211,7 +211,7 @@ body:has(.app:not(.dashboard-mode)) {
 .btn-primary {
   background: var(--gradient-primary);
   color: var(--text-inverse);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.25);
+  box-shadow: 0 8px 25px rgba(8, 145, 178, 0.25);
 }
 
 .btn-primary::before {
@@ -236,13 +236,13 @@ body:has(.app:not(.dashboard-mode)) {
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(8, 145, 178, 0.2);
 }
 
 .btn-secondary {
   background: transparent;
   color: var(--color-primary);
-  border: 2px solid rgba(0, 212, 255, 0.3);
+  border: 2px solid rgba(8, 145, 178, 0.3);
 }
 
 .btn-secondary::before {
@@ -252,15 +252,15 @@ body:has(.app:not(.dashboard-mode)) {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, rgba(8, 145, 178, 0.08), transparent);
   transition: left 0.5s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(0, 212, 255, 0.08);
-  border-color: rgba(0, 212, 255, 0.5);
+  background: rgba(8, 145, 178, 0.08);
+  border-color: rgba(8, 145, 178, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.15);
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.15);
 }
 
 .btn-secondary:hover::before {

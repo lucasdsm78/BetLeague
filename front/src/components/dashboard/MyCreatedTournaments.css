@@ -132,7 +132,7 @@
   padding: 4rem 2rem;
   text-align: center;
   background: var(--color-danger-subtle);
-  border: 1px solid rgba(255, 71, 87, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-2xl);
   min-height: 350px;
 }
@@ -167,7 +167,7 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 4px 14px rgba(8, 145, 178, 0.3);
 }
 
 .created-btn-retry:hover {
@@ -191,7 +191,7 @@
   padding: 5rem 2rem;
   text-align: center;
   background: var(--bg-secondary);
-  border: 2px dashed rgba(245, 166, 35, 0.25);
+  border: 2px dashed rgba(180, 83, 9, 0.25);
   border-radius: var(--radius-2xl);
   min-height: 400px;
 }
@@ -334,7 +334,7 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.3);
   white-space: nowrap;
 }
 
@@ -376,7 +376,7 @@
 
 .created-stat-item:hover {
   background: var(--bg-surface);
-  border-color: rgba(245, 166, 35, 0.25);
+  border-color: rgba(180, 83, 9, 0.25);
   transform: translateX(4px);
 }
 
@@ -464,7 +464,7 @@
   color: var(--text-inverse);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.3);
+  box-shadow: 0 4px 12px rgba(180, 83, 9, 0.3);
   white-space: nowrap;
 }
 

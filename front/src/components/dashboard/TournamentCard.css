@@ -1,5 +1,5 @@
 /* ============================================
-   TOURNAMENT CARD - Dark Premium Sports Betting
+   TOURNAMENT CARD - Light Premium Sports Betting
    ============================================ */
 
 .tournament-card {
@@ -125,7 +125,7 @@
   padding: 1rem;
   background: var(--color-gold-subtle);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(245, 166, 35, 0.15);
+  border: 1px solid rgba(180, 83, 9, 0.15);
 }
 
 .players-count {
@@ -243,9 +243,9 @@
   justify-content: center;
   gap: 0.625rem;
   padding: 0.875rem 1rem;
-  background: rgba(0, 230, 118, 0.08);
+  background: rgba(5, 150, 105, 0.08);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(0, 230, 118, 0.2);
+  border: 1px solid rgba(5, 150, 105, 0.2);
   margin-bottom: 1.25rem;
   font-size: 0.9375rem;
   color: var(--color-success);
@@ -308,7 +308,7 @@
 
 .tournament-join-btn:hover:not(.btn-disabled) {
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 8px 24px rgba(180, 83, 9, 0.4);
 }
 
 .tournament-join-btn:active:not(.btn-disabled) {

@@ -291,7 +291,7 @@
 /* League Preview */
 .league-preview {
   background: linear-gradient(135deg, var(--color-primary-subtle), rgba(0, 153, 255, 0.06));
-  border: 1px solid rgba(0, 212, 255, 0.25);
+  border: 1px solid rgba(8, 145, 178, 0.25);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
   margin: 1.5rem 0;
@@ -329,7 +329,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  border-bottom: 1px solid rgba(8, 145, 178, 0.1);
 }
 
 .preview-stat:last-child {
@@ -392,7 +392,7 @@
   color: var(--text-inverse);
   border-color: transparent;
   flex: 1;
-  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -614,7 +614,7 @@
   padding: 1rem;
   background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 153, 255, 0.06) 100%);
   border-radius: var(--radius-lg);
-  border: 2px solid rgba(0, 212, 255, 0.2);
+  border: 2px solid rgba(8, 145, 178, 0.2);
 }
 
 .btl-balance-display {
@@ -671,13 +671,13 @@
 .btl-status.sufficient {
   background: var(--color-success-glow);
   color: var(--color-success);
-  border: 1px solid rgba(0, 230, 118, 0.3);
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .btl-status.insufficient {
   background: var(--color-danger-subtle);
   color: var(--color-danger);
-  border: 1px solid rgba(255, 71, 87, 0.3);
+  border: 1px solid rgba(220, 38, 38, 0.3);
   animation: shake 0.4s ease-out;
 }
 
@@ -736,7 +736,7 @@
 .toggle-btn.active {
   border-color: var(--color-gold);
   box-shadow: 0 0 0 3px var(--color-gold-glow);
-  background: rgba(245, 166, 35, 0.08);
+  background: rgba(180, 83, 9, 0.08);
 }
 
 .toggle-btn:disabled {
