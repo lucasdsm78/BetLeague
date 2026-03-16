@@ -517,7 +517,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         <div className="leagues-section">
 
             <div className="section-header">
-                <h2>Mes Ligues</h2>
+                <h2>Ligues</h2>
                 <div className="header-actions">
                     <button
                         className="btn btn-primary"
