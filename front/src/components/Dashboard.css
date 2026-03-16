@@ -289,7 +289,7 @@
 .mobile-nav {
   position: fixed;
   inset: 0;
-  background: rgba(5, 12, 30, 0.65);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   opacity: 0;
   pointer-events: none;
@@ -443,7 +443,7 @@
   right: 0;
   bottom: 0;
   padding: 0.4rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
-  background: rgba(10, 22, 40, 0.92);
+  background: rgba(13, 17, 23, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(139, 148, 158, 0.1);
