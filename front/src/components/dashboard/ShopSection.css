@@ -39,7 +39,7 @@
   background: var(--gradient-primary);
   padding: 1.25rem 1.75rem;
   border-radius: var(--radius-xl);
-  color: var(--text-primary);
+  color: var(--text-inverse);
   text-align: center;
   box-shadow: var(--shadow-lg), var(--shadow-glow-primary);
   min-width: 200px;
@@ -51,14 +51,14 @@
   opacity: 0.9;
   margin-bottom: 0.25rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-inverse);
 }
 
 .balance-value {
   font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .shop-tabs {

@@ -1,5 +1,5 @@
 /**
- * PWA Install Prompt - Dark Premium Theme
+ * PWA Install Prompt - Light Premium Sports Betting Theme
  */
 
 .container {
@@ -128,7 +128,7 @@
 
 .dismissBtn:hover {
   background: var(--bg-elevated);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
 }
 

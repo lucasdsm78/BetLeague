@@ -1,4 +1,4 @@
-/* NotificationsDrawer - Dark Premium Theme */
+/* NotificationsDrawer - Light Premium Sports Betting Theme */
 
 /* ============================================================================
    Root Container
@@ -21,7 +21,7 @@
   border: 0;
   padding: 0;
   margin: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   cursor: pointer;
@@ -48,8 +48,8 @@
   background: var(--bg-primary);
   border-left: 1px solid var(--border-primary);
   box-shadow:
-    -20px 0 60px rgba(0, 0, 0, 0.5),
-    -8px 0 20px rgba(0, 0, 0, 0.3);
+    -20px 0 60px rgba(0, 0, 0, 0.1),
+    -8px 0 20px rgba(0, 0, 0, 0.06);
   animation: slideIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
   outline: none;
 }
@@ -149,7 +149,7 @@
 
 .closeBtn:hover {
   background: var(--bg-surface);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
 }
 
@@ -186,12 +186,12 @@
 }
 
 .content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 3px;
 }
 
 .content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* ============================================================================

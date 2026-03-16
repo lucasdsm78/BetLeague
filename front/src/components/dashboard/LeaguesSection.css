@@ -452,7 +452,7 @@
 .btn-action--leave:hover:not(:disabled) {
   background: var(--gradient-danger);
   border-color: var(--color-danger);
-  color: white;
+  color: var(--text-inverse);
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow-danger);
 }
@@ -504,8 +504,8 @@
 .btn-action--join .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: var(--text-inverse);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -936,7 +936,7 @@
 /* Danger Button - For Leave League */
 .btn-danger {
   background: var(--gradient-danger);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   display: inline-flex;
   align-items: center;
@@ -971,9 +971,9 @@
   border-radius: var(--radius-full);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    rgba(255, 255, 255, 0.12) 50%,
-    rgba(255, 255, 255, 0.06) 100%
+    #E5E7EB 0%,
+    #F3F4F6 50%,
+    #E5E7EB 100%
   );
   background-size: 200% 100%;
   animation: balanceShimmer 1.1s ease-in-out infinite;

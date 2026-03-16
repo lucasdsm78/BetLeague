@@ -1,4 +1,4 @@
-/* NotificationsPanel - Dark Premium Theme */
+/* NotificationsPanel - Light Premium Sports Betting Theme */
 
 /* ============================================================================
    Panel Container
@@ -157,7 +157,7 @@
 
 .item:hover {
   background: var(--bg-surface);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .item:active {
@@ -179,7 +179,7 @@
   );
   box-shadow:
     0 0 0 1px rgba(8, 145, 178, 0.06),
-    0 4px 16px rgba(0, 0, 0, 0.2);
+    0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .unread:hover {
@@ -210,7 +210,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
   flex-shrink: 0;
 }
 
@@ -327,7 +327,7 @@
 }
 
 .unread .itemTitle {
-  color: #ffffff;
+  color: #111827;
 }
 
 .itemTime {
@@ -524,9 +524,9 @@
   border-radius: var(--radius-lg);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.06) 50%,
-    rgba(255, 255, 255, 0.03) 100%
+    rgba(0, 0, 0, 0.04) 0%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -545,9 +545,9 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.06) 50%,
-    rgba(255, 255, 255, 0.03) 100%
+    rgba(0, 0, 0, 0.04) 0%,
+    rgba(0, 0, 0, 0.08) 50%,
+    rgba(0, 0, 0, 0.04) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
