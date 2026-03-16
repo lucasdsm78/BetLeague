@@ -51,7 +51,7 @@
   height: 34px;
   padding: 0 12px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(8, 145, 178, 0.25);
+  border: 1px solid rgba(6, 182, 212, 0.25);
   background: var(--color-primary-subtle);
   color: var(--color-primary);
   font-size: 13px;
@@ -67,7 +67,7 @@
 
 .markAllBtn:hover {
   background: var(--color-primary-glow);
-  border-color: rgba(8, 145, 178, 0.4);
+  border-color: rgba(6, 182, 212, 0.4);
   box-shadow: var(--shadow-glow-primary);
 }
 
@@ -171,19 +171,19 @@
 
 /* Unread State */
 .unread {
-  border-color: rgba(8, 145, 178, 0.2);
+  border-color: rgba(6, 182, 212, 0.2);
   background: linear-gradient(
     135deg,
     var(--color-primary-subtle) 0%,
     var(--bg-elevated) 100%
   );
   box-shadow:
-    0 0 0 1px rgba(8, 145, 178, 0.06),
+    0 0 0 1px rgba(6, 182, 212, 0.06),
     0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .unread:hover {
-  border-color: rgba(8, 145, 178, 0.3);
+  border-color: rgba(6, 182, 212, 0.3);
   background: linear-gradient(
     135deg,
     var(--color-primary-glow) 0%,
@@ -421,7 +421,7 @@
   max-width: 280px;
   height: 44px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(8, 145, 178, 0.2);
+  border: 1px solid rgba(6, 182, 212, 0.2);
   background: linear-gradient(135deg, var(--color-primary-subtle) 0%, rgba(0, 163, 204, 0.04) 100%);
   color: var(--color-primary);
   font-size: 14px;
@@ -437,7 +437,7 @@
 
 .loadMore:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-primary-glow) 0%, rgba(0, 163, 204, 0.08) 100%);
-  border-color: rgba(8, 145, 178, 0.35);
+  border-color: rgba(6, 182, 212, 0.35);
   box-shadow: var(--shadow-glow-primary);
 }
 
@@ -453,7 +453,7 @@
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(8, 145, 178, 0.2);
+  border: 2px solid rgba(6, 182, 212, 0.2);
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 800ms linear infinite;

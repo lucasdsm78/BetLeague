@@ -143,7 +143,7 @@
 
 .markAllBtn:hover {
   background: var(--color-primary-glow);
-  border-color: rgba(8, 145, 178, 0.3);
+  border-color: rgba(6, 182, 212, 0.3);
   color: var(--color-primary);
 }
 

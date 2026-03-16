@@ -395,7 +395,7 @@
 .privacy-option:hover:not(:disabled) {
   border-color: var(--color-primary);
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(8, 145, 178, 0.2);
+  box-shadow: 0 6px 16px rgba(6, 182, 212, 0.2);
   background: var(--bg-surface);
 }
 

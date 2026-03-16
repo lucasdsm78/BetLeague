@@ -86,7 +86,7 @@ a {
 }
 
 ::selection {
-  background: rgba(8, 145, 178, 0.2);
+  background: rgba(6, 182, 212, 0.2);
   color: var(--text-primary);
 }
 
@@ -346,8 +346,8 @@ p {
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 5px rgba(8, 145, 178, 0.15); }
-  50% { box-shadow: 0 0 15px rgba(8, 145, 178, 0.25); }
+  0%, 100% { box-shadow: 0 0 5px rgba(6, 182, 212, 0.15); }
+  50% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.25); }
 }
 
 /* Animation utilities */
