@@ -74,7 +74,7 @@
 
 .badge-private {
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
+  color: var(--text-inverse);
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
@@ -87,13 +87,13 @@
 
 .badge-full {
   background: var(--gradient-danger);
-  color: white;
+  color: var(--text-inverse);
   box-shadow: var(--shadow-glow-danger);
 }
 
 .badge-started {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
+  color: var(--text-inverse);
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
 }
 
@@ -342,8 +342,8 @@
 .btn-spinner {
   width: 1.125rem;
   height: 1.125rem;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top-color: var(--text-inverse);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;

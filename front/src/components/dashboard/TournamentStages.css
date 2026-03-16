@@ -111,7 +111,7 @@
   background: linear-gradient(135deg, var(--color-info) 0%, #2563eb 100%);
   border: none;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--text-inverse);
   cursor: pointer;
   transition: all var(--transition-fast);
   box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);

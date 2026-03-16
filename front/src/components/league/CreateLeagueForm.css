@@ -1,5 +1,5 @@
 /* ============================================
-   CREATE LEAGUE FORM - Dark Premium Sports Betting
+   CREATE LEAGUE FORM - Light Premium Sports Betting
    ============================================ */
 
 /* Modal Overlay */
@@ -102,8 +102,9 @@
 
 /* Error Banner */
 .error-banner {
-  background: linear-gradient(135deg, var(--color-danger), var(--color-danger-dark));
-  color: white;
+  background: var(--color-danger-subtle);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: var(--color-danger);
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 /**
- * PushNotificationToggle - Dark Premium Theme
+ * PushNotificationToggle - Light Premium Sports Betting Theme
  */
 
 .container {
@@ -26,7 +26,7 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
   flex-shrink: 0;
 }
 
@@ -124,7 +124,7 @@
 }
 
 .toggle:hover:not(:disabled) .toggleTrack {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .toggleActive .toggleTrack {
@@ -245,7 +245,7 @@
 }
 
 .profileVariant .iconWrapper {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .profileVariant .label {
@@ -263,7 +263,7 @@
 }
 
 .profileVariant .toggle:hover:not(:disabled) .toggleTrack {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 .profileVariant .icon {
@@ -275,7 +275,7 @@
 }
 
 .profileVariant:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 .profileVariant .statusActive {
