@@ -276,7 +276,7 @@
   background: var(--gradient-primary);
   color: var(--text-inverse);
   border: 2px solid transparent;
-  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.25);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {

@@ -355,7 +355,7 @@
 .btl-purchase-modal .btn-primary {
   background: var(--gradient-primary);
   color: var(--text-inverse);
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
 }
 
 .btl-purchase-modal .btn-primary:hover:not(:disabled) {

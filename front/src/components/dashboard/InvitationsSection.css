@@ -73,7 +73,7 @@
   background: var(--gradient-primary, var(--primary-color));
   transform: scaleX(1);
   transform-origin: center;
-  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(8, 145, 178, 0.25));
+  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(6, 182, 212, 0.25));
 }
 
 .tab-content-wrapper {
@@ -102,7 +102,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   border: 2px solid transparent;
-  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(8, 145, 178, 0.25));
+  box-shadow: var(--shadow-glow-primary, 0 0 12px rgba(6, 182, 212, 0.25));
 }
 
 /* ===== Grid ===== */
@@ -145,7 +145,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-primary-glow, rgba(8, 145, 178, 0.25)), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-primary-glow, rgba(6, 182, 212, 0.25)), transparent);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -231,7 +231,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
-  box-shadow: var(--shadow-glow-primary, 0 0 10px rgba(8, 145, 178, 0.18));
+  box-shadow: var(--shadow-glow-primary, 0 0 10px rgba(6, 182, 212, 0.18));
 }
 
 .inv-card-inviter strong {
@@ -328,8 +328,8 @@
 .inv-card-actions .inv-btn:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 3px rgba(8, 145, 178, 0.22),
-    0 0 0 1px rgba(8, 145, 178, 0.40) inset;
+    0 0 0 3px rgba(6, 182, 212, 0.22),
+    0 0 0 1px rgba(6, 182, 212, 0.40) inset;
 }
 
 .inv-card-actions .inv-btn:disabled {
@@ -398,7 +398,7 @@
 
 .invitations-section .inv-empty:hover {
   border-color: var(--color-primary, var(--primary-color));
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.04) 0%, transparent 100%);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.04) 0%, transparent 100%);
 }
 
 .inv-empty-icon {
@@ -480,7 +480,7 @@
 }
 
 [data-theme="dark"] .inv-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), var(--shadow-glow-primary, 0 0 12px rgba(8, 145, 178, 0.18));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), var(--shadow-glow-primary, 0 0 12px rgba(6, 182, 212, 0.18));
 }
 
 [data-theme="dark"] .inv-card-stats {
