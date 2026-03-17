@@ -4,8 +4,13 @@ import { updateProfile, deleteMyAccount, changeMyPassword } from '../../services
 import type { ApiUpdateProfileData, ApiUpdateProfileResponse } from '../../types/api/profile';
 import type { ApiDeleteMyAccountRequest, ApiDeleteMyAccountResponse } from '../../types/api/account';
 import type { ApiChangePasswordRequest, ApiChangePasswordResponse } from '../../types/api/changePassword';
-import twoFactorService from '../../services/twoFactorService';
-import type { TwoFactorSetup, TwoFactorStatus, DisableTwoFactorPayload } from '../../types/entities/twoFactor';
+import {
+  twoFactorService,
+  type TwoFactorSetup,
+  type DisableTwoFactorPayload,
+  type TwoFactorStatus,
+  type VerifyTwoFactorPayload,
+} from '../../services/twoFactor';
 import { profileKeys } from './profileKeys';
 import authService from '../../services/authService';
 import { useAuthStore } from '../../store/authStore';
@@ -39,7 +44,7 @@ export function useEnableTwoFactorMutation() {
 export function useVerifyTwoFactorMutation() {
   const qc = useQueryClient();
 
-  return useMutation<TwoFactorStatus, Error, { code: string }>({
+  return useMutation<TwoFactorStatus, Error, VerifyTwoFactorPayload>({
     mutationFn: ({ code }) => twoFactorService.verifyTwoFactor(code),
     onSuccess: () => {
       // le backend a activé la 2FA côté compte, on refresh /auth/me

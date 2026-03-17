@@ -12,7 +12,8 @@ import type { TwoFactorSetup } from '../../types/entities/twoFactor';
 import PushNotificationToggle from '../notifications/PushNotificationToggle';
 import DeleteAccountCard from './DeleteAccountCard';
 import TotpCodeInput from '../auth/ForgotPassword/TotpCodeInput';
-import { useTwoFactorActivationThrottle } from '../../hooks/useTwoFactorActivationThrottle';
+import { useTwoFactorAttemptLimiter } from '../../hooks/useTwoFactorAttemptLimiter';
+import { TwoFactorActionError } from '../../services/twoFactor';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -191,7 +192,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
     remainingSeconds,
     registerFailure,
     reset: resetActivationThrottle,
-  } = useTwoFactorActivationThrottle({
+  } = useTwoFactorAttemptLimiter({
     storageKey: throttleStorageKey,
     maxAttempts: 5,
     baseCooldownSeconds: 60,
@@ -278,7 +279,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
       const status = Number(e?.status || 0);
       const codeError = String(e?.code || '');
       const serverAttemptsRemaining = Number.isFinite(Number(e?.attemptsRemaining)) ? Number(e?.attemptsRemaining) : undefined;
-      if (status === 429 || retryAfter > 0) {
+      if (e instanceof TwoFactorActionError && (status === 429 || retryAfter > 0)) {
         registerFailure(retryAfter > 0 ? retryAfter : undefined);
         const msg = `Trop de tentatives. Réessayez dans ${formatCooldown(retryAfter || remainingSeconds || 60)}.`;
         setError(msg);

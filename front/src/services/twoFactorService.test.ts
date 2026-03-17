@@ -1,4 +1,4 @@
-import twoFactorService, { TwoFactorActionError } from './twoFactorService';
+import twoFactorService, { TwoFactorActionError } from './twoFactor';
 import { ApiClientError } from './secureApiClient';
 import http from './http';
 

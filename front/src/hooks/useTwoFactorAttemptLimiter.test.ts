@@ -1,8 +1,8 @@
-import { computeNextThrottleState } from './useTwoFactorActivationThrottle';
+import { computeNextAttemptLimiterState } from './useTwoFactorAttemptLimiter';
 
-describe('useTwoFactorActivationThrottle', () => {
+describe('useTwoFactorAttemptLimiter', () => {
   it('incrémente les tentatives tant que la limite n’est pas atteinte', () => {
-    const next = computeNextThrottleState(
+    const next = computeNextAttemptLimiterState(
       { attempts: 1, lockedUntil: null, penaltyLevel: 0 },
       { maxAttempts: 5, baseCooldownSeconds: 60, now: 1_000 }
     );
@@ -11,7 +11,7 @@ describe('useTwoFactorActivationThrottle', () => {
   });
 
   it('déclenche un cooldown exponentiel à la limite', () => {
-    const next = computeNextThrottleState(
+    const next = computeNextAttemptLimiterState(
       { attempts: 4, lockedUntil: null, penaltyLevel: 0 },
       { maxAttempts: 5, baseCooldownSeconds: 60, now: 10_000 }
     );
@@ -22,7 +22,7 @@ describe('useTwoFactorActivationThrottle', () => {
   });
 
   it('augmente le cooldown au palier suivant', () => {
-    const next = computeNextThrottleState(
+    const next = computeNextAttemptLimiterState(
       { attempts: 4, lockedUntil: null, penaltyLevel: 1 },
       { maxAttempts: 5, baseCooldownSeconds: 60, now: 10_000 }
     );
@@ -32,7 +32,7 @@ describe('useTwoFactorActivationThrottle', () => {
   });
 
   it('respecte un Retry-After serveur quand présent', () => {
-    const next = computeNextThrottleState(
+    const next = computeNextAttemptLimiterState(
       { attempts: 2, lockedUntil: null, penaltyLevel: 0 },
       { maxAttempts: 5, baseCooldownSeconds: 60, now: 5_000, serverRetryAfterSeconds: 90 }
     );
@@ -42,4 +42,3 @@ describe('useTwoFactorActivationThrottle', () => {
     expect(next.lockedUntil).toBe(95_000);
   });
 });
-
