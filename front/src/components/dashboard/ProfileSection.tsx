@@ -385,15 +385,6 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
           <div className="option-info">
             <div className="option-header">
               <h4>Authentification à deux facteurs</h4>
-              {enabled && (
-                <div className="status-badge status-active">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                  </svg>
-                  <span>Activée</span>
-                </div>
-              )}
             </div>
             <p>
               {enabled
@@ -418,15 +409,9 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
               </>
             ) : (
               <>
-                <button className="btn btn-success" disabled={isBusy}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.5rem' }}>
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Activée
-                </button>
                 <button
                   type="button"
-                  className="btn btn-outline danger"
+                  className="btn btn-outline"
                   onClick={() => {
                     setError(null);
                     setSuccess(null);
@@ -455,11 +440,6 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
                 <span className="twofa-kicker">Sécurisation du compte</span>
                 <div className="twofa-setup-heading-row">
                   <div className="twofa-setup-header">Configuration 2FA</div>
-                  {!isBlocked && (
-                    <span className="twofa-attempts-pill">
-                      {attemptsRemaining} tentative{attemptsRemaining > 1 ? 's' : ''} restante{attemptsRemaining > 1 ? 's' : ''}
-                    </span>
-                  )}
                 </div>
                 <p className="twofa-setup-subtitle">
                   Scannez le QR code avec votre application d’authentification, conservez votre clé de secours,
@@ -602,7 +582,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
               </div>
 
               <div className="form-actions twofa-actions-row" style={{ justifyContent: 'flex-start' }}>
-                <button className="btn btn-outline danger" onClick={disableTwoFactor} disabled={isBusy || disablePassword.trim().length < 8 || disableCode.length < 6}>
+                <button className="btn btn-danger" onClick={disableTwoFactor} disabled={isBusy || disablePassword.trim().length < 8 || disableCode.length < 6}>
                   {disabling ? 'Désactivation...' : 'Confirmer la désactivation'}
                 </button>
                 <button className="btn btn-secondary" onClick={resetDisableForm} disabled={isBusy}>
