@@ -88,10 +88,11 @@ services:
         sed "s/__REDIS_PASSWORD__/$${esc_pw}/g" /usr/local/etc/redis/redis.conf.template > /tmp/redis.conf
         exec redis-server /tmp/redis.conf
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli --user notif --pass $$REDIS_PASSWORD ping | grep PONG"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      test: ["CMD-SHELL", "redis-cli -h 127.0.0.1 -p 6379 --user notif --pass $$REDIS_PASSWORD --raw ping | grep -x PONG"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
 
   backend:
     build:
@@ -113,8 +114,10 @@ services:
       REDIS_URL: "redis://notif:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/0"
       NOTIFICATIONS_REALTIME_DRIVER: "redis"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   celery_worker:
     build:
@@ -133,8 +136,10 @@ services:
       CELERY_BROKER_URL: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/1"
       CELERY_RESULT_BACKEND: "redis://celery:${REDIS_PASSWORD:-dev_redis_password_change_me}@redis:6379/2"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_started
+      redis:
+        condition: service_healthy
     restart: always
 
   celery_beat:
@@ -160,7 +165,8 @@ services:
       CELERY_CATCHUP_THRESHOLD_SECONDS: "900"
       CELERY_LAST_SCORE_CHECK_KEY: "betleague:celery:last_check_match_scores_at"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     restart: always
 
   outbox_worker:
@@ -196,11 +202,16 @@ services:
       OUTBOX_LOCK_TTL_MS: 120000
       NATS_PROVISIONED_STREAMS: "1"
     depends_on:
-      - db
-      - backend
-      - redis
-      - nats
-      - jetstream_provision
+      db:
+        condition: service_started
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      jetstream_provision:
+        condition: service_completed_successfully
     restart: always
 
   frontend:
