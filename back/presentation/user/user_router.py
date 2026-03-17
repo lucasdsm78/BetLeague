@@ -117,10 +117,10 @@ async def logout_current_device(
 async def login(
         request: Request,
         user_login_model: UserLoginModel,
-        _rate_limit_2fa: bool = Depends(rate_limit_login_with_2fa_code),
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
 ):
     try:
+        await rate_limit_login_with_2fa_code(request, user_login_model)
         user = await user_command_usecase.login(user_login_model)
         return user.for_login()
     except (UserLoginNotFoundError, InvalidPasswordError):

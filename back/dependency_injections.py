@@ -1087,8 +1087,11 @@ def redis_login_2fa_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | 
 async def rate_limit_login_with_2fa_code(
     request: Request,
     user_login_model: UserLoginModel,
-    limiter: SlidingWindowRateLimiter = Depends(login_2fa_rate_limiter_singleton),
+    limiter: SlidingWindowRateLimiter | None = None,
 ):
+    if limiter is None:
+        limiter = login_2fa_rate_limiter_singleton()
+
     if not (user_login_model.code or "").strip():
         return True
 
