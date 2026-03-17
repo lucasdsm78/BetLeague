@@ -403,28 +403,58 @@
   transition: var(--transition-base);
 }
 
+/* Profile navigation tabs */
+.profile-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+  transform: translateY(-1px);
+}
+
+.tab-button:focus-visible {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+.tab-button.active {
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.tab-button.active:hover {
+  transform: translateY(-1px);
+}
+
 .settings-section:hover {
   box-shadow: var(--shadow-md);
-}
-
-.settings-section h3 {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--border-primary);
-  padding-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.settings-section h3::before {
-  content: '';
-  width: 4px;
-  height: 24px;
-  background: var(--gradient-primary);
-  border-radius: var(--radius-sm);
 }
 
 /* Account Settings */
@@ -748,6 +778,16 @@
     gap: 1.5rem;
   }
 
+  .profile-tabs {
+    gap: 0.5rem;
+    padding: 0.625rem;
+  }
+
+  .tab-button {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: 0;
+  }
+
   .profile-avatar-section {
     justify-self: center;
   }
@@ -825,6 +865,19 @@
 @media (max-width: 640px) {
   .profile-section {
     padding: 0;
+  }
+
+  .profile-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tab-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 0.875rem 1.25rem;
+    font-size: 0.875rem;
   }
 
   .profile-header {
