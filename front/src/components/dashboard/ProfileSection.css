@@ -986,6 +986,20 @@
   padding: 1rem;
 }
 
+.twofa-disable-panel .form-label,
+.twofa-disable-panel .form-group label,
+.twofa-disable-panel .twofa-code-field label {
+  color: #f8fbff;
+}
+
+.twofa-disable-panel .form-group input::placeholder {
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.twofa-disable-panel .twofa-code-field label {
+  margin-bottom: 0.35rem;
+}
+
 /* Responsive Design */
 @media (max-width: 968px) {
   .profile-stats-grid {
