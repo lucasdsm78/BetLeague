@@ -633,6 +633,11 @@
 .option-action {
   margin-left: 1.5rem;
   flex-shrink: 0;
+  width: min(260px, 100%);
+}
+
+.option-action .btn {
+  width: 100%;
 }
 
 .option-action-stack {
@@ -640,7 +645,8 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0.625rem;
-  min-width: min(260px, 100%);
+  width: min(260px, 100%);
+  min-width: 0;
 }
 
 .twofa-feedback {
