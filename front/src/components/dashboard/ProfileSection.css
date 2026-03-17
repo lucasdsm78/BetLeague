@@ -760,8 +760,7 @@
   gap: 0.5rem;
 }
 
-.twofa-benefit-chip,
-.twofa-attempts-pill {
+.twofa-benefit-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -771,18 +770,9 @@
   font-size: 0.78rem;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.twofa-benefit-chip {
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(248, 250, 252, 0.94);
-}
-
-.twofa-attempts-pill {
-  background: linear-gradient(135deg, rgba(191, 219, 254, 0.28), rgba(224, 231, 255, 0.22));
-  border: 1px solid rgba(191, 219, 254, 0.34);
-  color: #f8fbff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(248, 250, 252, 0.92);
 }
 
 .twofa-setup-grid {
@@ -1038,8 +1028,7 @@
     padding: 0.85rem;
   }
 
-  .twofa-benefit-chip,
-  .twofa-attempts-pill {
+  .twofa-benefit-chip {
     width: 100%;
     justify-content: center;
   }
