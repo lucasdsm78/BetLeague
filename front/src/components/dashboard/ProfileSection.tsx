@@ -450,78 +450,117 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
 
         {setupVisible && (
           <div className="twofa-setup">
-            <div className="twofa-setup-header">Configuration 2FA</div>
+            <div className="twofa-setup-hero">
+              <div className="twofa-setup-hero-copy">
+                <span className="twofa-kicker">Sécurisation du compte</span>
+                <div className="twofa-setup-heading-row">
+                  <div className="twofa-setup-header">Configuration 2FA</div>
+                  {!isBlocked && (
+                    <span className="twofa-attempts-pill">
+                      {attemptsRemaining} tentative{attemptsRemaining > 1 ? 's' : ''} restante{attemptsRemaining > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <p className="twofa-setup-subtitle">
+                  Scannez le QR code avec votre application d’authentification, conservez votre clé de secours,
+                  puis confirmez avec un code à 6 chiffres.
+                </p>
+                <div className="twofa-setup-benefits" aria-hidden="true">
+                  <span className="twofa-benefit-chip">Protection renforcée</span>
+                  <span className="twofa-benefit-chip">Validation instantanée</span>
+                  <span className="twofa-benefit-chip">Compatible mobile</span>
+                </div>
+              </div>
+            </div>
+
             <div className="sr-only" role="alert" aria-live="polite">
               {error || success || ''}
             </div>
 
-            <div className="twofa-setup-body">
-              {setupData?.qrCodeDataUrl ? (
-                <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="twofa-qr" />
-              ) : setupData?.otpauthUrl ? (
-                <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ marginBottom: '0.75rem' }}>
-                  Ouvrir dans l'application d'authentification
-                </a>
-              ) : null}
+            <div className="twofa-setup-grid">
+              <div className="twofa-visual-card">
+                <div className="twofa-panel-badge">Étape 1</div>
+                <div className="twofa-panel-title">Scanner le QR code</div>
+                <p className="twofa-panel-text">
+                  Ouvrez Google Authenticator, 1Password, Authy ou toute application TOTP compatible.
+                </p>
 
-              {setupData?.secret && (
-                <div className="twofa-secret">
-                  <div className="secret-label">Clé secrète</div>
-                  <div className="secret-row">
-                    <div className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`} aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}>
-                      {showSecret ? setupData.secret : (setupData.secretMasked || '••••••••')}
-                    </div>
-                    <div className="secret-actions">
-                      <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowSecret((v) => !v)} disabled={isBusy} aria-pressed={showSecret}>
-                        {showSecret ? 'Masquer' : 'Afficher'}
-                      </button>
-                      <button type="button" className="btn btn-sm btn-outline" onClick={handleCopySecret} disabled={isBusy}>
-                        Copier
-                      </button>
-                    </div>
+                {setupData?.qrCodeDataUrl ? (
+                  <div className="twofa-qr-shell">
+                    <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="twofa-qr" />
                   </div>
-                  <div className="secret-hint">Gardez cette clé privée. Évitez les captures d’écran.</div>
-                </div>
-              )}
+                ) : setupData?.otpauthUrl ? (
+                  <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer" className="btn btn-outline twofa-open-app-btn">
+                    Ouvrir dans l'application d'authentification
+                  </a>
+                ) : null}
 
-              <div className="twofa-instructions-card">
-                <div className="twofa-instructions-title">Étape finale</div>
-                <p>Entrez le code affiché par votre application d’authentification pour activer la protection.</p>
-                {!isBlocked && (
-                  <span className="twofa-attempts-inline">{attemptsRemaining} tentative{attemptsRemaining > 1 ? 's' : ''} restante{attemptsRemaining > 1 ? 's' : ''}</span>
+                <div className="twofa-visual-footer">
+                  <span className="twofa-visual-hint">Si le scan est impossible, utilisez la clé secrète ci-contre.</span>
+                </div>
+              </div>
+
+              <div className="twofa-content-stack">
+                {setupData?.secret && (
+                  <div className="twofa-secret-card">
+                    <div className="twofa-panel-badge is-warning">Clé de secours</div>
+                    <div className="secret-label">Clé secrète</div>
+                    <div className="secret-row">
+                      <div className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`} aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}>
+                        {showSecret ? setupData.secret : (setupData.secretMasked || '••••••••')}
+                      </div>
+                      <div className="secret-actions">
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowSecret((v) => !v)} disabled={isBusy} aria-pressed={showSecret}>
+                          {showSecret ? 'Masquer' : 'Afficher'}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-outline" onClick={handleCopySecret} disabled={isBusy}>
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                    <div className="secret-hint">Gardez cette clé privée. Évitez les captures d’écran et stockez-la dans un endroit sûr.</div>
+                  </div>
                 )}
-              </div>
 
-              <div className="twofa-code-field">
-                <TotpCodeInput
-                  value={code}
-                  onChange={setCode}
-                  length={6}
-                  disabled={verifying || isBlocked}
-                  autoFocus
-                  label="Saisissez le code à 6 chiffres"
-                  error={error || undefined}
-                  name="twofa-verify"
-                />
-              </div>
-
-              {isBlocked && (
-                <div className="twofa-lockout-banner" role="alert">
-                  Trop de tentatives. Pour votre sécurité, la vérification est bloquée pendant {formatCooldown(remainingSeconds)}.
+                <div className="twofa-instructions-card">
+                  <div className="twofa-panel-badge">Étape 2</div>
+                  <div className="twofa-instructions-title">Valider l’activation</div>
+                  <p>Entrez le code affiché par votre application d’authentification pour terminer la protection de votre compte.</p>
                 </div>
-              )}
 
-              <div className="form-actions twofa-actions-row" style={{ justifyContent: 'flex-start' }}>
-                <button className="btn btn-primary" onClick={verify} disabled={isBusy || isBlocked || code.length < 6}>
-                  {verifying ? 'Vérification...' : 'Vérifier et activer'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => { setError(null); setSuccess(null); resetActivationForm(); }}
-                  disabled={isBusy}
-                >
-                  Annuler
-                </button>
+                <div className="twofa-verification-card">
+                  <div className="twofa-code-field">
+                    <TotpCodeInput
+                      value={code}
+                      onChange={setCode}
+                      length={6}
+                      disabled={verifying || isBlocked}
+                      autoFocus
+                      label="Saisissez le code à 6 chiffres"
+                      error={error || undefined}
+                      name="twofa-verify"
+                    />
+                  </div>
+
+                  {isBlocked && (
+                    <div className="twofa-lockout-banner" role="alert">
+                      Trop de tentatives. Pour votre sécurité, la vérification est bloquée pendant {formatCooldown(remainingSeconds)}.
+                    </div>
+                  )}
+
+                  <div className="form-actions twofa-actions-row" style={{ justifyContent: 'flex-start' }}>
+                    <button className="btn btn-primary" onClick={verify} disabled={isBusy || isBlocked || code.length < 6}>
+                      {verifying ? 'Vérification...' : 'Vérifier et activer'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => { setError(null); setSuccess(null); resetActivationForm(); }}
+                      disabled={isBusy}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
