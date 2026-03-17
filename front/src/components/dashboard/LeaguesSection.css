@@ -5,14 +5,14 @@
   margin: 0 auto;
 }
 
-.section-header {
+.leagues-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
 }
 
-.section-header h2 {
+.leagues-section .section-header h2 {
   font-size: 1.875rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -45,7 +45,7 @@
   display: none;
 }
 
-.tab-button {
+.leagues-tabs .tab-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -64,7 +64,7 @@
   margin-bottom: -2px;
 }
 
-.tab-button::after {
+.leagues-tabs .tab-button::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -78,21 +78,21 @@
   box-shadow: var(--shadow-glow-primary);
 }
 
-.tab-content-wrapper {
+.leagues-tabs .tab-content-wrapper {
   display: flex;
   align-items: center;
   gap: 0.625rem;
   position: relative;
 }
 
-.tab-title {
+.leagues-tabs .tab-title {
   font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   transition: all 0.2s ease;
 }
 
-.tab-badge {
+.leagues-tabs .tab-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -108,30 +108,30 @@
   border: 2px solid transparent;
 }
 
-.tab-button:hover {
+.leagues-tabs .tab-button:hover {
   color: var(--color-primary);
   background: rgba(6, 182, 212, 0.06);
 }
 
-.tab-button:hover .tab-badge {
+.leagues-tabs .tab-button:hover .tab-badge {
   background: rgba(6, 182, 212, 0.12);
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
 
-.tab-button.active {
+.leagues-tabs .tab-button.active {
   color: var(--color-primary);
 }
 
-.tab-button.active::after {
+.leagues-tabs .tab-button.active::after {
   transform: scaleX(1);
 }
 
-.tab-button.active .tab-title {
+.leagues-tabs .tab-button.active .tab-title {
   font-weight: 700;
 }
 
-.tab-button.active .tab-badge {
+.leagues-tabs .tab-button.active .tab-badge {
   background: var(--gradient-primary);
   color: var(--text-inverse);
   border-color: transparent;
@@ -539,23 +539,47 @@
 }
 
 @media (max-width: 380px) {
-  .league-actions {
-    grid-template-columns: 1fr;
+  .leagues-tabs .tab-button {
+    padding: 0.75rem 0.5rem;
   }
 
-  .league-actions .btn-action {
-    padding: var(--space-3) var(--space-4);
+  .leagues-tabs .tab-title {
+    font-size: 0.6875rem;
+  }
+
+  .leagues-tabs .tab-badge {
+    min-width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.625rem;
   }
 }
 
 /* ========== TOUCH INTERACTIONS ========== */
 @media (pointer: coarse) {
-  .league-actions .btn-action {
-    min-height: 48px;
+  .btn,
+  .leagues-tabs .tab-button {
+    min-height: 44px;
     touch-action: manipulation;
   }
 
-  .league-actions .btn-action:active:not(:disabled) {
+  .league-actions .btn {
+    min-height: 48px;
+    font-size: 0.875rem;
+  }
+
+  .join-input {
+    min-height: 48px;
+  }
+
+  .league-actions {
+    gap: 0.5rem;
+  }
+
+  .btn-outline:active {
+    transform: scale(0.98);
+  }
+
+  .btn-ranking:active {
     transform: scale(0.98);
   }
 }
@@ -1028,7 +1052,7 @@
 }
 
 @media (min-width: 768px) {
-  .section-header h2 {
+  .leagues-section .section-header h2 {
     font-size: 2.25rem;
   }
 
@@ -1038,51 +1062,39 @@
 }
 
 @media (max-width: 640px) {
-  .section-header {
+  .leagues-section .section-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 1rem;
   }
 
-  .section-header h2 {
-    font-size: 1.5rem;
-  }
-
-  .leagues-tabs {
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--border-primary);
-    padding-bottom: 0;
-  }
-
-  .tab-button {
-    padding: 0.875rem 1rem;
-    font-size: 0.8125rem;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .tab-content-wrapper {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .tab-title {
-    font-size: 0.75rem;
+  .leagues-section .section-header h2 {
+    font-size: 1.25rem;
     text-align: center;
   }
 
-  .tab-badge {
+  .leagues-tabs .tab-button {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    flex: 1;
+    min-width: fit-content;
+  }
+
+  .leagues-tabs .tab-title {
+    font-size: 0.8125rem;
+  }
+
+  .leagues-tabs .tab-badge {
     min-width: 1.5rem;
     height: 1.5rem;
     font-size: 0.6875rem;
-    padding: 0 0.375rem;
   }
 
-  .tab-button::after {
+  .leagues-tabs .tab-button::after {
     height: 2px;
   }
 
-  .tab-button.active .tab-badge {
+  .leagues-tabs .tab-button.active .tab-badge {
     transform: scale(1.05);
   }
 
@@ -1149,15 +1161,15 @@
 
 /* Very small screens */
 @media (max-width: 380px) {
-  .tab-button {
+  .leagues-tabs .tab-button {
     padding: 0.75rem 0.5rem;
   }
 
-  .tab-title {
+  .leagues-tabs .tab-title {
     font-size: 0.6875rem;
   }
 
-  .tab-badge {
+  .leagues-tabs .tab-badge {
     min-width: 1.25rem;
     height: 1.25rem;
     font-size: 0.625rem;
@@ -1241,7 +1253,7 @@
 /* ========== TOUCH-FRIENDLY INTERACTIONS ========== */
 @media (pointer: coarse) {
   .btn,
-  .tab-button {
+  .leagues-tabs .tab-button {
     min-height: 44px;
     touch-action: manipulation;
   }
