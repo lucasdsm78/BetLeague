@@ -563,18 +563,20 @@
 }
 
 .security-option:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 2px 8px var(--color-primary-subtle);
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+  box-shadow: none;
 }
 
 .security-option-active {
-  background: var(--color-success-subtle);
-  border-color: var(--color-success);
+  background: var(--bg-elevated);
+  border-color: var(--border-primary);
 }
 
 .security-option-active:hover {
-  border-color: var(--color-success);
-  box-shadow: var(--shadow-glow-success);
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+  box-shadow: none;
 }
 
 .option-info {
@@ -625,6 +627,7 @@
   color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .option-action {
@@ -648,6 +651,7 @@
   color: var(--text-primary);
   font-size: 0.92rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .twofa-feedback.is-error {
@@ -752,6 +756,7 @@
   color: rgba(248, 250, 252, 0.82);
   line-height: 1.65;
   font-size: 0.965rem;
+  overflow-wrap: anywhere;
 }
 
 .twofa-setup-benefits {
@@ -908,6 +913,7 @@
   letter-spacing: 0.18em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .secret-value.is-hidden {
@@ -950,6 +956,7 @@
   color: #ffe9e9;
   font-size: 0.92rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .twofa-actions-row {
@@ -987,6 +994,38 @@
     gap: 1.5rem;
   }
 
+  .security-option {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1.125rem;
+  }
+
+  .option-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .option-action {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .option-action-stack {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .option-action .btn,
+  .option-action-stack .btn {
+    width: 100%;
+  }
+
+  .twofa-attempts-chip {
+    width: 100%;
+  }
+
   .twofa-setup-grid {
     grid-template-columns: 1fr;
   }
@@ -1008,6 +1047,14 @@
     border-radius: 18px;
   }
 
+  .twofa-actions-row {
+    width: 100%;
+  }
+
+  .twofa-actions-row .btn {
+    width: 100%;
+  }
+
   /* ...existing code... */
 }
 
@@ -1016,12 +1063,40 @@
     padding: 0;
   }
 
+  .settings-section {
+    padding: 1.25rem;
+  }
+
+  .security-option {
+    padding: 1rem;
+  }
+
+  .option-info h4 {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .option-info p {
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
   .twofa-setup {
     border-radius: 20px;
   }
 
   .twofa-setup-hero {
     padding: 1rem;
+  }
+
+  .twofa-setup-header {
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+
+  .twofa-setup-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.55;
   }
 
   .twofa-setup-grid {
@@ -1033,6 +1108,13 @@
     justify-content: center;
   }
 
+  .twofa-panel-title,
+  .secret-label,
+  .twofa-instructions-title {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
   .secret-row,
   .secret-actions {
     flex-direction: column;
@@ -1042,12 +1124,14 @@
   .secret-value {
     flex-basis: auto;
     width: 100%;
-    letter-spacing: 0.12em;
-    font-size: 0.92rem;
+    letter-spacing: 0.1em;
+    font-size: 0.88rem;
+    line-height: 1.45;
   }
 
   .secret-actions .btn,
-  .twofa-open-app-btn {
+  .twofa-open-app-btn,
+  .twofa-actions-row .btn {
     width: 100%;
   }
 
@@ -1079,5 +1163,34 @@
 @media (max-width: 480px) {
   .profile-header .profile-info {
     display: none;
+  }
+
+  .security-option {
+    gap: 0.875rem;
+  }
+
+  .twofa-setup-hero,
+  .twofa-visual-card,
+  .twofa-secret-card,
+  .twofa-instructions-card,
+  .twofa-verification-card,
+  .twofa-disable-panel .twofa-setup-body {
+    padding: 0.875rem;
+  }
+
+  .twofa-setup-subtitle,
+  .twofa-panel-text,
+  .twofa-visual-hint,
+  .secret-hint,
+  .twofa-instructions-card p,
+  .twofa-lockout-banner,
+  .twofa-feedback {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .secret-value {
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
   }
 }
