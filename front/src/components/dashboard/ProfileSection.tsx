@@ -411,7 +411,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
               <>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn btn-secondary"
                   onClick={() => {
                     setError(null);
                     setSuccess(null);
@@ -427,9 +427,9 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
           </div>
         </div>
 
-        {(error || success) && (
-          <div className={`twofa-feedback ${error ? 'is-error' : 'is-success'}`} role="status" aria-live="polite">
-            {error || success}
+        {error && (
+          <div className="twofa-feedback is-error" role="status" aria-live="polite">
+            {error}
           </div>
         )}
 
