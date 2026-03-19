@@ -114,7 +114,7 @@ const DeleteAccountCard: React.FC<Props> = memo(({ isTwoFactorEnabled }) => {
 
         <div className="option-action">
           {step === 'idle' ? (
-            <button type="button" className="btn btn-outline danger" onClick={onStart}>
+            <button type="button" className="btn btn-secondary" onClick={onStart}>
               Supprimer mon compte
             </button>
           ) : (

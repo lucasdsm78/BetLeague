@@ -20,6 +20,7 @@
   color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .deleteAccount__callout code {
@@ -29,6 +30,8 @@
   border: 1px solid var(--border-primary);
   color: var(--color-danger);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .deleteAccount__label {
@@ -36,6 +39,7 @@
   gap: 0.5rem;
   color: var(--text-secondary);
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 .deleteAccount__input {
@@ -58,6 +62,7 @@
   margin-top: -0.25rem;
   color: var(--text-secondary);
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 .deleteAccount__actions {
@@ -67,6 +72,17 @@
 }
 
 @media (max-width: 600px) {
+  .deleteAccount__panel {
+    padding: 0.875rem;
+  }
+
+  .deleteAccount__callout,
+  .deleteAccount__label,
+  .deleteAccount__hint {
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
   .deleteAccount__actions {
     justify-content: stretch;
   }

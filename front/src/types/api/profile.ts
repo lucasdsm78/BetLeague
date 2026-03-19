@@ -52,3 +52,29 @@ export interface ApiUpdateProfileResponse {
   refresh_token?: string;
   user?: ApiUserProfile;
 }
+
+// --------------------
+// DTOs: 2FA verification and disable
+// --------------------
+
+export interface ApiTwoFactorVerifyPayload {
+  code: string;
+}
+
+export interface ApiTwoFactorStatusResponse {
+  enabled: boolean;
+  message?: string;
+  attempts_remaining?: number;
+}
+
+export interface ApiDisableTwoFactorPayload {
+  current_password: string;
+  code: string;
+}
+
+export interface ApiDisableTwoFactorResponse {
+  enabled: boolean;
+  message?: string;
+  sessions_revoked?: boolean;
+  reauth_required?: boolean;
+}

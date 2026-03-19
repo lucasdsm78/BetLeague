@@ -2,13 +2,14 @@ import io
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import StreamingResponse
 
 from application.user.user_command_model import (
     UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
     UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
     InvalidPasswordError, DeleteMyAccountModel,
     ChangeMyPasswordModel, ChangeMyPasswordResponse,
+    TwoFactorSetupResponse, TwoFactorStatusResponse,
+    VerifyTwoFactorModel, DisableTwoFactorModel, DisableTwoFactorResponse,
 )
 from application.user.user_command_usecase import UserCommandUseCase
 from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse
@@ -39,6 +40,10 @@ from dependency_injections import (
     current_user, user_command_usecase, user_query_usecase, password_reset_usecase,
     rate_limit_delete_my_account,
     rate_limit_change_my_password,
+    rate_limit_verify_2fa_activation,
+    rate_limit_disable_2fa,
+    rate_limit_login_with_2fa_code,
+    Verify2FARateLimitContext,
 )
 
 router = APIRouter(
@@ -110,10 +115,12 @@ async def logout_current_device(
     summary="User Login",
 )
 async def login(
+        request: Request,
         user_login_model: UserLoginModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
 ):
     try:
+        await rate_limit_login_with_2fa_code(request, user_login_model)
         user = await user_command_usecase.login(user_login_model)
         return user.for_login()
     except (UserLoginNotFoundError, InvalidPasswordError):
@@ -276,16 +283,15 @@ async def delete_my_account(
     "/user/enable-2fa",
     summary="Enable Two-Factor Authentication",
     status_code=status.HTTP_200_OK,
+    response_model=TwoFactorSetupResponse,
 )
 async def enable_2fa(
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        qr_code_bytes = await user_command_usecase.enable_2fa(current_user.get('email', ''))
-        return StreamingResponse(io.BytesIO(qr_code_bytes), media_type="image/png")
+        return await user_command_usecase.enable_2fa(current_user.get('email', ''))
     except HTTPException as e:
-        print(e)
         raise e
     except Exception as e:
         print(e)
@@ -299,16 +305,29 @@ async def enable_2fa(
     "/user/verify-2fa",
     summary="Verify Two-Factor Authentication",
     status_code=status.HTTP_200_OK,
+    response_model=TwoFactorStatusResponse,
 )
 async def verify_2fa(
-        code: str,
+        data: VerifyTwoFactorModel,
+        rate_limit_ctx: Verify2FARateLimitContext = Depends(rate_limit_verify_2fa_activation),
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
         current_user: dict = Depends(current_user)
 ):
     try:
-        is_valid = await user_command_usecase.verify_2fa(current_user.get('email', ''), code)
-        if is_valid:
-            return {"message": "2FA verified successfully."}
+        return await user_command_usecase.verify_2fa(
+            current_user.get('email', ''),
+            data,
+            attempts_remaining=rate_limit_ctx.attempts_remaining,
+        )
+    except Invalid2FACodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": e.message,
+                "code": "INVALID_2FA_CODE",
+                "attempts_remaining": rate_limit_ctx.attempts_remaining,
+            }
+        )
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -316,6 +335,44 @@ async def verify_2fa(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify 2FA."
         )
+
+
+@router.post(
+    "/user/disable-2fa",
+    summary="Disable Two-Factor Authentication",
+    status_code=status.HTTP_200_OK,
+    response_model=DisableTwoFactorResponse,
+    dependencies=[Depends(rate_limit_disable_2fa)],
+)
+async def disable_2fa(
+        data: DisableTwoFactorModel,
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await user_command_usecase.disable_2fa(
+            current_user.get('email', ''),
+            current_user.get('token', ''),
+            data,
+        )
+    except InvalidPasswordError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"message": "Email ou mot de passe incorrect.", "code": "INVALID_CREDENTIALS"}
+        )
+    except Invalid2FACodeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"message": e.message, "code": "INVALID_2FA_CODE"}
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to disable 2FA."
+        )
+
 
 @router.get(
     "/users/rank",
@@ -334,6 +391,7 @@ async def get_general_ranking(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
+
 
 @router.put(
     "/user",

@@ -56,6 +56,7 @@ from domain.push_subscription.repository.push_subscription_repository import Pus
 from domain.services.push.web_push_service import WebPushService
 
 from functools import lru_cache
+from dataclasses import dataclass
 from typing import Iterator, AsyncGenerator, Callable
 
 from fastapi import Depends, HTTPException, status, Request
@@ -942,6 +943,180 @@ async def rate_limit_change_my_password(
         raise HTTPException(
             status_code=429,
             detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True
+
+
+@lru_cache()
+def two_factor_verify_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "two_factor_verify_rate_limit_per_minute", 5)),
+        window_s=int(getattr(settings, "two_factor_verify_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_two_factor_verify_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+@dataclass(frozen=True, slots=True)
+class Verify2FARateLimitContext:
+    attempts_remaining: int
+    retry_after_s: int = 0
+
+
+async def rate_limit_verify_2fa_activation(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(two_factor_verify_rate_limiter_singleton),
+) -> Verify2FARateLimitContext:
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    key = f"verify_2fa_activation:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "two_factor_verify_rate_limit_per_minute", 5))
+    window_s = int(getattr(settings, "two_factor_verify_rate_limit_window_s", 60))
+
+    redis_limiter = redis_two_factor_verify_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(
+            key=key,
+            limit=limit,
+            window_s=window_s,
+        )
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": "Trop de tentatives 2FA. Réessayez plus tard.",
+                "code": "RATE_LIMITED",
+                "attempts_remaining": 0,
+                "retry_after_seconds": result.retry_after_s,
+            },
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return Verify2FARateLimitContext(
+        attempts_remaining=result.remaining_attempts,
+        retry_after_s=result.retry_after_s,
+    )
+
+
+@lru_cache()
+def disable_2fa_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "disable_2fa_rate_limit_per_minute", 5)),
+        window_s=int(getattr(settings, "disable_2fa_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_disable_2fa_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_disable_2fa(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(disable_2fa_rate_limiter_singleton),
+):
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    key = f"disable_2fa:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "disable_2fa_rate_limit_per_minute", 5))
+    window_s = int(getattr(settings, "disable_2fa_rate_limit_window_s", 60))
+
+    redis_limiter = redis_disable_2fa_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Trop de tentatives de désactivation 2FA. Réessayez plus tard.", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True
+
+
+@lru_cache()
+def login_2fa_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "login_2fa_rate_limit_per_minute", 5)),
+        window_s=int(getattr(settings, "login_2fa_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_login_2fa_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_login_with_2fa_code(
+    request: Request,
+    user_login_model: UserLoginModel,
+    limiter: SlidingWindowRateLimiter | None = None,
+):
+    if limiter is None:
+        limiter = login_2fa_rate_limiter_singleton()
+
+    if not (user_login_model.code or "").strip():
+        return True
+
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    email = (user_login_model.email or "").strip().lower()
+
+    key = f"login_2fa:ip:{client_ip}:email:{email}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "login_2fa_rate_limit_per_minute", 5))
+    window_s = int(getattr(settings, "login_2fa_rate_limit_window_s", 60))
+
+    redis_limiter = redis_login_2fa_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Trop de tentatives de code 2FA. Réessayez plus tard.", "code": "RATE_LIMITED"},
             headers={"Retry-After": str(result.retry_after_s)},
         )
 
