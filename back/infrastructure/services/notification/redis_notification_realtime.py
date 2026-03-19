@@ -6,6 +6,7 @@ import logging
 from typing import AsyncIterator
 
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from domain.notification.model.notification import Notification
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
@@ -61,35 +62,68 @@ class RedisNotificationSubscriber:
     def _channel(self, user_id: int) -> str:
         return f"{self._prefix}{user_id}"
 
-    async def subscribe(self, *, user_id: int) -> AsyncIterator[str]:
-        redis = Redis.from_url(self._redis_url, decode_responses=False)
-        pubsub = redis.pubsub()
-        channel = self._channel(user_id)
-        await pubsub.subscribe(channel)
-        try:
-            # Attendre l'ACK subscribe
-            async for message in pubsub.listen():
-                if message and message.get("type") == "subscribe":
-                    break
+    def _build_client(self) -> Redis:
+        return Redis.from_url(
+            self._redis_url,
+            decode_responses=False,
+            socket_connect_timeout=2,
+            socket_timeout=None,
+            health_check_interval=30,
+            retry_on_timeout=False,
+            socket_keepalive=True,
+        )
 
-            async for message in pubsub.listen():
-                if not message or message.get("type") != "message":
-                    continue
-                data = message.get("data")
-                if isinstance(data, (bytes, bytearray)):
-                    yield data.decode("utf-8")
-                elif isinstance(data, str):
-                    yield data
-        finally:
+    async def subscribe(self, *, user_id: int) -> AsyncIterator[str]:
+        channel = self._channel(user_id)
+        reconnect_delay_s = 1.0
+
+        while True:
+            redis: Redis | None = None
+            pubsub = None
             try:
-                await pubsub.unsubscribe(channel)
-            except Exception:
-                pass
-            try:
-                await pubsub.close()
-            except Exception:
-                pass
-            try:
-                await redis.close()
-            except Exception:
-                pass
+                redis = self._build_client()
+                pubsub = redis.pubsub(ignore_subscribe_messages=False)
+                await pubsub.subscribe(channel)
+
+                # Attendre l'ACK subscribe
+                async for message in pubsub.listen():
+                    if message and message.get("type") == "subscribe":
+                        break
+
+                pubsub.ignore_subscribe_messages = True
+
+                async for message in pubsub.listen():
+                    if not message or message.get("type") != "message":
+                        continue
+                    data = message.get("data")
+                    if isinstance(data, (bytes, bytearray)):
+                        yield data.decode("utf-8")
+                    elif isinstance(data, str):
+                        yield data
+                    else:
+                        yield str(data)
+            except asyncio.CancelledError:
+                raise
+            except RedisError:
+                logger.warning(
+                    "redis.async_pubsub_reconnecting",
+                    extra={"channel": channel, "delay_s": reconnect_delay_s},
+                    exc_info=True,
+                )
+                await asyncio.sleep(reconnect_delay_s)
+            finally:
+                try:
+                    if pubsub is not None:
+                        await pubsub.unsubscribe(channel)
+                except Exception:
+                    pass
+                try:
+                    if pubsub is not None:
+                        await pubsub.close()
+                except Exception:
+                    pass
+                try:
+                    if redis is not None:
+                        await redis.close()
+                except Exception:
+                    pass

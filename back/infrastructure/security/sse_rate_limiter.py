@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class RateLimitResult:
     allowed: bool
     retry_after_s: int
+    remaining_attempts: int
 
 
 class SlidingWindowRateLimiter:
@@ -28,8 +29,8 @@ class SlidingWindowRateLimiter:
 
         if len(q) >= self._limit:
             retry_after = int(max(1, q[0] + self._window_s - now))
-            return RateLimitResult(allowed=False, retry_after_s=retry_after)
+            return RateLimitResult(allowed=False, retry_after_s=retry_after, remaining_attempts=0)
 
         q.append(now)
-        return RateLimitResult(allowed=True, retry_after_s=0)
-
+        remaining_attempts = max(self._limit - len(q), 0)
+        return RateLimitResult(allowed=True, retry_after_s=0, remaining_attempts=remaining_attempts)

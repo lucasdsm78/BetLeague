@@ -27,9 +27,3 @@ export interface TwoFactorSetup {
    */
   source: TwoFactorSetupSource;
 }
-
-export interface TwoFactorStatus {
-  enabled: boolean;
-  message?: string;
-}
-

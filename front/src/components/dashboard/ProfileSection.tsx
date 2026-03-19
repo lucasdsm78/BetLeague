@@ -2,7 +2,7 @@ import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './ProfileSection.css';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
-import { useEnableTwoFactorMutation, useVerifyTwoFactorMutation } from '../../hooks/queries/useProfileMutations';
+import { useEnableTwoFactorMutation, useVerifyTwoFactorMutation, useDisableTwoFactorMutation } from '../../hooks/queries/useProfileMutations';
 import { useAuthStore } from 'store/authStore';
 import EditAccountModal from './EditAccountModal';
 import BTLPurchaseModal from './BTLPurchaseModal';
@@ -11,6 +11,9 @@ import { useGlobalToast } from '../../toast/ToastProvider';
 import type { TwoFactorSetup } from '../../types/entities/twoFactor';
 import PushNotificationToggle from '../notifications/PushNotificationToggle';
 import DeleteAccountCard from './DeleteAccountCard';
+import TotpCodeInput from '../auth/ForgotPassword/TotpCodeInput';
+import { useTwoFactorAttemptLimiter } from '../../hooks/useTwoFactorAttemptLimiter';
+import { TwoFactorActionError } from '../../services/twoFactor';
 
 type TabType = 'overview' | 'account' | 'security' | 'preferences';
 
@@ -164,16 +167,60 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
   const updateUser = useAuthStore((s) => s.updateUser);
   const enable2faMutation = useEnableTwoFactorMutation();
   const verify2faMutation = useVerifyTwoFactorMutation();
+  const disable2faMutation = useDisableTwoFactorMutation();
   const toast = useGlobalToast();
 
   const [enabled, setEnabled] = useState<boolean>(isTwoFactorEnabled || !!user?.twoFactorEnabled);
   const [setupVisible, setSetupVisible] = useState(false);
   const [setupData, setSetupData] = useState<TwoFactorSetup | null>(null);
   const [code, setCode] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [disableVisible, setDisableVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  const throttleStorageKey = useMemo(
+    () => String(user?.id || user?.email || 'anonymous'),
+    [user?.email, user?.id],
+  );
+  const {
+    attemptsRemaining,
+    isBlocked,
+    remainingSeconds,
+    registerFailure,
+    reset: resetActivationThrottle,
+  } = useTwoFactorAttemptLimiter({
+    storageKey: throttleStorageKey,
+    maxAttempts: 5,
+    baseCooldownSeconds: 60,
+  });
+
+  useEffect(() => {
+    setEnabled(!!(isTwoFactorEnabled || user?.twoFactorEnabled));
+  }, [isTwoFactorEnabled, user?.twoFactorEnabled]);
+
+  const resetActivationForm = useCallback(() => {
+    setSetupVisible(false);
+    setSetupData(null);
+    setCode('');
+    setShowSecret(false);
+  }, []);
+
+  const resetDisableForm = useCallback(() => {
+    setDisableVisible(false);
+    setDisableCode('');
+    setDisablePassword('');
+  }, []);
+
+  const formatCooldown = useCallback((seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest > 0 ? `${minutes} min ${rest}s` : `${minutes} min`;
+  }, []);
 
   const startEnable = useCallback(async () => {
     setError(null);
@@ -183,6 +230,7 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
       const data = await enable2faMutation.mutateAsync();
       setSetupData(data);
       setSetupVisible(true);
+      setDisableVisible(false);
       toast.showSuccess('2FA', 'Scannez le QR code puis saisissez le code à 6 chiffres.');
     } catch (e: any) {
       const msg = e?.message || "Impossible d'activer la 2FA pour le moment";
@@ -195,6 +243,13 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
     setError(null);
     setSuccess(null);
 
+    if (isBlocked) {
+      const msg = `Trop de tentatives. Réessayez dans ${formatCooldown(remainingSeconds)}.`;
+      setError(msg);
+      toast.showWarning('2FA', msg);
+      return;
+    }
+
     const clean = (code || '').trim();
     if (!/^\d{6}$/.test(clean)) {
       const msg = 'Entrez un code valide à 6 chiffres';
@@ -206,25 +261,83 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
     try {
       const res = await verify2faMutation.mutateAsync({ code: clean });
       if (res.enabled) {
+        resetActivationThrottle();
         setEnabled(true);
         updateUser({ twoFactorEnabled: true });
         const msg = res.message || 'Authentification à deux facteurs activée avec succès';
         setSuccess(msg);
         toast.showSuccess('2FA activée', msg);
-        setSetupVisible(false);
-        setCode('');
-        setShowSecret(false);
+        resetActivationForm();
       } else {
+        registerFailure();
         const msg = 'Vérification échouée';
         setError(msg);
         toast.showError('2FA', msg);
       }
     } catch (e: any) {
-      const msg = e?.message || 'Code incorrect';
+      const retryAfter = Number(e?.retryAfterSeconds || 0);
+      const status = Number(e?.status || 0);
+      const codeError = String(e?.code || '');
+      const serverAttemptsRemaining = Number.isFinite(Number(e?.attemptsRemaining)) ? Number(e?.attemptsRemaining) : undefined;
+      if (e instanceof TwoFactorActionError && (status === 429 || retryAfter > 0)) {
+        registerFailure(retryAfter > 0 ? retryAfter : undefined);
+        const msg = `Trop de tentatives. Réessayez dans ${formatCooldown(retryAfter || remainingSeconds || 60)}.`;
+        setError(msg);
+        toast.showWarning('2FA', msg);
+        return;
+      }
+      if (codeError === 'INVALID_2FA_CODE' || status === 400) {
+        registerFailure();
+      }
+      const remainingText = serverAttemptsRemaining !== undefined
+        ? ` Il vous reste ${serverAttemptsRemaining} tentative${serverAttemptsRemaining > 1 ? 's' : ''}.`
+        : '';
+      const msg = `${e?.message || 'Code incorrect'}${remainingText}`;
       setError(msg);
       toast.showError('2FA', msg);
     }
-  }, [code, updateUser, verify2faMutation, toast]);
+  }, [code, formatCooldown, isBlocked, registerFailure, remainingSeconds, resetActivationForm, resetActivationThrottle, toast, updateUser, verify2faMutation]);
+
+  const disableTwoFactor = useCallback(async () => {
+    setError(null);
+    setSuccess(null);
+
+    const cleanCode = (disableCode || '').trim();
+    const cleanPassword = (disablePassword || '').trim();
+
+    if (cleanPassword.length < 8) {
+      const msg = 'Entrez votre mot de passe actuel';
+      setError(msg);
+      toast.showWarning('2FA', msg);
+      return;
+    }
+
+    if (!/^\d{6}$/.test(cleanCode)) {
+      const msg = 'Entrez un code 2FA valide à 6 chiffres';
+      setError(msg);
+      toast.showWarning('2FA', msg);
+      return;
+    }
+
+    try {
+      const res = await disable2faMutation.mutateAsync({ currentPassword: cleanPassword, code: cleanCode });
+      const msg = res.message || 'Authentification à deux facteurs désactivée.';
+      toast.showSuccess('2FA désactivée', msg);
+      resetActivationThrottle();
+      if (res.reauthRequired) {
+        return;
+      }
+      setEnabled(false);
+      updateUser({ twoFactorEnabled: false });
+      setSuccess(msg);
+      resetActivationForm();
+      resetDisableForm();
+    } catch (e: any) {
+      const msg = e?.message || 'Impossible de désactiver la 2FA';
+      setError(msg);
+      toast.showError('2FA', msg);
+    }
+  }, [disable2faMutation, disableCode, disablePassword, resetActivationForm, resetActivationThrottle, resetDisableForm, toast, updateUser]);
 
   const handleCopySecret = useCallback(async () => {
     const secret = setupData?.secret;
@@ -253,7 +366,8 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
 
   const enabling = enable2faMutation.isPending;
   const verifying = verify2faMutation.isPending;
-  const isBusy = enabling || verifying;
+  const disabling = disable2faMutation.isPending;
+  const isBusy = enabling || verifying || disabling;
 
   const openChangePassword = useCallback(() => {
     setIsChangePasswordOpen(true);
@@ -271,15 +385,6 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
           <div className="option-info">
             <div className="option-header">
               <h4>Authentification à deux facteurs</h4>
-              {enabled && (
-                <div className="status-badge status-active">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                  </svg>
-                  <span>Activée</span>
-                </div>
-              )}
             </div>
             <p>
               {enabled
@@ -288,111 +393,199 @@ const SecuritySettings = memo<SecuritySettingsProps>(({ isTwoFactorEnabled }) =>
               }
             </p>
           </div>
-          <div className="option-action">
+          <div className="option-action option-action-stack">
             {!enabled ? (
-              <button className="btn btn-primary" onClick={startEnable} disabled={isBusy}>
-                {enabling ? 'Activation...' : 'Activer 2FA'}
-              </button>
+              <>
+                <button className="btn btn-primary" onClick={startEnable} disabled={isBusy}>
+                  {enabling ? 'Activation...' : 'Activer 2FA'}
+                </button>
+                {(setupVisible || isBlocked) && (
+                  <div className={`twofa-attempts-chip ${isBlocked ? 'is-blocked' : ''}`} aria-live="polite">
+                    {isBlocked
+                      ? `Protection active · réessayez dans ${formatCooldown(remainingSeconds)}`
+                      : `${attemptsRemaining} tentative${attemptsRemaining > 1 ? 's' : ''} restante${attemptsRemaining > 1 ? 's' : ''}`}
+                  </div>
+                )}
+              </>
             ) : (
-              <button className="btn btn-success" disabled style={{ cursor: 'not-allowed', opacity: 0.7 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '0.5rem' }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Activée
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setSuccess(null);
+                    setDisableVisible((v) => !v);
+                    setSetupVisible(false);
+                  }}
+                  disabled={isBusy}
+                >
+                  {disableVisible ? 'Annuler' : 'Désactiver 2FA'}
+                </button>
+              </>
             )}
           </div>
         </div>
 
+        {error && (
+          <div className="twofa-feedback is-error" role="status" aria-live="polite">
+            {error}
+          </div>
+        )}
+
         {setupVisible && (
           <div className="twofa-setup">
-            <div className="twofa-setup-header">Configuration 2FA</div>
+            <div className="twofa-setup-hero">
+              <div className="twofa-setup-hero-copy">
+                <span className="twofa-kicker">Sécurisation du compte</span>
+                <div className="twofa-setup-heading-row">
+                  <div className="twofa-setup-header">Configuration 2FA</div>
+                </div>
+                <p className="twofa-setup-subtitle">
+                  Scannez le QR code avec votre application d’authentification, conservez votre clé de secours,
+                  puis confirmez avec un code à 6 chiffres.
+                </p>
+                <div className="twofa-setup-benefits" aria-hidden="true">
+                  <span className="twofa-benefit-chip">Protection renforcée</span>
+                  <span className="twofa-benefit-chip">Validation instantanée</span>
+                  <span className="twofa-benefit-chip">Compatible mobile</span>
+                </div>
+              </div>
+            </div>
 
-            {/* Fallback accessibilité uniquement (les toasts gèrent l’affichage) */}
             <div className="sr-only" role="alert" aria-live="polite">
               {error || success || ''}
             </div>
 
-            <div className="twofa-setup-body">
-              {setupData?.qrCodeDataUrl ? (
-                <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="twofa-qr" />
-              ) : setupData?.otpauthUrl ? (
-                <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer" className="btn btn-outline" style={{ marginBottom: '0.75rem' }}>
-                  Ouvrir dans l'application d'authentification
-                </a>
-              ) : null}
+            <div className="twofa-setup-grid">
+              <div className="twofa-visual-card">
+                <div className="twofa-panel-badge">Étape 1</div>
+                <div className="twofa-panel-title">Scanner le QR code</div>
+                <p className="twofa-panel-text">
+                  Ouvrez Google Authenticator, 1Password, Authy ou toute application TOTP compatible.
+                </p>
 
-              {setupData?.secret && (
-                <div className="twofa-secret">
-                  <div className="secret-label">Clé secrète</div>
-
-                  <div className="secret-row">
-                    <div
-                      className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`}
-                      aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}
-                    >
-                      {showSecret ? setupData.secret : (setupData.secretMasked || '••••••••')}
-                    </div>
-
-                    <div className="secret-actions">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => setShowSecret((v) => !v)}
-                        disabled={isBusy}
-                        aria-pressed={showSecret}
-                      >
-                        {showSecret ? 'Masquer' : 'Afficher'}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline"
-                        onClick={handleCopySecret}
-                        disabled={isBusy}
-                      >
-                        Copier
-                      </button>
-                    </div>
+                {setupData?.qrCodeDataUrl ? (
+                  <div className="twofa-qr-shell">
+                    <img src={setupData.qrCodeDataUrl} alt="QR Code 2FA" className="twofa-qr" />
                   </div>
+                ) : setupData?.otpauthUrl ? (
+                  <a href={setupData.otpauthUrl} target="_blank" rel="noreferrer" className="btn btn-outline twofa-open-app-btn">
+                    Ouvrir dans l'application d'authentification
+                  </a>
+                ) : null}
 
-                  <div className="secret-hint">
-                    Gardez cette clé privée. Évitez les captures d’écran.
-                  </div>
+                <div className="twofa-visual-footer">
+                  <span className="twofa-visual-hint">Si le scan est impossible, utilisez la clé secrète ci-contre.</span>
                 </div>
-              )}
-
-              <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                <label className="form-label" htmlFor="twofa-verify">Saisissez le code à 6 chiffres</label>
-                <input
-                  id="twofa-verify"
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  className="form-input"
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  disabled={verifying}
-                  aria-invalid={error ? 'true' : 'false'}
-                  aria-describedby={error ? 'twofa-verify-error' : undefined}
-                />
-                {error && (
-                  <div className="sr-only" id="twofa-verify-error" role="alert">
-                    {error}
-                  </div>
-                )}
               </div>
 
-              <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
-                <button className="btn btn-primary" onClick={verify} disabled={isBusy || !code || code.length < 6}>
-                  {verifying ? 'Vérification...' : 'Vérifier et activer'}
+              <div className="twofa-content-stack">
+                {setupData?.secret && (
+                  <div className="twofa-secret-card">
+                    <div className="twofa-panel-badge is-warning">Clé de secours</div>
+                    <div className="secret-label">Clé secrète</div>
+                    <div className="secret-row">
+                      <div className={`secret-value ${showSecret ? 'is-visible' : 'is-hidden'}`} aria-label={showSecret ? 'Clé secrète' : 'Clé secrète masquée'}>
+                        {showSecret ? setupData.secret : (setupData.secretMasked || '••••••••')}
+                      </div>
+                      <div className="secret-actions">
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => setShowSecret((v) => !v)} disabled={isBusy} aria-pressed={showSecret}>
+                          {showSecret ? 'Masquer' : 'Afficher'}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-outline" onClick={handleCopySecret} disabled={isBusy}>
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                    <div className="secret-hint">Gardez cette clé privée. Évitez les captures d’écran et stockez-la dans un endroit sûr.</div>
+                  </div>
+                )}
+
+                <div className="twofa-instructions-card">
+                  <div className="twofa-panel-badge">Étape 2</div>
+                  <div className="twofa-instructions-title">Valider l’activation</div>
+                  <p>Entrez le code affiché par votre application d’authentification pour terminer la protection de votre compte.</p>
+                </div>
+
+                <div className="twofa-verification-card">
+                  <div className="twofa-code-field">
+                    <TotpCodeInput
+                      value={code}
+                      onChange={setCode}
+                      length={6}
+                      disabled={verifying || isBlocked}
+                      autoFocus
+                      label="Saisissez le code à 6 chiffres"
+                      error={error || undefined}
+                      name="twofa-verify"
+                    />
+                  </div>
+
+                  {isBlocked && (
+                    <div className="twofa-lockout-banner" role="alert">
+                      Trop de tentatives. Pour votre sécurité, la vérification est bloquée pendant {formatCooldown(remainingSeconds)}.
+                    </div>
+                  )}
+
+                  <div className="form-actions twofa-actions-row" style={{ justifyContent: 'flex-start' }}>
+                    <button className="btn btn-primary" onClick={verify} disabled={isBusy || isBlocked || code.length < 6}>
+                      {verifying ? 'Vérification...' : 'Vérifier et activer'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => { setError(null); setSuccess(null); resetActivationForm(); }}
+                      disabled={isBusy}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {enabled && disableVisible && (
+          <div className="twofa-setup twofa-disable-panel">
+            <div className="twofa-setup-header">Désactiver la 2FA</div>
+            <div className="twofa-setup-body">
+              <div className="twofa-instructions-card warning">
+                <div className="twofa-instructions-title">Confirmation renforcée</div>
+                <p>Pour désactiver la 2FA, entrez votre mot de passe actuel et un code généré par votre application.</p>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="twofa-disable-password">Mot de passe actuel</label>
+                <input
+                  id="twofa-disable-password"
+                  type="password"
+                  className="form-input"
+                  autoComplete="current-password"
+                  value={disablePassword}
+                  onChange={(e) => setDisablePassword(e.target.value)}
+                  disabled={disabling}
+                  placeholder="Votre mot de passe"
+                />
+              </div>
+
+              <div className="twofa-code-field">
+                <TotpCodeInput
+                  value={disableCode}
+                  onChange={setDisableCode}
+                  length={6}
+                  disabled={disabling}
+                  label="Code 2FA actuel"
+                  error={error || undefined}
+                  name="twofa-disable"
+                />
+              </div>
+
+              <div className="form-actions twofa-actions-row" style={{ justifyContent: 'flex-start' }}>
+                <button className="btn btn-danger" onClick={disableTwoFactor} disabled={isBusy || disablePassword.trim().length < 8 || disableCode.length < 6}>
+                  {disabling ? 'Désactivation...' : 'Confirmer la désactivation'}
                 </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => { setSetupVisible(false); setError(null); setSuccess(null); setCode(''); setShowSecret(false); }}
-                  disabled={isBusy}
-                >
+                <button className="btn btn-secondary" onClick={resetDisableForm} disabled={isBusy}>
                   Annuler
                 </button>
               </div>

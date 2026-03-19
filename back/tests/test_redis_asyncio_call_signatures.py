@@ -23,7 +23,7 @@ class FakeRedisForRateLimiter:
 
     async def evalsha(self, sha: str, numkeys: int, *keys_and_args: str):
         self.evalsha_calls.append((sha, numkeys, keys_and_args))
-        return [1, 0]
+        return [1, 0, 2]
 
 
 class FakeRedisForTokenBlacklist:
@@ -44,6 +44,7 @@ async def test_redis_rate_limiter_uses_positional_evalsha_args():
 
     assert result.allowed is True
     assert result.retry_after_s == 0
+    assert result.remaining_attempts == 2
     assert len(redis.evalsha_calls) == 1
     sha, numkeys, keys_and_args = redis.evalsha_calls[0]
     assert sha == "fake-sha"
@@ -75,4 +76,3 @@ async def test_token_blacklist_uses_positional_eval_args_for_invalid_before():
         str(int(cutoff.timestamp())),
         "3600",
     )
-
