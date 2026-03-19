@@ -19,15 +19,15 @@ from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
-    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
-    verify_tournament_subscription
+    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
-    TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError
+    TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError, \
+    TournamentMonthlyFreeCreationLimitReachedError
 from domain.user.exception.user_exception import UserNotFoundError
 
-from application.tournament.tournament_query_model import TournamentCreatedResponse
+from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
 
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 
@@ -43,7 +43,6 @@ async def create_tournament(
     tournament_model: TournamentCreateModel,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
     current_user: dict = Depends(current_user),
-    _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.create_tournament(tournament_model, current_user.get("email", ""))
@@ -51,12 +50,46 @@ async def create_tournament(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except TournamentNameAlreadyExistsError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+    except TournamentMonthlyFreeCreationLimitReachedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail={
+                "message": e.message,
+                "code": e.code,
+                "monthly_free_tournaments_limit": e.monthly_free_limit,
+                "monthly_free_tournaments_used": e.monthly_free_used,
+                "monthly_free_tournaments_remaining": e.monthly_free_remaining,
+                "can_create_tournament": False,
+                "requires_tournament_subscription": True,
+            }
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la création du tournoi"
+        )
+
+
+@router.get(
+    "/tournaments/creation-access",
+    response_model=TournamentCreationAccessResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Récupère l'état du quota mensuel de création de tournois",
+)
+async def get_tournament_creation_access(
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return await tournament_usecase.get_tournament_creation_access(current_user.get("email", ""))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la récupération du quota tournoi"
         )
 
 
@@ -69,7 +102,6 @@ async def join_tournament(
     id: int,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
     current_user: dict = Depends(current_user),
-    _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.join_tournament(id, current_user.get("email", ""))
@@ -93,7 +125,6 @@ async def start_tournament(
         id: int,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.start_tournament(
@@ -132,7 +163,6 @@ async def get_tournament_stages(
         id: int,
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_tournament_stages(id, current_user.get("email", ""))
@@ -157,7 +187,6 @@ async def get_tournament_stages(
         id: int,
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_stage_matches(id, stage, current_user.get("email", ""))
@@ -181,7 +210,6 @@ async def get_tournaments_registered(
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_user_tournaments_in_progress(current_user.get("email", ""), page, page_size)
@@ -205,7 +233,6 @@ async def get_tournaments_finished(
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_tournaments_finished(current_user.get("email", ""), page, page_size)
@@ -227,7 +254,6 @@ async def get_available_public_tournaments(
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         return await tournament_usecase.get_available_tournaments_public(current_user.get("email", ""), page, page_size)
@@ -249,10 +275,10 @@ async def get_tournaments_created(
         page: int = Query(1, ge=1, description="Numéro de page (commence à 1)"),
         page_size: int = Query(10, ge=1, le=100, description="Nombre d'éléments par page"),
         tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
-        user: User = Depends(verify_tournament_subscription)
+        current_user: dict = Depends(current_user)
 ):
     try:
-        return await tournament_usecase.get_tournaments_created(user.id, page, page_size)
+        return await tournament_usecase.get_tournaments_created(int(current_user.get("id")), page, page_size)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -270,7 +296,6 @@ async def update_tournament(
         update_tournament_model: TournamentUpdateModel,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('email'))
@@ -323,7 +348,6 @@ async def process_tournaments_background(scheduler: TournamentScheduler):
 async def run_tournament_scheduler(
         background_tasks: BackgroundTasks,
         scheduler: TournamentScheduler = Depends(tournament_scheduler),
-        _: None = Depends(verify_tournament_subscription),
 ):
     try:
         background_tasks.add_task(process_tournaments_background, scheduler)
@@ -409,7 +433,6 @@ async def leave_tournament(
         id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         delete_tournament_player = await tournament_command_usecase.leave_tournament(
@@ -452,7 +475,6 @@ async def invite_user_to_tournament(
         user_id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         invitation = await tournament_command_usecase.invite_user(tournament_id, user_id, current_user.get('email', ''))
@@ -510,7 +532,6 @@ async def delete_invitation(
         invitation_id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
-        _: None = Depends(verify_tournament_subscription)
 ):
     try:
         delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, int(current_user.get('id')))

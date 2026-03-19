@@ -64,9 +64,9 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
       >
         <div className="modal-header">
           <div className="subscription-icon">🏆</div>
-          <h2>Abonnement tournois</h2>
+          <h2>Création tournoi illimitée</h2>
           <p className="subscription-subtitle">
-            Accédez aux tournois exclusifs et gagnez des récompenses
+            Vous avez 2 créations gratuites par mois. Passez à l’abonnement pour organiser des tournois sans limite.
           </p>
           <button
             className="modal-close"
@@ -109,9 +109,9 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
 
             <div className="plan-details">
               <div className="detail-item">
-                <span className="detail-icon">🔄</span>
+                <span className="detail-icon">⚡</span>
                 <span className="detail-text">
-                  Renouvelé automatiquement chaque mois
+                  Débloque immédiatement la création illimitée après vos 2 gratuits mensuels
                 </span>
               </div>
               <div className="detail-item">
@@ -123,7 +123,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
               <div className="detail-item">
                 <span className="detail-icon">🔒</span>
                 <span className="detail-text">
-                  Paiement sécurisé via Stripe
+                  Paiement sécurisé via Stripe, expérience fluide sur mobile et desktop
                 </span>
               </div>
             </div>

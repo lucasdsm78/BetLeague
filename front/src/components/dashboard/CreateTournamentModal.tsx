@@ -4,15 +4,17 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { createTournament } from '../../services/api/tournament';
-import type { TournamentCreateRequest } from '../../types/api/tournament';
+import { createTournament, TournamentCreationError } from '../../services/api/tournament';
+import type { TournamentCreateRequest, TournamentCreateResponse, TournamentCreationAccess } from '../../types/api/tournament';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import './CreateTournamentModal.css';
 
 interface CreateTournamentModalProps {
   onClose: () => void;
-  onTournamentCreated: () => void;
+  onTournamentCreated: (result?: TournamentCreateResponse) => void;
   onSwitchToMyTournaments?: () => void;
+  creationAccess?: TournamentCreationAccess | null;
+  onRequireSubscription?: () => void;
 }
 
 type CreateTournamentFormErrors = Partial<{
@@ -43,7 +45,13 @@ const datetimeLocalToEpochMs = (value: string): number | undefined => {
 
 const addDaysMs = (epochMs: number, days: number): number => epochMs + days * DAY_MS;
 
-const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, onTournamentCreated, onSwitchToMyTournaments }) => {
+const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
+  onClose,
+  onTournamentCreated,
+  onSwitchToMyTournaments,
+  creationAccess,
+  onRequireSubscription,
+}) => {
   const [formData, setFormData] = useState<TournamentCreateRequest>({
     name: '',
     is_private: false,
@@ -58,6 +66,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   const { showSuccess, showError } = useGlobalToast();
   const canCloseRef = useRef(false);
   const didInitDatesRef = useRef(false);
+  const isBlockedByQuota = Boolean(creationAccess && !creationAccess.can_create_tournament);
+  const quotaVariant = creationAccess?.has_active_subscription ? 'is-subscriber' : isBlockedByQuota ? 'is-locked' : 'is-free';
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,6 +154,12 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isBlockedByQuota) {
+      onRequireSubscription?.();
+      onClose();
+      return;
+    }
+
     if (!validateForm()) {
       showError('Formulaire invalide', 'Veuillez corriger les erreurs');
       return;
@@ -152,22 +168,33 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     setIsSubmitting(true);
 
     try {
-      await createTournament({
+      const response = await createTournament({
         name: formData.name.trim(),
         is_private: formData.is_private,
         max_players: 16,
         ...(typeof formData.start_date === 'number' ? { start_date: formData.start_date } : {}),
       });
 
-      showSuccess(
-        'Tournoi créé !',
-        `Tu es automatiquement inscrit au tournoi "${formData.name.trim()}".`
-      );
+      const remaining = response.monthly_free_tournaments_remaining;
+      const successMessage = typeof remaining === 'number'
+        ? remaining > 0
+          ? `Tu es automatiquement inscrit au tournoi "${formData.name.trim()}". Il te reste ${remaining} tournoi gratuit ce mois-ci.`
+          : `Tu es automatiquement inscrit au tournoi "${formData.name.trim()}". Tu as utilisé tes 2 tournois gratuits du mois.`
+        : `Tu es automatiquement inscrit au tournoi "${formData.name.trim()}".`;
 
-      onTournamentCreated();
+      showSuccess('Tournoi créé !', successMessage);
+
+      onTournamentCreated(response);
       onSwitchToMyTournaments?.();
       onClose();
     } catch (error: any) {
+      if (error instanceof TournamentCreationError && error.requiresSubscription) {
+        showError('Quota mensuel atteint', error.message);
+        onRequireSubscription?.();
+        onClose();
+        return;
+      }
+
       const errorMessage =
         error?.message ||
         'Une erreur est survenue lors de la création du tournoi';
@@ -176,7 +203,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, showSuccess, showError, onTournamentCreated, onSwitchToMyTournaments, onClose]);
+  }, [isBlockedByQuota, formData, validateForm, showSuccess, showError, onTournamentCreated, onSwitchToMyTournaments, onClose, onRequireSubscription]);
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isSubmitting && canCloseRef.current) {
@@ -204,10 +231,51 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
         {/* Form */}
         <form onSubmit={handleSubmit} className="tournament-form">
           <div className="form-section">
+            <div className={`creation-quota-banner ${quotaVariant}`}>
+              <div className="creation-quota-banner-header">
+                <span className="creation-quota-badge">
+                  {creationAccess?.has_active_subscription
+                    ? 'Abonnement actif'
+                    : `${creationAccess?.monthly_free_tournaments_remaining ?? 2}/${creationAccess?.monthly_free_tournaments_limit ?? 2} gratuits restants`
+                  }
+                </span>
+                <span className="creation-quota-kicker">
+                  {creationAccess?.has_active_subscription ? 'Création illimitée' : 'Quota mensuel'}
+                </span>
+              </div>
+              <p className="creation-quota-text">
+                {creationAccess?.has_active_subscription
+                  ? 'Vous pouvez créer autant de tournois que nécessaire, sans aucune limite mensuelle.'
+                  : isBlockedByQuota
+                    ? 'Vos 2 tournois gratuits du mois ont été utilisés. Passez à l’abonnement pour continuer sans attendre le mois prochain.'
+                    : 'Chaque mois, vous disposez de 2 créations gratuites. Le compteur se met à jour instantanément après chaque tournoi créé.'
+                }
+              </p>
+            </div>
+
             <p className="form-description">
               Créez votre tournoi et affrontez 15 autres joueurs dans une compétition à élimination directe !
             </p>
 
+            {isBlockedByQuota ? (
+              <div className="creation-lock-panel">
+                <div className="creation-lock-icon">✨</div>
+                <h3>Débloquez la création illimitée</h3>
+                <p>
+                  Vous avez déjà profité de vos 2 tournois gratuits ce mois-ci. L’abonnement tournoi débloque une création illimitée,
+                  une expérience plus fluide et une organisation sans friction, même sur mobile.
+                </p>
+                <div className="creation-lock-actions">
+                  <button type="button" className="btn btn-primary" onClick={() => { onRequireSubscription?.(); onClose(); }}>
+                    Voir l’abonnement tournoi
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={onClose}>
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Tournament Name */}
             <div className="form-group">
               <label htmlFor="tournament-name" className="form-label">
@@ -323,61 +391,34 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({ onClose, 
               <input
                 id="tournament-end-date"
                 type="datetime-local"
-                className={`form-input ${errors.end_date ? 'error' : ''}`}
+                className="form-input"
                 value={endDateLocal}
                 disabled
-                readOnly
+                aria-readonly="true"
               />
-              {errors.end_date && (
-                <span className="form-error">{errors.end_date}</span>
-              )}
-              <span className="form-hint">Calcul automatique : début + {TOURNAMENT_DURATION_DAYS} jours.</span>
+              <span className="form-hint">Calculée automatiquement à partir de la date de début.</span>
             </div>
 
-            {/* Tournament Info */}
-            <div className="tournament-info-box">
-              <div className="info-item">
-                <span className="info-icon">⏱️</span>
-                <span className="info-text">Durée : {TOURNAMENT_DURATION_DAYS} jours</span>
-              </div>
-              <div className="info-item">
-                <span className="info-icon">🎯</span>
-                <span className="info-text">Format : Élimination directe</span>
-              </div>
-              <div className="info-item">
-                <span className="info-icon">🏅</span>
-                <span className="info-text">Récompenses : BTL + badges</span>
-              </div>
+            {/* Footer Actions */}
+            <div className="modal-footer tournament-modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Création...' : 'Créer le tournoi'}
+              </button>
             </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary btn-create-tournament"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="spinner-small" />
-                  Création...
-                </>
-              ) : (
-                <>
-                  <span className="btn-icon">🏆</span>
-                  Créer le tournoi
-                </>
-              )}
-            </button>
+              </>
+            )}
           </div>
         </form>
       </div>

@@ -135,3 +135,20 @@ class TournamentStageNotFoundError(Exception):
 
     def __str__(self):
         return TournamentStageNotFoundError.message
+
+
+class TournamentMonthlyFreeCreationLimitReachedError(Exception):
+    code = "TOURNAMENT_MONTHLY_FREE_CREATION_LIMIT_REACHED"
+
+    def __init__(self, *, monthly_free_limit: int, monthly_free_used: int):
+        self.monthly_free_limit = monthly_free_limit
+        self.monthly_free_used = max(0, monthly_free_used)
+        self.monthly_free_remaining = max(0, monthly_free_limit - self.monthly_free_used)
+        self.message = (
+            f"Vous avez utilisé vos {self.monthly_free_limit} tournois gratuits ce mois-ci. "
+            "Abonnez-vous pour créer des tournois illimités."
+        )
+
+    def __str__(self):
+        return self.message
+
