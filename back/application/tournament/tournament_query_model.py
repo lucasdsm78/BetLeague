@@ -128,6 +128,15 @@ class TournamentFinishedResponse(BaseModel):
     page_size: int
 
 
+class TournamentCreationAccessResponse(BaseModel):
+    monthly_free_tournaments_limit: int
+    monthly_free_tournaments_used: int
+    monthly_free_tournaments_remaining: int
+    has_active_subscription: bool
+    can_create_tournament: bool
+    requires_tournament_subscription: bool
+
+
 class TournamentCreatedReadModel(BaseModel):
     id: int
     uuid: str

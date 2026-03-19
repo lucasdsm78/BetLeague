@@ -71,7 +71,6 @@ const TABS: Readonly<Record<TabId, TabConfig>> = {
     label: 'Tournois',
     icon: '🏆',
     path: '/tournaments',
-    requiresSubscription: true,
     securityLevel: 'medium'
   },
   tickets: {
