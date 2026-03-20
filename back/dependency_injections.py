@@ -240,6 +240,10 @@ def tournament_match_repository_dependency(session: AsyncSession = Depends(get_a
     return TournamentMatchRepositoryImpl(session)
 
 
+def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:
+    return TournamentSubscriptionRepositoryImpl(session)
+
+
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
 
@@ -541,10 +545,14 @@ def ticket_command_usecase(
 
 
 def user_query_usecase(
-        user_repository: UserRepository = Depends(user_repository_dependency)
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
 ) -> UserQueryUseCase:
     return UserQueryUseCaseImpl(
-        user_repository=user_repository
+        user_repository=user_repository,
+        tournament_repository=tournament_repository,
+        tournament_subscription_repository=tournament_subscription_repository,
     )
 
 
@@ -577,10 +585,6 @@ def tournament_command_usecase(
     return TournamentCommandUseCaseImpl(
         session_factory=session_factory
     )
-
-
-def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:
-    return TournamentSubscriptionRepositoryImpl(session)
 
 
 def tournament_query_usecase(

@@ -23,5 +23,15 @@ export async function updateUserProfile(payload: ApiUpdateUserPayload): Promise<
     nb_btl: Number(user.nb_btl ?? 0),
     is_tournament_subscriber: !!user.is_tournament_subscriber,
     is_two_factor_enabled: !!user.is_two_factor_enabled,
+    tournament_creation_access: user.tournament_creation_access
+      ? {
+          monthly_free_tournaments_limit: Number(user.tournament_creation_access.monthly_free_tournaments_limit ?? 0),
+          monthly_free_tournaments_used: Number(user.tournament_creation_access.monthly_free_tournaments_used ?? 0),
+          monthly_free_tournaments_remaining: Number(user.tournament_creation_access.monthly_free_tournaments_remaining ?? 0),
+          has_active_subscription: Boolean(user.tournament_creation_access.has_active_subscription ?? false),
+          can_create_tournament: Boolean(user.tournament_creation_access.can_create_tournament ?? false),
+          requires_tournament_subscription: Boolean(user.tournament_creation_access.requires_tournament_subscription ?? false),
+        }
+      : undefined,
   };
 }

@@ -6,6 +6,15 @@ from domain.user.model.user import User
 from domain.user.model.user_summary import UserSummary
 
 
+class TournamentCreationAccessReadModel(BaseModel):
+    monthly_free_tournaments_limit: int
+    monthly_free_tournaments_used: int
+    monthly_free_tournaments_remaining: int
+    has_active_subscription: bool
+    can_create_tournament: bool
+    requires_tournament_subscription: bool
+
+
 class UserReadModel(BaseModel):
 
     id: int
@@ -16,12 +25,16 @@ class UserReadModel(BaseModel):
     nb_btl: float
     is_tournament_subscriber: bool = False
     is_two_factor_enabled: bool = False
+    tournament_creation_access: Optional[TournamentCreationAccessReadModel] = None
 
     class Config:
         arbitrary_types_allowed = True
 
     @staticmethod
-    def from_entity(user: User) -> "UserReadModel":
+    def from_entity(
+        user: User,
+        tournament_creation_access: Optional[TournamentCreationAccessReadModel] = None,
+    ) -> "UserReadModel":
         return UserReadModel(
             id=user.id,
             email=user.email.value,
@@ -30,8 +43,10 @@ class UserReadModel(BaseModel):
             nb_lose=user.nb_lose,
             nb_btl=user.nb_btl,
             is_tournament_subscriber=user.is_tournament_subscriber,
-            is_two_factor_enabled=user.is_two_factor_enabled
+            is_two_factor_enabled=user.is_two_factor_enabled,
+            tournament_creation_access=tournament_creation_access,
         )
+
 
 class UserSummaryReadModel(BaseModel):
     id: Optional[int] = None
