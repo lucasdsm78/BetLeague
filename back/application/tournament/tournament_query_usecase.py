@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
     TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel, \
-    TournamentCreatedResponse, TournamentCreatedReadModel
+    TournamentCreatedResponse, TournamentCreatedReadModel, TournamentCreationAccessResponse
 from application.user.user_query_model import UserSummaryReadModel
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentStageNotFoundError
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
+from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
+from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
 
@@ -42,6 +44,10 @@ class TournamentQueryUseCase(ABC):
     async def get_tournaments_created(self, user_id: int, page: int = 1, page_size: int = 10) -> TournamentCreatedResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_tournament_creation_access(self, email: str) -> TournamentCreationAccessResponse:
+        raise NotImplementedError
+
 
 class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
@@ -52,7 +58,9 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             tournament_stage_repository: TournamentStageRepository,
             user_repository: UserRepository,
             stage_repository: TournamentStageRepository,
-            tournament_match_repository: TournamentMatchRepository
+            tournament_match_repository: TournamentMatchRepository,
+            tournament_subscription_repository: TournamentSubscriptionRepository,
+            creation_policy: TournamentCreationPolicy | None = None,
     ):
         self.tournament_repository: TournamentRepository = tournament_repository
         self._session_factory = session_factory
@@ -60,6 +68,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         self.tournament_stage_repository: TournamentStageRepository = tournament_stage_repository
         self.stage_repository: TournamentStageRepository = stage_repository
         self.tournament_match_repository: TournamentMatchRepository = tournament_match_repository
+        self.tournament_subscription_repository: TournamentSubscriptionRepository = tournament_subscription_repository
+        self.creation_policy = creation_policy or TournamentCreationPolicy()
 
     class Config:
         arbitrary_types_allowed = True
@@ -250,3 +260,23 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                 )
 
                 return response
+
+    async def get_tournament_creation_access(self, email: str) -> TournamentCreationAccessResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                month_start_ms, next_month_start_ms = current_month_window_ms()
+                monthly_used = await self.tournament_repository.count_created_by_user_between(
+                    user.id,
+                    month_start_ms,
+                    next_month_start_ms,
+                )
+                subscription = await self.tournament_subscription_repository.find_active_by_user_id(user.id)
+                access = self.creation_policy.evaluate(
+                    has_active_subscription=bool(subscription and subscription.is_active()),
+                    monthly_free_tournaments_used=monthly_used,
+                )
+                return TournamentCreationAccessResponse(**access.__dict__)

@@ -1,3 +1,12 @@
+export interface ApiTournamentCreationAccess {
+  monthly_free_tournaments_limit: number;
+  monthly_free_tournaments_used: number;
+  monthly_free_tournaments_remaining: number;
+  has_active_subscription: boolean;
+  can_create_tournament: boolean;
+  requires_tournament_subscription: boolean;
+}
+
 export interface ApiUserProfile {
   id: number;
   email: string;
@@ -7,6 +16,7 @@ export interface ApiUserProfile {
   nb_btl: number;
   is_tournament_subscriber?: boolean;
   is_two_factor_enabled?: boolean;
+  tournament_creation_access?: ApiTournamentCreationAccess;
 }
 
 // 2FA
@@ -42,6 +52,7 @@ export interface ApiUpdateUserResponse {
   nb_btl?: number;
   is_tournament_subscriber?: boolean;
   is_two_factor_enabled?: boolean;
+  tournament_creation_access?: ApiTournamentCreationAccess;
 }
 
 // Legacy compat (userProfile.ts)

@@ -16,7 +16,39 @@ import type {
   TournamentMatchOption,
   TournamentStage,
   StageMatch,
+  TournamentCreationAccess,
 } from '../../types/api/tournament';
+
+export class TournamentCreationError extends Error {
+  public readonly status: number;
+  public readonly code?: string;
+  public readonly requiresSubscription: boolean;
+  public readonly quota?: TournamentCreationAccess;
+
+  constructor(message: string, opts: { status: number; code?: string; requiresSubscription?: boolean; quota?: TournamentCreationAccess }) {
+    super(message);
+    this.name = 'TournamentCreationError';
+    this.status = opts.status;
+    this.code = opts.code;
+    this.requiresSubscription = opts.requiresSubscription ?? false;
+    this.quota = opts.quota;
+  }
+}
+
+function extractTournamentCreationQuota(details: unknown): TournamentCreationAccess | undefined {
+  const root = typeof details === 'object' && details !== null ? (details as Record<string, any>) : null;
+  const detail = root?.detail && typeof root.detail === 'object' ? root.detail : root;
+  if (!detail) return undefined;
+  if (typeof detail.monthly_free_tournaments_limit !== 'number') return undefined;
+  return {
+    monthly_free_tournaments_limit: Number(detail.monthly_free_tournaments_limit ?? 0),
+    monthly_free_tournaments_used: Number(detail.monthly_free_tournaments_used ?? 0),
+    monthly_free_tournaments_remaining: Number(detail.monthly_free_tournaments_remaining ?? 0),
+    has_active_subscription: Boolean(detail.has_active_subscription ?? false),
+    can_create_tournament: Boolean(detail.can_create_tournament ?? false),
+    requires_tournament_subscription: Boolean(detail.requires_tournament_subscription ?? false),
+  };
+}
 
 export async function createTournament(data: TournamentCreateRequest): Promise<TournamentCreateResponse> {
   const payload: TournamentCreateRequest = {
@@ -31,12 +63,30 @@ export async function createTournament(data: TournamentCreateRequest): Promise<T
     return response.data as TournamentCreateResponse;
   } catch (e) {
     if (e instanceof ApiClientError) {
-      if (e.status === 402) throw new Error("Vous devez être abonné à l'option tournoi pour créer un tournoi.");
+      const quota = extractTournamentCreationQuota(e.details);
+      if (e.status === 402) {
+        throw new TournamentCreationError(
+          quota?.requires_tournament_subscription
+            ? "Vous avez utilisé vos 2 tournois gratuits du mois. Passez à l'abonnement pour créer sans limite."
+            : "Vous ne pouvez pas créer de tournoi pour le moment.",
+          {
+            status: 402,
+            code: e.code,
+            requiresSubscription: Boolean(quota?.requires_tournament_subscription),
+            quota,
+          }
+        );
+      }
       if (e.status === 409) throw new Error('Ce nom de tournoi est déjà utilisé.');
       if (e.status === 400 || e.status === 422) throw new Error('Données invalides.');
     }
     throw e;
   }
+}
+
+export async function getTournamentCreationAccess(): Promise<TournamentCreationAccess> {
+  const response: ApiResponse<TournamentCreationAccess> = await http.get('/tournaments/creation-access');
+  return response.data as TournamentCreationAccess;
 }
 
 export async function getTournaments(page = 1, pageSize = 10): Promise<TournamentsResponse> {

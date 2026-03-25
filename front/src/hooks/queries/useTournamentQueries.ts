@@ -5,6 +5,7 @@ import {
   getMyCreatedTournaments,
   getMyTournaments,
   getStageMatches,
+  getTournamentCreationAccess,
   getTournamentStages,
   getTournaments,
   joinTournament,
@@ -20,8 +21,17 @@ import type {
   TournamentStagesResponse,
   TournamentsFinishedResponse,
   TournamentsResponse,
+  TournamentCreationAccess,
 } from '../../types/api/tournament';
 import { tournamentKeys } from './tournamentKeys';
+
+export function useTournamentCreationAccessQuery(options?: { enabled?: boolean }) {
+  return useQuery<TournamentCreationAccess, Error>({
+    queryKey: tournamentKeys.creationAccess,
+    queryFn: () => getTournamentCreationAccess(),
+    enabled: options?.enabled ?? true,
+  });
+}
 
 export function useAvailableTournamentsQuery(page: number, pageSize: number, options?: { enabled?: boolean }) {
   return useQuery<TournamentsResponse, Error>({
@@ -83,6 +93,7 @@ export function useCreateTournamentMutation() {
       qc.invalidateQueries({ queryKey: tournamentKeys.myList });
       qc.invalidateQueries({ queryKey: tournamentKeys.myCreatedList });
       qc.invalidateQueries({ queryKey: tournamentKeys.finishedList });
+      qc.invalidateQueries({ queryKey: tournamentKeys.creationAccess });
     },
   });
 }

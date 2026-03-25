@@ -129,7 +129,7 @@ const ShopSection: React.FC = memo(() => {
       <div className="shop-header">
         <div className="shop-title-section">
           <h1 className="shop-title">Boutique BetLeague</h1>
-          <p className="shop-subtitle">Achetez des BTL ou accédez aux tournois avec un abonnement</p>
+          <p className="shop-subtitle">Achetez des BTL ou débloquez la création de tournois illimitée après vos 2 gratuits mensuels</p>
         </div>
 
         {profile && (
@@ -221,19 +221,19 @@ const ShopSection: React.FC = memo(() => {
           <div className="subscription-section">
             <div className="section-header">
               <h2>Abonnement tournois</h2>
-              <p>Participez aux tournois exclusifs et gagnez des récompenses</p>
+              <p>Profitez de 2 créations gratuites par mois, puis passez à l’illimité pour organiser autant de tournois que vous voulez</p>
             </div>
 
             <div className="subscription-status-banner">
               {user?.isTournamentSubscriber ? (
                 <div className="status-active">
                   <span className="status-icon">✓</span>
-                  <span className="status-text">Votre abonnement est actif</span>
+                  <span className="status-text">Votre création tournoi illimitée est active</span>
                 </div>
               ) : (
                 <div className="status-inactive">
                   <span className="status-icon">ℹ️</span>
-                  <span className="status-text">Abonnez-vous pour accéder aux tournois</span>
+                  <span className="status-text">2 tournois gratuits par mois inclus, puis abonnement pour créer sans limite</span>
                 </div>
               )}
             </div>
@@ -277,7 +277,7 @@ const ShopSection: React.FC = memo(() => {
               <div className="tournament-hero">
                 <div className="tournament-hero-badge">🏆</div>
                 <h3 className="tournament-hero-title">Tournois BetLeague</h3>
-                <p className="tournament-hero-subtitle">Votre chance de briller !</p>
+                <p className="tournament-hero-subtitle">2 gratuits par mois, puis illimité</p>
               </div>
 
               <div className="tournament-intro-box">

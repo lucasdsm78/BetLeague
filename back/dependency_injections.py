@@ -240,6 +240,10 @@ def tournament_match_repository_dependency(session: AsyncSession = Depends(get_a
     return TournamentMatchRepositoryImpl(session)
 
 
+def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:
+    return TournamentSubscriptionRepositoryImpl(session)
+
+
 def match_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> MatchRepository:
     return MatchRepositoryImpl(session)
 
@@ -541,10 +545,14 @@ def ticket_command_usecase(
 
 
 def user_query_usecase(
-        user_repository: UserRepository = Depends(user_repository_dependency)
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
 ) -> UserQueryUseCase:
     return UserQueryUseCaseImpl(
-        user_repository=user_repository
+        user_repository=user_repository,
+        tournament_repository=tournament_repository,
+        tournament_subscription_repository=tournament_subscription_repository,
     )
 
 
@@ -578,12 +586,14 @@ def tournament_command_usecase(
         session_factory=session_factory
     )
 
+
 def tournament_query_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
         stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
-        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency)
+        tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency),
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
 ) -> TournamentQueryUseCase:
     return TournamentQueryUseCaseImpl(
         session_factory=session_factory,
@@ -591,7 +601,8 @@ def tournament_query_usecase(
         user_repository=user_repository,
         tournament_stage_repository=stage_repository,
         tournament_match_repository=tournament_match_repository,
-        stage_repository=stage_repository
+        stage_repository=stage_repository,
+        tournament_subscription_repository=tournament_subscription_repository,
     )
 
 def tournament_scheduler(
@@ -679,9 +690,6 @@ def purchase_query_usecase(
         pack_repository=pack_repository,
         user_repository=user_repository
     )
-
-def tournament_subscription_repository_dependency(session: AsyncSession = Depends(get_async_session)) -> TournamentSubscriptionRepository:
-    return TournamentSubscriptionRepositoryImpl(session)
 
 
 def tournament_subscription_domain_service_dependency(
@@ -1119,5 +1127,6 @@ async def rate_limit_login_with_2fa_code(
             detail={"message": "Trop de tentatives de code 2FA. Réessayez plus tard.", "code": "RATE_LIMITED"},
             headers={"Retry-After": str(result.retry_after_s)},
         )
+
 
     return True

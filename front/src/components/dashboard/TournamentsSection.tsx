@@ -7,12 +7,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
+import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import MyTournaments from './MyTournaments';
 import MyCreatedTournaments from './MyCreatedTournaments';
 import FinishedTournaments from './FinishedTournaments';
 import { useGlobalToast } from '../../toast/ToastProvider';
-import { useAvailableTournamentsQuery, useJoinTournamentMutation } from '../../hooks/queries/useTournamentQueries';
-import type { Tournament } from '../../types/api/tournament';
+import { useAvailableTournamentsQuery, useJoinTournamentMutation, useTournamentCreationAccessQuery } from '../../hooks/queries/useTournamentQueries';
+import type { Tournament, TournamentCreateResponse } from '../../types/api/tournament';
 import './TournamentsSection.css';
 
 type TournamentTab = 'available' | 'my-tournaments' | 'my-created' | 'finished-tournaments';
@@ -20,12 +21,18 @@ type TournamentTab = 'available' | 'my-tournaments' | 'my-created' | 'finished-t
 const TournamentsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TournamentTab>('available');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
+  const [isTournamentSubscriptionModalOpen, setIsTournamentSubscriptionModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [joinedTournament, setJoinedTournament] = useState<Tournament | null>(null);
 
   const { showInfo, showError } = useGlobalToast();
+
+  const creationAccessQuery = useTournamentCreationAccessQuery();
+  const creationAccess = creationAccessQuery.data;
+  const isCreationBlocked = Boolean(creationAccess && !creationAccess.can_create_tournament);
+  const createButtonLabel = isCreationBlocked ? 'Passer à l’illimité' : 'Créer un tournoi';
+  const createButtonIcon = isCreationBlocked ? '✨' : '➕';
 
   const availableQuery = useAvailableTournamentsQuery(page, pageSize, { enabled: activeTab === 'available' });
   const tournaments = availableQuery.data?.tournaments ?? [];
@@ -38,7 +45,20 @@ const TournamentsSection: React.FC = () => {
   const handleOpenCreateModal = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
     e?.preventDefault();
+    if (isCreationBlocked) {
+      showInfo('Quota mensuel atteint', 'Vos 2 tournois gratuits du mois sont utilisés. Passez à l’abonnement pour créer sans limite.');
+      setIsTournamentSubscriptionModalOpen(true);
+      return;
+    }
     setIsCreateModalOpen(true);
+  }, [isCreationBlocked, showInfo]);
+
+  const handleOpenTournamentSubscription = useCallback(() => {
+    setIsTournamentSubscriptionModalOpen(true);
+  }, []);
+
+  const handleCloseTournamentSubscription = useCallback(() => {
+    setIsTournamentSubscriptionModalOpen(false);
   }, []);
 
   const handleCloseCreateModal = useCallback(() => {
@@ -46,10 +66,19 @@ const TournamentsSection: React.FC = () => {
     setIsCreateModalOpen(false);
   }, []);
 
-  const handleTournamentCreated = useCallback(() => {
-    showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
+  const handleTournamentCreated = useCallback((result?: TournamentCreateResponse) => {
+    const remaining = result?.monthly_free_tournaments_remaining;
+    if (typeof remaining === 'number' && remaining >= 0) {
+      const description = remaining > 0
+        ? `Votre tournoi a été créé avec succès. Il vous reste ${remaining} tournoi gratuit ce mois-ci.`
+        : 'Votre tournoi a été créé avec succès. Vous avez utilisé vos 2 tournois gratuits du mois.';
+      showInfo('Tournoi créé', description);
+    } else {
+      showInfo('Tournoi créé', 'Votre tournoi a été créé avec succès !');
+    }
+    void creationAccessQuery.refetch();
     setActiveTab('my-created');
-  }, [showInfo]);
+  }, [creationAccessQuery, showInfo]);
 
   const handleJoinTournament = useCallback(async (tournamentId: number): Promise<void> => {
     try {
@@ -81,7 +110,7 @@ const TournamentsSection: React.FC = () => {
           <div className="tournaments-header-text">
             <h2 className="tournaments-title">🏆 Tournois</h2>
             <p className="tournaments-subtitle">
-              Participez aux tournois exclusifs et devenez champion !
+              Créez jusqu’à 2 tournois gratuits par mois, puis passez à l’illimité si vous voulez aller plus loin.
             </p>
           </div>
           <button
@@ -89,11 +118,60 @@ const TournamentsSection: React.FC = () => {
             className="btn-create-tournament-header"
             onClick={handleOpenCreateModal}
           >
-            <span className="btn-icon">➕</span>
-            Créer un tournoi
+            <span className="btn-icon">{createButtonIcon}</span>
+            {createButtonLabel}
           </button>
         </div>
       </div>
+
+      {creationAccess && (
+        <div className={`tournaments-creation-card ${creationAccess.has_active_subscription ? 'is-subscriber' : creationAccess.can_create_tournament ? 'is-free' : 'is-locked'}`}>
+          <div className="tournaments-creation-copy">
+            <span className="tournaments-creation-chip">
+              {creationAccess.has_active_subscription
+                ? 'Abonnement actif · création illimitée'
+                : `${creationAccess.monthly_free_tournaments_remaining}/${creationAccess.monthly_free_tournaments_limit} gratuits restants`
+              }
+            </span>
+            <h3>
+              {creationAccess.has_active_subscription
+                ? 'Créez autant de tournois que vous voulez'
+                : creationAccess.can_create_tournament
+                  ? 'Votre quota gratuit mensuel est actif'
+                  : 'Passez à l’abonnement pour débloquer l’illimité'
+              }
+            </h3>
+            <p>
+              {creationAccess.has_active_subscription
+                ? 'Votre abonnement tournoi vous donne un accès illimité à la création, idéal pour organiser plusieurs compétitions chaque mois.'
+                : creationAccess.can_create_tournament
+                  ? 'Chaque mois, vous pouvez lancer 2 tournois gratuitement. Le compteur se réinitialise automatiquement au début du mois suivant.'
+                  : 'Vous avez utilisé vos 2 tournois gratuits du mois. L’abonnement tournoi vous permet de continuer sans limite, sur mobile comme sur desktop.'
+              }
+            </p>
+          </div>
+
+          <div className="tournaments-creation-metrics">
+            <div className="creation-metric">
+              <span className="creation-metric-label">Utilisés</span>
+              <strong>{creationAccess.monthly_free_tournaments_used}</strong>
+            </div>
+            <div className="creation-metric">
+              <span className="creation-metric-label">Restants</span>
+              <strong>{creationAccess.has_active_subscription ? '∞' : creationAccess.monthly_free_tournaments_remaining}</strong>
+            </div>
+            <div className="creation-metric creation-metric-action">
+              <button
+                type="button"
+                className={`btn ${creationAccess.has_active_subscription ? 'btn-secondary' : creationAccess.can_create_tournament ? 'btn-primary' : 'btn-primary'}`}
+                onClick={creationAccess.can_create_tournament ? handleOpenCreateModal : handleOpenTournamentSubscription}
+              >
+                {creationAccess.can_create_tournament ? 'Créer maintenant' : 'Débloquer l’illimité'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs Navigation */}
       <div className="tournaments-tabs" role="tablist" aria-label="Navigation tournois">
@@ -170,8 +248,8 @@ const TournamentsSection: React.FC = () => {
                 <h3>Aucun tournoi disponible</h3>
                 <p>Soyez le premier à créer un tournoi !</p>
                 <button type="button" className="btn-create-tournament-cta" onClick={handleOpenCreateModal}>
-                  <span className="btn-icon">➕</span>
-                  Créer un tournoi
+                  <span className="btn-icon">{createButtonIcon}</span>
+                  {createButtonLabel}
                 </button>
               </div>
             )}
@@ -242,6 +320,17 @@ const TournamentsSection: React.FC = () => {
           onClose={handleCloseCreateModal}
           onTournamentCreated={handleTournamentCreated}
           onSwitchToMyTournaments={() => setActiveTab('my-tournaments')}
+          creationAccess={creationAccess}
+          onRequireSubscription={handleOpenTournamentSubscription}
+        />
+      )}
+
+      {isTournamentSubscriptionModalOpen && (
+        <TournamentSubscriptionModal
+          onClose={handleCloseTournamentSubscription}
+          onSubscriptionComplete={() => {
+            void creationAccessQuery.refetch();
+          }}
         />
       )}
 
