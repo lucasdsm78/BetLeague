@@ -16,7 +16,7 @@ from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
     NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError, TournamentMaxPlayersError, \
-    TournamentPlayerFoundError
+    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -34,6 +34,8 @@ from infrastructure.postgresql.invitation.invitation_repository import Invitatio
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
+from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
+from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import TournamentSubscriptionRepositoryImpl
 
 
 
@@ -67,8 +69,10 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
     def __init__(
         self,
         session_factory: Callable[[], AsyncSession],
+        creation_policy: TournamentCreationPolicy | None = None,
     ):
         self._session_factory = session_factory
+        self._creation_policy = creation_policy or TournamentCreationPolicy()
 
     async def create_tournament(self, data: TournamentCreateModel, email: str) -> TournamentCreateResponse:
         async with self._session_factory() as session:
@@ -76,10 +80,28 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 user_repo = UserRepositoryImpl(session)
                 tournament_repo = TournamentRepositoryImpl(session)
                 players_repo = TournamentPlayersRepositoryImpl(session)
+                subscription_repo = TournamentSubscriptionRepositoryImpl(session)
 
                 user = await user_repo.find_by_email(email)
                 if not user:
                     raise UserNotFoundError
+
+                month_start_ms, next_month_start_ms = current_month_window_ms()
+                monthly_used = await tournament_repo.count_created_by_user_between(
+                    user.id,
+                    month_start_ms,
+                    next_month_start_ms,
+                )
+                subscription = await subscription_repo.find_active_by_user_id(user.id)
+                access = self._creation_policy.evaluate(
+                    has_active_subscription=bool(subscription and subscription.is_active()),
+                    monthly_free_tournaments_used=monthly_used,
+                )
+                if not access.can_create_tournament:
+                    raise TournamentMonthlyFreeCreationLimitReachedError(
+                        monthly_free_limit=access.monthly_free_tournaments_limit,
+                        monthly_free_used=access.monthly_free_tournaments_used,
+                    )
 
                 existing = await tournament_repo.find_by_name(data.name)
                 if existing is not None:
@@ -125,10 +147,20 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                     created_tournament.prize_pool += created_tournament.entry_fee
                     await tournament_repo.update(created_tournament)
 
+                created_access = self._creation_policy.evaluate(
+                    has_active_subscription=access.has_active_subscription,
+                    monthly_free_tournaments_used=access.monthly_free_tournaments_used + 1,
+                )
+
         return TournamentCreateResponse(
             tournament_id=created_tournament.id,
             tournament_uuid=created_tournament.uuid,
             name=created_tournament.name,
+            monthly_free_tournaments_limit=created_access.monthly_free_tournaments_limit,
+            monthly_free_tournaments_used=created_access.monthly_free_tournaments_used,
+            monthly_free_tournaments_remaining=created_access.monthly_free_tournaments_remaining,
+            can_create_tournament=created_access.can_create_tournament,
+            requires_tournament_subscription=created_access.requires_tournament_subscription,
         )
 
     async def join_tournament(self, tournament_id: int, email: str) -> TournamentJoinResponse:
@@ -445,9 +477,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 tournament = await tournament_repo.find_by_id(tournament_id)
                 if not tournament:
                     raise TournamentNotFoundError
-
-                if user.is_tournament_subscriber is False:
-                    raise UserNotSubscribedError
 
                 if user_owner.id != tournament.user.id:
                     raise TournamentNotOwnerLeaguedError

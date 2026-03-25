@@ -79,3 +79,7 @@ class TournamentRepository(ABC):
     @abstractmethod
     async def rollback(self):
         raise NotImplementedError
+
+    @abstractmethod
+    async def count_created_by_user_between(self, user_id: int, created_from_ms: int, created_to_ms: int) -> int:
+        raise NotImplementedError

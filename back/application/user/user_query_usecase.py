@@ -3,7 +3,16 @@ from typing import Optional, List, Dict
 
 from pydantic import BaseModel
 
-from application.user.user_query_model import UserReadModel, UserSearchQuery, UserSearchResponse, UserSearchResultModel
+from application.user.user_query_model import (
+    UserReadModel,
+    UserSearchQuery,
+    UserSearchResponse,
+    UserSearchResultModel,
+    TournamentCreationAccessReadModel,
+)
+from domain.tournament.repository.tournament_repository import TournamentRepository
+from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
+from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.user.exception.user_exception import UserNotFoundError, UserNotOwnerError
 from domain.user.repository.user_repository import UserRepository
 
@@ -29,6 +38,9 @@ class UserQueryUseCase(ABC):
 
 class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
     user_repository: UserRepository
+    tournament_repository: TournamentRepository
+    tournament_subscription_repository: TournamentSubscriptionRepository
+    tournament_creation_policy: TournamentCreationPolicy = TournamentCreationPolicy()
 
     class Config:
         arbitrary_types_allowed = True
@@ -53,7 +65,22 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
         except:
             raise
 
-        return UserReadModel.from_entity(user)
+        month_start_ms, next_month_start_ms = current_month_window_ms()
+        monthly_used = await self.tournament_repository.count_created_by_user_between(
+            user.id,
+            month_start_ms,
+            next_month_start_ms,
+        )
+        subscription = await self.tournament_subscription_repository.find_active_by_user_id(user.id)
+        access = self.tournament_creation_policy.evaluate(
+            has_active_subscription=bool(subscription and subscription.is_active()),
+            monthly_free_tournaments_used=monthly_used,
+        )
+
+        return UserReadModel.from_entity(
+            user,
+            tournament_creation_access=TournamentCreationAccessReadModel(**access.__dict__),
+        )
 
     async def get_all_rank_users(self) -> List[Dict[str, any]]:
         try:
@@ -100,4 +127,3 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
         except Exception as e:
             print(f"User search error in use case: {e}")
             raise
-

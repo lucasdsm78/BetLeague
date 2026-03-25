@@ -255,6 +255,18 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         return tournaments, total_count
 
+    async def count_created_by_user_between(self, user_id: int, created_from_ms: int, created_to_ms: int) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(DBTournament)
+            .where(
+                DBTournament.user_id == user_id,
+                DBTournament.created_at >= created_from_ms,
+                DBTournament.created_at < created_to_ms,
+            )
+        )
+        return int(result.scalar_one() or 0)
+
     async def update(self, tournament: Tournament):
         result = await self.session.execute(
             select(DBTournament).where(DBTournament.id == tournament.id)

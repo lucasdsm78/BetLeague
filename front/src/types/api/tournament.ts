@@ -6,6 +6,15 @@
  * - Les transformations UI (formatage, labels, etc.) se font dans des hooks ou des helpers.
  */
 
+export interface TournamentCreationAccess {
+  monthly_free_tournaments_limit: number;
+  monthly_free_tournaments_used: number;
+  monthly_free_tournaments_remaining: number;
+  has_active_subscription: boolean;
+  can_create_tournament: boolean;
+  requires_tournament_subscription: boolean;
+}
+
 export interface TournamentCreateRequest {
   name: string;
   is_private: boolean;
@@ -13,7 +22,7 @@ export interface TournamentCreateRequest {
   start_date?: number;
 }
 
-export interface TournamentCreateResponse {
+export interface TournamentCreateResponse extends Omit<TournamentCreationAccess, 'has_active_subscription'> {
   message: string;
   tournament_id?: number;
   tournament_uuid?: string;

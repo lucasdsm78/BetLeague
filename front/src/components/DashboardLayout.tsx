@@ -71,7 +71,6 @@ const TABS: Readonly<Record<TabId, TabConfig>> = {
     label: 'Tournois',
     icon: '🏆',
     path: '/tournaments',
-    requiresSubscription: true,
     securityLevel: 'medium'
   },
   tickets: {
@@ -179,6 +178,31 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     const name = user.pseudo || user.username || user.email || 'Utilisateur';
     return sanitizeInput(String(name));
   }, [user]);
+
+  const tournamentQuotaBadge = useMemo(() => {
+    const access = profile?.tournament_creation_access;
+    if (!access) return null;
+
+    if (access.has_active_subscription) {
+      return {
+        desktop: 'illimité',
+        compact: '∞',
+        title: 'Création tournoi illimitée active',
+        variant: 'subscriber',
+      } as const;
+    }
+
+    const used = Math.max(0, Number(access.monthly_free_tournaments_used ?? 0));
+    const limit = Math.max(0, Number(access.monthly_free_tournaments_limit ?? 0));
+    if (limit <= 0) return null;
+
+    return {
+      desktop: `${used}/${limit} utilisés`,
+      compact: `${used}/${limit}`,
+      title: `${used} tournoi(x) gratuit(s) utilisé(s) sur ${limit} ce mois-ci`,
+      variant: access.can_create_tournament ? 'default' : 'locked',
+    } as const;
+  }, [profile?.tournament_creation_access]);
 
   // Secure tab determination with validation
   const getActiveTab = useCallback((): TabId => {
@@ -500,6 +524,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               >
                 <span className="nav-icon" aria-hidden="true">{tab.icon}</span>
                 <span className="nav-label">{tab.label}</span>
+                {tab.id === 'tournaments' && tournamentQuotaBadge && (
+                  <span
+                    className={`dashboard-tab-badge dashboard-tab-badge--${tournamentQuotaBadge.variant}`}
+                    title={tournamentQuotaBadge.title}
+                    aria-label={tournamentQuotaBadge.title}
+                  >
+                    {tournamentQuotaBadge.desktop}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -551,6 +584,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               >
                 <span className="menu-icon">{tab.icon}</span>
                 <span className="menu-label">{tab.label}</span>
+                {tab.id === 'tournaments' && tournamentQuotaBadge && (
+                  <span
+                    className={`dashboard-tab-badge dashboard-tab-badge--${tournamentQuotaBadge.variant} dashboard-tab-badge--menu`}
+                    title={tournamentQuotaBadge.title}
+                    aria-label={tournamentQuotaBadge.title}
+                  >
+                    {tournamentQuotaBadge.desktop}
+                  </span>
+                )}
               </button>
             ))}
 
@@ -578,7 +620,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
             aria-current={activeTab === tab.id ? 'page' : undefined}
             data-tab={tab.id}
           >
-            <span className="bottom-nav-icon">{tab.icon}</span>
+            <span className="bottom-nav-icon-wrap">
+              <span className="bottom-nav-icon">{tab.icon}</span>
+              {tab.id === 'tournaments' && tournamentQuotaBadge && (
+                <span
+                  className={`bottom-nav-badge bottom-nav-badge--${tournamentQuotaBadge.variant}`}
+                  title={tournamentQuotaBadge.title}
+                  aria-label={tournamentQuotaBadge.title}
+                >
+                  {tournamentQuotaBadge.compact}
+                </span>
+              )}
+            </span>
             <span className="bottom-nav-label">{tab.label}</span>
           </button>
         ))}

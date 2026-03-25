@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
-TOURNAMENT_NAME_REGEX = r"[A-Za-z0-9\\s\\-_éèêàâôûùçÉÈÊÀÂÔÛÙÇ]+"
+TOURNAMENT_NAME_REGEX = r"[A-Za-z0-9\s\-_éèêàâôûùçÉÈÊÀÂÔÛÙÇ]+"
 
 class TournamentCreateModel(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
@@ -37,6 +37,11 @@ class TournamentCreateResponse(BaseModel):
     tournament_id: Optional[int] = None
     tournament_uuid: Optional[str] = None
     name: Optional[str] = None
+    monthly_free_tournaments_limit: int = 2
+    monthly_free_tournaments_used: int = 0
+    monthly_free_tournaments_remaining: int = 2
+    can_create_tournament: bool = True
+    requires_tournament_subscription: bool = False
 
 class TournamentJoinResponse(BaseModel):
     message: str = "Joined tournament successfully"
