@@ -7,4 +7,4 @@ class TournamentSubscriptionPlan(str, Enum):
 
     @property
     def price_cents(self) -> int:
-        return 499 if self is TournamentSubscriptionPlan.MONTHLY else 4999
+        return 499 if self is TournamentSubscriptionPlan.MONTHLY else 2999

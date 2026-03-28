@@ -2,10 +2,10 @@ from typing import Literal, Optional, Any, Dict
 
 from pydantic import BaseModel
 
+SubscriptionPlanId = Literal["monthly", "yearly"]
+
 class CreateSubscriptionRequest(BaseModel):
-    subscription_plan: Literal["monthly", "yearly"]
-    success_url: str
-    cancel_url: str
+    subscription_plan: SubscriptionPlanId
 
 class SubscriptionResponse(BaseModel):
     subscription_id: str

@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import stripe
 from domain.purchase.exception.purchase_exception import InvalidWebhookError
@@ -59,7 +60,7 @@ class StripeServiceImpl(StripeService):
     async def create_subscription_session(
             self,
             customer_email: str,
-            price_id: str,
+            price_data: dict[str, Any],
             success_url: str,
             uuid: str,
             cancel_url: str,
@@ -73,7 +74,7 @@ class StripeServiceImpl(StripeService):
                     payment_method_options={
                         "card": {"request_three_d_secure": "automatic"}
                     },
-                    line_items=[{"price": price_id, "quantity": 1}],
+                    line_items=[{"price_data": price_data, "quantity": 1}],
                     client_reference_id=uuid,
                     customer_email=customer_email,
                     subscription_data={

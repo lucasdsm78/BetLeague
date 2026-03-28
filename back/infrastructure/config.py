@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     rabbitmq_url: str = Field(default="", validation_alias="RABBITMQ_URL")
     stripe_api_key: str
     stripe_webhook_secret: str
+    app_frontend_url: str = Field(default="http://localhost:3000", validation_alias="APP_FRONTEND_URL")
     the_odds_api_api_key: str
     vapid_private_key: str = Field(default="", validation_alias="VAPID_PRIVATE_KEY")
     vapid_public_key: str = Field(default="", validation_alias="VAPID_PUBLIC_KEY")

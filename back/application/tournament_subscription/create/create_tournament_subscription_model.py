@@ -1,9 +1,6 @@
-from typing import Literal
-
+from application.tournament_subscription.tournament_subscription_command_model import SubscriptionPlanId
 from pydantic import BaseModel
 
+
 class CreateSubscriptionRequest(BaseModel):
-    user_id: str
-    subscription_plan: Literal["monthly", "yearly"]
-    success_url: str
-    cancel_url: str
+    subscription_plan: SubscriptionPlanId
