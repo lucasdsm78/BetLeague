@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 
 from application.purchase.purchase_command_model import PurchaseCreateResponse, PurchaseCreateModel
 from application.purchase.purchase_command_usecase import PurchaseCommandUseCase
-from application.purchase.purchase_query_model import PacksListResponse, PackResponse
+from application.purchase.purchase_query_model import PacksListResponse, PackResponse, PurchasesListResponse, \
+    PurchaseItemResponse
 from application.purchase.purchase_query_usecase import PurchaseQueryUseCase
 from dependency_injections import purchase_command_usecase, purchase_query_usecase, current_user
 from domain.purchase.exception.pack_exception import PackNotFoundError
@@ -42,6 +43,46 @@ async def get_all_packs(
                 )
                 for pack in packs
             ]
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/purchases",
+    response_model=PurchasesListResponse,
+    summary="Get BTL purchases of the connected user",
+    status_code=status.HTTP_200_OK,
+)
+async def get_my_purchases(
+        purchase_query_usecase: PurchaseQueryUseCase = Depends(purchase_query_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        purchases = await purchase_query_usecase.get_user_purchases(current_user.get('email', ''))
+
+        return PurchasesListResponse(
+            purchases=[
+                PurchaseItemResponse(
+                    id=purchase.id,
+                    uuid=purchase.uuid,
+                    status=purchase.status.value,
+                    created_at=purchase.created_at,
+                    pack_id=purchase.pack.id,
+                    pack_name=purchase.pack.name,
+                    pack_price_cents=purchase.pack.price_cents,
+                    pack_total_btl=purchase.pack.total_btl,
+                )
+                for purchase in purchases
+            ]
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
         )
     except Exception as e:
         raise HTTPException(

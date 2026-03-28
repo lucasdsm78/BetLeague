@@ -23,6 +23,10 @@ class PurchaseRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_all_by_user_id(self, user_id: int) -> list[Purchase]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update(self, purchase: Purchase) -> Optional[Purchase]:
         raise NotImplementedError
 

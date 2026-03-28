@@ -684,10 +684,12 @@ def purchase_command_usecase(
 
 def purchase_query_usecase(
         pack_repository: PackRepository = Depends(pack_repository_dependency),
+        purchase_repository: PurchaseRepository = Depends(purchase_repository_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency)
 ) -> PurchaseQueryUseCase:
     return PurchaseQueryUseCaseImpl(
         pack_repository=pack_repository,
+        purchase_repository=purchase_repository,
         user_repository=user_repository
     )
 
