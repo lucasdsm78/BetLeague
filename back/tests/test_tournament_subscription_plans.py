@@ -73,7 +73,8 @@ async def test_query_usecase_returns_monthly_and_yearly_plans():
 
     assert [plan.id for plan in result.plans] == ['monthly', 'yearly']
     assert result.plans[1].is_recommended is True
-    assert result.yearly_savings_cents == 989
+    assert result.yearly_savings_cents == 2989
+    assert result.yearly_discount_percent == 50
 
 
 @pytest.mark.asyncio
@@ -100,7 +101,12 @@ async def test_create_usecase_builds_server_side_urls_and_supports_yearly_plan(m
     assert stripe_service.calls == [{
         'uuid': 'sub-uuid',
         'customer_email': 'player@example.com',
-        'price_id': 'price_1Ro7Vl4ZfdR2ZdtsPDnvfK0b',
+        'price_data': {
+            'currency': 'eur',
+            'unit_amount': 2999,
+            'recurring': {'interval': 'year'},
+            'product_data': {'name': 'Abonnement tournois BetLeague'},
+        },
         'success_url': 'https://betleague.app/shop?subscription=success',
         'cancel_url': 'https://betleague.app/shop?subscription=cancelled',
         'metadata': {
@@ -109,4 +115,3 @@ async def test_create_usecase_builds_server_side_urls_and_supports_yearly_plan(m
             'subscription_plan': 'yearly',
         },
     }]
-

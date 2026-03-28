@@ -23,9 +23,10 @@ describe('subscription api service', () => {
       data: {
         plans: [
           { id: 'monthly', name: 'Mensuel', price_cents: 499, currency: 'EUR', interval: 'month', is_recommended: false },
-          { id: 'yearly', name: 'Annuel', price_cents: 4999, currency: 'EUR', interval: 'year', is_recommended: true },
+          { id: 'yearly', name: 'Annuel', price_cents: 2999, currency: 'EUR', interval: 'year', is_recommended: true },
         ],
-        yearly_savings_cents: 989,
+        yearly_savings_cents: 2989,
+        yearly_discount_percent: 50,
       },
       status: 200,
       headers: {},
@@ -34,9 +35,10 @@ describe('subscription api service', () => {
     await expect(getSubscriptionPlans()).resolves.toEqual({
       plans: [
         { id: 'monthly', name: 'Mensuel', price_cents: 499, currency: 'EUR', interval: 'month', is_recommended: false },
-        { id: 'yearly', name: 'Annuel', price_cents: 4999, currency: 'EUR', interval: 'year', is_recommended: true },
+        { id: 'yearly', name: 'Annuel', price_cents: 2999, currency: 'EUR', interval: 'year', is_recommended: true },
       ],
-      yearly_savings_cents: 989,
+      yearly_savings_cents: 2989,
+      yearly_discount_percent: 50,
     });
   });
 
@@ -57,4 +59,3 @@ describe('subscription api service', () => {
     });
   });
 });
-

@@ -53,11 +53,11 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
                 subscription_type = TournamentSubscriptionPlan(request.subscription_plan)
 
                 subscription = await self._domain_service.create_tournament_subscription(user.id, subscription_type)
-                price_id = TournamentSubscriptionPricingService.get_stripe_price_id(subscription_type)
+                price_data = TournamentSubscriptionPricingService.get_stripe_price_data(subscription_type)
                 session_stripe = await self._stripe_service.create_subscription_session(
                     uuid=subscription.uuid,
                     customer_email=user.email.value,
-                    price_id=price_id,
+                    price_data=price_data,
                     success_url=self._build_frontend_url("success"),
                     cancel_url=self._build_frontend_url("cancelled"),
                     metadata={

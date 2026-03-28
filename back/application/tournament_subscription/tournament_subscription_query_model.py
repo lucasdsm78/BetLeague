@@ -15,4 +15,4 @@ class TournamentSubscriptionPlanReadModel(BaseModel):
 class TournamentSubscriptionPlansResponse(BaseModel):
     plans: list[TournamentSubscriptionPlanReadModel]
     yearly_savings_cents: int
-
+    yearly_discount_percent: int

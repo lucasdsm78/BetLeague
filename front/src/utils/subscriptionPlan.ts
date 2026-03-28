@@ -48,6 +48,6 @@ export function getSubscriptionEquivalentMonthlyPrice(plan: Pick<ApiSubscription
   return Math.round(plan.price_cents / 12);
 }
 
-export function getYearlySavingsLabel(yearlySavingsCents: number): string {
-  return `${(yearlySavingsCents / 100).toFixed(2)}€ économisés par an`;
+export function getYearlyDiscountBadgeLabel(yearlyDiscountPercent: number): string {
+  return `Économisez ${yearlyDiscountPercent}%`;
 }
