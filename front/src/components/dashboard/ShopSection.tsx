@@ -1,11 +1,19 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import './ShopSection.css';
 import BTLPurchaseModal from './BTLPurchaseModal';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
+import { useTournamentSubscriptionPlansQuery } from '../../hooks/queries/useTournamentQueries';
 import { useAuthStore } from 'store/authStore';
-import { getSubscriptionPlan } from '../../utils/subscriptionPlan';
+import {
+  enrichSubscriptionPlans,
+  getDefaultSubscriptionPlanId,
+  getSubscriptionEquivalentMonthlyPrice,
+  getSubscriptionIntervalLabel,
+  getSubscriptionPlanById,
+  getYearlySavingsLabel,
+} from '../../utils/subscriptionPlan';
 import { useGlobalToast } from '../../toast/ToastProvider';
 
 type ShopTabType = 'packs' | 'subscription';
@@ -24,7 +32,20 @@ const ShopSection: React.FC = memo(() => {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const toast = useGlobalToast();
-  const subscriptionPlan = getSubscriptionPlan();
+  const subscriptionPlansQuery = useTournamentSubscriptionPlansQuery({ enabled: activeTab === 'subscription' });
+  const subscriptionPlans = useMemo(
+    () => (subscriptionPlansQuery.data ? enrichSubscriptionPlans(subscriptionPlansQuery.data) : []),
+    [subscriptionPlansQuery.data],
+  );
+  const featuredPlan = useMemo(() => {
+    if (subscriptionPlans.length === 0) return undefined;
+    const defaultId = getDefaultSubscriptionPlanId(subscriptionPlans);
+    return getSubscriptionPlanById(subscriptionPlans, defaultId);
+  }, [subscriptionPlans]);
+  const monthlyPlan = useMemo(
+    () => getSubscriptionPlanById(subscriptionPlans, 'monthly'),
+    [subscriptionPlans],
+  );
 
   // Detect subscription success from URL
   useEffect(() => {
@@ -241,22 +262,56 @@ const ShopSection: React.FC = memo(() => {
             <div className="subscription-card tournament">
               <div className="subscription-badge-new">
                 <span className="badge-icon">🏆</span>
-                Populaire
+                {featuredPlan?.interval === 'year' ? 'Annuel conseillé' : 'Formule tournoi'}
               </div>
-              <h3>{subscriptionPlan.name}</h3>
-              <div className="subscription-price">
-                <span className="price">{(subscriptionPlan.price / 100).toFixed(2)}€</span>
-                <span className="period">/mois</span>
-              </div>
+              <h3>{featuredPlan ? `Création tournoi illimitée · ${featuredPlan.name}` : 'Création tournoi illimitée'}</h3>
 
-              <ul className="subscription-features">
-                {subscriptionPlan.features.map((feature: string, index: number) => (
-                  <li key={index}>
-                    <span className="feature-check">✓</span>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+              {subscriptionPlansQuery.isLoading ? (
+                <p className="subscription-plan-loading">Chargement des formules…</p>
+              ) : featuredPlan ? (
+                <>
+                  <div className="subscription-price">
+                    <span className="price">{(featuredPlan.price_cents / 100).toFixed(2)}€</span>
+                    <span className="period">{getSubscriptionIntervalLabel(featuredPlan)}</span>
+                  </div>
+
+                  <div className="subscription-plan-summary" aria-label="Résumé des formules d'abonnement tournoi">
+                    <div className="subscription-plan-summary-item is-featured">
+                      <span className="summary-label">Formule mise en avant</span>
+                      <strong>{featuredPlan.name}</strong>
+                      <span>{(featuredPlan.price_cents / 100).toFixed(2)}€ {getSubscriptionIntervalLabel(featuredPlan)}</span>
+                      {featuredPlan.interval === 'year' && subscriptionPlansQuery.data && (
+                        <em>{getYearlySavingsLabel(subscriptionPlansQuery.data.yearly_savings_cents)}</em>
+                      )}
+                    </div>
+
+                    {monthlyPlan && monthlyPlan.id !== featuredPlan.id && (
+                      <div className="subscription-plan-summary-item">
+                        <span className="summary-label">Alternative flexible</span>
+                        <strong>{monthlyPlan.name}</strong>
+                        <span>{(monthlyPlan.price_cents / 100).toFixed(2)}€ {getSubscriptionIntervalLabel(monthlyPlan)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {getSubscriptionEquivalentMonthlyPrice(featuredPlan) && (
+                    <p className="subscription-price-caption">
+                      Soit environ {(getSubscriptionEquivalentMonthlyPrice(featuredPlan)! / 100).toFixed(2)}€ par mois avec la formule annuelle.
+                    </p>
+                  )}
+
+                  <ul className="subscription-features">
+                    {featuredPlan.features.map((feature: string, index: number) => (
+                      <li key={index}>
+                        <span className="feature-check">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="subscription-plan-loading">Impossible de charger les formules pour le moment.</p>
+              )}
 
               {user?.isTournamentSubscriber ? (
                 <button className="btn btn-secondary btn-lg" disabled>
@@ -267,8 +322,9 @@ const ShopSection: React.FC = memo(() => {
                 <button
                   className="btn btn-primary btn-lg tournament-subscribe-btn"
                   onClick={handleOpenTournamentSubscription}
+                  disabled={subscriptionPlansQuery.isLoading}
                 >
-                  S'abonner maintenant
+                  Choisir une formule
                 </button>
               )}
             </div>

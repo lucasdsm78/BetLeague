@@ -8,6 +8,154 @@
   border-radius: var(--radius-2xl);
 }
 
+.subscription-intro-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(6, 182, 212, 0.08));
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: var(--radius-xl);
+  margin-bottom: 1rem;
+}
+
+.intro-pill {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--color-gold-dark);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.subscription-intro-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-loading-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.subscription-spinner {
+  border-top-color: var(--color-gold);
+  border-right-color: rgba(245, 158, 11, 0.2);
+  border-bottom-color: rgba(245, 158, 11, 0.2);
+  border-left-color: rgba(245, 158, 11, 0.2);
+}
+
+.subscription-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.subscription-plan-option {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.subscription-plan-option:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.subscription-plan-option.is-selected {
+  border-color: var(--color-gold);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
+}
+
+.subscription-plan-option.is-recommended {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.1), var(--bg-elevated));
+}
+
+.subscription-plan-option-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.subscription-plan-option-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscription-plan-option-billing {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.subscription-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: fit-content;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.subscription-plan-option-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--text-primary);
+}
+
+.subscription-plan-option-price strong {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.subscription-plan-option-price span {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.subscription-plan-equivalent,
+.subscription-plan-savings {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.subscription-plan-equivalent {
+  color: var(--text-secondary);
+}
+
+.subscription-plan-savings {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+/* Tournament Subscription Modal Styles */
+.tournament-subscription-modal {
+  max-width: 600px;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+}
+
 .tournament-subscription-modal .modal-header {
   position: relative;
   text-align: center;
@@ -91,10 +239,25 @@
   color: var(--text-inverse);
   padding: 1.5rem 2rem;
   text-align: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plan-header-copy {
+  text-align: left;
+}
+
+.plan-header-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .plan-header h3 {
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
 }
@@ -318,8 +481,15 @@
     flex-direction: column;
   }
 
-  .tournament-subscription-modal .modal-header {
-    padding: 1.5rem 1.25rem 1.25rem;
+  .subscription-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-header {
+    padding: 1.25rem 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
   }
 
   .subscription-icon {
@@ -384,6 +554,14 @@
 
   .detail-item {
     font-size: 0.8125rem;
+  }
+
+  .subscription-plan-option-top {
+    flex-direction: column;
+  }
+
+  .subscription-plan-option-price strong {
+    font-size: 1.5rem;
   }
 }
 

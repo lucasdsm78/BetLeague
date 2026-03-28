@@ -440,6 +440,10 @@
   .subscription-price .price {
     font-size: 2.5rem;
   }
+
+  .subscription-plan-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -466,6 +470,10 @@
   .shop-cta {
     font-size: 1rem;
     padding: 0.875rem 1.5rem;
+  }
+
+  .subscription-card {
+    padding: 1.5rem;
   }
 }
 
@@ -663,6 +671,10 @@
 
   .benefit-card {
     padding: 1.25rem;
+  }
+
+  .subscription-plan-summary {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1079,4 +1091,64 @@
   .tournament-cta-text {
     font-size: 1rem;
   }
+}
+
+.subscription-plan-loading {
+  margin: 1rem 0 2rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.subscription-plan-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.subscription-plan-summary-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  text-align: left;
+}
+
+.subscription-plan-summary-item.is-featured {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.1), var(--bg-secondary));
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.subscription-plan-summary-item strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.subscription-plan-summary-item span,
+.subscription-plan-summary-item em {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.subscription-plan-summary-item em {
+  color: var(--color-success);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.subscription-price-caption {
+  margin: -0.25rem 0 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
 }
