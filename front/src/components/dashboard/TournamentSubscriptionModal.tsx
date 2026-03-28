@@ -13,7 +13,7 @@ import {
   getSubscriptionEquivalentMonthlyPrice,
   getSubscriptionIntervalLabel,
   getSubscriptionPlanById,
-  getYearlySavingsLabel,
+  getYearlyDiscountBadgeLabel,
 } from '../../utils/subscriptionPlan';
 import { formatPrice } from '../../utils/pricing';
 import type {
@@ -137,8 +137,8 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                 {plans.map((plan) => {
                   const isSelected = plan.id === selectedPlanId;
                   const equivalentMonthly = getSubscriptionEquivalentMonthlyPrice(plan);
-                  const savingsLabel = plan.interval === 'year' && plansQuery.data
-                    ? getYearlySavingsLabel(plansQuery.data.yearly_savings_cents)
+                  const savingsBadgeLabel = plan.interval === 'year' && plansQuery.data
+                    ? getYearlyDiscountBadgeLabel(plansQuery.data.yearly_discount_percent)
                     : null;
 
                   return (
@@ -155,7 +155,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                           <div className="subscription-plan-option-billing">{getSubscriptionIntervalLabel(plan)}</div>
                         </div>
                         {plan.is_recommended && (
-                          <span className="subscription-plan-badge">Meilleure offre</span>
+                          <span className="subscription-plan-badge">{savingsBadgeLabel ?? 'Meilleure offre'}</span>
                         )}
                       </div>
 
@@ -170,8 +170,8 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                         </div>
                       )}
 
-                      {savingsLabel && (
-                        <div className="subscription-plan-savings">{savingsLabel}</div>
+                      {savingsBadgeLabel && (
+                        <div className="subscription-plan-savings">{savingsBadgeLabel}</div>
                       )}
                     </button>
                   );

@@ -24,9 +24,10 @@ describe('TournamentSubscriptionModal', () => {
       data: {
         plans: [
           { id: 'monthly', name: 'Mensuel', price_cents: 499, currency: 'EUR', interval: 'month', is_recommended: false },
-          { id: 'yearly', name: 'Annuel', price_cents: 4999, currency: 'EUR', interval: 'year', is_recommended: true },
+          { id: 'yearly', name: 'Annuel', price_cents: 2999, currency: 'EUR', interval: 'year', is_recommended: true },
         ],
-        yearly_savings_cents: 989,
+        yearly_savings_cents: 2989,
+        yearly_discount_percent: 50,
       },
       isLoading: false,
       error: null,
@@ -46,7 +47,7 @@ describe('TournamentSubscriptionModal', () => {
     render(<TournamentSubscriptionModal onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: /choisir l’offre annuelle/i })).toBeInTheDocument();
-    expect(screen.getByText(/9.89€ économisés par an/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/économisez 50%/i).length).toBeGreaterThan(0);
   });
 
   it('envoie le plan mensuel choisi puis redirige vers Stripe', async () => {

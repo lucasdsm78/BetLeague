@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from application.tournament_subscription.tournament_subscription_query_model import (
     TournamentSubscriptionPlanReadModel,
@@ -24,6 +24,12 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
     def _to_cents(amount: Decimal) -> int:
         return int((amount * 100).quantize(Decimal("1")))
 
+    @staticmethod
+    def _to_discount_percent(savings: Decimal, monthly_annual_cost: Decimal) -> int:
+        if monthly_annual_cost <= 0:
+            return 0
+        return int(((savings / monthly_annual_cost) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
     async def get_available_plans(self) -> TournamentSubscriptionPlansResponse:
         plans = [
             TournamentSubscriptionPlanReadModel(
@@ -37,10 +43,11 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
             for plan in TournamentSubscriptionPlan
         ]
 
+        yearly_savings = TournamentSubscriptionPricingService.calculate_yearly_savings()
+        monthly_annual_cost = TournamentSubscriptionPricingService.get_price(TournamentSubscriptionPlan.MONTHLY).amount * 12
+
         return TournamentSubscriptionPlansResponse(
             plans=plans,
-            yearly_savings_cents=self._to_cents(
-                TournamentSubscriptionPricingService.calculate_yearly_savings()
-            ),
+            yearly_savings_cents=self._to_cents(yearly_savings),
+            yearly_discount_percent=self._to_discount_percent(yearly_savings, monthly_annual_cost),
         )
-

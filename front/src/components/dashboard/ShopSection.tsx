@@ -12,9 +12,10 @@ import {
   getSubscriptionEquivalentMonthlyPrice,
   getSubscriptionIntervalLabel,
   getSubscriptionPlanById,
-  getYearlySavingsLabel,
+  getYearlyDiscountBadgeLabel,
 } from '../../utils/subscriptionPlan';
 import { useGlobalToast } from '../../toast/ToastProvider';
+import { formatPriceLabel } from '../../utils/pricing';
 
 type ShopTabType = 'packs' | 'subscription';
 
@@ -45,6 +46,10 @@ const ShopSection: React.FC = memo(() => {
   const monthlyPlan = useMemo(
     () => getSubscriptionPlanById(subscriptionPlans, 'monthly'),
     [subscriptionPlans],
+  );
+  const annualReferencePriceCents = useMemo(
+    () => (monthlyPlan ? monthlyPlan.price_cents * 12 : null),
+    [monthlyPlan],
   );
 
   // Detect subscription success from URL
@@ -260,9 +265,11 @@ const ShopSection: React.FC = memo(() => {
             </div>
 
             <div className="subscription-card tournament">
-              <div className="subscription-badge-new">
+              <div className={`subscription-badge-new ${featuredPlan?.interval === 'year' && subscriptionPlansQuery.data ? 'subscription-badge-savings' : ''}`}>
                 <span className="badge-icon">🏆</span>
-                {featuredPlan?.interval === 'year' ? 'Annuel conseillé' : 'Formule tournoi'}
+                {featuredPlan?.interval === 'year' && subscriptionPlansQuery.data
+                  ? getYearlyDiscountBadgeLabel(subscriptionPlansQuery.data.yearly_discount_percent)
+                  : 'Formule tournoi'}
               </div>
               <h3>{featuredPlan ? `Création tournoi illimitée · ${featuredPlan.name}` : 'Création tournoi illimitée'}</h3>
 
@@ -271,17 +278,24 @@ const ShopSection: React.FC = memo(() => {
               ) : featuredPlan ? (
                 <>
                   <div className="subscription-price">
-                    <span className="price">{(featuredPlan.price_cents / 100).toFixed(2)}€</span>
+                    <span className="price">{formatPriceLabel(featuredPlan.price_cents)}€</span>
                     <span className="period">{getSubscriptionIntervalLabel(featuredPlan)}</span>
                   </div>
+
+                  {featuredPlan.interval === 'year' && annualReferencePriceCents && (
+                    <p className="subscription-price-highlight">
+                      <strong>{formatPriceLabel(featuredPlan.price_cents)}/an</strong>
+                      <span>au lieu de {formatPriceLabel(annualReferencePriceCents)}€</span>
+                    </p>
+                  )}
 
                   <div className="subscription-plan-summary" aria-label="Résumé des formules d'abonnement tournoi">
                     <div className="subscription-plan-summary-item is-featured">
                       <span className="summary-label">Formule mise en avant</span>
                       <strong>{featuredPlan.name}</strong>
-                      <span>{(featuredPlan.price_cents / 100).toFixed(2)}€ {getSubscriptionIntervalLabel(featuredPlan)}</span>
+                      <span>{formatPriceLabel(featuredPlan.price_cents)}€ {getSubscriptionIntervalLabel(featuredPlan)}</span>
                       {featuredPlan.interval === 'year' && subscriptionPlansQuery.data && (
-                        <em>{getYearlySavingsLabel(subscriptionPlansQuery.data.yearly_savings_cents)}</em>
+                        <em>{getYearlyDiscountBadgeLabel(subscriptionPlansQuery.data.yearly_discount_percent)}</em>
                       )}
                     </div>
 
@@ -289,7 +303,7 @@ const ShopSection: React.FC = memo(() => {
                       <div className="subscription-plan-summary-item">
                         <span className="summary-label">Alternative flexible</span>
                         <strong>{monthlyPlan.name}</strong>
-                        <span>{(monthlyPlan.price_cents / 100).toFixed(2)}€ {getSubscriptionIntervalLabel(monthlyPlan)}</span>
+                        <span>{formatPriceLabel(monthlyPlan.price_cents)}€ {getSubscriptionIntervalLabel(monthlyPlan)}</span>
                       </div>
                     )}
                   </div>

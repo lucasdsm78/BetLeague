@@ -16,6 +16,7 @@ export interface ApiSubscriptionPlan {
 export interface ApiSubscriptionPlansResponse {
   plans: Omit<ApiSubscriptionPlan, 'features'>[];
   yearly_savings_cents: number;
+  yearly_discount_percent: number;
 }
 
 export interface ApiCreateSubscriptionRequest {
