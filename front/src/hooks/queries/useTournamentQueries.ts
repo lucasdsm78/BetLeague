@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
   getFinishedTournaments,
@@ -12,6 +13,9 @@ import {
   leaveTournament,
 } from '../../services/api/tournament';
 import { secureApiClient } from '../../services/secureApiClient';
+import type {
+  ApiSubscriptionPlansResponse,
+} from '../../types/api/subscription';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
@@ -151,6 +155,15 @@ export function useLeaveTournamentMutation() {
       qc.invalidateQueries({ queryKey: tournamentKeys.myList });
       qc.invalidateQueries({ queryKey: tournamentKeys.availableList });
     },
+  });
+}
+
+export function useTournamentSubscriptionPlansQuery(options?: { enabled?: boolean }) {
+  return useQuery<ApiSubscriptionPlansResponse, Error>({
+    queryKey: tournamentKeys.subscriptionPlans,
+    queryFn: () => getSubscriptionPlans(),
+    enabled: options?.enabled ?? true,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

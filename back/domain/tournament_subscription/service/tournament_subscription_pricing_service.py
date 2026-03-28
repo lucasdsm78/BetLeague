@@ -5,23 +5,27 @@ from domain.tournament_subscription.model.tournament_subscription_price import T
 
 
 class TournamentSubscriptionPricingService:
-    # Prix IDs Stripe (à créer dans votre dashboard Stripe)
-    STRIPE_PRICE_IDS = {
-        TournamentSubscriptionPlan.MONTHLY: "price_1Ro7Vl4ZfdR2ZdtsrMyufhBJ",
-        TournamentSubscriptionPlan.YEARLY: "price_1Ro7Vl4ZfdR2ZdtsPDnvfK0b"
-    }
 
     @staticmethod
     def get_price(subscription_plan: TournamentSubscriptionPlan) -> TournamentSubscriptionPrice:
         prices = {
             TournamentSubscriptionPlan.MONTHLY: TournamentSubscriptionPrice(Decimal("4.99")),
-            TournamentSubscriptionPlan.YEARLY: TournamentSubscriptionPrice(Decimal("49.99"))
+            TournamentSubscriptionPlan.YEARLY: TournamentSubscriptionPrice(Decimal("29.99"))
         }
         return prices[subscription_plan]
 
     @staticmethod
-    def get_stripe_price_id(subscription_plan: TournamentSubscriptionPlan) -> str:
-        return TournamentSubscriptionPricingService.STRIPE_PRICE_IDS[subscription_plan]
+    def get_stripe_price_data(subscription_plan: TournamentSubscriptionPlan) -> dict:
+        return {
+            "currency": "eur",
+            "unit_amount": subscription_plan.price_cents,
+            "recurring": {
+                "interval": "month" if subscription_plan is TournamentSubscriptionPlan.MONTHLY else "year",
+            },
+            "product_data": {
+                "name": "Abonnement tournois BetLeague",
+            },
+        }
 
     @staticmethod
     def calculate_yearly_savings() -> Decimal:
