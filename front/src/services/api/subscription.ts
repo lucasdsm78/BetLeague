@@ -11,7 +11,7 @@ import type {
 
 export async function getSubscriptionPlans(): Promise<ApiSubscriptionPlansResponse> {
   const response: ApiResponse<ApiSubscriptionPlansResponse> = await http.get('/subscription/plans');
-  if (!response.data) throw new Error("Impossible de récupérer les formules d'abonnement");
+  if (!response.data) throw new Error("Impossible de charger les formules d'abonnement");
   return response.data;
 }
 

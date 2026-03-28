@@ -13,13 +13,16 @@ from application.tournament.tournament_command_usecase import TournamentCommandU
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
     CancelTournamentSubscriptionUseCase
 from application.tournament_subscription.create.create_tournament_subscription_usecase import CreateTournamentSubscriptionUseCase
+from application.tournament_subscription.query_tournament_subscription_usecase import TournamentSubscriptionQueryUseCase
 from application.tournament_subscription.tournament_subscription_command_model import CheckoutSessionResponse, \
     CreateSubscriptionRequest
+from application.tournament_subscription.tournament_subscription_query_model import TournamentSubscriptionPlansResponse
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
-    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session
+    stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
+    tournament_subscription_query_use_case
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
@@ -359,6 +362,17 @@ async def run_tournament_scheduler(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors du lancement du scheduler: {str(e)}"
         )
+
+
+@router.get(
+    "/subscription/plans",
+    response_model=TournamentSubscriptionPlansResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_tournament_subscription_plans(
+        use_case: TournamentSubscriptionQueryUseCase = Depends(tournament_subscription_query_use_case),
+):
+    return await use_case.get_available_plans()
 
 
 @router.post(

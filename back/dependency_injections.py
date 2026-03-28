@@ -12,6 +12,10 @@ from application.tournament_subscription.cancel.cancel_tournament_subscription_u
     CancelTournamentSubscriptionUseCase, CancelTournamentSubscriptionUseCaseImpl
 from application.tournament_subscription.create.create_tournament_subscription_usecase import CreateTournamentSubscriptionUseCase, \
     CreateTournamentSubscriptionUseCaseImpl
+from application.tournament_subscription.query_tournament_subscription_usecase import (
+    TournamentSubscriptionQueryUseCase,
+    TournamentSubscriptionQueryUseCaseImpl,
+)
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase, ProcessStripeWebhookTournamentSubscriptionUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
@@ -706,13 +710,20 @@ def tournament_subscription_domain_service_dependency(
 def create_tournament_subscription_use_case(
         stripe_service_dependency: StripeService = Depends(stripe_service),
         domain_service: SubscriptionDomainService = Depends(tournament_subscription_domain_service_dependency),
-        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory)
-) -> CreateTournamentSubscriptionUseCase:
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        settings: Settings = Depends(get_settings),
+ ) -> CreateTournamentSubscriptionUseCase:
     return CreateTournamentSubscriptionUseCaseImpl(
         stripe_service=stripe_service_dependency,
         domain_service=domain_service,
         session_factory=session_factory,
+        settings=settings,
     )
+
+
+def tournament_subscription_query_use_case() -> TournamentSubscriptionQueryUseCase:
+    return TournamentSubscriptionQueryUseCaseImpl()
+
 
 def cancel_tournament_subscription_use_case(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),

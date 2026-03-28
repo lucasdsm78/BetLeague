@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
   getFinishedTournaments,
@@ -11,8 +12,8 @@ import {
   joinTournament,
   leaveTournament,
 } from '../../services/api/tournament';
-import { getSubscriptionPlans as getTournamentSubscriptionPlans } from '../../services/api/subscription';
 import { secureApiClient } from '../../services/secureApiClient';
+import type { ApiSubscriptionPlansResponse } from '../../types/api/subscription';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
@@ -24,13 +25,7 @@ import type {
   TournamentsResponse,
   TournamentCreationAccess,
 } from '../../types/api/tournament';
-import type { ApiSubscriptionPlansResponse } from '../../types/api/subscription';
 import { tournamentKeys } from './tournamentKeys';
-
-const tournamentSubscriptionKeys = {
-  all: ['tournament-subscription'] as const,
-  plans: ['tournament-subscription', 'plans'] as const,
-};
 
 export function useTournamentCreationAccessQuery(options?: { enabled?: boolean }) {
   return useQuery<TournamentCreationAccess, Error>({
@@ -163,10 +158,10 @@ export function useLeaveTournamentMutation() {
 
 export function useTournamentSubscriptionPlansQuery(options?: { enabled?: boolean }) {
   return useQuery<ApiSubscriptionPlansResponse, Error>({
-    queryKey: tournamentSubscriptionKeys.plans,
-    queryFn: () => getTournamentSubscriptionPlans(),
+    queryKey: tournamentKeys.subscriptionPlans,
+    queryFn: () => getSubscriptionPlans(),
     enabled: options?.enabled ?? true,
-    staleTime: 1000 * 60,
+    staleTime: 1000 * 60 * 10,
   });
 }
 
