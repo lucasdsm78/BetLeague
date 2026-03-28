@@ -11,6 +11,7 @@ import {
   joinTournament,
   leaveTournament,
 } from '../../services/api/tournament';
+import { getSubscriptionPlans as getTournamentSubscriptionPlans } from '../../services/api/subscription';
 import { secureApiClient } from '../../services/secureApiClient';
 import type {
   CreatedTournamentsResponse,
@@ -23,7 +24,13 @@ import type {
   TournamentsResponse,
   TournamentCreationAccess,
 } from '../../types/api/tournament';
+import type { ApiSubscriptionPlansResponse } from '../../types/api/subscription';
 import { tournamentKeys } from './tournamentKeys';
+
+const tournamentSubscriptionKeys = {
+  all: ['tournament-subscription'] as const,
+  plans: ['tournament-subscription', 'plans'] as const,
+};
 
 export function useTournamentCreationAccessQuery(options?: { enabled?: boolean }) {
   return useQuery<TournamentCreationAccess, Error>({
@@ -151,6 +158,15 @@ export function useLeaveTournamentMutation() {
       qc.invalidateQueries({ queryKey: tournamentKeys.myList });
       qc.invalidateQueries({ queryKey: tournamentKeys.availableList });
     },
+  });
+}
+
+export function useTournamentSubscriptionPlansQuery(options?: { enabled?: boolean }) {
+  return useQuery<ApiSubscriptionPlansResponse, Error>({
+    queryKey: tournamentSubscriptionKeys.plans,
+    queryFn: () => getTournamentSubscriptionPlans(),
+    enabled: options?.enabled ?? true,
+    staleTime: 1000 * 60,
   });
 }
 

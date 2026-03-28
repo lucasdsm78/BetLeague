@@ -188,6 +188,16 @@
   .pack-card {
     height: 100%;
   }
+
+  .pack-card.badge-recommended {
+    transform: scale(1.015);
+    padding: 1.65rem;
+    z-index: 1;
+  }
+
+  .pack-card.badge-recommended:hover {
+    transform: translateY(-4px) scale(1.025);
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1023px) {
@@ -232,9 +242,18 @@
 }
 
 .pack-card.badge-best-value {
-  border-color: rgba(220, 38, 38, 0.42);
-  box-shadow: 0 14px 30px rgba(220, 38, 38, 0.18);
-  background: linear-gradient(180deg, rgba(220, 38, 38, 0.08), var(--bg-elevated));
+  border: 2px solid rgba(124, 58, 237, 0.32);
+  box-shadow: 0 18px 38px rgba(124, 58, 237, 0.16), 0 0 0 1px rgba(217, 119, 6, 0.14) inset;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.1), rgba(217, 119, 6, 0.07), var(--bg-elevated));
+  overflow: hidden;
+}
+
+.pack-card.badge-best-value::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(251, 191, 36, 0.24), transparent 34%);
+  pointer-events: none;
 }
 
 .pack-badge {
@@ -263,8 +282,8 @@
 }
 
 .badge-best-value {
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.28);
+  background: linear-gradient(135deg, #7c3aed 0%, #d97706 100%);
+  box-shadow: 0 10px 22px rgba(124, 58, 237, 0.26);
 }
 
 .pack-header {
@@ -346,6 +365,29 @@
   font-size: 1.75rem;
   font-weight: 800;
   color: var(--color-gold);
+}
+
+.pack-card.badge-best-value .price-value {
+  color: #7c3aed;
+}
+
+.pack-card.badge-best-value .bonus-badge {
+  background: var(--gradient-premium);
+  box-shadow: 0 6px 14px rgba(217, 119, 6, 0.18);
+}
+
+.pack-card.badge-best-value .pack-total {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(217, 119, 6, 0.08));
+  border: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+.pack-card.badge-best-value .pack-total strong {
+  color: #7c3aed;
+}
+
+.pack-card.badge-best-value .pack-note {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(217, 119, 6, 0.06));
 }
 
 .price-per {

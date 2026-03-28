@@ -90,7 +90,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
             <div className="plan-header">
               <h3>{plan.name}</h3>
               <div className="plan-price">
-                <span className="price-amount">{formatPrice(plan.price)}€</span>
+                <span className="price-amount">{formatPrice(plan.price_cents)}€</span>
                 <span className="price-interval">/ mois</span>
               </div>
             </div>

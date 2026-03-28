@@ -6,7 +6,14 @@ import type {
   ApiCreateSubscriptionRequest,
   ApiCreateSubscriptionResponse,
   ApiCancelSubscriptionResponse,
+  ApiSubscriptionPlansResponse,
 } from '../../types/api/subscription';
+
+export async function getSubscriptionPlans(): Promise<ApiSubscriptionPlansResponse> {
+  const response: ApiResponse<ApiSubscriptionPlansResponse> = await http.get('/subscription/plans');
+  if (!response.data) throw new Error("Impossible de récupérer les formules d'abonnement");
+  return response.data;
+}
 
 export async function createSubscriptionIntent(request: ApiCreateSubscriptionRequest): Promise<ApiCreateSubscriptionResponse> {
   const response: ApiResponse<ApiCreateSubscriptionResponse> = await http.post('/subscription/create-intent', request);
