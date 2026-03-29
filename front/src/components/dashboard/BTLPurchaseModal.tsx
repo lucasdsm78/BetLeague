@@ -10,6 +10,18 @@ interface BTLPurchaseModalProps {
   onPurchaseComplete?: () => void;
 }
 
+function getPackMarketingBadge(pack: Pack): { label: string; className: string } | null {
+  if (pack.name === 'Pack Pro') {
+    return { label: 'Recommandé', className: 'badge-recommended' };
+  }
+
+  if (pack.name === 'Pack Elite') {
+    return { label: 'Meilleure valeur', className: 'badge-best-value' };
+  }
+
+  return null;
+}
+
 const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
   onClose,
   suggestedAmount,
@@ -142,11 +154,12 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
                 const bonusPercentage = calculateBonusPercentage(pack.nb_btl, pack.bonus);
                 const isSelected = selectedPack?.id === pack.id;
                 const isRecommended = suggestedAmount ? pack.total_btl >= suggestedAmount : false;
+                const marketingBadge = getPackMarketingBadge(pack);
 
                 return (
                   <div
                     key={pack.id}
-                    className={`pack-card ${isSelected ? 'selected' : ''} ${isRecommended ? 'recommended' : ''}`}
+                    className={`pack-card ${isSelected ? 'selected' : ''} ${isRecommended ? 'suggested' : ''} ${marketingBadge ? marketingBadge.className : ''}`}
                     onClick={() => handlePackSelect(pack)}
                     role="button"
                     tabIndex={0}
@@ -158,9 +171,11 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
                     }}
                     aria-pressed={isSelected}
                   >
-                    {isRecommended && (
-                      <div className="recommended-badge">Recommandé</div>
-                    )}
+                    {marketingBadge ? (
+                      <div className={`pack-badge ${marketingBadge.className}`}>{marketingBadge.label}</div>
+                    ) : isRecommended ? (
+                      <div className="pack-badge badge-suggested">Idéal pour toi</div>
+                    ) : null}
 
                     <div className="pack-header">
                       <h3>{pack.name}</h3>

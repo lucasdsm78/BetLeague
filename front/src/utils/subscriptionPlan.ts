@@ -24,7 +24,8 @@ const PLAN_FEATURES: Record<ApiSubscriptionPlanId, string[]> = {
 export function enrichSubscriptionPlans(response: ApiSubscriptionPlansResponse): ApiSubscriptionPlan[] {
   return response.plans.map((plan) => ({
     ...plan,
-    features: PLAN_FEATURES[plan.id],
+    price: plan.price_cents,
+    features: plan.features?.length ? plan.features : PLAN_FEATURES[plan.id],
   }));
 }
 
@@ -50,4 +51,17 @@ export function getSubscriptionEquivalentMonthlyPrice(plan: Pick<ApiSubscription
 
 export function getYearlyDiscountBadgeLabel(yearlyDiscountPercent: number): string {
   return `Économisez ${yearlyDiscountPercent}%`;
+}
+
+export function getSubscriptionPlan(): ApiSubscriptionPlan {
+  return {
+    id: 'monthly',
+    name: 'Création tournoi illimitée',
+    price_cents: 499,
+    price: 499,
+    currency: 'EUR',
+    interval: 'month',
+    is_recommended: false,
+    features: PLAN_FEATURES.monthly,
+  };
 }

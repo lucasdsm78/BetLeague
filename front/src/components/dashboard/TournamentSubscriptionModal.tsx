@@ -64,9 +64,20 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
       setSubscribing(true);
       setError(null);
 
-      const response = await createSubscriptionIntent({
+      const origin = typeof window !== 'undefined' && typeof window.location?.origin === 'string'
+        ? window.location.origin
+        : '';
+
+      const requestPayload: { subscription_plan: SubscriptionPlanId; success_url?: string; cancel_url?: string } = {
         subscription_plan: selectedPlan.id,
-      });
+      };
+
+      if (origin.startsWith('http')) {
+        requestPayload.success_url = `${origin}/shop?subscription=success`;
+        requestPayload.cancel_url = `${origin}/shop?subscription=cancelled`;
+      }
+
+      const response = await createSubscriptionIntent(requestPayload);
 
       if (onSubscriptionComplete) {
         onSubscriptionComplete();

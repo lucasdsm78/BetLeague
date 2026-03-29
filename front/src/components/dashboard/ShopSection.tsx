@@ -1,7 +1,9 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import './ShopSection.css';
 import BTLPurchaseModal from './BTLPurchaseModal';
+import PurchaseHistory from './PurchaseHistory';
 import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useTournamentSubscriptionPlansQuery } from '../../hooks/queries/useTournamentQueries';
@@ -16,10 +18,12 @@ import {
 } from '../../utils/subscriptionPlan';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { formatPriceLabel } from '../../utils/pricing';
+import { purchaseKeys } from '../../hooks/queries/purchaseKeys';
 
 type ShopTabType = 'packs' | 'subscription';
 
 const ShopSection: React.FC = memo(() => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ShopTabType>('packs');
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
   const [isTournamentSubscriptionModalOpen, setIsTournamentSubscriptionModalOpen] = useState(false);
@@ -116,14 +120,16 @@ const ShopSection: React.FC = memo(() => {
       setShowPackPurchaseSuccessModal(true);
       // Refresh user profile to update nb_btl (webhook should have credited it)
       refetch();
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.mine() });
     } else if (purchaseStatus === 'cancelled') {
       setActiveTab('packs');
       setShowPackPurchaseCancelledModal(true);
+      queryClient.invalidateQueries({ queryKey: purchaseKeys.mine() });
     }
 
     searchParams.delete('purchase');
     setSearchParams(searchParams, { replace: true });
-  }, [searchParams, setSearchParams, refetch]);
+  }, [searchParams, setSearchParams, refetch, queryClient]);
 
   const handleOpenBTLPurchase = useCallback(() => {
     setIsBTLPurchaseModalOpen(true);
@@ -242,6 +248,8 @@ const ShopSection: React.FC = memo(() => {
                 </div>
               </div>
             </div>
+
+            <PurchaseHistory enabled={activeTab === 'packs'} />
           </div>
         ) : (
           <div className="subscription-section">
