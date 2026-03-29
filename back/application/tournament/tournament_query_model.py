@@ -161,3 +161,15 @@ class TournamentCreatedResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
+
+
+class TournamentInvitationReadModel(BaseModel):
+    id: int
+    status: str
+    created_at: int
+    user: UserSummaryReadModel
+
+
+class TournamentInvitationsResponse(BaseModel):
+    tournament_id: int
+    invitations: List[TournamentInvitationReadModel]

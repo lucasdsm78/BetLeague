@@ -6,9 +6,12 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
     TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel, \
-    TournamentCreatedResponse, TournamentCreatedReadModel, TournamentCreationAccessResponse
+    TournamentCreatedResponse, TournamentCreatedReadModel, TournamentCreationAccessResponse, \
+    TournamentInvitationsResponse, TournamentInvitationReadModel
 from application.user.user_query_model import UserSummaryReadModel
+from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentStageNotFoundError
+from domain.tournament.exception.tournament_exception import TournamentNotOwnerLeaguedError
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
@@ -48,6 +51,10 @@ class TournamentQueryUseCase(ABC):
     async def get_tournament_creation_access(self, email: str) -> TournamentCreationAccessResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_tournament_invitations(self, tournament_id: int, email: str) -> TournamentInvitationsResponse:
+        raise NotImplementedError
+
 
 class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
@@ -60,6 +67,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             stage_repository: TournamentStageRepository,
             tournament_match_repository: TournamentMatchRepository,
             tournament_subscription_repository: TournamentSubscriptionRepository,
+            invitation_repository: InvitationRepository,
             creation_policy: TournamentCreationPolicy | None = None,
     ):
         self.tournament_repository: TournamentRepository = tournament_repository
@@ -69,6 +77,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         self.stage_repository: TournamentStageRepository = stage_repository
         self.tournament_match_repository: TournamentMatchRepository = tournament_match_repository
         self.tournament_subscription_repository: TournamentSubscriptionRepository = tournament_subscription_repository
+        self.invitation_repository: InvitationRepository = invitation_repository
         self.creation_policy = creation_policy or TournamentCreationPolicy()
 
     class Config:
@@ -280,3 +289,39 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     monthly_free_tournaments_used=monthly_used,
                 )
                 return TournamentCreationAccessResponse(**access.__dict__)
+
+    async def get_tournament_invitations(self, tournament_id: int, email: str) -> TournamentInvitationsResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                tournament = await self.tournament_repository.find_by_id(tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                if tournament.user.id != user.id:
+                    raise TournamentNotOwnerLeaguedError
+
+                invitations = await self.invitation_repository.find_tournament_invitations_sent_by_owner(
+                    tournament_id=tournament_id,
+                    owner_user_id=user.id,
+                )
+
+                return TournamentInvitationsResponse(
+                    tournament_id=tournament_id,
+                    invitations=[
+                        TournamentInvitationReadModel(
+                            id=invitation.id,
+                            status=invitation.status,
+                            created_at=invitation.created_at,
+                            user=UserSummaryReadModel(
+                                id=invitation.user.id,
+                                email=invitation.user.email.value,
+                                pseudo=invitation.user.pseudo,
+                            ),
+                        )
+                        for invitation in invitations
+                    ],
+                )

@@ -6,6 +6,7 @@ export const tournamentKeys = {
   finishedList: [...(['tournaments'] as const), 'finished'] as const,
   creationAccess: [...(['tournaments'] as const), 'creation-access'] as const,
   subscriptionPlans: [...(['tournaments'] as const), 'subscription-plans'] as const,
+  invitations: (tournamentId: number) => [...(['tournaments'] as const), 'invitations', tournamentId] as const,
   available: (page: number, pageSize: number) => [...tournamentKeys.availableList, page, pageSize] as const,
   my: (page: number, pageSize: number) => [...tournamentKeys.myList, page, pageSize] as const,
   myCreated: (page: number, pageSize: number) => [...tournamentKeys.myCreatedList, page, pageSize] as const,

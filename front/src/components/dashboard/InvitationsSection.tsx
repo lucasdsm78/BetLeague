@@ -38,13 +38,28 @@ InvitationSkeleton.displayName = 'InvitationSkeleton';
 
 function formatDate(raw?: string | number): string {
   if (!raw) return '—';
-  const d = new Date(typeof raw === 'number' ? raw * 1000 : raw);
+  const numeric = typeof raw === 'number' ? raw : Number(raw);
+  const normalized = Number.isFinite(numeric)
+    ? (numeric > 10_000_000_000 ? numeric : numeric * 1000)
+    : raw;
+  const d = new Date(normalized);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function getInitial(name?: string): string {
   return (name ?? '?').charAt(0).toUpperCase();
+}
+
+function getStatusLabel(status: string): string {
+  switch ((status || '').toUpperCase()) {
+    case 'ACCEPTED':
+      return 'Acceptée';
+    case 'REFUSED':
+      return 'Refusée';
+    default:
+      return 'En attente';
+  }
 }
 
 interface InvitationCardProps {
@@ -55,23 +70,31 @@ interface InvitationCardProps {
 }
 
 const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAccept, onDecline, loading }) => {
+  const isLeagueInvitation = invitation.type === 'league' && !!invitation.league;
   const league = invitation.league;
-
-  const inviterName = league?.user_creator?.pseudo || 'Inconnu';
-  const members = (league?.max_players || 0) - (league?.nb_players_remaining || 0);
-  const maxMembers = league?.max_players || 0;
+  const tournament = invitation.tournament;
+  const title = isLeagueInvitation ? league?.name : tournament?.name;
+  const inviterName = isLeagueInvitation
+    ? league?.user_creator?.pseudo || 'Inconnu'
+    : tournament?.user_creator?.pseudo || 'Inconnu';
+  const members = isLeagueInvitation
+    ? (league?.max_players || 0) - (league?.nb_players_remaining || 0)
+    : tournament?.current_players || 0;
+  const maxMembers = isLeagueInvitation ? league?.max_players || 0 : tournament?.max_players || 0;
+  const startDate = isLeagueInvitation ? league?.start_date : tournament?.start_date;
 
   return (
     <div className="inv-card inv-card--pending">
-      {/* Header: league name + badge */}
       <div className="inv-card-header">
         <div className="left">
-          <h4 className="inv-card-league-name">{league?.name || '—'}</h4>
+          <h4 className="inv-card-league-name">{title || '—'}</h4>
+          <span className={`inv-resource-badge ${isLeagueInvitation ? 'league' : 'tournament'}`}>
+            {isLeagueInvitation ? 'Ligue' : 'Tournoi'}
+          </span>
         </div>
-        <span className="inv-badge inv-badge--pending">En attente</span>
+        <span className="inv-badge inv-badge--pending">{getStatusLabel(invitation.status)}</span>
       </div>
 
-      {/* Inviter */}
       <div className="inv-card-body">
         <div className="inv-card-inviter">
           <span className="inv-card-inviter-avatar">{getInitial(inviterName)}</span>
@@ -79,7 +102,6 @@ const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAcce
         </div>
       </div>
 
-      {/* Stats row */}
       <div className="inv-card-stats">
         <div className="inv-card-stat">
           <span className="label">Joueurs</span>
@@ -88,29 +110,34 @@ const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAcce
         <span className="divider" />
         <div className="inv-card-stat primary">
           <span className="label">Début</span>
-          <span className="value">{formatDate(league?.start_date)}</span>
+          <span className="value">{formatDate(startDate)}</span>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="inv-card-actions">
-        <button
-          type="button"
-          className="inv-btn inv-btn--accept"
-          onClick={() => onAccept(invitation)}
-          disabled={loading}
-        >
-          <IconCheck /> Accepter
-        </button>
-        <button
-          type="button"
-          className="inv-btn inv-btn--decline"
-          onClick={() => onDecline(invitation)}
-          disabled={loading}
-        >
-          <IconX /> Refuser
-        </button>
-      </div>
+      {isLeagueInvitation ? (
+        <div className="inv-card-actions">
+          <button
+            type="button"
+            className="inv-btn inv-btn--accept"
+            onClick={() => onAccept(invitation)}
+            disabled={loading}
+          >
+            <IconCheck /> Accepter
+          </button>
+          <button
+            type="button"
+            className="inv-btn inv-btn--decline"
+            onClick={() => onDecline(invitation)}
+            disabled={loading}
+          >
+            <IconX /> Refuser
+          </button>
+        </div>
+      ) : (
+        <div className="inv-card-note">
+          Invitation tournoi reçue. La réponse depuis cet écran arrive bientôt.
+        </div>
+      )}
     </div>
   );
 });
@@ -121,7 +148,7 @@ InvitationCard.displayName = 'InvitationCard';
 const InvitationsSection: React.FC = memo(() => {
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
-  const { showSuccess, showError } = useGlobalToast();
+  const { showSuccess, showError, showInfo } = useGlobalToast();
   const invalidate = useInvalidateInvitations();
 
   const invitationsQuery = useReceivedInvitationsQuery(
@@ -135,6 +162,11 @@ const InvitationsSection: React.FC = memo(() => {
   const error = (invitationsQuery.error as any)?.message ?? null;
 
   const handleAccept = useCallback(async (invitation: InvitationReceivedReadModel) => {
+    if (invitation.type !== 'league') {
+      showInfo('Invitation tournoi', 'La réponse aux invitations tournoi sera disponible très bientôt.');
+      return;
+    }
+
     setLoadingId(invitation.id);
     try {
       const res = await updateInvitation(invitation.id, true);
@@ -145,9 +177,14 @@ const InvitationsSection: React.FC = memo(() => {
     } finally {
       setLoadingId(null);
     }
-  }, [invalidate, showSuccess, showError]);
+  }, [invalidate, showSuccess, showError, showInfo]);
 
   const handleDecline = useCallback(async (invitation: InvitationReceivedReadModel) => {
+    if (invitation.type !== 'league') {
+      showInfo('Invitation tournoi', 'La réponse aux invitations tournoi sera disponible très bientôt.');
+      return;
+    }
+
     setLoadingId(invitation.id);
     try {
       const res = await updateInvitation(invitation.id, false);
@@ -158,7 +195,7 @@ const InvitationsSection: React.FC = memo(() => {
     } finally {
       setLoadingId(null);
     }
-  }, [invalidate, showSuccess, showError]);
+  }, [invalidate, showSuccess, showError, showInfo]);
 
   return (
     <div className="invitations-section" data-section="invitations">

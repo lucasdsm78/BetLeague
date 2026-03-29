@@ -17,6 +17,7 @@ import type {
   TournamentStage,
   StageMatch,
   TournamentCreationAccess,
+  TournamentInvitationsResponse,
 } from '../../types/api/tournament';
 
 export class TournamentCreationError extends Error {
@@ -48,6 +49,57 @@ function extractTournamentCreationQuota(details: unknown): TournamentCreationAcc
     can_create_tournament: Boolean(detail.can_create_tournament ?? false),
     requires_tournament_subscription: Boolean(detail.requires_tournament_subscription ?? false),
   };
+}
+
+function getApiErrorMessage(error: ApiClientError, fallbackMessage: string): string {
+  const detail = error.details as { detail?: string | { message?: string } } | undefined;
+  if (typeof detail?.detail === 'string' && detail.detail.trim()) return detail.detail;
+  if (typeof detail?.detail === 'object' && typeof detail.detail?.message === 'string') return detail.detail.message;
+  if (typeof error.message === 'string' && error.message.trim()) return error.message;
+  return fallbackMessage;
+}
+
+export async function inviteUserToTournament(tournamentId: number, userId: number): Promise<{ message: string }> {
+  if (!Number.isInteger(tournamentId) || tournamentId <= 0) throw new Error('ID de tournoi invalide');
+  if (!Number.isInteger(userId) || userId <= 0) throw new Error("ID d'utilisateur invalide");
+
+  try {
+    const response: ApiResponse<{ message: string }> = await http.post(`/tournament/${tournamentId}/${userId}/invite`);
+    return (response.data ?? { message: '' }) as { message: string };
+  } catch (e) {
+    if (e instanceof ApiClientError) {
+      throw new Error(getApiErrorMessage(e, "Impossible d'envoyer l'invitation au tournoi."));
+    }
+    throw e;
+  }
+}
+
+export async function getTournamentInvitations(tournamentId: number): Promise<TournamentInvitationsResponse> {
+  if (!Number.isInteger(tournamentId) || tournamentId <= 0) throw new Error('ID de tournoi invalide');
+
+  try {
+    const response: ApiResponse<TournamentInvitationsResponse> = await http.get(`/tournament/${tournamentId}/invitations`);
+    return (response.data ?? { tournament_id: tournamentId, invitations: [] }) as TournamentInvitationsResponse;
+  } catch (e) {
+    if (e instanceof ApiClientError) {
+      throw new Error(getApiErrorMessage(e, "Impossible de récupérer les invitations du tournoi."));
+    }
+    throw e;
+  }
+}
+
+export async function deleteTournamentInvitation(invitationId: number): Promise<{ message: string }> {
+  if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
+
+  try {
+    const response: ApiResponse<{ message: string }> = await http.delete(`/tournament/invitation/${invitationId}`);
+    return (response.data ?? { message: '' }) as { message: string };
+  } catch (e) {
+    if (e instanceof ApiClientError) {
+      throw new Error(getApiErrorMessage(e, "Impossible de supprimer l'invitation du tournoi."));
+    }
+    throw e;
+  }
 }
 
 export async function createTournament(data: TournamentCreateRequest): Promise<TournamentCreateResponse> {
