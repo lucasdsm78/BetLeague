@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
+  getTournamentInvitations,
   getFinishedTournaments,
   getMyCreatedTournaments,
   getMyTournaments,
@@ -18,6 +19,7 @@ import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
   StageMatchesResponse,
+  TournamentInvitationsResponse,
   TournamentCreateRequest,
   TournamentCreateResponse,
   TournamentStagesResponse,
@@ -73,6 +75,17 @@ export function useTournamentStagesQuery(tournamentId: number | null, options?: 
     queryFn: () => {
       if (tournamentId === null) throw new Error('Tournament invalide');
       return getTournamentStages(tournamentId);
+    },
+    enabled: (options?.enabled ?? true) && tournamentId !== null,
+  });
+}
+
+export function useTournamentInvitationsQuery(tournamentId: number | null, options?: { enabled?: boolean }) {
+  return useQuery<TournamentInvitationsResponse, Error>({
+    queryKey: tournamentKeys.invitations(tournamentId ?? -1),
+    queryFn: () => {
+      if (tournamentId === null) throw new Error('Tournament invalide');
+      return getTournamentInvitations(tournamentId);
     },
     enabled: (options?.enabled ?? true) && tournamentId !== null,
   });
@@ -169,5 +182,6 @@ export function useTournamentLists() {
   const qc = useQueryClient();
   return {
     invalidateAll: () => qc.invalidateQueries({ queryKey: tournamentKeys.all }),
+    invalidateInvitations: (tournamentId: number) => qc.invalidateQueries({ queryKey: tournamentKeys.invitations(tournamentId) }),
   };
 }

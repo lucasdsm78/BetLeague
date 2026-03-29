@@ -154,3 +154,21 @@ export interface CreatedTournamentsResponse {
   page: number;
   page_size: number;
 }
+
+export interface TournamentInvitationUser {
+  id: number;
+  email: string;
+  pseudo: string;
+}
+
+export interface TournamentInvitation {
+  id: number;
+  status: string;
+  created_at: number;
+  user: TournamentInvitationUser;
+}
+
+export interface TournamentInvitationsResponse {
+  tournament_id: number;
+  invitations: TournamentInvitation[];
+}
