@@ -68,6 +68,25 @@ class InvitationRepositoryImpl(InvitationRepository):
         except:
             raise
 
+    async def find_tournament_invitations_sent_by_owner(self, tournament_id: int, owner_user_id: int) -> List[DBInvitation]:
+        query = (
+            select(DBInvitation)
+            .join(DBTournament, DBInvitation.tournament_id == DBTournament.id)
+            .where(
+                DBInvitation.tournament_id == tournament_id,
+                DBTournament.user_id == owner_user_id,
+            )
+            .options(
+                selectinload(DBInvitation.user),
+                selectinload(DBInvitation.user_sender),
+                selectinload(DBInvitation.tournament),
+            )
+            .order_by(DBInvitation.created_at.desc())
+        )
+
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
     async def find_received_invitations(
             self,
             user_id: int,
@@ -86,6 +105,8 @@ class InvitationRepositoryImpl(InvitationRepository):
             .where(*filters)
             .options(
                 selectinload(DBInvitation.league).selectinload(DBLeague.user),
+                selectinload(DBInvitation.tournament).selectinload(DBTournament.user),
+                selectinload(DBInvitation.user_sender),
             )
             .order_by(DBInvitation.created_at.desc())
             .offset(offset)

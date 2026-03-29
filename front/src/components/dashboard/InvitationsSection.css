@@ -200,6 +200,31 @@
   flex-shrink: 0;
 }
 
+.inv-resource-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.inv-resource-badge.league {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--color-primary, var(--primary-color));
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.inv-resource-badge.tournament {
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--color-gold);
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
 .inv-badge--pending {
   background: rgba(245, 158, 11, 0.15);
   color: var(--color-warning, var(--warning-color));
@@ -580,4 +605,14 @@
   .inv-card-league-name {
     font-size: 0.9375rem;
   }
+}
+
+.inv-card-note {
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }

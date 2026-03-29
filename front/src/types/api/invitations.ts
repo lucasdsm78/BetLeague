@@ -9,7 +9,9 @@ export interface ApiInvitationActionResponse {
 // Read model tel que renvoyé par l'API
 export interface ApiInvitationReceivedItem {
   id: number;
-  league: ApiInvitationLeagueSummary;
+  type: 'league' | 'tournament';
+  league?: ApiInvitationLeagueSummary;
+  tournament?: ApiInvitationTournamentSummary;
   status: string;
 }
 
@@ -23,6 +25,18 @@ export interface ApiInvitationLeagueSummary {
   is_started?: boolean;
 }
 
+export interface ApiInvitationTournamentSummary {
+  id: number;
+  name: string;
+  max_players: number;
+  current_players: number;
+  start_date?: string | number;
+  end_date?: string | number;
+  is_private?: boolean;
+  status?: string;
+  user_creator?: { id: number; pseudo: string };
+}
+
 // --- Réponses API ---
 
 export interface ApiInvitationsReceivedResponse {
@@ -31,4 +45,3 @@ export interface ApiInvitationsReceivedResponse {
   page?: number;
   page_size?: number;
 }
-

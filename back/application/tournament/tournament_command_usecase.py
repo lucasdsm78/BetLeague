@@ -16,7 +16,7 @@ from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
     NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError, TournamentMaxPlayersError, \
-    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError
+    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError, TournamentSelfInvitationError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -62,6 +62,10 @@ class TournamentCommandUseCase(ABC):
 
     @abstractmethod
     async def delete_invitation(self, invitation_id: int, owner_user_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def invite_user(self, tournament_id: int, user_id: int, user_owner_email: str) -> TournamentInviteResponse:
         raise NotImplementedError
 
 
@@ -470,6 +474,9 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 if not user_owner:
                     raise UserNotFoundError
 
+                if int(user_id) == int(user_owner.id):
+                    raise TournamentSelfInvitationError
+
                 user = await user_repo.find_by_id(user_id)
                 if not user:
                     raise UserNotFoundError
@@ -492,14 +499,6 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 if tournament.current_players == tournament.max_players:
                     raise TournamentMaxPlayersError
-
-                unixtimestamp = int(datetime.utcnow().timestamp() * 1000)
-                if (
-                        (tournament.max_players - tournament.current_players) != 0 and
-                        (tournament.max_players - tournament.current_players) - 1 <= tournament.min_players
-                        and unixtimestamp > tournament.start_date
-                ):
-                    tournament.status = TournamentStatus.IN_PROGRESS
 
                 invitation = Invitation(
                     league_id=None,

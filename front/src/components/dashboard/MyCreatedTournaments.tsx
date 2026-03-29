@@ -7,6 +7,7 @@ import React, { memo, useState, useCallback } from 'react';
 import { useMyCreatedTournamentsQuery } from '../../hooks/queries/useTournamentQueries';
 import type { CreatedTournament } from '../../types/api/tournament';
 import TournamentStages from './TournamentStages';
+import TournamentInviteModal from './TournamentInviteModal';
 import './MyCreatedTournaments.css';
 
 const formatDate = (timestamp: number): string => {
@@ -23,6 +24,7 @@ const MyCreatedTournaments: React.FC = memo(() => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
+  const [inviteTournament, setInviteTournament] = useState<CreatedTournament | null>(null);
 
   const query = useMyCreatedTournamentsQuery(page, pageSize);
   const tournaments = query.data?.tournaments ?? [];
@@ -41,6 +43,14 @@ const MyCreatedTournaments: React.FC = memo(() => {
 
   const handleViewStages = useCallback((tournamentId: number) => {
     setSelectedTournamentId(prev => (prev === tournamentId ? null : tournamentId));
+  }, []);
+
+  const handleOpenInviteModal = useCallback((tournament: CreatedTournament) => {
+    setInviteTournament(tournament);
+  }, []);
+
+  const handleCloseInviteModal = useCallback(() => {
+    setInviteTournament(null);
   }, []);
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -115,15 +125,25 @@ const MyCreatedTournaments: React.FC = memo(() => {
                       )}
                     </div>
 
-                    <button
-                      className="created-btn-view-stages"
-                      onClick={() => handleViewStages(tournament.id)}
-                    >
-                      <span className="created-btn-icon">
-                        {selectedTournamentId === tournament.id ? '\u25BC' : '\u25B6'}
-                      </span>
-                      {selectedTournamentId === tournament.id ? 'Masquer les \u00e9tapes' : 'Voir les \u00e9tapes'}
-                    </button>
+                    <div className="created-card-actions">
+                      <button
+                        className="created-btn-invite"
+                        onClick={() => handleOpenInviteModal(tournament)}
+                      >
+                        <span className="created-btn-icon">✉️</span>
+                        Inviter
+                      </button>
+
+                      <button
+                        className="created-btn-view-stages"
+                        onClick={() => handleViewStages(tournament.id)}
+                      >
+                        <span className="created-btn-icon">
+                          {selectedTournamentId === tournament.id ? '\u25BC' : '\u25B6'}
+                        </span>
+                        {selectedTournamentId === tournament.id ? 'Masquer les \u00e9tapes' : 'Voir les \u00e9tapes'}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Card Body */}
@@ -207,6 +227,13 @@ const MyCreatedTournaments: React.FC = memo(() => {
           </>
         )}
       </div>
+
+      <TournamentInviteModal
+        isOpen={inviteTournament !== null}
+        tournamentId={inviteTournament?.id ?? null}
+        tournamentName={inviteTournament?.name}
+        onClose={handleCloseInviteModal}
+      />
     </div>
   );
 });

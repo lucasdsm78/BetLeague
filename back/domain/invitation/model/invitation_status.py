@@ -1,7 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 
-from domain.ticket.exception.ticket_exception import InvalidTicketStatusException
+from domain.invitation.exception.invitation_exception import InvalidInvitationStatusException
 
 
 @dataclass(init=False, eq=True, frozen=True)
@@ -15,4 +15,4 @@ class InvitationStatus(Enum):
         try:
             return cls(invitation_status)
         except ValueError:
-            raise InvalidTicketStatusException(invitation_status) from None
+            raise InvalidInvitationStatusException(invitation_status) from None

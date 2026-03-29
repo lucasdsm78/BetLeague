@@ -30,6 +30,22 @@ class LeagueInvitationReceivedSummary(BaseModel):
         arbitrary_types_allowed = True
 
 
+class TournamentInvitationReceivedSummary(BaseModel):
+
+    id: int
+    name: str
+    max_players: int
+    current_players: int
+    start_date: int
+    end_date: int
+    is_private: bool
+    status: str
+    user_creator: UserSummaryLeagueDetail
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
 class LeagueReadModel(BaseModel):
 
     id: int
@@ -79,7 +95,9 @@ class LeagueReadModel(BaseModel):
 class InvitationReceivedReadModel(BaseModel):
 
     id: int
-    league: LeagueInvitationReceivedSummary
+    type: str
+    league: Optional[LeagueInvitationReceivedSummary] = None
+    tournament: Optional[TournamentInvitationReceivedSummary] = None
     status: str
 
     class Config:
