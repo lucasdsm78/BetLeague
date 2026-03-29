@@ -26,6 +26,13 @@ class TournamentPlayerFoundError(Exception):
         return TournamentPlayerFoundError.message
 
 
+class TournamentSelfInvitationError(Exception):
+    message = "Vous ne pouvez pas vous inviter vous-même dans votre tournoi"
+
+    def __str__(self):
+        return TournamentSelfInvitationError.message
+
+
 class TournamentMaxPlayersError(Exception):
     message = "The tournament can't have more players than the maximum of the players."
 

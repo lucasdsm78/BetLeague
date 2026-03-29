@@ -1,10 +1,12 @@
 import type {
   ApiInvitationReceivedItem,
   ApiInvitationLeagueSummary,
+  ApiInvitationTournamentSummary,
 } from '../../types/api/invitations';
 import type {
   InvitationLeagueSummary,
   InvitationReceivedReadModel,
+  InvitationTournamentSummary,
 } from '../../types/entities/invitation';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -39,6 +41,22 @@ function mapApiLeagueSummaryToUi(api: ApiInvitationLeagueSummary): InvitationLea
   };
 }
 
+function mapApiTournamentSummaryToUi(api: ApiInvitationTournamentSummary): InvitationTournamentSummary {
+  return {
+    id: asNumber(api.id),
+    name: asString(api.name),
+    max_players: asNumber(api.max_players),
+    current_players: asNumber(api.current_players),
+    start_date: api.start_date ?? undefined,
+    end_date: api.end_date ?? undefined,
+    user_creator: api.user_creator
+      ? { id: asNumber(api.user_creator.id), pseudo: asString(api.user_creator.pseudo) }
+      : undefined,
+    is_private: typeof api.is_private === 'boolean' ? api.is_private : undefined,
+    status: typeof api.status === 'string' ? api.status : undefined,
+  };
+}
+
 /**
  * Mapper "hard" (strict) : valide le shape minimal attendu côté UI.
  */
@@ -48,17 +66,36 @@ export function mapApiInvitationToUi(api: ApiInvitationReceivedItem): Invitation
   }
 
   const raw = api as any;
+  const type = asString(raw.type) as InvitationReceivedReadModel['type'];
   const league = raw?.league;
+  const tournament = raw?.tournament;
 
-  if (!isObject(league)) {
-    throw new Error('Invitation API invalide: league manquant');
+  if (type === 'league') {
+    if (!isObject(league)) {
+      throw new Error('Invitation API invalide: league manquant');
+    }
+
+    return {
+      id: asNumber(raw.id),
+      type,
+      league: mapApiLeagueSummaryToUi(league as unknown as ApiInvitationLeagueSummary),
+      status: asString(raw.status),
+    };
+  }
+  if (type === 'tournament') {
+    if (!isObject(tournament)) {
+      throw new Error('Invitation API invalide: tournament manquant');
+    }
+
+    return {
+      id: asNumber(raw.id),
+      type,
+      tournament: mapApiTournamentSummaryToUi(tournament as unknown as ApiInvitationTournamentSummary),
+      status: asString(raw.status),
+    };
   }
 
-  return {
-    id: asNumber(raw.id),
-    league: mapApiLeagueSummaryToUi(league as unknown as ApiInvitationLeagueSummary),
-    status: asString(raw.status),
-  };
+  throw new Error('Invitation API invalide: type inconnu');
 }
 
 /**

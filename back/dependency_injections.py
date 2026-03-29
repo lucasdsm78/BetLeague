@@ -598,6 +598,7 @@ def tournament_query_usecase(
         stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
         tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency),
         tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+        invitation_repository: InvitationRepository = Depends(invitation_repository_dependency),
 ) -> TournamentQueryUseCase:
     return TournamentQueryUseCaseImpl(
         session_factory=session_factory,
@@ -607,6 +608,7 @@ def tournament_query_usecase(
         tournament_match_repository=tournament_match_repository,
         stage_repository=stage_repository,
         tournament_subscription_repository=tournament_subscription_repository,
+        invitation_repository=invitation_repository,
     )
 
 def tournament_scheduler(

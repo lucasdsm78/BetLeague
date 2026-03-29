@@ -4,7 +4,8 @@ from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
-    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse
+    LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse, \
+    TournamentInvitationReceivedSummary
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError
@@ -219,26 +220,52 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                 return result
 
             for db_inv in db_invitations:
-                league = db_inv.league
+                if db_inv.league_id and db_inv.league is not None:
+                    league = db_inv.league
+                    league_summary = LeagueInvitationReceivedSummary(
+                        id=league.id,
+                        name=league.name,
+                        max_players=league.max_players,
+                        start_date=league.start_date,
+                        user_creator=UserSummaryLeagueDetail(
+                            id=league.user.id,
+                            pseudo=league.user.pseudo,
+                        ),
+                        nb_players_remaining=league.nb_players_remaining,
+                        is_started=league.is_started
+                    )
 
-                league_summary = LeagueInvitationReceivedSummary(
-                    id=league.id,
-                    name=league.name,
-                    max_players=league.max_players,
-                    start_date=league.start_date,
-                    user_creator=UserSummaryLeagueDetail(
-                        id=league.user.id,
-                        pseudo=league.user.pseudo,
-                    ),
-                    nb_players_remaining=league.nb_players_remaining,
-                    is_started=league.is_started
-                )
+                    result.invitations.append(InvitationReceivedReadModel(
+                        id=db_inv.id,
+                        type='league',
+                        league=league_summary,
+                        status=db_inv.status
+                    ))
+                    continue
 
-                result.invitations.append(InvitationReceivedReadModel(
-                    id=db_inv.id,
-                    league=league_summary,
-                    status=db_inv.status
-                ))
+                if db_inv.tournament_id and db_inv.tournament is not None:
+                    tournament = db_inv.tournament
+                    tournament_summary = TournamentInvitationReceivedSummary(
+                        id=tournament.id,
+                        name=tournament.name,
+                        max_players=tournament.max_players,
+                        current_players=tournament.current_players,
+                        start_date=tournament.start_date,
+                        end_date=tournament.end_date,
+                        is_private=tournament.is_private,
+                        status=tournament.status,
+                        user_creator=UserSummaryLeagueDetail(
+                            id=tournament.user.id,
+                            pseudo=tournament.user.pseudo,
+                        ),
+                    )
+
+                    result.invitations.append(InvitationReceivedReadModel(
+                        id=db_inv.id,
+                        type='tournament',
+                        tournament=tournament_summary,
+                        status=db_inv.status,
+                    ))
 
             return result
 
