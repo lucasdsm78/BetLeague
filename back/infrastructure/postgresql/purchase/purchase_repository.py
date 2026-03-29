@@ -64,6 +64,14 @@ class PurchaseRepositoryImpl(PurchaseRepository):
         except Exception as e:
             raise
 
+    async def find_all_by_user_id(self, user_id: int) -> list[Purchase]:
+        result = await self.session.execute(
+            select(DBPurchase)
+            .where(DBPurchase.user_id == user_id)
+            .order_by(DBPurchase.created_at.desc(), DBPurchase.id.desc())
+        )
+        return [purchase_db.to_entity() for purchase_db in result.scalars().all()]
+
     async def update(self, purchase: Purchase) -> None:
         result = await self.session.execute(
             select(DBPurchase).where(DBPurchase.id == purchase.id)

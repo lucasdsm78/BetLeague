@@ -13,9 +13,7 @@ import {
   leaveTournament,
 } from '../../services/api/tournament';
 import { secureApiClient } from '../../services/secureApiClient';
-import type {
-  ApiSubscriptionPlansResponse,
-} from '../../types/api/subscription';
+import type { ApiSubscriptionPlansResponse } from '../../types/api/subscription';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
