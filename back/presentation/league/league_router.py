@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Path
 from fastapi import Query
 from fastapi import Request
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
-    LeagueUpdateModel, LeagueInjectBtlResponse, LeagueInjectBtlModel, InvitationDeleteResponse
+    LeagueUpdateModel, LeagueInjectBtlModel, LeagueInjectBtlResponse, InvitationDeleteResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
-from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse, InvitationsReceivedResponse, InvitationCountsResponse
+from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse, InvitationsReceivedResponse, InvitationCountsResponse, LeagueInvitationsSentResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
-from domain.invitation.exception.invitation_exception import InvitationFoundError
+from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationDeletionNotAllowedError
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
@@ -407,6 +408,35 @@ async def invite_user_to_league(
 
 
 @router.get(
+    "/league/{league_id}/invitations",
+    response_model=LeagueInvitationsSentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Récupérer les invitations envoyées pour une ligue du créateur connecté",
+)
+async def get_league_invitations(
+        league_id: int = Path(..., gt=0),
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return await league_query_usecase.get_league_invitations(
+            league_id=league_id,
+            email=current_user.get('email', ''),
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except LeagueNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération des invitations de la ligue"
+        )
+
+
+@router.get(
     "/invitations/counts",
     response_model=InvitationCountsResponse,
     status_code=status.HTTP_200_OK,
@@ -522,7 +552,7 @@ async def update_invitation(
     summary="Delete invitation to a league",
 )
 async def delete_invitation(
-        invitation_id: int,
+        invitation_id: int = Path(..., gt=0),
         league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
         current_user: dict = Depends(current_user)
 ):
@@ -531,6 +561,16 @@ async def delete_invitation(
     except InvitationNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message
+        )
+    except InvitationDeletionNotAllowedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message
         )
     except Exception as e:
