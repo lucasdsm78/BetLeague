@@ -1,5 +1,7 @@
-import React, { useState, useCallback, useEffect, memo } from 'react';
+import React, { useState, useCallback, useEffect, memo, useMemo } from 'react';
 import { inviteUserToLeague } from '../../services/api/leagues';
+import { deleteLeagueInvitation } from '../../services/api/invitations';
+import { useInvalidateInvitations, useLeagueSentInvitationsQuery } from '../../hooks/queries/useInvitationsQueries';
 import type { UserSearchResult } from 'types/entities/userSearch';
 import UserSearchInput from './UserSearchInput';
 import './InviteUserModal.css';
@@ -23,8 +25,28 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
 }) => {
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
   const [isInviting, setIsInviting] = useState(false);
+  const [deletingInvitationId, setDeletingInvitationId] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const invalidateInvitations = useInvalidateInvitations();
+  const sentInvitationsQuery = useLeagueSentInvitationsQuery(isOpen ? leagueId : null, {
+    enabled: isOpen && leagueId !== null,
+  });
+  const sentInvitations = sentInvitationsQuery.data?.invitations ?? [];
+  const mergedExcludeUserIds = useMemo(
+    () => Array.from(new Set([...excludeUserIds, ...sentInvitations.map((invitation) => invitation.user.id)])),
+    [excludeUserIds, sentInvitations],
+  );
+
+  const formatInvitationDate = useCallback((timestamp: number) => {
+    if (!timestamp) return '—';
+    return new Date(timestamp).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }, []);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -93,9 +115,9 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
         onInviteSent(selectedUser);
       }
 
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+      await invalidateInvitations.invalidateLeagueSent(leagueId);
+      await sentInvitationsQuery.refetch();
+      setSelectedUser(null);
 
     } catch (err: any) {
       let errorMessage = `Erreur réseau lors de l'envoi de l'invitation à ${selectedUser.pseudo}. Veuillez réessayer.`;
@@ -112,7 +134,27 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
     } finally {
       setIsInviting(false);
     }
-  }, [selectedUser, leagueId, isInviting, onInviteSent, onClose]);
+  }, [selectedUser, leagueId, isInviting, onInviteSent, invalidateInvitations, sentInvitationsQuery]);
+
+  // Handle delete invitation
+  const handleDeleteInvitation = useCallback(async (invitationId: number) => {
+    if (deletingInvitationId !== null || !leagueId) return;
+
+    setDeletingInvitationId(invitationId);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const data = await deleteLeagueInvitation(invitationId);
+      setSuccessMessage(data.message || 'Invitation retirée.');
+      await invalidateInvitations.invalidateLeagueSent(leagueId);
+      await sentInvitationsQuery.refetch();
+    } catch (err: any) {
+      setError(err?.message || "Impossible de retirer l'invitation.");
+    } finally {
+      setDeletingInvitationId(null);
+    }
+  }, [deletingInvitationId, invalidateInvitations, leagueId, sentInvitationsQuery]);
 
   // Clear selected user
   const handleClearSelection = useCallback(() => {
@@ -166,25 +208,62 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
           )}
 
           {/* Search Section */}
-          {!successMessage && (
-            <div className="search-section">
-              <label htmlFor="user-search" className="search-label">
-                Rechercher un utilisateur
-              </label>
-              <UserSearchInput
-                onUserSelect={handleUserSelect}
-                placeholder="Tapez le nom ou l'email de l'utilisateur..."
-                disabled={isInviting}
-                excludeUserIds={excludeUserIds}
-              />
-              <p className="search-hint">
-                Minimum 2 caractères requis. Recherchez par nom d'utilisateur ou email.
-              </p>
+          <div className="search-section">
+            <label htmlFor="user-search" className="search-label">
+              Rechercher un utilisateur
+            </label>
+            <UserSearchInput
+              onUserSelect={handleUserSelect}
+              placeholder="Tapez le nom ou l'email de l'utilisateur..."
+              disabled={isInviting}
+              excludeUserIds={mergedExcludeUserIds}
+            />
+            <p className="search-hint">
+              Minimum 2 caractères requis. Recherchez par nom d'utilisateur ou email.
+            </p>
+          </div>
+
+          <div className="league-sent-invitations-section">
+            <div className="league-sent-invitations-header">
+              <h3>Invitations envoyées</h3>
+              <p>Retirez une invitation si vous ne souhaitez plus réserver une place.</p>
             </div>
-          )}
+
+            {sentInvitationsQuery.isLoading ? (
+              <div className="league-sent-invitations-empty">Chargement des invitations…</div>
+            ) : sentInvitations.length === 0 ? (
+              <div className="league-sent-invitations-empty">Aucune invitation envoyée pour le moment.</div>
+            ) : (
+              <div className="league-sent-invitations-list">
+                {sentInvitations.map((invitation) => (
+                  <div key={invitation.id} className="league-sent-invitation-item">
+                    <div className="league-sent-invitation-user">
+                      <div className="league-sent-invitation-avatar">👤</div>
+                      <div className="league-sent-invitation-content">
+                        <div className="league-sent-invitation-pseudo">{invitation.user.pseudo}</div>
+                        <div className="league-sent-invitation-email">{invitation.user.email}</div>
+                      </div>
+                    </div>
+                    <div className="league-sent-invitation-meta">
+                      <span className="league-sent-invitation-status">{String(invitation.status || '').toLowerCase() === 'pending' ? 'En attente' : invitation.status}</span>
+                      <span className="league-sent-invitation-date">{formatInvitationDate(invitation.created_at)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="league-sent-invitation-delete"
+                      onClick={() => handleDeleteInvitation(invitation.id)}
+                      disabled={deletingInvitationId === invitation.id}
+                    >
+                      {deletingInvitationId === invitation.id ? 'Retrait…' : 'Retirer'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Selected User Preview */}
-          {selectedUser && !successMessage && (
+          {selectedUser && (
             <div className="selected-user-preview">
               <div className="preview-header">
                 <h3>Utilisateur sélectionné</h3>
@@ -214,34 +293,32 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
         </div>
 
         {/* Modal Actions */}
-        {!successMessage && (
-          <div className="invite-modal-actions">
-            <button
-              className="btn btn-outline"
-              onClick={onClose}
-              disabled={isInviting}
-            >
-              Annuler
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleSendInvitation}
-              disabled={!selectedUser || isInviting}
-            >
-              {isInviting ? (
-                <>
-                  <span className="loading-spinner"></span>
-                  Envoi en cours...
-                </>
-              ) : (
-                <>
-                  <span className="invite-btn-icon">✉️</span>
-                  Envoyer l'invitation
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        <div className="invite-modal-actions">
+          <button
+            className="btn btn-outline"
+            onClick={onClose}
+            disabled={isInviting || deletingInvitationId !== null}
+          >
+            Fermer
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleSendInvitation}
+            disabled={!selectedUser || isInviting}
+          >
+            {isInviting ? (
+              <>
+                <span className="loading-spinner"></span>
+                Envoi en cours...
+              </>
+            ) : (
+              <>
+                <span className="invite-btn-icon">✉️</span>
+                Envoyer l'invitation
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

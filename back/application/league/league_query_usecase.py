@@ -5,10 +5,11 @@ from pydantic import BaseModel
 
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
     LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse, \
-    TournamentInvitationReceivedSummary
+    TournamentInvitationReceivedSummary, LeagueInvitationsSentResponse, LeagueInvitationSentReadModel
+from application.user.user_query_model import UserSummaryReadModel
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
-from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError
+from domain.league.exception.league_exception import LeagueParticipantNotFoundError, LeagueNotFoundError, UserNotOwnerLeaguedError
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from domain.league.repository.league_repository import LeagueRepository
 from domain.user.exception.user_exception import UserNotFoundError
@@ -51,6 +52,10 @@ class LeagueQueryUseCase(ABC):
 
     @abstractmethod
     async def get_my_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_league_invitations(self, league_id: int, email: str) -> LeagueInvitationsSentResponse:
         raise NotImplementedError
 
 
@@ -327,4 +332,38 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page_size=page_size,
             total=total,
             total_pages=total_pages,
+        )
+
+    async def get_league_invitations(self, league_id: int, email: str) -> LeagueInvitationsSentResponse:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        league = await self.league_repository.find_by_id(league_id)
+        if not league:
+            raise LeagueNotFoundError
+
+        if league.user.id != user.id:
+            raise UserNotOwnerLeaguedError
+
+        invitations = await self.invitation_repository.find_league_invitations_sent_by_owner(
+            league_id=league_id,
+            owner_user_id=user.id,
+        )
+
+        return LeagueInvitationsSentResponse(
+            league_id=league_id,
+            invitations=[
+                LeagueInvitationSentReadModel(
+                    id=invitation.id,
+                    status=invitation.status,
+                    created_at=invitation.created_at,
+                    user=UserSummaryReadModel(
+                        id=invitation.user.id,
+                        email=invitation.user.email.value,
+                        pseudo=invitation.user.pseudo,
+                    ),
+                )
+                for invitation in invitations
+            ],
         )

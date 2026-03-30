@@ -214,6 +214,122 @@
   border-left: 4px solid var(--color-primary);
 }
 
+.league-sent-invitations-section {
+  margin-bottom: 2rem;
+  display: grid;
+  gap: 0.875rem;
+}
+
+.league-sent-invitations-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.league-sent-invitations-header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.league-sent-invitations-empty {
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.league-sent-invitations-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.league-sent-invitation-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+}
+
+.league-sent-invitation-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.league-sent-invitation-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  flex-shrink: 0;
+}
+
+.league-sent-invitation-content {
+  min-width: 0;
+}
+
+.league-sent-invitation-pseudo {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.league-sent-invitation-email,
+.league-sent-invitation-date {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+.league-sent-invitation-meta {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+}
+
+.league-sent-invitation-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning-color, #f59e0b);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.league-sent-invitation-delete {
+  border: none;
+  background: transparent;
+  color: var(--color-danger);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.league-sent-invitation-delete:hover:not(:disabled) {
+  background: var(--color-danger-subtle);
+}
+
+.league-sent-invitation-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Selected User Preview */
 .selected-user-preview {
   margin-bottom: 2rem;
@@ -466,6 +582,15 @@
 
   .invite-modal-body {
     padding: 1rem;
+  }
+
+  .league-sent-invitation-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .league-sent-invitation-meta {
+    justify-items: start;
   }
 
   .invite-modal-actions {
