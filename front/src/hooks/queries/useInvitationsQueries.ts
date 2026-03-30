@@ -2,9 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getReceivedInvitations,
   getInvitationCounts,
+  getSentLeagueInvitations,
   type InvitationCounts,
 } from '../../services/api/invitations';
-import type { InvitationsReceivedResponse } from '../../types/entities/invitation';
+import type { InvitationsReceivedResponse, LeagueSentInvitationsResponse } from '../../types/entities/invitation';
 
 export type InvitationsServerFilter = {
   status?: InvitationStatusFilter | null;
@@ -40,6 +41,7 @@ export const invitationsKeys = {
       filter: stableFilter(args?.filter),
     },
   ] as const,
+  leagueSent: (leagueId: number) => [...invitationsKeys.all, 'league-sent', leagueId] as const,
   counts: () => [...invitationsKeys.all, 'counts'] as const,
 };
 
@@ -70,11 +72,27 @@ export function useInvitationCountsQuery(options?: InvitationsQueryOptions) {
   });
 }
 
+export function useLeagueSentInvitationsQuery(
+  leagueId: number | null,
+  options?: InvitationsQueryOptions,
+) {
+  return useQuery<LeagueSentInvitationsResponse, Error>({
+    queryKey: invitationsKeys.leagueSent(leagueId ?? -1),
+    queryFn: () => {
+      if (leagueId === null) throw new Error('Ligue invalide');
+      return getSentLeagueInvitations(leagueId);
+    },
+    enabled: (options?.enabled ?? true) && leagueId !== null,
+    refetchInterval: options?.refetchIntervalMs,
+  });
+}
+
 export function useInvalidateInvitations() {
   const qc = useQueryClient();
   return {
     invalidateAll: () => qc.invalidateQueries({ queryKey: invitationsKeys.all }),
     invalidateReceived: () => qc.invalidateQueries({ queryKey: [...invitationsKeys.all, 'received'] }),
+    invalidateLeagueSent: (leagueId: number) => qc.invalidateQueries({ queryKey: invitationsKeys.leagueSent(leagueId) }),
     invalidateCounts: () => qc.invalidateQueries({ queryKey: invitationsKeys.counts() }),
   };
 }

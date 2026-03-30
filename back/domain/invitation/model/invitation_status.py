@@ -1,10 +1,8 @@
 from enum import Enum
-from dataclasses import dataclass
 
 from domain.invitation.exception.invitation_exception import InvalidInvitationStatusException
 
 
-@dataclass(init=False, eq=True, frozen=True)
 class InvitationStatus(Enum):
     accepted = 'ACCEPTED'
     refused = 'REFUSED'

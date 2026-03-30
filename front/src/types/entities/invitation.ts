@@ -65,3 +65,21 @@ export interface InvitationsReceivedResponse {
   page?: number;
   page_size?: number;
 }
+
+export interface LeagueSentInvitationUser {
+  id: number;
+  pseudo: string;
+  email: string;
+}
+
+export interface LeagueSentInvitation {
+  id: number;
+  status: string;
+  created_at: number;
+  user: LeagueSentInvitationUser;
+}
+
+export interface LeagueSentInvitationsResponse {
+  league_id: number;
+  invitations: LeagueSentInvitation[];
+}

@@ -37,6 +37,19 @@ export interface ApiInvitationTournamentSummary {
   user_creator?: { id: number; pseudo: string };
 }
 
+export interface ApiLeagueInvitationSentUser {
+  id: number;
+  pseudo: string;
+  email: string;
+}
+
+export interface ApiLeagueInvitationSentItem {
+  id: number;
+  status: string;
+  created_at: number;
+  user: ApiLeagueInvitationSentUser;
+}
+
 // --- Réponses API ---
 
 export interface ApiInvitationsReceivedResponse {
@@ -44,4 +57,9 @@ export interface ApiInvitationsReceivedResponse {
   total?: number;
   page?: number;
   page_size?: number;
+}
+
+export interface ApiLeagueInvitationsSentResponse {
+  league_id: number;
+  invitations: ApiLeagueInvitationSentItem[];
 }

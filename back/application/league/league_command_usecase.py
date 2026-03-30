@@ -15,7 +15,7 @@ from domain.league.events.league_invitation_created import LeagueInvitationCreat
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
 from domain.league.events.league_started import LeagueStarted
-from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
+from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError, InvitationDeletionNotAllowedError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
@@ -408,19 +408,29 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
     async def delete_invitation(self, invitation_id: int, user_email: str):
         async with self._session_factory() as session:
             async with session.begin():
-                invitation_repo  = InvitationRepositoryImpl(session)
+                invitation_repo = InvitationRepositoryImpl(session)
                 league_repo = LeagueRepositoryImpl(session)
                 user_repo = UserRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(user_email)
+                if not user:
+                    raise UserNotFoundError
 
                 invitation = await invitation_repo.find_by_id(invitation_id)
                 if not invitation:
                     raise InvitationNotFoundError
 
+                if invitation.league_id is None:
+                    raise InvitationNotFoundError
+
+                if invitation.status != InvitationStatus.pending:
+                    raise InvitationDeletionNotAllowedError
+
                 league = await league_repo.find_by_id(invitation.league_id)
                 if not league:
                     raise LeagueNotFoundError
 
-                if league.user.id != invitation.user_sender_id:
+                if league.user.id != user.id or invitation.user_sender_id != user.id:
                     raise UserNotOwnerLeaguedError
 
                 # Libérer la place réservée (pas de crédit BTL : rien n'a été débité à l'invitation)
