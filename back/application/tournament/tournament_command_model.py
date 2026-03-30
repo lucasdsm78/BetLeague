@@ -67,5 +67,8 @@ class TournamentPlayerDeletedResponse(BaseModel):
 class TournamentInviteResponse(BaseModel):
     message: str = "The user is invited to join this tournament"
 
+class InvitationUpdateResponse(BaseModel):
+    message: str = "The invitation is well updated."
+
 class InvitationDeleteResponse(BaseModel):
     message: str = "The invitation is well deleted."

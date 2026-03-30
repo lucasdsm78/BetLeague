@@ -115,6 +115,13 @@ export async function updateInvitation(invitationId: number, accept: boolean): P
   return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
 }
 
+export async function updateTournamentInvitation(invitationId: number, accept: boolean): Promise<InvitationActionResponse> {
+  if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
+  const endpoint = `/tournament/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`;
+  const res: ApiResponse<InvitationActionResponse> = await http.put(endpoint);
+  return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
+}
+
 export async function deleteLeagueInvitation(invitationId: number): Promise<InvitationActionResponse> {
   if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
   const res: ApiResponse<InvitationActionResponse> = await http.delete(`/league/invitation/${invitationId}`);
