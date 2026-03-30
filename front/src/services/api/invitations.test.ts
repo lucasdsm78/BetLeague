@@ -1,6 +1,6 @@
 import http from '../http';
 
-import { deleteLeagueInvitation, getReceivedInvitations, getSentLeagueInvitations } from './invitations';
+import { deleteLeagueInvitation, getReceivedInvitations, getSentLeagueInvitations, updateTournamentInvitation } from './invitations';
 
 jest.mock('../http', () => ({
   __esModule: true,
@@ -154,5 +154,21 @@ describe('invitations api service', () => {
     });
 
     expect(http.delete).toHaveBeenCalledWith('/league/invitation/4');
+  });
+
+  it('met à jour une invitation tournoi reçue', async () => {
+    (http.put as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { message: 'Tournament invitation accepted successfully', success: true },
+      status: 202,
+      headers: {},
+    });
+
+    await expect(updateTournamentInvitation(9, true)).resolves.toEqual({
+      message: 'Tournament invitation accepted successfully',
+      success: true,
+    });
+
+    expect(http.put).toHaveBeenCalledWith('/tournament/invitation/true?invitation_id=9');
   });
 });

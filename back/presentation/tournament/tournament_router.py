@@ -8,7 +8,7 @@ from application.tournament.tournament_command_model import (
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateResponse, TournamentUpdateModel,
     SchedulerSuccessfulyRunResponse,
-    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse, InvitationUpdateResponse
 )
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase
 from application.tournament_subscription.cancel.cancel_tournament_subscription_usecase import \
@@ -28,7 +28,8 @@ from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError, \
-    TournamentMonthlyFreeCreationLimitReachedError, TournamentMaxPlayersError, TournamentSelfInvitationError
+    TournamentMonthlyFreeCreationLimitReachedError, TournamentMaxPlayersError, TournamentSelfInvitationError, \
+    UserNotInvitationTournamentError
 from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
@@ -604,3 +605,41 @@ async def delete_invitation(
         )
 
     return delete_invitation_result
+
+
+@router.put(
+    "/tournament/invitation/{action}",
+    response_model=InvitationUpdateResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Update tournament invitation status",
+)
+async def update_tournament_invitation(
+        invitation_id: int,
+        action: bool,
+        tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
+        current_user: dict = Depends(current_user)
+):
+    try:
+        return await tournament_command_usecase.update_invitation(
+            invitation_id,
+            action,
+            current_user.get('email', ''),
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except InvitationNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotInvitationTournamentError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except TournamentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+    except TournamentMaxPlayersError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la modification du status de l'invitation tournoi"
+        )
+
