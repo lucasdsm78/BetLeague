@@ -123,6 +123,13 @@ class TournamentNameAlreadyExistsError(Exception):
         return TournamentNameAlreadyExistsError.message
 
 
+class UserNotInvitationTournamentError(Exception):
+    message = "The user is not owner of the invitation for the tournament."
+
+    def __str__(self):
+        return UserNotInvitationTournamentError.message
+
+
 class NotEnoughPaidPlayersError(Exception):
     message = "Not enough players have paid to start the tournament."
 
@@ -158,4 +165,3 @@ class TournamentMonthlyFreeCreationLimitReachedError(Exception):
 
     def __str__(self):
         return self.message
-
