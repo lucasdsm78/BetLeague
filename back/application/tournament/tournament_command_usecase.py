@@ -10,13 +10,14 @@ from application.tournament.tournament_command_model import (
     TournamentCreateModel,
     TournamentCreateResponse,
     TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
-    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse
+    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse, InvitationUpdateResponse
 )
 from domain.ticket.model.ticket_status import TicketStatus
 from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
     TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
     NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError, TournamentMaxPlayersError, \
-    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError, TournamentSelfInvitationError
+    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError, TournamentSelfInvitationError, \
+    UserNotInvitationTournamentError
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_stage import TournamentStage
@@ -66,6 +67,10 @@ class TournamentCommandUseCase(ABC):
 
     @abstractmethod
     async def invite_user(self, tournament_id: int, user_id: int, user_owner_email: str) -> TournamentInviteResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_invitation(self, invitation_id: int, action: bool, email: str) -> InvitationUpdateResponse:
         raise NotImplementedError
 
 
@@ -510,6 +515,73 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 await invitation_repo.add(invitation)
 
         return TournamentInviteResponse()
+
+    async def update_invitation(
+            self,
+            invitation_id: int,
+            action: bool,
+            email: str
+    ) -> InvitationUpdateResponse:
+        tournament_full = False
+        owner_email = None
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo = UserRepositoryImpl(session)
+                tournament_repo = TournamentRepositoryImpl(session)
+                players_repo = TournamentPlayersRepositoryImpl(session)
+                invitation_repo = InvitationRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                invitation = await invitation_repo.find_by_id(invitation_id)
+                if not invitation:
+                    raise InvitationNotFoundError
+
+                if invitation.tournament_id is None:
+                    raise InvitationNotFoundError
+
+                if user.id != invitation.user_id:
+                    raise UserNotInvitationTournamentError
+
+                tournament = await tournament_repo.find_by_id(invitation.tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
+
+                if tournament.status != TournamentStatus.PENDING:
+                    raise TournamentAlreadyStartedError
+
+                if action:
+                    existing_player = await players_repo.get_player(tournament.id, user.id)
+                    if existing_player is None:
+                        if tournament.current_players >= tournament.max_players:
+                            raise TournamentMaxPlayersError
+
+                        player = TournamentPlayer(
+                            user_id=user.id,
+                            tournament_id=tournament.id,
+                            nb_btl=100,
+                            is_eliminated=False,
+                        )
+                        await players_repo.add_player(player)
+
+                        tournament.current_players += 1
+                        tournament.prize_pool += tournament.entry_fee
+                        await tournament_repo.update(tournament)
+
+                    owner_email = tournament.user.email.value
+                    tournament_full = tournament.current_players >= tournament.max_players
+
+                await invitation_repo.delete(invitation.id)
+
+        if action and tournament_full and owner_email:
+            await self.start_tournament(invitation.tournament_id, owner_email)
+
+        return InvitationUpdateResponse(
+            message="Tournament invitation accepted successfully" if action else "Tournament invitation declined successfully"
+        )
 
     async def delete_invitation(self, invitation_id: int, owner_user_id: int):
         async with self._session_factory() as session:

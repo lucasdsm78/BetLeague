@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import './InvitationsSection.css';
-import { updateInvitation } from '../../services/api/invitations';
+import { updateInvitation, updateTournamentInvitation } from '../../services/api/invitations';
 import {
   useReceivedInvitationsQuery,
   useInvalidateInvitations,
@@ -114,30 +114,24 @@ const InvitationCard: React.FC<InvitationCardProps> = memo(({ invitation, onAcce
         </div>
       </div>
 
-      {isLeagueInvitation ? (
-        <div className="inv-card-actions">
-          <button
-            type="button"
-            className="inv-btn inv-btn--accept"
-            onClick={() => onAccept(invitation)}
-            disabled={loading}
-          >
-            <IconCheck /> Accepter
-          </button>
-          <button
-            type="button"
-            className="inv-btn inv-btn--decline"
-            onClick={() => onDecline(invitation)}
-            disabled={loading}
-          >
-            <IconX /> Refuser
-          </button>
-        </div>
-      ) : (
-        <div className="inv-card-note">
-          Invitation tournoi reçue. La réponse depuis cet écran arrive bientôt.
-        </div>
-      )}
+      <div className="inv-card-actions">
+        <button
+          type="button"
+          className="inv-btn inv-btn--accept"
+          onClick={() => onAccept(invitation)}
+          disabled={loading}
+        >
+          <IconCheck /> Accepter
+        </button>
+        <button
+          type="button"
+          className="inv-btn inv-btn--decline"
+          onClick={() => onDecline(invitation)}
+          disabled={loading}
+        >
+          <IconX /> Refuser
+        </button>
+      </div>
     </div>
   );
 });
@@ -162,40 +156,37 @@ const InvitationsSection: React.FC = memo(() => {
   const error = (invitationsQuery.error as any)?.message ?? null;
 
   const handleAccept = useCallback(async (invitation: InvitationReceivedReadModel) => {
-    if (invitation.type !== 'league') {
-      showInfo('Invitation tournoi', 'La réponse aux invitations tournoi sera disponible très bientôt.');
-      return;
-    }
-
-    setLoadingId(invitation.id);
-    try {
-      const res = await updateInvitation(invitation.id, true);
-      showSuccess('Invitation acceptée', res.message || 'Vous avez rejoint la ligue !');
-      invalidate.invalidateAll();
-    } catch (e: any) {
-      showError('Erreur', e?.message || "Erreur lors de l'acceptation de l'invitation");
-    } finally {
-      setLoadingId(null);
-    }
-  }, [invalidate, showSuccess, showError, showInfo]);
+     setLoadingId(invitation.id);
+     try {
+      const res = invitation.type === 'league'
+        ? await updateInvitation(invitation.id, true)
+        : await updateTournamentInvitation(invitation.id, true);
+      showSuccess(
+        'Invitation acceptée',
+        res.message || (invitation.type === 'league' ? 'Vous avez rejoint la ligue !' : 'Vous avez rejoint le tournoi !'),
+      );
+       invalidate.invalidateAll();
+     } catch (e: any) {
+       showError('Erreur', e?.message || "Erreur lors de l'acceptation de l'invitation");
+     } finally {
+       setLoadingId(null);
+     }
+  }, [invalidate, showSuccess, showError]);
 
   const handleDecline = useCallback(async (invitation: InvitationReceivedReadModel) => {
-    if (invitation.type !== 'league') {
-      showInfo('Invitation tournoi', 'La réponse aux invitations tournoi sera disponible très bientôt.');
-      return;
-    }
-
-    setLoadingId(invitation.id);
-    try {
-      const res = await updateInvitation(invitation.id, false);
-      showSuccess('Invitation refusée', res.message || 'Invitation refusée');
-      invalidate.invalidateAll();
-    } catch (e: any) {
-      showError('Erreur', e?.message || "Erreur lors du refus de l'invitation");
-    } finally {
-      setLoadingId(null);
-    }
-  }, [invalidate, showSuccess, showError, showInfo]);
+     setLoadingId(invitation.id);
+     try {
+      const res = invitation.type === 'league'
+        ? await updateInvitation(invitation.id, false)
+        : await updateTournamentInvitation(invitation.id, false);
+       showSuccess('Invitation refusée', res.message || 'Invitation refusée');
+       invalidate.invalidateAll();
+     } catch (e: any) {
+       showError('Erreur', e?.message || "Erreur lors du refus de l'invitation");
+     } finally {
+       setLoadingId(null);
+     }
+  }, [invalidate, showSuccess, showError]);
 
   return (
     <div className="invitations-section" data-section="invitations">
