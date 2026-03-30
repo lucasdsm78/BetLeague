@@ -1,4 +1,3 @@
-
 class InvalidInvitationStatusException(Exception):
     message = "This invitation status is not a valid invitation status"
 
@@ -21,3 +20,10 @@ class InvitationFoundError(Exception):
 
     def __str__(self):
         return InvitationFoundError.message
+
+
+class InvitationDeletionNotAllowedError(Exception):
+    message = "Only pending invitations can be deleted."
+
+    def __str__(self):
+        return InvitationDeletionNotAllowedError.message

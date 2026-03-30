@@ -1,12 +1,13 @@
 import http from '../http';
 
-import { getReceivedInvitations } from './invitations';
+import { deleteLeagueInvitation, getReceivedInvitations, getSentLeagueInvitations } from './invitations';
 
 jest.mock('../http', () => ({
   __esModule: true,
   default: {
     get: jest.fn(),
     put: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -102,5 +103,56 @@ describe('invitations api service', () => {
       cache: 'no-store',
     });
   });
-});
 
+  it('charge les invitations envoyées pour une ligue', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: {
+        league_id: 12,
+        invitations: [
+          {
+            id: 4,
+            status: 'PENDING',
+            created_at: 1710000000000,
+            user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
+          },
+        ],
+      },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getSentLeagueInvitations(12)).resolves.toEqual({
+      league_id: 12,
+      invitations: [
+        {
+          id: 4,
+          status: 'PENDING',
+          created_at: 1710000000000,
+          user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
+        },
+      ],
+    });
+
+    expect(http.get).toHaveBeenCalledWith('/league/12/invitations', {
+      skipCache: true,
+      cache: 'no-store',
+    });
+  });
+
+  it('supprime une invitation de ligue envoyée', async () => {
+    (http.delete as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { message: 'The invitation is well deleted.', success: true },
+      status: 202,
+      headers: {},
+    });
+
+    await expect(deleteLeagueInvitation(4)).resolves.toEqual({
+      message: 'The invitation is well deleted.',
+      success: true,
+    });
+
+    expect(http.delete).toHaveBeenCalledWith('/league/invitation/4');
+  });
+});

@@ -4,10 +4,12 @@
 import http, { type ApiResponse } from '../http';
 import type {
   ApiInvitationActionResponse,
+  ApiLeagueInvitationsSentResponse,
   ApiInvitationsReceivedResponse,
+  ApiLeagueInvitationSentItem,
   ApiInvitationReceivedItem,
 } from '../../types/api/invitations';
-import type { InvitationsReceivedResponse, InvitationReceivedReadModel } from '../../types/entities/invitation';
+import type { InvitationsReceivedResponse, InvitationReceivedReadModel, LeagueSentInvitationsResponse } from '../../types/entities/invitation';
 import { tryMapApiInvitationToUi } from '../mappers/invitationMapper';
 
 export type InvitationActionResponse = ApiInvitationActionResponse;
@@ -55,6 +57,29 @@ function normalizeReceived(
   return { invitations: mapped, total, page, page_size };
 }
 
+function normalizeSentLeagueInvitations(
+  data: ApiLeagueInvitationsSentResponse | unknown,
+): LeagueSentInvitationsResponse {
+  const invitationsPayload = (data as any)?.invitations;
+  const invitations = Array.isArray(invitationsPayload) ? (invitationsPayload as ApiLeagueInvitationSentItem[]) : [];
+
+  return {
+    league_id: typeof (data as any)?.league_id === 'number' ? (data as any).league_id : 0,
+    invitations: invitations
+      .filter((inv) => inv && typeof inv.id === 'number' && inv.user && typeof inv.user.id === 'number')
+      .map((inv) => ({
+        id: inv.id,
+        status: String(inv.status ?? ''),
+        created_at: Number(inv.created_at ?? 0),
+        user: {
+          id: Number(inv.user.id),
+          pseudo: String(inv.user.pseudo ?? ''),
+          email: String(inv.user.email ?? ''),
+        },
+      })),
+  };
+}
+
 export async function getReceivedInvitations(
   params?: InvitationsListParams,
 ): Promise<InvitationsReceivedResponse> {
@@ -68,6 +93,16 @@ export async function getReceivedInvitations(
   return normalizeReceived(res.data);
 }
 
+export async function getSentLeagueInvitations(leagueId: number): Promise<LeagueSentInvitationsResponse> {
+  if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
+
+  const res: ApiResponse<unknown> = await http.get(`/league/${leagueId}/invitations`, {
+    skipCache: true,
+    cache: 'no-store',
+  });
+  return normalizeSentLeagueInvitations(res.data);
+}
+
 export async function getInvitationCounts(): Promise<InvitationCounts> {
   const res: ApiResponse<InvitationCounts> = await http.get('/invitations/counts?is_received=true');
   return res.data ?? { pending: 0, accepted: 0, refused: 0 };
@@ -77,5 +112,11 @@ export async function updateInvitation(invitationId: number, accept: boolean): P
   if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
   const endpoint = `/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`;
   const res: ApiResponse<InvitationActionResponse> = await http.put(endpoint);
+  return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
+}
+
+export async function deleteLeagueInvitation(invitationId: number): Promise<InvitationActionResponse> {
+  if (!Number.isInteger(invitationId) || invitationId <= 0) throw new Error("ID d'invitation invalide");
+  const res: ApiResponse<InvitationActionResponse> = await http.delete(`/league/invitation/${invitationId}`);
   return (res.data ?? { message: '', success: true }) as InvitationActionResponse;
 }

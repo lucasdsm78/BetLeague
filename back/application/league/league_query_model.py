@@ -4,6 +4,7 @@ from typing import List
 from pydantic import conlist
 from pydantic import Field, BaseModel
 
+from application.user.user_query_model import UserSummaryReadModel
 from domain.league.model.league import League
 
 
@@ -117,6 +118,18 @@ class InvitationCountsResponse(BaseModel):
     refused: int = 0
 
 
+class LeagueInvitationSentReadModel(BaseModel):
+    id: int
+    status: str
+    created_at: int
+    user: UserSummaryReadModel
+
+
+class LeagueInvitationsSentResponse(BaseModel):
+    league_id: int
+    invitations: List[LeagueInvitationSentReadModel] = Field(default_factory=list)
+
+
 class LeaguesListResponse(BaseModel):
     leagues: List[LeagueReadModel] = Field(default_factory=list)
     page: int
@@ -135,4 +148,3 @@ class LeagueBalancesBulkResponse(BaseModel):
     balances: dict[int, float] = Field(default_factory=dict)
     not_found: List[int] = Field(default_factory=list)
     forbidden: List[int] = Field(default_factory=list)
-

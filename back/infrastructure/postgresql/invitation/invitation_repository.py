@@ -87,6 +87,25 @@ class InvitationRepositoryImpl(InvitationRepository):
         result = await self.session.execute(query)
         return result.scalars().all()
 
+    async def find_league_invitations_sent_by_owner(self, league_id: int, owner_user_id: int) -> List[DBInvitation]:
+        query = (
+            select(DBInvitation)
+            .join(DBLeague, DBInvitation.league_id == DBLeague.id)
+            .where(
+                DBInvitation.league_id == league_id,
+                DBLeague.user_id == owner_user_id,
+            )
+            .options(
+                selectinload(DBInvitation.user),
+                selectinload(DBInvitation.user_sender),
+                selectinload(DBInvitation.league),
+            )
+            .order_by(DBInvitation.created_at.desc())
+        )
+
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
     async def find_received_invitations(
             self,
             user_id: int,

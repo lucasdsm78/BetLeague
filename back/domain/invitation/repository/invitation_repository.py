@@ -32,6 +32,10 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_league_invitations_sent_by_owner(self, league_id: int, owner_user_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_received_invitations(
             self,
             user_id: int,
