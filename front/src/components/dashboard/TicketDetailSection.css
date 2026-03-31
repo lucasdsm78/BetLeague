@@ -401,6 +401,133 @@
   white-space: nowrap;
 }
 
+/* ========== SHARE SHEET ========== */
+
+.share-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(3, 11, 18, 0.72);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.share-sheet {
+  width: min(100%, 720px);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  border-radius: 28px;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  background: linear-gradient(180deg, rgba(8, 26, 38, 0.98), rgba(4, 16, 26, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  padding: 0.75rem 0.95rem 1rem;
+}
+
+.share-sheet-handle {
+  width: 52px;
+  height: 5px;
+  border-radius: 999px;
+  margin: 0.2rem auto 0.75rem;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.share-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.share-sheet-header h3 {
+  margin: 0;
+  color: #f8fdff;
+  font-size: 1.05rem;
+}
+
+.share-sheet-header p {
+  margin: 0.35rem 0 0;
+  color: #bfd7e4;
+  line-height: 1.5;
+  font-size: 0.88rem;
+}
+
+.share-sheet-close {
+  border: 0;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fdff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 1.55rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.share-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.share-sheet-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-height: 118px;
+  padding: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background: linear-gradient(180deg, rgba(10, 37, 54, 0.92), rgba(8, 27, 40, 0.92));
+  color: #f8fdff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.share-sheet-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(45, 212, 191, 0.42);
+  box-shadow: 0 10px 28px rgba(6, 182, 212, 0.12);
+}
+
+.share-sheet-option:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.share-sheet-option-icon {
+  font-size: 1.5rem;
+}
+
+.share-sheet-option-label {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.share-sheet-option-hint {
+  color: #bdd2df;
+  line-height: 1.4;
+  font-size: 0.82rem;
+}
+
+.share-sheet-footer {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.share-sheet-footer p {
+  margin: 0;
+  color: #9eb6c5;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 /* ========== CHOICES SECTION ========== */
 
 .choices-section {
@@ -650,6 +777,26 @@
 @media (max-width: 640px) {
   .ticket-detail-section {
     padding: 0.5rem;
+  }
+
+  .share-sheet-backdrop {
+    padding: 0.5rem;
+  }
+
+  .share-sheet {
+    width: 100%;
+    max-height: 86vh;
+    border-radius: 24px 24px 18px 18px;
+    padding: 0.65rem 0.7rem 0.9rem;
+  }
+
+  .share-sheet-grid {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .share-sheet-option {
+    min-height: 104px;
   }
 
   .ticket-share-card {

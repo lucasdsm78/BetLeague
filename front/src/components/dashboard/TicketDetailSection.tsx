@@ -1,12 +1,11 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
-import { shareWinningTicket } from '../../utils/ticketShare';
-import { useGlobalToast } from '../../toast/ToastProvider';
+import TicketShareSheet from './TicketShareSheet';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -81,8 +80,7 @@ const TicketDetailSection: React.FC = memo(() => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
-  const [isSharing, setIsSharing] = useState(false);
-  const { showSuccess, showError } = useGlobalToast();
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   const leagueName = ticket?.league_summary?.name || 'Ligues';
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
@@ -95,26 +93,6 @@ const TicketDetailSection: React.FC = memo(() => {
     if (!ticket) return { mise: 0, gain: 0 };
     return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
   }, [ticket]);
-
-  const handleShare = useCallback(async () => {
-    if (!ticket || normalizeStatus(ticket.status) !== 'correct') return;
-    setIsSharing(true);
-    try {
-      const result = await shareWinningTicket({
-        ticketUuid: ticket.uuid,
-        gain: ticket.gain,
-        leagueName: ticket.league_summary?.name,
-      });
-      showSuccess(
-        result.method === 'native' ? 'Partage ouvert' : 'Lien copié',
-        result.method === 'native' ? 'Choisissez votre réseau social pour partager ce ticket gagné.' : 'Le lien du ticket gagné a été copié.',
-      );
-    } catch (e: any) {
-      showError('Partage impossible', e?.message || 'Impossible de partager ce ticket pour le moment.');
-    } finally {
-      setIsSharing(false);
-    }
-  }, [ticket, showError, showSuccess]);
 
   return (
     <div className="ticket-detail-section">
@@ -185,8 +163,8 @@ const TicketDetailSection: React.FC = memo(() => {
                 <p>Diffusez ce ticket sur vos réseaux ou copiez simplement le lien depuis votre mobile.</p>
               </div>
               <div className="ticket-share-actions">
-                <button className="btn btn-primary btn-share" onClick={handleShare} disabled={isSharing}>
-                  {isSharing ? 'Partage…' : 'Partager ce ticket'}
+                <button className="btn btn-primary btn-share" onClick={() => setIsShareSheetOpen(true)}>
+                  Partager ce ticket
                 </button>
               </div>
             </section>
@@ -203,12 +181,27 @@ const TicketDetailSection: React.FC = memo(() => {
 
           <footer className="detail-actions">
             {isWin && (
-              <button className="btn btn-secondary" onClick={handleShare} disabled={isSharing}>
-                {isSharing ? 'Partage…' : 'Partager'}
+              <button className="btn btn-secondary" onClick={() => setIsShareSheetOpen(true)}>
+                Partager
               </button>
             )}
             <button className="btn btn-primary" onClick={() => navigate('/tickets')}>Retour aux tickets</button>
           </footer>
+
+          <TicketShareSheet
+            isOpen={isShareSheetOpen}
+            onClose={() => setIsShareSheetOpen(false)}
+            ticket={ticket ? {
+              uuid: ticket.uuid,
+              gain: ticket.gain,
+              leagueName: ticket.league_summary?.name,
+              choices: ticket.match_choice_summaries.map((choice) => ({
+                homeTeam: choice.match_summary.home_team,
+                awayTeam: choice.match_summary.away_team,
+                choice: choice.choice,
+              })),
+            } : null}
+          />
         </>
       )}
     </div>

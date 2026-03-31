@@ -6,8 +6,7 @@ import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
-import { shareWinningTicket } from '../../utils/ticketShare';
-import { useGlobalToast } from '../../toast/ToastProvider';
+import TicketShareSheet from './TicketShareSheet';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -93,8 +92,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId, onAskDelete }) => {
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
-  const [isSharing, setIsSharing] = useState(false);
-  const { showSuccess, showError } = useGlobalToast();
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -151,26 +149,6 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
     if (!ticket) return { mise: 0, gain: 0 };
     return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
   }, [ticket]);
-
-  const handleShare = useCallback(async () => {
-    if (!ticket || normalizeStatus(ticket.status) !== 'correct') return;
-    setIsSharing(true);
-    try {
-      const result = await shareWinningTicket({
-        ticketUuid: ticket.uuid,
-        gain: ticket.gain,
-        leagueName: ticket.league_summary?.name,
-      });
-      showSuccess(
-        result.method === 'native' ? 'Partage ouvert' : 'Lien copié',
-        result.method === 'native' ? 'Choisissez votre réseau social pour partager ce ticket gagné.' : 'Le lien du ticket gagné a été copié.',
-      );
-    } catch (e: any) {
-      showError('Partage impossible', e?.message || 'Impossible de partager ce ticket pour le moment.');
-    } finally {
-      setIsSharing(false);
-    }
-  }, [ticket, showError, showSuccess]);
 
   if (!isOpen || ticketId == null) return null;
 
@@ -264,8 +242,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
                     <p>Ouvrez le partage natif de votre mobile ou copiez le lien en un geste.</p>
                   </div>
                   <div className="ticket-share-actions">
-                    <button className="btn btn-primary btn-share" onClick={handleShare} disabled={isSharing}>
-                      {isSharing ? 'Partage…' : 'Partager ce ticket'}
+                    <button className="btn btn-primary btn-share" onClick={() => setIsShareSheetOpen(true)}>
+                      Partager ce ticket
                     </button>
                   </div>
                 </section>
@@ -298,8 +276,8 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             Fermer
           </button>
           {ticket && isWin && (
-            <button className="btn btn-secondary" onClick={handleShare} disabled={isSharing}>
-              {isSharing ? 'Partage…' : 'Partager'}
+            <button className="btn btn-secondary" onClick={() => setIsShareSheetOpen(true)}>
+              Partager
             </button>
           )}
           {ticket && onAskDelete && (
@@ -308,6 +286,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             </button>
           )}
         </div>
+
+        <TicketShareSheet
+          isOpen={isShareSheetOpen}
+          onClose={() => setIsShareSheetOpen(false)}
+          ticket={ticket ? {
+            uuid: ticket.uuid,
+            gain: ticket.gain,
+            leagueName: ticket.league_summary?.name,
+            choices: ticket.match_choice_summaries.map((choice) => ({
+              homeTeam: choice.match_summary.home_team,
+              awayTeam: choice.match_summary.away_team,
+              choice: choice.choice,
+            })),
+          } : null}
+        />
       </div>
     </div>
   );

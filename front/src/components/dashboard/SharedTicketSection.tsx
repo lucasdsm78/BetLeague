@@ -6,8 +6,7 @@ import type { MatchChoiceSummary, SharedTicketReadModel } from '../../types/enti
 import { getSharedTicketDetail } from '../../services/api/tickets';
 import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
-import { shareWinningTicket } from '../../utils/ticketShare';
-import { useGlobalToast } from '../../toast/ToastProvider';
+import TicketShareSheet from './TicketShareSheet';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -78,9 +77,8 @@ const SharedTicketSection: React.FC = memo(() => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const { showSuccess, showError } = useGlobalToast();
 
   const fetchDetail = useCallback(async () => {
     if (!ticketUuid) return;
@@ -115,26 +113,6 @@ const SharedTicketSection: React.FC = memo(() => {
   const leagueName = ticket?.league_summary?.name || 'Ticket BetLeague';
   const badgeClass = normalizeStatus(ticket?.status) === 'correct' ? 'badge badge-success' : 'badge badge-warning';
   const totalChoices = ticket?.match_choice_summaries?.length || 0;
-
-  const handleShare = useCallback(async () => {
-    if (!ticket) return;
-    setIsSharing(true);
-    try {
-      const result = await shareWinningTicket({
-        ticketUuid: ticket.uuid,
-        gain: ticket.gain,
-        leagueName: ticket.league_summary?.name,
-      });
-      showSuccess(
-        result.method === 'native' ? 'Partage ouvert' : 'Lien copié',
-        result.method === 'native' ? 'Choisissez votre réseau social pour partager ce ticket.' : 'Le lien du ticket gagné a été copié.',
-      );
-    } catch (e: any) {
-      showError('Partage impossible', e?.message || 'Impossible de partager ce ticket pour le moment.');
-    } finally {
-      setIsSharing(false);
-    }
-  }, [ticket, showError, showSuccess]);
 
   return (
     <div className="ticket-detail-section ticket-detail-section--shared">
@@ -201,8 +179,8 @@ const SharedTicketSection: React.FC = memo(() => {
               <p>Diffusez ce ticket sur WhatsApp, X, Instagram ou copiez simplement le lien.</p>
             </div>
             <div className="ticket-share-actions">
-              <button className="btn btn-primary btn-share" onClick={handleShare} disabled={isSharing}>
-                {isSharing ? 'Partage…' : 'Partager ce ticket'}
+              <button className="btn btn-primary btn-share" onClick={() => setIsShareSheetOpen(true)}>
+                Partager ce ticket
               </button>
             </div>
           </section>
@@ -215,6 +193,21 @@ const SharedTicketSection: React.FC = memo(() => {
               ))}
             </ul>
           </section>
+
+          <TicketShareSheet
+            isOpen={isShareSheetOpen}
+            onClose={() => setIsShareSheetOpen(false)}
+            ticket={{
+              uuid: ticket.uuid,
+              gain: ticket.gain,
+              leagueName: ticket.league_summary?.name,
+              choices: ticket.match_choice_summaries.map((choice) => ({
+                homeTeam: choice.match_summary.home_team,
+                awayTeam: choice.match_summary.away_team,
+                choice: choice.choice,
+              })),
+            }}
+          />
         </>
       )}
     </div>
