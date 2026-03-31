@@ -44,6 +44,16 @@ export interface TicketReadModel {
   match_choice_summaries: MatchChoiceSummary[];
 }
 
+export interface SharedTicketReadModel {
+  uuid: string;
+  mise: number;
+  gain: number;
+  status: string;
+  league_summary?: TicketLeagueSummary | null;
+  tournament_match_summary?: TournamentMatchSummary | null;
+  match_choice_summaries: MatchChoiceSummary[];
+}
+
 export interface TicketsInProgressResponse {
   tickets: TicketReadModel[];
   total?: number;

@@ -5,12 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.league.league_summary import LeagueSummary
 from application.match.match_summary import MatchSummary
 from application.ticket.match_choice_summary import MatchChoiceSummary
-from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse
+from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse, SharedTicketReadModel
 from application.tournament.tournament_match_summary import TournamentMatchSummary
 from domain.league.exception.league_exception import LeagueNotFoundError
 from domain.league.repository.league_repository import LeagueRepository
 from domain.match.repository.match_repository import MatchRepository
-from domain.ticket.exception.ticket_exception import TicketNotFoundError, TicketAccessDeniedError
+from domain.ticket.exception.ticket_exception import TicketNotFoundError, TicketAccessDeniedError, TicketNotShareableError
 from domain.ticket.repository.match_choice_repository import MatchChoiceRepository
 from domain.ticket.repository.ticket_repository import TicketRepository
 from domain.tournament.exception.tournament_exception import TournamentMatchNotFoundError
@@ -24,6 +24,7 @@ from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryI
 from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from application.match.match_odd_summary import MatchOddSummary
+from domain.ticket.model.ticket_status import TicketStatus
 
 
 def _odd_to_summary(odd) -> MatchOddSummary:
@@ -70,6 +71,10 @@ class TicketQueryUseCase(ABC):
     ) -> TicketsFinishedResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_shared_ticket_details(self, ticket_uuid: str) -> SharedTicketReadModel:
+        raise NotImplementedError
+
 
 class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
@@ -91,6 +96,96 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
     class Config:
         arbitrary_types_allowed = True
+
+    async def _build_ticket_read_model_from_ticket(
+            self,
+            session: AsyncSession,
+            ticket,
+            *,
+            include_internal_id: bool,
+    ) -> TicketReadModel | SharedTicketReadModel:
+        league_repo = LeagueRepositoryImpl(session)
+        match_choices_repo = MatchChoicesRepositoryImpl(session)
+        match_repo = MatchRepositoryImpl(session)
+        match_odd_repo = MatchOddRepositoryImpl(session)
+        tournament_match_repo = TournamentMatchRepositoryImpl(session)
+
+        league_summary = None
+        tournament_match_summary = None
+
+        if ticket.league_id:
+            league = await league_repo.find_by_id(ticket.league_id)
+            if not league:
+                raise LeagueNotFoundError
+            league_summary = LeagueSummary(id=league.id, name=league.name)
+
+        if ticket.tournament_match_id:
+            tm = getattr(ticket, 'tournament_match', None)
+            if tm is None:
+                tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
+                if not tournament_match:
+                    raise TournamentMatchNotFoundError
+                tournament_match_summary = TournamentMatchSummary(
+                    tournament_match_id=tournament_match.id,
+                    tournament_id=tournament_match.tournament_id,
+                    type=tournament_match.type.value,
+                    stage_id=tournament_match.stage_id
+                )
+            else:
+                tournament_match_summary = TournamentMatchSummary(
+                    tournament_match_id=tm.id,
+                    tournament_id=tm.tournament_id,
+                    type=tm.type,
+                    stage_id=tm.stage_id
+                )
+
+        choices = await match_choices_repo.find_all_by_ticket_id(ticket.id)
+
+        match_ids = [choice.match_id for choice in choices]
+        matches = await match_repo.find_all_by_ids(match_ids)
+        match_map = {match.id: match for match in matches}
+
+        odd_ids = [c.match_odd_id for c in choices if getattr(c, 'match_odd_id', None)]
+        odds = await match_odd_repo.find_all_by_ids(list({int(x) for x in odd_ids})) if odd_ids else []
+        odd_map = _build_odd_map(odds)
+
+        match_choice_summaries = []
+        for mc in choices:
+            match = match_map.get(mc.match_id)
+            if not match:
+                continue
+
+            match_summary = MatchSummary(
+                id=match.id,
+                home_team=match.home_team,
+                away_team=match.away_team,
+                time=match.time,
+                winner=match.winner,
+            )
+
+            match_choice_summaries.append(
+                MatchChoiceSummary(
+                    id=mc.id,
+                    match_summary=match_summary,
+                    choice=mc.choice,
+                    status=mc.status.value if hasattr(mc.status, 'value') else mc.status,
+                    match_odd_summary=_get_match_odd_summary(odd_map, mc.match_odd_id)
+                )
+            )
+
+        payload = dict(
+            uuid=ticket.uuid,
+            mise=ticket.mise,
+            gain=ticket.gain,
+            status=ticket.status.value if hasattr(ticket.status, 'value') else ticket.status,
+            league_summary=league_summary,
+            tournament_match_summary=tournament_match_summary,
+            match_choice_summaries=match_choice_summaries,
+        )
+
+        if include_internal_id:
+            return TicketReadModel(id=ticket.id, **payload)
+        return SharedTicketReadModel(**payload)
 
     async def get_ticket_details(
             self,
@@ -118,79 +213,29 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 if ticket.user.id != user.id:
                     raise TicketAccessDeniedError
 
-                league_summary = None
-                tournament_match_summary = None
+                return await self._build_ticket_read_model_from_ticket(
+                    session,
+                    ticket,
+                    include_internal_id=True,
+                )
 
-                if ticket.league_id:
-                    league = await league_repo.find_by_id(ticket.league_id)
-                    if not league:
-                        raise LeagueNotFoundError
-                    league_summary = LeagueSummary(id=league.id, name=league.name)
+    async def get_shared_ticket_details(self, ticket_uuid: str) -> SharedTicketReadModel:
+        async with self._session_factory() as session:
+            async with session.begin():
+                ticket_repo = TicketRepositoryImpl(session)
 
-                # tournament_match est eager-load via joinedload dans `TicketRepositoryImpl.find_by_id`.
-                if ticket.tournament_match_id:
-                    tm = getattr(ticket, 'tournament_match', None)
-                    if tm is None:
-                        tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
-                        if not tournament_match:
-                            raise TournamentMatchNotFoundError
-                        tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tournament_match.id,
-                            tournament_id=tournament_match.tournament_id,
-                            type=tournament_match.type.value,
-                            stage_id=tournament_match.stage_id
-                        )
-                    else:
-                        tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tm.id,
-                            tournament_id=tm.tournament_id,
-                            type=tm.type,
-                            stage_id=tm.stage_id
-                        )
+                ticket = await ticket_repo.find_by_uuid(ticket_uuid)
+                if not ticket:
+                    raise TicketNotFoundError
 
-                choices = await match_choices_repo.find_all_by_ticket_id(ticket_id)
+                status_value = ticket.status.value if hasattr(ticket.status, 'value') else ticket.status
+                if status_value != TicketStatus.correct.value:
+                    raise TicketNotShareableError
 
-                match_ids = [choice.match_id for choice in choices]
-                matches = await match_repo.find_all_by_ids(match_ids)
-                match_map = {match.id: match for match in matches}
-
-                odd_ids = [c.match_odd_id for c in choices if getattr(c, 'match_odd_id', None)]
-                odds = await match_odd_repo.find_all_by_ids(list({int(x) for x in odd_ids})) if odd_ids else []
-                odd_map = _build_odd_map(odds)
-
-                match_choice_summaries = []
-                for mc in choices:
-                    match = match_map.get(mc.match_id)
-                    if not match:
-                        continue
-
-                    match_summary = MatchSummary(
-                        id=match.id,
-                        home_team=match.home_team,
-                        away_team=match.away_team,
-                        time=match.time,
-                        winner=match.winner,
-                    )
-
-                    match_choice_summaries.append(
-                        MatchChoiceSummary(
-                            id=mc.id,
-                            match_summary=match_summary,
-                            choice=mc.choice,
-                            status=mc.status.value,
-                            match_odd_summary=_get_match_odd_summary(odd_map, mc.match_odd_id)
-                        )
-                    )
-
-                return TicketReadModel(
-                    id=ticket.id,
-                    uuid=ticket.uuid,
-                    mise=ticket.mise,
-                    gain=ticket.gain,
-                    status=ticket.status.value,
-                    league_summary=league_summary,
-                    tournament_match_summary=tournament_match_summary,
-                    match_choice_summaries=match_choice_summaries
+                return await self._build_ticket_read_model_from_ticket(
+                    session,
+                    ticket,
+                    include_internal_id=False,
                 )
 
     async def get_tickets_in_progress(

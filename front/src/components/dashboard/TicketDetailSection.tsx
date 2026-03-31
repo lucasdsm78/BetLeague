@@ -1,10 +1,12 @@
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './TicketDetailSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
+import { shareWinningTicket } from '../../utils/ticketShare';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
 
@@ -79,6 +81,8 @@ const TicketDetailSection: React.FC = memo(() => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
+  const [isSharing, setIsSharing] = useState(false);
+  const { showSuccess, showError } = useGlobalToast();
 
   const leagueName = ticket?.league_summary?.name || 'Ligues';
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
@@ -91,6 +95,26 @@ const TicketDetailSection: React.FC = memo(() => {
     if (!ticket) return { mise: 0, gain: 0 };
     return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
   }, [ticket]);
+
+  const handleShare = useCallback(async () => {
+    if (!ticket || normalizeStatus(ticket.status) !== 'correct') return;
+    setIsSharing(true);
+    try {
+      const result = await shareWinningTicket({
+        ticketUuid: ticket.uuid,
+        gain: ticket.gain,
+        leagueName: ticket.league_summary?.name,
+      });
+      showSuccess(
+        result.method === 'native' ? 'Partage ouvert' : 'Lien copié',
+        result.method === 'native' ? 'Choisissez votre réseau social pour partager ce ticket gagné.' : 'Le lien du ticket gagné a été copié.',
+      );
+    } catch (e: any) {
+      showError('Partage impossible', e?.message || 'Impossible de partager ce ticket pour le moment.');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [ticket, showError, showSuccess]);
 
   return (
     <div className="ticket-detail-section">
@@ -153,6 +177,21 @@ const TicketDetailSection: React.FC = memo(() => {
             </div>
           </section>
 
+          {isWin && (
+            <section className="ticket-share-card">
+              <div className="ticket-share-copy">
+                <span className="ticket-share-badge">🏆 Ticket gagnant</span>
+                <h3>Partagez votre victoire</h3>
+                <p>Diffusez ce ticket sur vos réseaux ou copiez simplement le lien depuis votre mobile.</p>
+              </div>
+              <div className="ticket-share-actions">
+                <button className="btn btn-primary btn-share" onClick={handleShare} disabled={isSharing}>
+                  {isSharing ? 'Partage…' : 'Partager ce ticket'}
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="choices-section">
             <h3>Sélections</h3>
             <ul className="choices-list">
@@ -163,6 +202,11 @@ const TicketDetailSection: React.FC = memo(() => {
           </section>
 
           <footer className="detail-actions">
+            {isWin && (
+              <button className="btn btn-secondary" onClick={handleShare} disabled={isSharing}>
+                {isSharing ? 'Partage…' : 'Partager'}
+              </button>
+            )}
             <button className="btn btn-primary" onClick={() => navigate('/tickets')}>Retour aux tickets</button>
           </footer>
         </>
