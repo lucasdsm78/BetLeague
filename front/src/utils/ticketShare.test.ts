@@ -1,4 +1,5 @@
 import {
+  buildWinningTicketShareImageFile,
   buildSharedWinningTicketUrl,
   buildWinningTicketShareMessage,
   shareWinningTicket,
@@ -87,5 +88,32 @@ describe('ticketShare utils', () => {
     expect(sharedPayload.files[0].type).toBe('image/png');
     expect(sharedPayload.text).toBeUndefined();
     expect(sharedPayload.url).toBeUndefined();
+  });
+
+  it('génère un visuel qui affiche explicitement la ligue et le statut gagné', async () => {
+    jest.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => null,
+          toBlob: undefined,
+        } as any;
+      }
+      return document.createElementNS('http://www.w3.org/1999/xhtml', tagName) as any;
+    }) as any);
+
+    const file = await buildWinningTicketShareImageFile({
+      ticketUuid: 'abc-123',
+      gain: 42.5,
+      mise: 12.99,
+      leagueName: 'Ligue VIP',
+      network: 'instagram',
+      variant: 'story',
+    });
+
+    const svgContent = await new Response(file).text();
+    expect(svgContent).toContain('Ligue : Ligue VIP');
+    expect(svgContent).toContain('TICKET GAGNÉ');
   });
 });
