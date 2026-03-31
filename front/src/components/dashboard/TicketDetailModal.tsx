@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './CreateTicketModal.css';
 import './TicketDetailSection.css';
 import './TicketsSection.css';
@@ -6,6 +6,8 @@ import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
+import { shareWinningTicket } from '../../utils/ticketShare';
+import { useGlobalToast } from '../../toast/ToastProvider';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -91,6 +93,8 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId, onAskDelete }) => {
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
+  const [isSharing, setIsSharing] = useState(false);
+  const { showSuccess, showError } = useGlobalToast();
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -147,6 +151,26 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
     if (!ticket) return { mise: 0, gain: 0 };
     return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
   }, [ticket]);
+
+  const handleShare = useCallback(async () => {
+    if (!ticket || normalizeStatus(ticket.status) !== 'correct') return;
+    setIsSharing(true);
+    try {
+      const result = await shareWinningTicket({
+        ticketUuid: ticket.uuid,
+        gain: ticket.gain,
+        leagueName: ticket.league_summary?.name,
+      });
+      showSuccess(
+        result.method === 'native' ? 'Partage ouvert' : 'Lien copié',
+        result.method === 'native' ? 'Choisissez votre réseau social pour partager ce ticket gagné.' : 'Le lien du ticket gagné a été copié.',
+      );
+    } catch (e: any) {
+      showError('Partage impossible', e?.message || 'Impossible de partager ce ticket pour le moment.');
+    } finally {
+      setIsSharing(false);
+    }
+  }, [ticket, showError, showSuccess]);
 
   if (!isOpen || ticketId == null) return null;
 
@@ -232,6 +256,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
                 </div>
               </section>
 
+              {isWin && (
+                <section className="ticket-share-card">
+                  <div className="ticket-share-copy">
+                    <span className="ticket-share-badge">🏆 Ticket gagnant</span>
+                    <h3>Partagez votre ticket</h3>
+                    <p>Ouvrez le partage natif de votre mobile ou copiez le lien en un geste.</p>
+                  </div>
+                  <div className="ticket-share-actions">
+                    <button className="btn btn-primary btn-share" onClick={handleShare} disabled={isSharing}>
+                      {isSharing ? 'Partage…' : 'Partager ce ticket'}
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="choices-section">
                 <h3>Sélections</h3>
                 <ul className="choices-list">
@@ -258,6 +297,11 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           <button className="btn btn-outline" onClick={onClose}>
             Fermer
           </button>
+          {ticket && isWin && (
+            <button className="btn btn-secondary" onClick={handleShare} disabled={isSharing}>
+              {isSharing ? 'Partage…' : 'Partager'}
+            </button>
+          )}
           {ticket && onAskDelete && (
             <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>
               Supprimer le ticket
