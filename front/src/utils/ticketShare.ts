@@ -118,7 +118,7 @@ function buildTicketShareSvg(input: ShareWinningTicketInput): string {
   const isStory = (input.variant ?? 'feed') === 'story';
   const width = isStory ? 1080 : 1200;
   const height = isStory ? 1920 : 1200;
-  const league = escapeXml(input.leagueName || 'Ticket gagnant BetLeague');
+  const leagueLabel = escapeXml(`Ligue : ${input.leagueName || 'BetLeague'}`);
   const uuidLabel = escapeXml(`#${input.ticketUuid.slice(0, 8).toUpperCase()}`);
   const gainLabel = escapeXml(`${gain}€`);
   const miseLabel = escapeXml(`${mise}€ misés`);
@@ -146,19 +146,29 @@ function buildTicketShareSvg(input: ShareWinningTicketInput): string {
         <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.18" />
         <stop offset="100%" stop-color="#10B981" stop-opacity="0.2" />
       </linearGradient>
+      <linearGradient id="winnerPill" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#10B981" />
+        <stop offset="100%" stop-color="#34D399" />
+      </linearGradient>
+      <linearGradient id="winnerCard" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="rgba(16,185,129,0.22)" />
+        <stop offset="100%" stop-color="rgba(52,211,153,0.08)" />
+      </linearGradient>
     </defs>
     <rect width="${width}" height="${height}" rx="48" fill="url(#bg)" />
     <circle cx="${width - 110}" cy="120" r="160" fill="#10B981" opacity="0.14" />
     <circle cx="160" cy="${height - 180}" r="220" fill="#06B6D4" opacity="0.1" />
     <rect x="56" y="56" width="${width - 112}" height="${height - 112}" rx="42" fill="url(#card)" stroke="#2DD4BF" stroke-opacity="0.25" />
-    <text x="96" y="145" fill="#6EE7B7" font-size="36" font-family="Inter, Arial, sans-serif" font-weight="700">🏆 TICKET GAGNANT</text>
+    <rect x="96" y="96" width="420" height="68" rx="22" fill="url(#winnerPill)" />
+    <text x="128" y="140" fill="#06261E" font-size="34" font-family="Inter, Arial, sans-serif" font-weight="900">🏆 TICKET GAGNÉ</text>
     <text x="96" y="255" fill="#FFFFFF" font-size="84" font-family="Inter, Arial, sans-serif" font-weight="800">BetLeague</text>
-    <text x="96" y="330" fill="#9ADCF4" font-size="44" font-family="Inter, Arial, sans-serif">${league}</text>
-    <text x="96" y="470" fill="#9ADCF4" font-size="34" font-family="Inter, Arial, sans-serif">Gain remporté</text>
-    <text x="96" y="610" fill="#FFFFFF" font-size="136" font-family="Inter, Arial, sans-serif" font-weight="900">${gainLabel}</text>
-    <rect x="96" y="660" width="${isStory ? 330 : 280}" height="56" rx="18" fill="rgba(110,231,183,0.14)" stroke="rgba(110,231,183,0.28)" />
-    <text x="124" y="697" fill="#6EE7B7" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="700">${miseLabel}</text>
-    <text x="96" y="775" fill="#6EE7B7" font-size="30" font-family="Inter, Arial, sans-serif">Ticket ${uuidLabel}</text>
+    <text x="96" y="330" fill="#9ADCF4" font-size="42" font-family="Inter, Arial, sans-serif" font-weight="700">${leagueLabel}</text>
+    <rect x="96" y="438" width="${isStory ? 888 : 1008}" height="268" rx="30" fill="url(#winnerCard)" stroke="rgba(52,211,153,0.34)" />
+    <text x="132" y="505" fill="#A7F3D0" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="800">GAIN ENCAISSÉ</text>
+    <text x="132" y="635" fill="#FFFFFF" font-size="${isStory ? 144 : 136}" font-family="Inter, Arial, sans-serif" font-weight="900">${gainLabel}</text>
+    <rect x="132" y="660" width="${isStory ? 330 : 280}" height="56" rx="18" fill="rgba(110,231,183,0.14)" stroke="rgba(110,231,183,0.28)" />
+    <text x="160" y="697" fill="#6EE7B7" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="700">${miseLabel}</text>
+    <text x="132" y="760" fill="#E5F7FF" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="700">Ticket ${uuidLabel}</text>
     ${svgLines}
     <text x="96" y="${height - 180}" fill="#E5F7FF" font-size="28" font-family="Inter, Arial, sans-serif">Parié sur BetLeague • betleague.app</text>
     <text x="96" y="${height - 130}" fill="#84CC16" font-size="28" font-family="Inter, Arial, sans-serif">Partagez votre victoire sur vos réseaux</text>
