@@ -7,6 +7,21 @@ import {
 describe('ticketShare utils', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: jest.fn(() => 'blob:ticket-share'),
+      configurable: true,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      value: jest.fn(),
+      configurable: true,
+    });
+    (global as any).Image = class {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      set src(_value: string) {
+        setTimeout(() => this.onload && this.onload(), 0);
+      }
+    };
   });
 
   it('construit l’url publique du ticket partagé', () => {
@@ -28,6 +43,19 @@ describe('ticketShare utils', () => {
     const share = jest.fn().mockResolvedValue(undefined);
     const canShare = jest.fn().mockReturnValue(true);
     const writeText = jest.fn().mockResolvedValue(undefined);
+    const drawImage = jest.fn();
+    const toBlob = jest.fn((cb: (blob: Blob) => void) => cb(new Blob(['png'], { type: 'image/png' })));
+    jest.spyOn(document, 'createElement').mockImplementation(((tagName: string) => {
+      if (tagName === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({ clearRect: jest.fn(), drawImage }),
+          toBlob,
+        } as any;
+      }
+      return document.createElementNS('http://www.w3.org/1999/xhtml', tagName) as any;
+    }) as any);
     Object.defineProperty(window, 'navigator', {
       value: { share, canShare, clipboard: { writeText } },
       configurable: true,
@@ -49,6 +77,11 @@ describe('ticketShare utils', () => {
 
     expect(writeText).toHaveBeenCalled();
     expect(share).toHaveBeenCalled();
+    const sharedPayload = share.mock.calls[0][0];
+    expect(sharedPayload.files).toHaveLength(1);
+    expect(sharedPayload.files[0].type).toBe('image/png');
+    expect(sharedPayload.text).toBeUndefined();
+    expect(sharedPayload.url).toBeUndefined();
   });
 
   it('copie uniquement le message quand demandé', async () => {

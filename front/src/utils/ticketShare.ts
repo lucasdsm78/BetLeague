@@ -159,11 +159,57 @@ function buildTicketShareSvg(input: ShareWinningTicketInput): string {
   </svg>`;
 }
 
+async function rasterizeSvgToPng(svg: string, width: number, height: number): Promise<Blob | null> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx || typeof Image === 'undefined' || typeof canvas.toBlob !== 'function') {
+    return null;
+  }
+
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const objectUrl = URL.createObjectURL(svgBlob);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Impossible de rasteriser le ticket partagé.'));
+      img.src = objectUrl;
+    });
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+
+    return await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/png', 1);
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export async function buildWinningTicketShareImageFile(input: ShareWinningTicketInput): Promise<File> {
   const svg = buildTicketShareSvg(input);
-  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const fileName = `betleague-ticket-${input.ticketUuid}-${(input.variant ?? 'feed')}.svg`;
-  return new File([blob], fileName, { type: 'image/svg+xml' });
+  const isStory = (input.variant ?? 'feed') === 'story';
+  const width = isStory ? 1080 : 1200;
+  const height = isStory ? 1920 : 1200;
+
+  const pngBlob = await rasterizeSvgToPng(svg, width, height);
+  if (pngBlob) {
+    const fileName = `betleague-ticket-${input.ticketUuid}-${(input.variant ?? 'feed')}.png`;
+    return new File([pngBlob], fileName, { type: 'image/png' });
+  }
+
+  const fallbackBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const fallbackName = `betleague-ticket-${input.ticketUuid}-${(input.variant ?? 'feed')}.svg`;
+  return new File([fallbackBlob], fallbackName, { type: 'image/svg+xml' });
 }
 
 export async function shareWinningTicket(input: ShareWinningTicketInput): Promise<ShareWinningTicketResult> {
@@ -202,17 +248,23 @@ export async function shareWinningTicket(input: ShareWinningTicketInput): Promis
   }
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    const shareData: ShareData = {
-      title: 'Ticket gagnant BetLeague',
-      text: message,
-      url,
-    };
-
     const canShareFiles = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
-    if (variant === 'story' || network !== 'system') {
-      if (canShareFiles) {
-        shareData.files = [file];
-      }
+    const isStrictStoryShare = variant === 'story' && (network === 'instagram' || network === 'tiktok');
+    const shareData: ShareData = isStrictStoryShare
+      ? {}
+      : {
+          title: 'Ticket gagnant BetLeague',
+          text: message,
+          url,
+        };
+
+    if ((variant === 'story' || network !== 'system') && canShareFiles) {
+      shareData.files = [file];
+    }
+
+    if (isStrictStoryShare && !shareData.files?.length) {
+      downloadBlob(file, file.name);
+      return { method: 'download', url, message, fileName: file.name, network, variant };
     }
 
     await navigator.share(shareData);
