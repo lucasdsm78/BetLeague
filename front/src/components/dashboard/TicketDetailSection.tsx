@@ -160,7 +160,7 @@ const TicketDetailSection: React.FC = memo(() => {
               <div className="ticket-share-copy">
                 <span className="ticket-share-badge">🏆 Ticket gagnant</span>
                 <h3>Partagez votre victoire</h3>
-                <p>Diffusez ce ticket sur vos réseaux ou copiez simplement le lien depuis votre mobile.</p>
+                <p>Partagez ce ticket en story Instagram ou récupérez directement le lien public.</p>
               </div>
               <div className="ticket-share-actions">
                 <button className="btn btn-primary btn-share" onClick={() => setIsShareSheetOpen(true)}>
@@ -194,6 +194,7 @@ const TicketDetailSection: React.FC = memo(() => {
             ticket={ticket ? {
               uuid: ticket.uuid,
               gain: ticket.gain,
+              mise: ticket.mise,
               leagueName: ticket.league_summary?.name,
               choices: ticket.match_choice_summaries.map((choice) => ({
                 homeTeam: choice.match_summary.home_team,

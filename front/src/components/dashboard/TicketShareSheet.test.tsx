@@ -42,16 +42,23 @@ describe('TicketShareSheet', () => {
         ticket={{
           uuid: 'ticket-uuid',
           gain: 42.5,
+          mise: 10,
           leagueName: 'Ligue VIP',
           choices: [{ homeTeam: 'PSG', awayTeam: 'OM', choice: 'PSG' }],
         }}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /story instagram/i }));
+    expect(screen.getByRole('button', { name: /partager sur les réseaux sociaux/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^instagram$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /tiktok/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copier le message/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /partager sur les réseaux sociaux/i }));
 
     await waitFor(() => expect(mockShareWinningTicket).toHaveBeenCalledWith(expect.objectContaining({
       ticketUuid: 'ticket-uuid',
+      mise: 10,
       network: 'instagram',
       variant: 'story',
     })));
@@ -60,4 +67,3 @@ describe('TicketShareSheet', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
-

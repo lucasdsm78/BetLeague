@@ -29,14 +29,18 @@ describe('ticketShare utils', () => {
   });
 
   it('génère un message prédéfini pour une story Instagram', () => {
-    expect(buildWinningTicketShareMessage({
+    const message = buildWinningTicketShareMessage({
       ticketUuid: 'abc-123',
       gain: 42.5,
+      mise: 12.99,
       leagueName: 'Ligue VIP',
       network: 'instagram',
       variant: 'story',
       origin: 'https://betleague.app',
-    })).toContain('Je partage aussi le ticket en story sur Instagram.');
+    });
+
+    expect(message).toContain("J'ai misé 12.99€ et gagné 42.50€ sur BetLeague dans Ligue VIP");
+    expect(message).toContain('https://betleague.app/tickets/shared/abc-123');
   });
 
   it('utilise le partage natif et copie le message pour Instagram', async () => {
@@ -64,6 +68,7 @@ describe('ticketShare utils', () => {
     await expect(shareWinningTicket({
       ticketUuid: 'abc-123',
       gain: 42.5,
+      mise: 12.99,
       leagueName: 'Ligue VIP',
       origin: 'https://betleague.app',
       network: 'instagram',
@@ -82,24 +87,5 @@ describe('ticketShare utils', () => {
     expect(sharedPayload.files[0].type).toBe('image/png');
     expect(sharedPayload.text).toBeUndefined();
     expect(sharedPayload.url).toBeUndefined();
-  });
-
-  it('copie uniquement le message quand demandé', async () => {
-    const writeText = jest.fn().mockResolvedValue(undefined);
-    Object.defineProperty(window, 'navigator', {
-      value: { clipboard: { writeText } },
-      configurable: true,
-    });
-
-    const result = await shareWinningTicket({
-      ticketUuid: 'abc-123',
-      gain: 42.5,
-      leagueName: 'Ligue VIP',
-      action: 'copy-message',
-      origin: 'https://betleague.app',
-    });
-
-    expect(result.method).toBe('clipboard');
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('https://betleague.app/tickets/shared/abc-123'));
   });
 });

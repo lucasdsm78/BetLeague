@@ -7,6 +7,7 @@ import { shareWinningTicket, type ShareTicketChoiceInput, type TicketShareAction
 interface ShareableTicketData {
   uuid: string;
   gain: number;
+  mise?: number;
   leagueName?: string | null;
   choices?: ShareTicketChoiceInput[];
 }
@@ -29,45 +30,12 @@ interface ShareOption {
 
 const SHARE_OPTIONS: ShareOption[] = [
   {
-    id: 'instagram-feed',
-    label: 'Instagram',
-    hint: 'Publier avec message prérempli',
-    emoji: '📸',
-    network: 'instagram',
-    variant: 'feed',
-  },
-  {
     id: 'instagram-story',
-    label: 'Story Instagram',
-    hint: 'Partager le ticket visuel en story',
+    label: 'Partager sur les réseaux sociaux',
+    hint: 'Partager le ticket visuel sur vos réseaux',
     emoji: '✨',
     network: 'instagram',
     variant: 'story',
-  },
-  {
-    id: 'tiktok-feed',
-    label: 'TikTok',
-    hint: 'Partager avec légende prête',
-    emoji: '🎵',
-    network: 'tiktok',
-    variant: 'feed',
-  },
-  {
-    id: 'tiktok-story',
-    label: 'Story TikTok',
-    hint: 'Partager le ticket visuel en story',
-    emoji: '🚀',
-    network: 'tiktok',
-    variant: 'story',
-  },
-  {
-    id: 'copy-message',
-    label: 'Copier le message',
-    hint: 'Collez votre message où vous voulez',
-    emoji: '📝',
-    network: 'system',
-    variant: 'feed',
-    action: 'copy-message',
   },
   {
     id: 'copy-link',
@@ -98,6 +66,7 @@ const TicketShareSheet: React.FC<TicketShareSheetProps> = memo(({ isOpen, onClos
     return {
       uuid: ticket.uuid,
       gain: ticket.gain,
+      mise: ticket.mise,
       leagueName: ticket.leagueName,
       choices: ticket.choices ?? [],
     };
@@ -111,6 +80,7 @@ const TicketShareSheet: React.FC<TicketShareSheetProps> = memo(({ isOpen, onClos
       const result = await shareWinningTicket({
         ticketUuid: normalizedTicket.uuid,
         gain: normalizedTicket.gain,
+        mise: normalizedTicket.mise,
         leagueName: normalizedTicket.leagueName,
         choices: normalizedTicket.choices,
         network: option.network,
@@ -120,12 +90,10 @@ const TicketShareSheet: React.FC<TicketShareSheetProps> = memo(({ isOpen, onClos
 
       if (result.method === 'download') {
         showSuccess('Ticket téléchargé', 'L’image du ticket est prête pour votre story ou votre post.');
-      } else if (option.action === 'copy-message') {
-        showSuccess('Message copié', 'Le message prédéfini est prêt à être collé sur votre réseau social.');
       } else if (option.action === 'copy-link') {
         showSuccess('Lien copié', 'Le lien public du ticket a été copié.');
       } else if (result.method === 'native+clipboard') {
-        showInfo('Partage ouvert', 'Le partage s’ouvre et le message a aussi été copié pour Instagram/TikTok si nécessaire.');
+        showInfo('Partage ouvert', 'Instagram s’ouvre et le texte du ticket a été copié si besoin pour votre story.');
       } else {
         showSuccess('Partage ouvert', 'Choisissez votre app puis validez le partage.');
       }
@@ -153,7 +121,7 @@ const TicketShareSheet: React.FC<TicketShareSheetProps> = memo(({ isOpen, onClos
         <div className="share-sheet-header">
           <div>
             <h3 id="ticket-share-sheet-title">Partager le ticket gagné</h3>
-            <p>Sélectionnez un réseau. Sur Instagram et TikTok, le message est aussi copié pour être collé facilement si l’app ignore le texte.</p>
+            <p>Partagez votre ticket en story Instagram, copiez le lien public ou téléchargez le visuel du ticket.</p>
           </div>
           <button type="button" className="share-sheet-close" onClick={onClose} aria-label="Fermer le partage">
             ×
@@ -177,7 +145,7 @@ const TicketShareSheet: React.FC<TicketShareSheetProps> = memo(({ isOpen, onClos
         </div>
 
         <div className="share-sheet-footer">
-          <p>Story = image du ticket. Post = message + lien du ticket partagé.</p>
+          <p>Story Instagram = image du ticket. Le lien public reste disponible si vous voulez le coller ailleurs.</p>
         </div>
       </div>
     </div>
