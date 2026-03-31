@@ -113,7 +113,7 @@ describe('ticketShare utils', () => {
     });
 
     const svgContent = await new Response(file).text();
-    expect(svgContent).toContain('Ligue : Ligue VIP');
-    expect(svgContent).toContain('TICKET GAGNÉ');
+    expect(svgContent).toContain('Ligue VIP');
+    expect(svgContent).toContain('TICKET GAGNANT');
   });
 });
