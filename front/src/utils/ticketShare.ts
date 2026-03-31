@@ -1,6 +1,6 @@
 export type TicketShareNetwork = 'system' | 'instagram' | 'tiktok';
 export type TicketShareVariant = 'feed' | 'story';
-export type TicketShareAction = 'share' | 'copy-message' | 'copy-link' | 'download-image';
+export type TicketShareAction = 'share' | 'copy-link' | 'download-image';
 
 export interface ShareTicketChoiceInput {
   homeTeam: string;
@@ -11,6 +11,7 @@ export interface ShareTicketChoiceInput {
 export interface ShareWinningTicketInput {
   ticketUuid: string;
   gain: number;
+  mise?: number;
   leagueName?: string | null;
   origin?: string;
   network?: TicketShareNetwork;
@@ -100,10 +101,11 @@ export function buildSharedWinningTicketUrl(ticketUuid: string, origin?: string)
 export function buildWinningTicketShareMessage(input: ShareWinningTicketInput): string {
   const url = buildSharedWinningTicketUrl(input.ticketUuid, input.origin);
   const gain = Number.isFinite(input.gain) ? input.gain.toFixed(2) : '0.00';
+  const mise = Number.isFinite(input.mise) ? Number(input.mise).toFixed(2) : '0.00';
   const networkLabel = getNetworkLabel(input.network ?? 'system');
   const intro = input.leagueName
-    ? `J'ai gagné ${gain}€ sur BetLeague dans ${input.leagueName}`
-    : `J'ai gagné ${gain}€ sur BetLeague`;
+    ? `J'ai misé ${mise}€ et gagné ${gain}€ sur BetLeague dans ${input.leagueName}`
+    : `J'ai misé ${mise}€ et gagné ${gain}€ sur BetLeague`;
   const storyHint = input.variant === 'story'
     ? ` Je partage aussi le ticket en story sur ${networkLabel}.`
     : ` Regardez mon ticket.`;
@@ -112,18 +114,20 @@ export function buildWinningTicketShareMessage(input: ShareWinningTicketInput): 
 
 function buildTicketShareSvg(input: ShareWinningTicketInput): string {
   const gain = Number.isFinite(input.gain) ? input.gain.toFixed(2) : '0.00';
+  const mise = Number.isFinite(input.mise) ? Number(input.mise).toFixed(2) : '0.00';
   const isStory = (input.variant ?? 'feed') === 'story';
   const width = isStory ? 1080 : 1200;
   const height = isStory ? 1920 : 1200;
   const league = escapeXml(input.leagueName || 'Ticket gagnant BetLeague');
   const uuidLabel = escapeXml(`#${input.ticketUuid.slice(0, 8).toUpperCase()}`);
   const gainLabel = escapeXml(`${gain}€`);
+  const miseLabel = escapeXml(`${mise}€ misés`);
   const choices = (input.choices ?? []).slice(0, isStory ? 4 : 3).map((choice) => (
     `${escapeXml(choice.homeTeam)} vs ${escapeXml(choice.awayTeam)} · ${escapeXml(choice.choice)}`
   ));
   const choiceLines = choices.length > 0 ? choices : ['Ticket gagnant prêt à partager'];
 
-  const lineStartY = isStory ? 930 : 720;
+  const lineStartY = isStory ? 1015 : 790;
   const lineGap = isStory ? 105 : 88;
 
   const svgLines = choiceLines
@@ -152,7 +156,9 @@ function buildTicketShareSvg(input: ShareWinningTicketInput): string {
     <text x="96" y="330" fill="#9ADCF4" font-size="44" font-family="Inter, Arial, sans-serif">${league}</text>
     <text x="96" y="470" fill="#9ADCF4" font-size="34" font-family="Inter, Arial, sans-serif">Gain remporté</text>
     <text x="96" y="610" fill="#FFFFFF" font-size="136" font-family="Inter, Arial, sans-serif" font-weight="900">${gainLabel}</text>
-    <text x="96" y="690" fill="#6EE7B7" font-size="30" font-family="Inter, Arial, sans-serif">Ticket ${uuidLabel}</text>
+    <rect x="96" y="660" width="${isStory ? 330 : 280}" height="56" rx="18" fill="rgba(110,231,183,0.14)" stroke="rgba(110,231,183,0.28)" />
+    <text x="124" y="697" fill="#6EE7B7" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="700">${miseLabel}</text>
+    <text x="96" y="775" fill="#6EE7B7" font-size="30" font-family="Inter, Arial, sans-serif">Ticket ${uuidLabel}</text>
     ${svgLines}
     <text x="96" y="${height - 180}" fill="#E5F7FF" font-size="28" font-family="Inter, Arial, sans-serif">Parié sur BetLeague • betleague.app</text>
     <text x="96" y="${height - 130}" fill="#84CC16" font-size="28" font-family="Inter, Arial, sans-serif">Partagez votre victoire sur vos réseaux</text>
@@ -218,11 +224,6 @@ export async function shareWinningTicket(input: ShareWinningTicketInput): Promis
   const action = input.action ?? 'share';
   const url = buildSharedWinningTicketUrl(input.ticketUuid, input.origin);
   const message = buildWinningTicketShareMessage({ ...input, network, variant });
-
-  if (action === 'copy-message') {
-    await copyText(message);
-    return { method: 'clipboard', url, message, network, variant };
-  }
 
   if (action === 'copy-link') {
     await copyText(url);

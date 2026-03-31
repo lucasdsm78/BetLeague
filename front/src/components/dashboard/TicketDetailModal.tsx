@@ -275,11 +275,6 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           <button className="btn btn-outline" onClick={onClose}>
             Fermer
           </button>
-          {ticket && isWin && (
-            <button className="btn btn-secondary" onClick={() => setIsShareSheetOpen(true)}>
-              Partager
-            </button>
-          )}
           {ticket && onAskDelete && (
             <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>
               Supprimer le ticket
@@ -293,6 +288,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
           ticket={ticket ? {
             uuid: ticket.uuid,
             gain: ticket.gain,
+            mise: ticket.mise,
             leagueName: ticket.league_summary?.name,
             choices: ticket.match_choice_summaries.map((choice) => ({
               homeTeam: choice.match_summary.home_team,
