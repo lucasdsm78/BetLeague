@@ -115,63 +115,188 @@ export function buildWinningTicketShareMessage(input: ShareWinningTicketInput): 
 function buildTicketShareSvg(input: ShareWinningTicketInput): string {
   const gain = Number.isFinite(input.gain) ? input.gain.toFixed(2) : '0.00';
   const mise = Number.isFinite(input.mise) ? Number(input.mise).toFixed(2) : '0.00';
+  const multiplier = (input.mise && input.mise > 0) ? (input.gain / input.mise).toFixed(1) : null;
   const isStory = (input.variant ?? 'feed') === 'story';
   const width = isStory ? 1080 : 1200;
   const height = isStory ? 1920 : 1200;
-  const leagueLabel = escapeXml(`Ligue : ${input.leagueName || 'BetLeague'}`);
+  const leagueName = escapeXml(input.leagueName || 'BetLeague');
   const uuidLabel = escapeXml(`#${input.ticketUuid.slice(0, 8).toUpperCase()}`);
-  const gainLabel = escapeXml(`${gain}€`);
-  const miseLabel = escapeXml(`${mise}€ misés`);
-  const choices = (input.choices ?? []).slice(0, isStory ? 4 : 3).map((choice) => (
-    `${escapeXml(choice.homeTeam)} vs ${escapeXml(choice.awayTeam)} · ${escapeXml(choice.choice)}`
-  ));
-  const choiceLines = choices.length > 0 ? choices : ['Ticket gagnant prêt à partager'];
+  const gainLabel = escapeXml(`+${gain}`);
+  const miseLabel = escapeXml(`Mise : ${mise}`);
+  const choices = (input.choices ?? []).slice(0, isStory ? 5 : 3);
+  const cx = width / 2;
 
-  const lineStartY = isStory ? 1015 : 790;
-  const lineGap = isStory ? 105 : 88;
+  const choiceStartY = isStory ? 1080 : 720;
+  const choiceH = 88;
+  const choiceGap = 12;
+  const choiceW = width - 160;
 
-  const svgLines = choiceLines
-    .map((line, index) => `<text x="96" y="${lineStartY + index * lineGap}" fill="#E5F7FF" font-size="42" font-family="Inter, Arial, sans-serif">${line}</text>`)
-    .join('');
+  const svgChoiceCards = choices.map((choice, i) => {
+    const y = choiceStartY + i * (choiceH + choiceGap);
+    const home = escapeXml(choice.homeTeam);
+    const away = escapeXml(choice.awayTeam);
+    const pick = escapeXml(choice.choice);
+    return `
+      <rect x="80" y="${y}" width="${choiceW}" height="${choiceH}" rx="18" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" />
+      <text x="110" y="${y + 38}" fill="#FFFFFF" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="700">${home} vs ${away}</text>
+      <text x="110" y="${y + 70}" fill="#67E8F9" font-size="26" font-family="Inter, Arial, sans-serif" font-weight="600">${pick}</text>
+      <circle cx="${choiceW + 40}" cy="${y + 44}" r="16" fill="#10B981" />
+      <path d="M${choiceW + 32} ${y + 44} l5 6 l10 -12" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />`;
+  }).join('');
+
+  const noChoicesPlaceholder = choices.length === 0
+    ? `<text x="${cx}" y="${choiceStartY + 44}" fill="rgba(255,255,255,0.5)" font-size="30" font-family="Inter, Arial, sans-serif" text-anchor="middle">Tous les pronostics validés</text>`
+    : '';
+
+  const multiplierSvg = multiplier ? `
+      <rect x="${isStory ? 700 : 780}" y="455" width="200" height="72" rx="36" fill="url(#multiplierGrad)" />
+      <text x="${isStory ? 800 : 880}" y="502" fill="#FFFFFF" font-size="38" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="middle">x${escapeXml(multiplier)}</text>` : '';
+
+  const confettiColors = ['#FFD700', '#FF6B6B', '#10B981', '#06B6D4', '#A78BFA', '#F472B6', '#FBBF24'];
+  const confettiElements: string[] = [];
+  for (let i = 0; i < 40; i++) {
+    const confettiX = 60 + ((i * 137 + 89) % (width - 120));
+    const confettiY = 30 + ((i * 211 + 43) % (isStory ? 300 : 200));
+    const color = confettiColors[i % confettiColors.length];
+    const size = 6 + (i % 5) * 3;
+    const rotation = (i * 47) % 360;
+    const opacity = 0.5 + (i % 4) * 0.15;
+    if (i % 3 === 0) {
+      confettiElements.push(`<rect x="${confettiX}" y="${confettiY}" width="${size}" height="${size * 2.5}" rx="3" fill="${color}" opacity="${opacity}" transform="rotate(${rotation} ${confettiX + size / 2} ${confettiY + size * 1.25})" />`);
+    } else if (i % 3 === 1) {
+      confettiElements.push(`<circle cx="${confettiX}" cy="${confettiY}" r="${size / 2}" fill="${color}" opacity="${opacity}" />`);
+    } else {
+      confettiElements.push(`<polygon points="${confettiX},${confettiY - size} ${confettiX + size},${confettiY + size} ${confettiX - size},${confettiY + size}" fill="${color}" opacity="${opacity}" transform="rotate(${rotation} ${confettiX} ${confettiY})" />`);
+    }
+  }
+
+  const sparkles = [
+    { x: width - 180, y: 200, s: 1.0 },
+    { x: 180, y: isStory ? 950 : 660, s: 0.7 },
+    { x: width - 140, y: isStory ? 850 : 580, s: 0.5 },
+    { x: width / 2 + 200, y: 350, s: 0.8 },
+  ].map(({ x, y, s }) => `
+    <g transform="translate(${x}, ${y}) scale(${s})" opacity="0.9">
+      <line x1="0" y1="-18" x2="0" y2="18" stroke="#FFD700" stroke-width="3" stroke-linecap="round" />
+      <line x1="-18" y1="0" x2="18" y2="0" stroke="#FFD700" stroke-width="3" stroke-linecap="round" />
+      <line x1="-12" y1="-12" x2="12" y2="12" stroke="#FFD700" stroke-width="2" stroke-linecap="round" />
+      <line x1="12" y1="-12" x2="-12" y2="12" stroke="#FFD700" stroke-width="2" stroke-linecap="round" />
+    </g>`).join('');
+
+  const footerY = height - 160;
+  const ctaY = isStory ? height - 260 : height - 180;
 
   return `
   <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Ticket gagnant BetLeague">
     <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#061826" />
-        <stop offset="55%" stop-color="#0B2E44" />
-        <stop offset="100%" stop-color="#032E3F" />
+      <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+        <stop offset="0%" stop-color="#0A0015" />
+        <stop offset="40%" stop-color="#1A0A3E" />
+        <stop offset="70%" stop-color="#0D2847" />
+        <stop offset="100%" stop-color="#031A2B" />
       </linearGradient>
-      <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.18" />
-        <stop offset="100%" stop-color="#10B981" stop-opacity="0.2" />
+      <linearGradient id="glowGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#10B981" stop-opacity="0.35" />
+        <stop offset="50%" stop-color="#06B6D4" stop-opacity="0.2" />
+        <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.15" />
       </linearGradient>
-      <linearGradient id="winnerPill" x1="0" y1="0" x2="1" y2="0">
+      <linearGradient id="gainCard" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#064E3B" stop-opacity="0.9" />
+        <stop offset="100%" stop-color="#065F46" stop-opacity="0.7" />
+      </linearGradient>
+      <linearGradient id="gainGlow" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#34D399" />
+        <stop offset="100%" stop-color="#10B981" />
+      </linearGradient>
+      <linearGradient id="multiplierGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#F59E0B" />
+        <stop offset="100%" stop-color="#EF4444" />
+      </linearGradient>
+      <linearGradient id="ctaGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#8B5CF6" />
+        <stop offset="100%" stop-color="#06B6D4" />
+      </linearGradient>
+      <linearGradient id="topBanner" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#10B981" />
-        <stop offset="100%" stop-color="#34D399" />
+        <stop offset="100%" stop-color="#06B6D4" />
       </linearGradient>
-      <linearGradient id="winnerCard" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="rgba(16,185,129,0.22)" />
-        <stop offset="100%" stop-color="rgba(52,211,153,0.08)" />
-      </linearGradient>
+      <filter id="gainShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="0" stdDeviation="20" flood-color="#10B981" flood-opacity="0.6" />
+      </filter>
+      <filter id="cardGlow" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="4" stdDeviation="16" flood-color="#10B981" flood-opacity="0.3" />
+      </filter>
+      <radialGradient id="spotGreen" cx="0.3" cy="0.2" r="0.8">
+        <stop offset="0%" stop-color="#10B981" stop-opacity="0.2" />
+        <stop offset="100%" stop-color="#10B981" stop-opacity="0" />
+      </radialGradient>
+      <radialGradient id="spotPurple" cx="0.7" cy="0.8" r="0.6">
+        <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.15" />
+        <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0" />
+      </radialGradient>
     </defs>
-    <rect width="${width}" height="${height}" rx="48" fill="url(#bg)" />
-    <circle cx="${width - 110}" cy="120" r="160" fill="#10B981" opacity="0.14" />
-    <circle cx="160" cy="${height - 180}" r="220" fill="#06B6D4" opacity="0.1" />
-    <rect x="56" y="56" width="${width - 112}" height="${height - 112}" rx="42" fill="url(#card)" stroke="#2DD4BF" stroke-opacity="0.25" />
-    <rect x="96" y="96" width="420" height="68" rx="22" fill="url(#winnerPill)" />
-    <text x="128" y="140" fill="#06261E" font-size="34" font-family="Inter, Arial, sans-serif" font-weight="900">🏆 TICKET GAGNÉ</text>
-    <text x="96" y="255" fill="#FFFFFF" font-size="84" font-family="Inter, Arial, sans-serif" font-weight="800">BetLeague</text>
-    <text x="96" y="330" fill="#9ADCF4" font-size="42" font-family="Inter, Arial, sans-serif" font-weight="700">${leagueLabel}</text>
-    <rect x="96" y="438" width="${isStory ? 888 : 1008}" height="268" rx="30" fill="url(#winnerCard)" stroke="rgba(52,211,153,0.34)" />
-    <text x="132" y="505" fill="#A7F3D0" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="800">GAIN ENCAISSÉ</text>
-    <text x="132" y="635" fill="#FFFFFF" font-size="${isStory ? 144 : 136}" font-family="Inter, Arial, sans-serif" font-weight="900">${gainLabel}</text>
-    <rect x="132" y="660" width="${isStory ? 330 : 280}" height="56" rx="18" fill="rgba(110,231,183,0.14)" stroke="rgba(110,231,183,0.28)" />
-    <text x="160" y="697" fill="#6EE7B7" font-size="28" font-family="Inter, Arial, sans-serif" font-weight="700">${miseLabel}</text>
-    <text x="132" y="760" fill="#E5F7FF" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="700">Ticket ${uuidLabel}</text>
-    ${svgLines}
-    <text x="96" y="${height - 180}" fill="#E5F7FF" font-size="28" font-family="Inter, Arial, sans-serif">Parié sur BetLeague • betleague.app</text>
-    <text x="96" y="${height - 130}" fill="#84CC16" font-size="28" font-family="Inter, Arial, sans-serif">Partagez votre victoire sur vos réseaux</text>
+
+    <!-- Background -->
+    <rect width="${width}" height="${height}" rx="0" fill="url(#bg)" />
+    <rect width="${width}" height="${height}" fill="url(#spotGreen)" />
+    <rect width="${width}" height="${height}" fill="url(#spotPurple)" />
+
+    <!-- Confetti -->
+    ${confettiElements.join('')}
+
+    <!-- Sparkles -->
+    ${sparkles}
+
+    <!-- Top banner -->
+    <rect x="0" y="0" width="${width}" height="8" fill="url(#topBanner)" />
+
+    <!-- Trophy + TICKET GAGNANT header -->
+    <g transform="translate(${cx}, ${isStory ? 140 : 100})">
+      <!-- Trophy icon -->
+      <g transform="translate(-28, -42) scale(1.4)" fill="#FFD700">
+        <path d="M12 2C11 2 10 3 10 4H6C5.4 4 5 4.4 5 5V8C5 10.2 6.8 12 9 12.2V14H8C7.4 14 7 14.4 7 15V17H17V15C17 14.4 16.6 14 16 14H15V12.2C17.2 12 19 10.2 19 8V5C19 4.4 18.6 4 18 4H14C14 3 13 2 12 2ZM7 6H9V10C7.9 10 7 9.1 7 8V6ZM15 6H17V8C17 9.1 16.1 10 15 10V6Z" />
+      </g>
+      <text x="22" y="0" fill="#FFD700" font-size="46" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="start" letter-spacing="4">TICKET GAGNANT</text>
+    </g>
+
+    <!-- BetLeague branding -->
+    <text x="${cx}" y="${isStory ? 230 : 185}" fill="#FFFFFF" font-size="68" font-family="Inter, Arial, sans-serif" font-weight="800" text-anchor="middle" letter-spacing="2">BetLeague</text>
+    <text x="${cx}" y="${isStory ? 285 : 230}" fill="rgba(255,255,255,0.6)" font-size="34" font-family="Inter, Arial, sans-serif" font-weight="600" text-anchor="middle">${escapeXml(leagueName)}</text>
+
+    <!-- Gain card -->
+    <rect x="80" y="${isStory ? 340 : 280}" width="${width - 160}" height="${isStory ? 380 : 340}" rx="32" fill="url(#gainCard)" stroke="#34D399" stroke-width="2" filter="url(#cardGlow)" />
+    <rect x="80" y="${isStory ? 340 : 280}" width="${width - 160}" height="${isStory ? 380 : 340}" rx="32" fill="url(#glowGrad)" />
+
+    <!-- Gain label -->
+    <text x="${cx}" y="${isStory ? 415 : 345}" fill="#6EE7B7" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="800" text-anchor="middle" letter-spacing="6">GAIN TOTAL</text>
+
+    <!-- Gain amount with glow -->
+    <text x="${cx}" y="${isStory ? 560 : 485}" fill="#FFFFFF" font-size="${isStory ? 130 : 120}" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="middle" filter="url(#gainShadow)">${gainLabel}</text>
+    <text x="${cx + (isStory ? 10 : 5)}" y="${isStory ? 560 : 485}" fill="url(#gainGlow)" font-size="${isStory ? 130 : 120}" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="middle">${gainLabel}</text>
+    <!-- Euro symbol -->
+    <text x="${cx}" y="${isStory ? 610 : 535}" fill="#34D399" font-size="48" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">EUR</text>
+
+    <!-- Mise + Multiplier row -->
+    <text x="${isStory ? 200 : 240}" y="${isStory ? 680 : 595}" fill="rgba(255,255,255,0.7)" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="600" text-anchor="middle">${miseLabel} EUR</text>
+    ${multiplierSvg}
+
+    <!-- Ticket ID -->
+    <text x="${cx}" y="${isStory ? 760 : 655}" fill="rgba(255,255,255,0.4)" font-size="24" font-family="Inter, Arial, sans-serif" font-weight="600" text-anchor="middle" letter-spacing="2">TICKET ${uuidLabel}</text>
+
+    <!-- Section title for choices -->
+    ${choices.length > 0 ? `<text x="80" y="${choiceStartY - 30}" fill="rgba(255,255,255,0.5)" font-size="24" font-family="Inter, Arial, sans-serif" font-weight="700" letter-spacing="4">PRONOSTICS</text>` : ''}
+
+    <!-- Match choice cards -->
+    ${svgChoiceCards}
+    ${noChoicesPlaceholder}
+
+    <!-- CTA button -->
+    <rect x="${cx - 260}" y="${ctaY}" width="520" height="72" rx="36" fill="url(#ctaGrad)" />
+    <text x="${cx}" y="${ctaY + 46}" fill="#FFFFFF" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="800" text-anchor="middle">Rejoins-moi sur BetLeague</text>
+
+    <!-- Footer -->
+    <text x="${cx}" y="${footerY}" fill="rgba(255,255,255,0.35)" font-size="24" font-family="Inter, Arial, sans-serif" text-anchor="middle">betleague.app</text>
+    <text x="${cx}" y="${footerY + 38}" fill="rgba(255,255,255,0.25)" font-size="20" font-family="Inter, Arial, sans-serif" text-anchor="middle">Parie entre amis. Prouve que tu es le meilleur.</text>
   </svg>`;
 }
 
