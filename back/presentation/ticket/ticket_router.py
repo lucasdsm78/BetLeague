@@ -4,14 +4,14 @@ from application.match.match_command_model import MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
     TicketUpdateResponse, TicketUpdateModel
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
-from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse
+from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse, SharedTicketReadModel
 from application.ticket.ticket_query_usecase import TicketQueryUseCase
 from dependency_injections import current_user, ticket_command_usecase, ticket_query_usecase
 from domain.league.exception.league_exception import LeagueNotFoundError, \
     LeagueParticipantNotFoundError, NbBTLHasReached0, LeagueNotStartedError
 from domain.match.exception.match_exception import MatchNotFoundError
 from domain.ticket.exception.ticket_exception import TicketNotFoundError, NotTicketOwnerError, MatchAlreadyStartedError, \
-    MiseSuperiorToNbBtlError, TicketAccessDeniedError, GainNotEqualsError
+    MiseSuperiorToNbBtlError, TicketAccessDeniedError, GainNotEqualsError, TicketNotShareableError
 from domain.token.token_exception import TokenInvalidError
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, UserNotInTournamentError, \
     TournamentAlreadyStartedError
@@ -178,6 +178,31 @@ async def get_details_ticket(
         )
 
     return ticket
+
+
+@router.get(
+    "/ticket/shared/{ticket_uuid}",
+    response_model=SharedTicketReadModel,
+    status_code=status.HTTP_200_OK,
+    summary="Get public shared winning ticket details",
+)
+async def get_shared_ticket(
+        ticket_uuid: str,
+        ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
+):
+    try:
+        return await ticket_query_usecase.get_shared_ticket_details(ticket_uuid)
+    except TicketNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TicketNotShareableError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except LeagueNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération du ticket partagé."
+        )
 
 
 @router.put(
