@@ -25,6 +25,13 @@ router = APIRouter(
 )
 
 
+def _raise_league_finished(e: LeagueFinishedError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=e.message,
+    )
+
+
 @router.post(
     "/league/create",
     response_model=LeagueFreeCreateResponse,
@@ -70,10 +77,7 @@ async def create_league(
         )
 
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message,
-        )
+        _raise_league_finished(e)
 
     except Exception as e:
         raise HTTPException(
@@ -127,6 +131,9 @@ async def join_league(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message,
         )
+
+    except LeagueFinishedError as e:
+        _raise_league_finished(e)
 
     except Exception as e:
         raise HTTPException(
@@ -236,10 +243,7 @@ async def delete_league_player(
         )
 
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message,
-        )
+        _raise_league_finished(e)
 
     except Exception as e:
         raise HTTPException(
@@ -398,10 +402,7 @@ async def invite_user_to_league(
         )
 
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message,
-        )
+        _raise_league_finished(e)
 
     except LeagueParticipantFoundError as e:
         raise HTTPException(
@@ -553,10 +554,7 @@ async def update_invitation(
             detail=e.message
         )
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message
-        )
+        _raise_league_finished(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -595,10 +593,7 @@ async def delete_invitation(
             detail=e.message
         )
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message
-        )
+        _raise_league_finished(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -652,10 +647,7 @@ async def update_league(
             detail=e.message
         )
     except LeagueFinishedError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message
-        )
+        _raise_league_finished(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -686,7 +678,7 @@ async def inject_btl(
     except LeagueNbBtlIsNotEnoughError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
     except LeagueFinishedError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+        _raise_league_finished(e)
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:

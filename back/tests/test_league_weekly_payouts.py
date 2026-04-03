@@ -1,10 +1,10 @@
-from types import SimpleNamespace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-import application.league.league_command_usecase as command_module
-from application.league.league_command_usecase import LeagueCommandUseCaseImpl
+import application.league.league_payout_usecase as payout_module
+from application.league.league_payout_usecase import LeaguePayoutUseCaseImpl
+from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
 from domain.league.model.league import League, LeagueStatus
 from domain.user.model.email import Email
 from domain.user.model.user_summary import UserSummary
@@ -30,7 +30,7 @@ class FakeSession:
 
 
 def build_league(*, league_id: int, is_free: bool, nb_btl: int | None = None, winner_id: int | None = None, status: LeagueStatus = LeagueStatus.IN_PROGRESS):
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     return League(
         id=league_id,
         uuid=f"league-{league_id}",
@@ -61,8 +61,11 @@ class FakeLeagueRepository:
     def __init__(self, session):
         self.session = session
 
-    async def find_ended_before_not_paid(self, as_of: datetime):
-        return self.session.leagues
+    async def find_due_payout_ids(self, as_of: datetime):
+        return self.session.league_ids
+
+    async def find_by_id_for_update(self, league_id: int):
+        return self.session.leagues_by_id.get(league_id)
 
     async def get_top_scorer(self, league_id: int):
         return self.session.top_scorers.get(league_id, (None, 0))
@@ -75,27 +78,26 @@ class FakeLeagueRepository:
 
 
 @pytest.mark.asyncio
-async def test_process_payouts_closes_free_league_and_credits_fixed_reward(monkeypatch: pytest.MonkeyPatch):
+async def test_process_league_payout_closes_free_league_and_credits_fixed_reward(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
-    session.leagues = [build_league(league_id=10, is_free=True)]
+    session.league_ids = [10]
+    session.leagues_by_id = {10: build_league(league_id=10, is_free=True)}
     session.top_scorers = {10: (77, 340)}
     session.players_count = {10: 16}
     session.credits = []
     session.updated_leagues = []
 
-    monkeypatch.setattr(command_module, "UserRepositoryImpl", FakeUserRepository)
-    monkeypatch.setattr(command_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
+    monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
 
-    usecase = LeagueCommandUseCaseImpl(
-        league_repository=None,
-        user_repository=None,
+    usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
-        league_players_repository=None,
-        invitation_repository=None,
-        event_bus=None,
     )
 
-    await usecase.process_payouts(datetime.utcnow())
+    due_ids = await usecase.get_due_league_ids(datetime.now(UTC))
+    assert due_ids == [10]
+
+    await usecase.process_league_payout(10, datetime.now(UTC))
 
     assert session.credits == [(77, 200.0)]
     assert len(session.updated_leagues) == 1
@@ -108,27 +110,23 @@ async def test_process_payouts_closes_free_league_and_credits_fixed_reward(monke
 
 
 @pytest.mark.asyncio
-async def test_process_payouts_closes_paid_league_and_credits_prize_pool(monkeypatch: pytest.MonkeyPatch):
+async def test_process_league_payout_closes_paid_league_and_credits_prize_pool(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
-    session.leagues = [build_league(league_id=11, is_free=False, nb_btl=25, winner_id=91)]
+    session.league_ids = [11]
+    session.leagues_by_id = {11: build_league(league_id=11, is_free=False, nb_btl=25, winner_id=91)}
     session.top_scorers = {}
     session.players_count = {11: 12}
     session.credits = []
     session.updated_leagues = []
 
-    monkeypatch.setattr(command_module, "UserRepositoryImpl", FakeUserRepository)
-    monkeypatch.setattr(command_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
+    monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
 
-    usecase = LeagueCommandUseCaseImpl(
-        league_repository=None,
-        user_repository=None,
+    usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
-        league_players_repository=None,
-        invitation_repository=None,
-        event_bus=None,
     )
 
-    await usecase.process_payouts(datetime.utcnow())
+    await usecase.process_league_payout(11, datetime.now(UTC))
 
     assert session.credits == [(91, 300.0)]
     updated_league = session.updated_leagues[0]
@@ -137,30 +135,58 @@ async def test_process_payouts_closes_paid_league_and_credits_prize_pool(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_process_payouts_is_idempotent_for_closed_league(monkeypatch: pytest.MonkeyPatch):
+async def test_process_league_payout_is_idempotent_for_closed_league(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
     closed_league = build_league(league_id=12, is_free=True, winner_id=42, status=LeagueStatus.CLOSED)
     closed_league.is_started = False
-    session.leagues = [closed_league]
+    session.league_ids = [12]
+    session.leagues_by_id = {12: closed_league}
     session.top_scorers = {12: (42, 500)}
     session.players_count = {12: 16}
     session.credits = []
     session.updated_leagues = []
 
-    monkeypatch.setattr(command_module, "UserRepositoryImpl", FakeUserRepository)
-    monkeypatch.setattr(command_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
+    monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
 
-    usecase = LeagueCommandUseCaseImpl(
-        league_repository=None,
-        user_repository=None,
+    usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
-        league_players_repository=None,
-        invitation_repository=None,
-        event_bus=None,
     )
 
-    await usecase.process_payouts(datetime.utcnow())
+    await usecase.process_league_payout(12, datetime.now(UTC))
 
     assert session.credits == []
     assert session.updated_leagues == []
+
+
+@pytest.mark.asyncio
+async def test_scheduler_orchestrates_each_due_league_once(monkeypatch: pytest.MonkeyPatch):
+    calls: list[tuple[str, int | None]] = []
+
+    class FakeLeaguePayoutUseCase:
+        def __init__(self, session_factory):
+            self.session_factory = session_factory
+
+        async def get_due_league_ids(self, as_of: datetime):
+            calls.append(("list", None))
+            return [10, 11, 12]
+
+        async def process_league_payout(self, league_id: int, as_of: datetime):
+            calls.append(("process", league_id))
+
+    monkeypatch.setattr(
+        "infrastructure.scheduler.league_payout_scheduler.LeaguePayoutUseCaseImpl",
+        FakeLeaguePayoutUseCase,
+    )
+
+    scheduler = LeaguePayoutSchedulerImpl(session_factory=lambda: FakeSession())
+    await scheduler.process_due_payouts(datetime.now(UTC))
+
+    assert calls == [
+        ("list", None),
+        ("process", 10),
+        ("process", 11),
+        ("process", 12),
+    ]
+
 

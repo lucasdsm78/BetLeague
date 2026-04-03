@@ -22,7 +22,7 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
     UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError, LeagueNbBtlIsNotEnoughError, \
-    LeagueNotFinishedError, LeagueNotStartedError, LeagueFinishedError, LeagueNotThePlayerError
+    LeagueNotStartedError, LeagueFinishedError, LeagueNotThePlayerError
 from domain.league.model.league import League, LeagueStatus
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -69,10 +69,6 @@ class LeagueCommandUseCase(ABC):
 
     @abstractmethod
     async def update_league(self, data: LeagueUpdateModel, league_id: int, email: str):
-        raise NotImplementedError
-
-    @abstractmethod
-    async def process_payouts(self, as_of: datetime):
         raise NotImplementedError
 
     @abstractmethod
@@ -522,43 +518,6 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 await league_repo.update(league)
 
         return LeagueUpdateResponse()
-
-    async def process_payouts(self, as_of: datetime):
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo           = UserRepositoryImpl(session)
-                league_repo         = LeagueRepositoryImpl(session)
-                leagues = await league_repo.find_ended_before_not_paid(as_of)
-                closed_at_ms = int(as_of.timestamp() * 1000)
-
-                for league in leagues:
-                    try:
-                        if self._league_is_closed(league):
-                            continue
-
-                        winner_id = league.winner_id
-                        if league.winner_id is None and league.can_determine_winner(as_of):
-                            winner_id, _ = await league_repo.get_top_scorer(league.id)
-
-                        reward_amount = None
-                        if winner_id is not None:
-                            if league.is_free:
-                                reward_amount = 200.0
-                            else:
-                                reward_amount = float((await league_repo.count_players(league.id)) * (league.nb_btl or 0))
-
-                            if reward_amount > 0:
-                                await user_repo.credit_btl(winner_id, reward_amount)
-
-                        league.close(
-                            closed_at=closed_at_ms,
-                            winner_id=winner_id,
-                            rewarded_amount=reward_amount,
-                        )
-                        await league_repo.update(league)
-
-                    except LeagueNotFinishedError:
-                        continue
 
     async def inject_btl(
             self,
