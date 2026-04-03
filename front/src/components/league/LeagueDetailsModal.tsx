@@ -7,6 +7,7 @@ interface LeagueDetailData {
     id: number;
     name: string;
     uuid?: string;
+    status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
     is_free?: boolean;
     start_date: number;
     end_date?: number;
@@ -84,7 +85,7 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     void loadDetails();
   }, [loadDetails]);
 
-  const canJoin = details && !details.is_started && (details.nb_players_remaining === undefined || details.nb_players_remaining > 0);
+  const canJoin = details && details.status !== 'CLOSED' && !details.is_started && (details.nb_players_remaining === undefined || details.nb_players_remaining > 0);
 
   const handleJoin = async () => {
     if (!details || joining || !canJoin) return;
@@ -168,6 +169,10 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
 
   const getStatusInfo = () => {
     if (!details) return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };
+
+    if (details.status === 'CLOSED') {
+      return { label: 'Fermée', color: 'var(--text-secondary)', icon: '⚫' };
+    }
 
     if (details.is_started) {
       return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };

@@ -56,6 +56,7 @@ from domain.user.repository.user_repository import UserRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from domain.notification.repository.notification_repository import NotificationRepository
+from domain.scheduler.league_payout_scheduler import LeaguePayoutScheduler
 from domain.push_subscription.repository.push_subscription_repository import PushSubscriptionRepository
 from domain.services.push.web_push_service import WebPushService
 
@@ -85,6 +86,7 @@ from infrastructure.postgresql.tournament_subscription.tournament_subscription_r
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
+from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
 from infrastructure.scheduler.tournament_scheduler import TournamentScheduler, TournamentSchedulerImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
 from infrastructure.services.authentication.hash import HashImpl
@@ -615,6 +617,14 @@ def tournament_scheduler(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> TournamentScheduler:
     return TournamentSchedulerImpl(
+        session_factory=session_factory,
+    )
+
+
+def league_payout_scheduler(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+) -> LeaguePayoutScheduler:
+    return LeaguePayoutSchedulerImpl(
         session_factory=session_factory,
     )
 
