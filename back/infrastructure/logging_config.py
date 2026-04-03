@@ -6,6 +6,9 @@ import os
 from datetime import datetime, timezone
 
 
+_RESERVED_LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys())
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload = {
@@ -14,6 +17,13 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
+        extra = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in _RESERVED_LOG_RECORD_FIELDS and not key.startswith("_")
+        }
+        if extra:
+            payload["context"] = extra
         if record.exc_info:
             payload["exc_info"] = self.formatException(record.exc_info)
         return json.dumps(payload, separators=(",", ":"))

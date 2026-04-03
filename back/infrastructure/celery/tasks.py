@@ -193,7 +193,14 @@ def check_match_scores(self):
     retry_backoff_max=900,
 )
 def process_weekly_league_payouts(self):
-    logger.info("[Celery] Starting process_weekly_league_payouts task")
+    logger.info(
+        "league_payout.task_started",
+        extra={
+            "event": "league_payout.task_started",
+            "task_name": self.name,
+            "task_id": getattr(getattr(self, "request", None), "id", None),
+        },
+    )
     _run_async(_process_weekly_league_payouts_async())
 
 
@@ -237,10 +244,34 @@ async def _process_weekly_league_payouts_async():
 
     engine, session_factory = _make_session_factory()
     scheduler = LeaguePayoutSchedulerImpl(session_factory=session_factory)
+    run_at = datetime.utcnow()
 
     try:
-        await scheduler.process_due_payouts(as_of=datetime.utcnow())
-        logger.info("[Celery] Weekly league payouts processed successfully")
+        logger.info(
+            "league_payout.task_dispatching",
+            extra={
+                "event": "league_payout.task_dispatching",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        await scheduler.process_due_payouts(as_of=run_at)
+        logger.info(
+            "league_payout.task_finished",
+            extra={
+                "event": "league_payout.task_finished",
+                "as_of": run_at.isoformat(),
+            },
+        )
+    except Exception:
+        logger.exception(
+            "league_payout.task_failed",
+            extra={
+                "event": "league_payout.task_failed",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        raise
     finally:
         await engine.dispose()
+
 
