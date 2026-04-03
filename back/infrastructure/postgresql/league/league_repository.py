@@ -188,21 +188,32 @@ class LeagueRepositoryImpl(LeagueRepository):
         except:
             raise
 
-    async def find_ended_before_not_paid(self, as_of: datetime) -> List[League]:
+    async def find_due_payout_ids(self, as_of: datetime) -> List[int]:
         as_of_ms = int(as_of.timestamp() * 1000)
         q = (
-            select(DBLeague)
-            .options(joinedload(DBLeague.user))
+            select(DBLeague.id)
             .where(
                 DBLeague.end_date <= as_of_ms,
                 DBLeague.status == LeagueStatus.IN_PROGRESS.value,
                 DBLeague.closed_at.is_(None),
             )
+            .order_by(DBLeague.end_date.asc(), DBLeague.id.asc())
+        )
+        result = await self.session.execute(q)
+        return [int(league_id) for league_id in result.scalars().all()]
+
+    async def find_by_id_for_update(self, league_id: int) -> Optional[League]:
+        q = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id == league_id)
             .with_for_update(of=DBLeague, skip_locked=True)
         )
         result = await self.session.execute(q)
-        leagues_db = result.scalars().all()
-        return [l.to_entity() for l in leagues_db]
+        league_db = result.scalar_one_or_none()
+        if not league_db:
+            return None
+        return league_db.to_entity()
 
     async def find_all_by_ids(self, league_ids: List[int]) -> List[League]:
         if not league_ids:
