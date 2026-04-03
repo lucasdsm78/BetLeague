@@ -22,6 +22,20 @@ class TicketReadModel(BaseModel):
         arbitrary_types_allowed = True
 
 
+class SharedTicketReadModel(BaseModel):
+
+    uuid: str
+    mise: int
+    gain: float
+    status: str
+    league_summary: Optional[LeagueSummary] = None
+    tournament_match_summary: Optional[TournamentMatchSummary] = None
+    match_choice_summaries: List[MatchChoiceSummary] = []
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
 class TicketsInProgressResponse(BaseModel):
     tickets: List[TicketReadModel] = []
     total: int = 0

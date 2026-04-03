@@ -1,6 +1,7 @@
 import type {
   ApiMatchChoiceSummary,
   ApiMatchSummary,
+  ApiSharedTicketReadModel,
   ApiTicketReadModel,
 } from '../../types/api/tickets';
 import type { ApiLeagueSummary } from '../../types/api/leagues';
@@ -10,6 +11,7 @@ import type {
   MatchSummary,
   TicketReadModel,
   MatchOddSummary,
+  SharedTicketReadModel,
 } from '../../types/entities/ticket';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -111,6 +113,30 @@ export function mapApiTicketToUi(api: ApiTicketReadModel): TicketReadModel {
     id: asNumber((api as any).id),
     mise: asNumberOrZero((api as any).mise),
     uuid: asStringOrEmpty((api as any).uuid),
+    gain: asNumberOrZero((api as any).gain),
+    status: asStringOrEmpty((api as any).status),
+    league_summary: leagueSummary ? mapApiLeagueSummaryToUi(leagueSummary as ApiLeagueSummary) : null,
+    tournament_match_summary: tournamentMatchSummary ?? null,
+    match_choice_summaries: matchChoices.map((c: any) => mapApiMatchChoiceSummaryToUi(c as ApiMatchChoiceSummary)),
+  };
+}
+
+export function mapApiSharedTicketToUi(api: ApiSharedTicketReadModel): SharedTicketReadModel {
+  if (!isObject(api)) {
+    throw new Error('Ticket partagé API invalide');
+  }
+
+  const leagueSummary = (api as any).league_summary;
+  const tournamentMatchSummary = (api as any).tournament_match_summary;
+  const matchChoices = (api as any).match_choice_summaries;
+
+  if (!Array.isArray(matchChoices)) {
+    throw new Error('Ticket partagé API invalide: match_choice_summaries manquant');
+  }
+
+  return {
+    uuid: asStringOrEmpty((api as any).uuid),
+    mise: asNumberOrZero((api as any).mise),
     gain: asNumberOrZero((api as any).gain),
     status: asStringOrEmpty((api as any).status),
     league_summary: leagueSummary ? mapApiLeagueSummaryToUi(leagueSummary as ApiLeagueSummary) : null,

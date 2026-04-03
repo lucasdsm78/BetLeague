@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './CreateTicketModal.css';
 import './TicketDetailSection.css';
 import './TicketsSection.css';
@@ -6,6 +6,7 @@ import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
+import TicketShareSheet from './TicketShareSheet';
 
 interface TicketDetailModalProps {
   isOpen: boolean;
@@ -91,6 +92,7 @@ const ChoiceRow: React.FC<{ choice: MatchChoiceSummary }> = ({ choice }) => {
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, ticketId, onAskDelete }) => {
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -232,6 +234,21 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
                 </div>
               </section>
 
+              {isWin && (
+                <section className="ticket-share-card">
+                  <div className="ticket-share-copy">
+                    <span className="ticket-share-badge">🏆 Ticket gagnant</span>
+                    <h3>Partagez votre ticket</h3>
+                    <p>Ouvrez le partage natif de votre mobile ou copiez le lien en un geste.</p>
+                  </div>
+                  <div className="ticket-share-actions">
+                    <button className="btn btn-primary btn-share" onClick={() => setIsShareSheetOpen(true)}>
+                      Partager ce ticket
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="choices-section">
                 <h3>Sélections</h3>
                 <ul className="choices-list">
@@ -264,6 +281,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             </button>
           )}
         </div>
+
+        <TicketShareSheet
+          isOpen={isShareSheetOpen}
+          onClose={() => setIsShareSheetOpen(false)}
+          ticket={ticket ? {
+            uuid: ticket.uuid,
+            gain: ticket.gain,
+            mise: ticket.mise,
+            leagueName: ticket.league_summary?.name,
+            choices: ticket.match_choice_summaries.map((choice) => ({
+              homeTeam: choice.match_summary.home_team,
+              awayTeam: choice.match_summary.away_team,
+              choice: choice.choice,
+            })),
+          } : null}
+        />
       </div>
     </div>
   );

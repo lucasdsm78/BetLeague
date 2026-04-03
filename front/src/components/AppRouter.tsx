@@ -25,6 +25,7 @@ const TicketsSection = React.lazy(() => import('./dashboard/TicketsSection'));
 const ShopSection = React.lazy(() => import('./dashboard/ShopSection'));
 const ProfileSection = React.lazy(() => import('./dashboard/ProfileSection'));
 const TicketDetailSection = React.lazy(() => import('./dashboard/TicketDetailSection'));
+const SharedTicketSection = React.lazy(() => import('./dashboard/SharedTicketSection'));
 const InvitationsSection = React.lazy(() => import('./dashboard/InvitationsSection'));
 const TournamentsSection = React.lazy(() => import('./dashboard/TournamentsSection'));
 
@@ -212,6 +213,15 @@ const AppRouter: React.FC = () => {
                 <ForgotPasswordConfirmPage />
               </Suspense>
             </PublicRoute>
+          }
+        />
+
+        <Route
+          path="/tickets/shared/:ticketUuid"
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <SharedTicketSection />
+            </Suspense>
           }
         />
 

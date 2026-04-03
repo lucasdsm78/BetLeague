@@ -35,6 +35,16 @@ export interface ApiTicketReadModel {
   match_choice_summaries: ApiMatchChoiceSummary[];
 }
 
+export interface ApiSharedTicketReadModel {
+  uuid: string;
+  mise: number;
+  gain: number;
+  status: string;
+  league_summary?: ApiLeagueSummary | null;
+  tournament_match_summary?: unknown | null;
+  match_choice_summaries: ApiMatchChoiceSummary[];
+}
+
 // --- Réponses API ---
 
 export interface ApiTicketsInProgressResponse {
@@ -47,6 +57,7 @@ export interface ApiTicketsFinishedResponse {
 
 // Le backend varie souvent entre { ticket: ... } et ...
 export type ApiTicketDetailResponse = { ticket: ApiTicketReadModel } | ApiTicketReadModel;
+export type ApiSharedTicketDetailResponse = { ticket: ApiSharedTicketReadModel } | ApiSharedTicketReadModel;
 
 // --- Payloads API (existants) ---
 

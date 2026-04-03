@@ -6,13 +6,14 @@ import type {
   ApiMatchChoiceCreate,
   ApiTicketCreateRequest,
   ApiTicketCreateResponse,
+  ApiSharedTicketDetailResponse,
   ApiTicketsInProgressResponse,
   ApiTicketsFinishedResponse,
   ApiTicketDetailResponse,
   ApiTicketReadModel,
 } from '../../types/api/tickets';
-import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel } from '../../types/entities/ticket';
-import { mapApiTicketToUi, tryMapApiTicketToUi } from '../mappers/ticketMapper';
+import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel, SharedTicketReadModel } from '../../types/entities/ticket';
+import { mapApiSharedTicketToUi, mapApiTicketToUi, tryMapApiTicketToUi } from '../mappers/ticketMapper';
 
 export type TicketsListParams = {
   page?: number;
@@ -160,6 +161,30 @@ export async function getTicketDetail(
 
   const resSingular: ApiResponse<ApiTicketDetailResponse> = await http.get(`/ticket/${ticketId}`, { signal: options?.signal });
   return tryParse(resSingular.data as ApiTicketDetailResponse);
+}
+
+export async function getSharedTicketDetail(
+  ticketUuid: string,
+  options?: { signal?: AbortSignal }
+): Promise<SharedTicketReadModel> {
+  if (!ticketUuid || `${ticketUuid}`.trim() === '') {
+    throw new Error('Ticket partagé invalide');
+  }
+
+  const res: ApiResponse<ApiSharedTicketDetailResponse> = await http.get(`/ticket/shared/${ticketUuid}`, {
+    signal: options?.signal,
+    skipAuth: true,
+    skipRetry: true,
+    skipCache: true,
+    cache: 'no-store',
+  });
+
+  const ticket = (res.data as any)?.ticket ?? res.data;
+  if (!ticket || typeof ticket !== 'object') {
+    throw new Error('Format de réponse invalide pour le ticket partagé');
+  }
+
+  return mapApiSharedTicketToUi(ticket as any);
 }
 
 export async function deleteTicket(ticketId: number | string): Promise<{ success: boolean; message?: string }> {
