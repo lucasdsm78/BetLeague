@@ -16,6 +16,7 @@ export function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
     id: Number((api as any).id),
     name: String((api as any).name ?? ''),
     startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
+    status: (api as any).status,
     isStarted: Boolean((api as any).is_started ?? (api as any).isStarted ?? false),
     playersRemaining:
       typeof (api as any).nb_players_remaining === 'number'

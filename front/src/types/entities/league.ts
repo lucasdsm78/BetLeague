@@ -41,6 +41,7 @@ export interface LeagueSummary {
   readonly id: number;
   readonly name: string;
   readonly startDate: string;
+  readonly status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   readonly isStarted?: boolean;
   readonly playersRemaining?: number;
   readonly isFree?: boolean;

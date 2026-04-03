@@ -57,6 +57,7 @@ class LeagueReadModel(BaseModel):
     max_players: Optional[int] = None
     name: str
     end_date: Optional[int] = None
+    status: Optional[str] = None
     user_creator: Optional[UserSummaryLeagueDetail] = None
     is_started: Optional[bool] = None
     nb_players_remaining: Optional[int] = None
@@ -75,6 +76,7 @@ class LeagueReadModel(BaseModel):
             max_players=league.max_players,
             name=league.name,
             end_date=league.end_date,
+            status=league.status.value,
             is_started=league.is_started,
             nb_players_remaining=league.nb_players_remaining,
             user_creator=UserSummaryLeagueDetail(id=league.user.id, pseudo=league.user.pseudo),
@@ -88,6 +90,7 @@ class LeagueReadModel(BaseModel):
             start_date=league.start_date,
             nb_players_remaining=league.nb_players_remaining,
             name=league.name,
+            status=league.status.value,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
         )

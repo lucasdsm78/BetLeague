@@ -9,6 +9,7 @@ interface LeagueDetailData {
     id: number;
     name: string;
     uuid?: string;
+    status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
     is_free?: boolean;
     start_date: number;
     end_date?: number;
@@ -184,6 +185,9 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     };
 
     const getStatusInfo = () => {
+        if (leagueData.status === 'CLOSED') {
+            return { label: 'Fermée', color: 'var(--text-secondary)', icon: '⚫' };
+        }
         if (leagueData.is_started) {
             return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };
         }
@@ -194,7 +198,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     };
 
     const statusInfo = getStatusInfo();
-    const canJoin = !leagueData.is_started && (leagueData.nb_players_remaining || 0) > 0;
+    const canJoin = leagueData.status !== 'CLOSED' && !leagueData.is_started && (leagueData.nb_players_remaining || 0) > 0;
 
     return (
         <div className="league-detail-container">
@@ -322,7 +326,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                     )}
                 </div>
 
-                {leagueData.is_started && (
+                {leagueData.status !== 'CLOSED' && leagueData.is_started && (
                     <div className="league-actions-section">
                         <h3>Actions disponibles</h3>
                         <div className="action-buttons">

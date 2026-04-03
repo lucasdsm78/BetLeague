@@ -8,6 +8,7 @@ export interface ApiLeagueSummary {
   id: number;
   name: string;
   max_players: number;
+  status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   is_private?: boolean;
   is_free?: boolean;
   nb_btl?: number;
