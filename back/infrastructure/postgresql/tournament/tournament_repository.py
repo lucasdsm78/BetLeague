@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, List, Tuple
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,7 @@ from domain.tournament.model.tournament_status import TournamentStatus
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from infrastructure.postgresql.tournament.db_tournament import DBTournament
 from infrastructure.postgresql.tournament.db_tournament_player import DBTournamentPlayer
+from infrastructure.postgresql.tournament.db_tournament_stage import DBTournamentStage
 
 
 class TournamentRepositoryImpl(TournamentRepository):
@@ -266,6 +268,35 @@ class TournamentRepositoryImpl(TournamentRepository):
             )
         )
         return int(result.scalar_one() or 0)
+
+    async def find_due_tournament_ids(self, as_of: datetime) -> List[int]:
+        as_of_ms = int(as_of.timestamp() * 1000)
+        result = await self.session.execute(
+            select(DBTournament.id, func.min(DBTournamentStage.end_date).label("due_end_date"))
+            .join(DBTournamentStage, DBTournamentStage.tournament_id == DBTournament.id)
+            .where(
+                DBTournament.status == TournamentStatus.IN_PROGRESS.value,
+                DBTournament.winner_id.is_(None),
+                DBTournamentStage.is_active.is_(True),
+                DBTournamentStage.is_completed.is_(False),
+                DBTournamentStage.end_date <= as_of_ms,
+            )
+            .group_by(DBTournament.id)
+            .order_by(func.min(DBTournamentStage.end_date).asc(), DBTournament.id.asc())
+        )
+        return [int(row[0]) for row in result.all()]
+
+    async def find_by_id_for_update(self, tournament_id: int) -> Optional[Tournament]:
+        result = await self.session.execute(
+            select(DBTournament)
+            .options(joinedload(DBTournament.user))
+            .where(DBTournament.id == tournament_id)
+            .with_for_update(of=DBTournament, skip_locked=True)
+        )
+        tournament_db = result.scalar_one_or_none()
+        if not tournament_db:
+            return None
+        return tournament_db.to_entity()
 
     async def update(self, tournament: Tournament):
         result = await self.session.execute(

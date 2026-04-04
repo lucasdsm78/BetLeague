@@ -2,6 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from application.tournament.process_due_tournament_usecase import ProcessDueTournamentUseCaseImpl
+from application.tournament.process_tournament_scheduler_usecase import ProcessTournamentSchedulerUseCaseImpl
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_player import TournamentPlayer
@@ -32,7 +34,7 @@ class FakeSession:
         return FakeTransaction()
 
 
-def build_tournament(tournament_id: int) -> Tournament:
+def build_tournament(tournament_id: int, *, prize_pool: float = 20.0) -> Tournament:
     now = datetime.now(UTC)
     return Tournament(
         id=tournament_id,
@@ -42,8 +44,8 @@ def build_tournament(tournament_id: int) -> Tournament:
         max_players=16,
         min_players=2,
         current_players=2,
-        entry_fee=0,
-        prize_pool=0,
+        entry_fee=5,
+        prize_pool=prize_pool,
         is_private=False,
         start_date=int((now - timedelta(days=7)).timestamp() * 1000),
         end_date=int((now + timedelta(days=7)).timestamp() * 1000),
@@ -69,8 +71,8 @@ class FakeTournamentRepository:
     def __init__(self, session):
         self.session = session
 
-    async def find_all_by_status(self, status: str):
-        return self.session.tournaments
+    async def find_by_id_for_update(self, tournament_id: int):
+        return self.session.tournaments_by_id.get(tournament_id)
 
     async def update(self, tournament: Tournament):
         self.session.updated_tournaments.append(tournament)
@@ -80,8 +82,11 @@ class FakeTournamentStageRepository:
     def __init__(self, session):
         self.session = session
 
-    async def find_all_by_tournament(self, tournament_id: int):
-        return self.session.stages_by_tournament.get(tournament_id, [])
+    async def find_due_active_stage_for_update(self, tournament_id: int, as_of: datetime):
+        return self.session.active_stage_by_tournament.get(tournament_id)
+
+    async def find_next_stage(self, tournament_id: int, current_stage: TournamentStage):
+        return self.session.next_stage_by_tournament.get(tournament_id)
 
     async def update_stage(self, stage: TournamentStage):
         self.session.updated_stages.append(stage)
@@ -91,11 +96,8 @@ class FakeTournamentMatchRepository:
     def __init__(self, session):
         self.session = session
 
-    async def find_matches_by_tournament_id(self, tournament_id: int):
-        return self.session.matches_by_tournament.get(tournament_id, [])
-
-    async def find_matches_by_tournament_stages(self, tournament_id: int, stage: str):
-        return []
+    async def find_matches_by_stage_id(self, stage_id: int):
+        return self.session.matches_by_stage.get(stage_id, [])
 
     async def update(self, match):
         self.session.updated_matches.append(match)
@@ -108,8 +110,8 @@ class FakeTournamentPlayersRepository:
     def __init__(self, session):
         self.session = session
 
-    async def find_players_by_tournament_id(self, tournament_id: int):
-        return self.session.players_by_tournament.get(tournament_id, [])
+    async def find_qualified_players_by_stage(self, tournament_id: int, stage: StageType):
+        return self.session.players_by_stage.get((tournament_id, stage), [])
 
     async def update(self, player):
         self.session.updated_players.append(player)
@@ -123,50 +125,77 @@ class FakeUserRepository:
         self.session.credits.append((user_id, amount))
 
 
-@pytest.mark.asyncio
-async def test_tournament_scheduler_skips_stage_not_due(monkeypatch: pytest.MonkeyPatch):
-    session = FakeSession()
-    tournament = build_tournament(10)
-    stage = build_stage(tournament_id=10, stage_id=100, stage_type=StageType.FINAL, end_delta_minutes=30)
+class FakeDueTournamentUseCase:
+    def __init__(self):
+        self.calls: list[tuple[int, datetime]] = []
 
-    session.tournaments = [tournament]
-    session.stages_by_tournament = {10: [stage]}
-    session.matches_by_tournament = {10: []}
-    session.players_by_tournament = {10: []}
-    session.updated_tournaments = []
-    session.updated_stages = []
-    session.updated_matches = []
-    session.updated_players = []
-    session.created_matches = []
-    session.credits = []
+    async def process_tournament(self, tournament_id: int, as_of: datetime | None = None):
+        self.calls.append((tournament_id, as_of))
 
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentRepositoryImpl", FakeTournamentRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentStageRepositoryImpl", FakeTournamentStageRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentMatchRepositoryImpl", FakeTournamentMatchRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentPlayersRepositoryImpl", FakeTournamentPlayersRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.UserRepositoryImpl", FakeUserRepository)
 
-    scheduler = TournamentSchedulerImpl(session_factory=lambda: session)
-    await scheduler.process_tournaments(as_of=datetime.now(UTC))
+class FakeSchedulerUseCase:
+    def __init__(self):
+        self.calls: list[datetime] = []
 
-    assert session.updated_stages == []
-    assert session.updated_tournaments == []
-    assert session.credits == []
+    async def process_tournaments(self, as_of: datetime | None = None):
+        self.calls.append(as_of)
 
 
 @pytest.mark.asyncio
-async def test_tournament_scheduler_processes_due_final_stage_and_credits_winner(monkeypatch: pytest.MonkeyPatch):
+async def test_tournament_scheduler_delegates_to_application_usecase():
+    usecase = FakeSchedulerUseCase()
+    scheduler = TournamentSchedulerImpl(session_factory=lambda: FakeSession(), usecase=usecase)
+    run_at = datetime.now(UTC)
+
+    await scheduler.process_tournaments(as_of=run_at)
+
+    assert usecase.calls == [run_at]
+
+
+@pytest.mark.asyncio
+async def test_process_tournament_scheduler_loads_due_ids_and_processes_each_once(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
-    tournament = build_tournament(11)
+    due_usecase = FakeDueTournamentUseCase()
+
+    class FakeTournamentRepositoryForBatch:
+        def __init__(self, session):
+            self.session = session
+
+        async def find_due_tournament_ids(self, as_of: datetime):
+            self.session.loaded_as_of = as_of
+            return [10, 11, 12]
+
+    monkeypatch.setattr(
+        "application.tournament.process_tournament_scheduler_usecase.TournamentRepositoryImpl",
+        FakeTournamentRepositoryForBatch,
+    )
+
+    usecase = ProcessTournamentSchedulerUseCaseImpl(
+        session_factory=lambda: session,
+        process_due_tournament_usecase=due_usecase,
+    )
+    run_at = datetime.now(UTC)
+
+    await usecase.process_tournaments(as_of=run_at)
+
+    assert session.loaded_as_of == run_at
+    assert due_usecase.calls == [(10, run_at), (11, run_at), (12, run_at)]
+
+
+@pytest.mark.asyncio
+async def test_process_due_tournament_final_stage_credits_prize_pool(monkeypatch: pytest.MonkeyPatch):
+    session = FakeSession()
+    tournament = build_tournament(11, prize_pool=20.0)
     stage = build_stage(tournament_id=11, stage_id=110, stage_type=StageType.FINAL, end_delta_minutes=-30)
     player1 = TournamentPlayer(id=1, user_id=3, tournament_id=11, nb_btl=50, current_stage=StageType.FINAL)
     player2 = TournamentPlayer(id=2, user_id=4, tournament_id=11, nb_btl=140, current_stage=StageType.FINAL)
     match = type("Match", (), {"id": 501, "stage_id": 110, "winner_id": None, "loser_id": None, "player1_id": 1, "player2_id": 2})()
 
-    session.tournaments = [tournament]
-    session.stages_by_tournament = {11: [stage]}
-    session.matches_by_tournament = {11: [match]}
-    session.players_by_tournament = {11: [player1, player2]}
+    session.tournaments_by_id = {11: tournament}
+    session.active_stage_by_tournament = {11: stage}
+    session.next_stage_by_tournament = {11: None}
+    session.matches_by_stage = {110: [match]}
+    session.players_by_stage = {(11, StageType.FINAL): [player1, player2]}
     session.updated_tournaments = []
     session.updated_stages = []
     session.updated_matches = []
@@ -174,14 +203,29 @@ async def test_tournament_scheduler_processes_due_final_stage_and_credits_winner
     session.created_matches = []
     session.credits = []
 
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentRepositoryImpl", FakeTournamentRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentStageRepositoryImpl", FakeTournamentStageRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentMatchRepositoryImpl", FakeTournamentMatchRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.TournamentPlayersRepositoryImpl", FakeTournamentPlayersRepository)
-    monkeypatch.setattr("infrastructure.scheduler.tournament_scheduler.UserRepositoryImpl", FakeUserRepository)
+    monkeypatch.setattr(
+        "application.tournament.process_due_tournament_usecase.TournamentRepositoryImpl",
+        FakeTournamentRepository,
+    )
+    monkeypatch.setattr(
+        "application.tournament.process_due_tournament_usecase.TournamentStageRepositoryImpl",
+        FakeTournamentStageRepository,
+    )
+    monkeypatch.setattr(
+        "application.tournament.process_due_tournament_usecase.TournamentMatchRepositoryImpl",
+        FakeTournamentMatchRepository,
+    )
+    monkeypatch.setattr(
+        "application.tournament.process_due_tournament_usecase.TournamentPlayersRepositoryImpl",
+        FakeTournamentPlayersRepository,
+    )
+    monkeypatch.setattr(
+        "application.tournament.process_due_tournament_usecase.UserRepositoryImpl",
+        FakeUserRepository,
+    )
 
-    scheduler = TournamentSchedulerImpl(session_factory=lambda: session)
-    await scheduler.process_tournaments(as_of=datetime.now(UTC))
+    usecase = ProcessDueTournamentUseCaseImpl(session_factory=lambda: session)
+    await usecase.process_tournament(11, as_of=datetime.now(UTC))
 
     assert len(session.updated_stages) == 1
     assert session.updated_stages[0].is_completed is True
@@ -189,7 +233,7 @@ async def test_tournament_scheduler_processes_due_final_stage_and_credits_winner
     assert len(session.updated_matches) == 1
     assert session.updated_matches[0].winner_id == 2
     assert session.updated_matches[0].loser_id == 1
-    assert session.credits == [(4, 400)]
+    assert session.credits == [(4, 20.0)]
     assert len(session.updated_tournaments) == 1
     assert session.updated_tournaments[0].status == TournamentStatus.COMPLETED
     assert session.updated_tournaments[0].winner_id == 4

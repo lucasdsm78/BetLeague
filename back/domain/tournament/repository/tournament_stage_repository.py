@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from domain.tournament.model import TournamentStage
 from typing import List, Optional
@@ -36,3 +37,12 @@ class TournamentStageRepository(ABC):
     @abstractmethod
     async def rollback(self):
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_due_active_stage_for_update(self, tournament_id: int, as_of: datetime) -> Optional[TournamentStage]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_next_stage(self, tournament_id: int, current_stage: TournamentStage) -> Optional[TournamentStage]:
+        raise NotImplementedError
+

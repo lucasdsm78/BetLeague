@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, BigInteger
+from sqlalchemy import Column, Integer, ForeignKey, String, BigInteger, UniqueConstraint
 from sqlalchemy.orm import relationship
 from typing import Optional, Union
 from domain.tournament.model.tournament_match import TournamentMatch
@@ -9,6 +9,10 @@ from infrastructure.postgresql.tournament.db_tournament_player import unixtimest
 
 class DBTournamentMatch(Base):
     __tablename__ = "tournament_match"
+
+    __table_args__ = (
+        UniqueConstraint("stage_id", "player1_id", "player2_id", name="uq_tournament_match_stage_players"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     stage_id = Column(Integer, ForeignKey("tournament_stage.id"), nullable=False)

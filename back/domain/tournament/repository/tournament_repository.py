@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Optional, List, Tuple
 
 from domain.tournament.model.tournament import Tournament
@@ -83,3 +84,12 @@ class TournamentRepository(ABC):
     @abstractmethod
     async def count_created_by_user_between(self, user_id: int, created_from_ms: int, created_to_ms: int) -> int:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_due_tournament_ids(self, as_of: datetime) -> List[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_id_for_update(self, tournament_id: int) -> Optional[Tournament]:
+        raise NotImplementedError
+
