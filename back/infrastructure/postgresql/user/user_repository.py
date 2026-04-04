@@ -87,6 +87,10 @@ class UserRepositoryImpl(UserRepository):
         user_db = DBUser.from_entity(user)
         try:
             self.session.add(user_db)
+            await self.session.flush()
+            user.id = user_db.id
+            user.created_at = user_db.created_at
+            user.updated_at = user_db.updated_at
         except:
             raise
 
