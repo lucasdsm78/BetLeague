@@ -92,8 +92,10 @@ interface LeagueCardProps {
 }
 
 const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
-    const statusLabel = league.isStarted ? 'Active' : 'En attente';
-    const statusColor = league.isStarted ? 'var(--success-color)' : 'var(--warning-color)';
+    const isClosed = league.status === 'CLOSED';
+    const isInProgress = league.status === 'IN_PROGRESS' || league.isStarted;
+    const statusLabel = isClosed ? 'Fermée' : isInProgress ? 'Active' : 'En attente';
+    const statusColor = isClosed ? 'var(--text-secondary)' : isInProgress ? 'var(--success-color)' : 'var(--warning-color)';
 
     const isLoadingBalance = isBalanceLoading || myBalanceBtl === null || myBalanceBtl === undefined;
 
@@ -204,8 +206,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <button
                         className="btn btn-primary"
                         onClick={() => onInvite(league)}
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
+                        disabled={league.isStarted || isClosed}
+                        title={isClosed ? 'Cette ligue est fermée' : league.isStarted ? 'Cette ligue a déjà commencé' : 'Inviter des utilisateurs'}
                         aria-label={`Inviter des utilisateurs dans la ligue ${league.name}`}
                     >
                         <IconUserPlus />
@@ -218,8 +220,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <button
                         className="btn btn-primary"
                         onClick={() => onEdit(league)}
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
+                        disabled={league.isStarted || isClosed}
+                        title={isClosed ? 'Cette ligue est fermée' : league.isStarted ? 'Cette ligue a déjà commencé' : `Modifier la ligue ${league.name}`}
                         aria-label={`Modifier la ligue ${league.name}`}
                     >
                         <IconEdit />
@@ -231,9 +233,9 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {showLeaveButton && onLeave && (
                     <button
                         className="btn btn-danger"
-                        onClick={() => { if (!league.isStarted) onLeave(league); }}
-                        disabled={league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
+                        onClick={() => { if (!league.isStarted && !isClosed) onLeave(league); }}
+                        disabled={league.isStarted || isClosed}
+                        title={isClosed ? 'Cette ligue est fermée : vous ne pouvez plus la quitter.' : league.isStarted ? 'Cette ligue a déjà commencé : vous ne pouvez plus la quitter.' : `Quitter la ligue ${league.name}`}
                         aria-label={`Quitter la ligue ${league.name}`}
                     >
                         <IconLogOut />
@@ -246,8 +248,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <button
                         className={`btn btn-primary ${isJoining ? 'is-loading' : ''}`}
                         onClick={() => onJoin(league)}
-                        disabled={isJoining || league.isStarted}
-                        title={league.isStarted ? 'Cette ligue a déjà commencé' : 'Rejoindre cette ligue'}
+                        disabled={isJoining || league.isStarted || isClosed}
+                        title={isClosed ? 'Cette ligue est fermée' : league.isStarted ? 'Cette ligue a déjà commencé' : 'Rejoindre cette ligue'}
                         aria-label={`Rejoindre la ligue ${league.name}`}
                     >
                         {isJoining ? (
@@ -255,6 +257,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                                 <IconLoader />
                                 <span>Rejoindre...</span>
                             </>
+                        ) : isClosed ? (
+                            <span>Fermée</span>
                         ) : league.isStarted ? (
                             <span>Déjà commencée</span>
                         ) : (
