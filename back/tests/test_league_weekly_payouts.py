@@ -160,6 +160,29 @@ async def test_process_league_payout_is_idempotent_for_closed_league(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_process_league_payout_does_not_close_league_when_winner_is_missing(monkeypatch: pytest.MonkeyPatch):
+    session = FakeSession()
+    session.league_ids = [13]
+    session.leagues_by_id = {13: build_league(league_id=13, is_free=False, nb_btl=50)}
+    session.top_scorers = {13: (None, 0)}
+    session.players_count = {13: 3}
+    session.credits = []
+    session.updated_leagues = []
+
+    monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
+    monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+
+    usecase = LeaguePayoutUseCaseImpl(
+        session_factory=lambda: session,
+    )
+
+    await usecase.process_league_payout(13, datetime.now(UTC))
+
+    assert session.credits == []
+    assert session.updated_leagues == []
+
+
+@pytest.mark.asyncio
 async def test_scheduler_orchestrates_each_due_league_once(monkeypatch: pytest.MonkeyPatch):
     calls: list[tuple[str, int | None]] = []
 
@@ -188,5 +211,6 @@ async def test_scheduler_orchestrates_each_due_league_once(monkeypatch: pytest.M
         ("process", 11),
         ("process", 12),
     ]
+
 
 
