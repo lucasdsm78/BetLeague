@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     auth_redis_fail_closed: bool = Field(default=False, validation_alias="AUTH_REDIS_FAIL_CLOSED")
     auth_tokens_invalid_before_ttl_s: int = Field(default=60 * 60 * 24 * 90, validation_alias="AUTH_TOKENS_INVALID_BEFORE_TTL_S")
     auth_blacklisted_jti_ttl_grace_s: int = Field(default=60, validation_alias="AUTH_BLACKLISTED_JTI_TTL_GRACE_S")
+    scheduler_internal_token: str = Field(default="", validation_alias="SCHEDULER_INTERNAL_TOKEN")
+    scheduler_admin_emails: str = Field(default="", validation_alias="SCHEDULER_ADMIN_EMAILS")
 
     class Config:
         env_file = ".env"

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, Float, BigInteger, ForeignKey, String, Index, Boolean
+from sqlalchemy import Column, Integer, Float, BigInteger, ForeignKey, String, Index, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from domain.tournament.model.stage_type import StageType
@@ -31,6 +31,7 @@ class DBTournamentPlayer(Base):
     __table_args__ = (
         Index('idx_tournament_player_tournament', 'tournament_id'),
         Index('idx_tournament_player_user', 'user_id'),
+        UniqueConstraint('tournament_id', 'user_id', name='uq_tournament_player_tournament_user'),
     )
 
     matches_as_player1 = relationship(

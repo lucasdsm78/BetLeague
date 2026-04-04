@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,3 +83,34 @@ class TournamentStageRepositoryImpl(TournamentStageRepository):
 
     async def rollback(self):
         await self.session.rollback()
+
+    async def find_due_active_stage_for_update(self, tournament_id: int, as_of: datetime) -> Optional[TournamentStage]:
+        as_of_ms = int(as_of.timestamp() * 1000)
+        result = await self.session.execute(
+            select(DBTournamentStage)
+            .where(
+                DBTournamentStage.tournament_id == tournament_id,
+                DBTournamentStage.is_active.is_(True),
+                DBTournamentStage.is_completed.is_(False),
+                DBTournamentStage.end_date <= as_of_ms,
+            )
+            .order_by(DBTournamentStage.start_date.asc(), DBTournamentStage.id.asc())
+            .limit(1)
+            .with_for_update(of=DBTournamentStage, skip_locked=True)
+        )
+        stage_db = result.scalar_one_or_none()
+        return stage_db.to_entity() if stage_db else None
+
+    async def find_next_stage(self, tournament_id: int, current_stage: TournamentStage) -> Optional[TournamentStage]:
+        result = await self.session.execute(
+            select(DBTournamentStage)
+            .where(
+                DBTournamentStage.tournament_id == tournament_id,
+                DBTournamentStage.start_date > current_stage.start_date,
+            )
+            .order_by(DBTournamentStage.start_date.asc(), DBTournamentStage.id.asc())
+            .limit(1)
+        )
+        stage_db = result.scalar_one_or_none()
+        return stage_db.to_entity() if stage_db else None
+

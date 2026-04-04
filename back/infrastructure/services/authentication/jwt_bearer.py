@@ -10,20 +10,21 @@ from starlette.status import HTTP_403_FORBIDDEN
 
 class JwtBearer(HTTPBearer):
 
-    def __init__(self, ):
-        super().__init__()
+    def __init__(self, auto_error: bool = True):
+        super().__init__(auto_error=auto_error)
         self.model: APIKey = APIKey(
             **{"in": APIKeyIn.header}, name="X-Authentication"
         )
 
     async def __call__(self, request: Request):
         r = await self.__call__with_x_authentication(request)
+        if r is None:
+            return None
         return r.credentials
 
     async def __call__with_x_authentication(
             self, request: Request
     ) -> Optional[HTTPAuthorizationCredentials]:
-        print(self.model)
         authorization = request.headers.get("X-Authentication")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
@@ -41,5 +42,4 @@ class JwtBearer(HTTPBearer):
                 )
             else:
                 return None
-        print(scheme)
         return HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)

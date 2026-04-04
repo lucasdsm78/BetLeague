@@ -60,3 +60,13 @@ class TournamentMatchRepositoryImpl(TournamentMatchRepository):
         )
         db_match = result.scalar_one_or_none()
         return db_match.to_entity() if db_match else None
+
+    async def find_matches_by_stage_id(self, stage_id: int):
+        result = await self.session.execute(
+            select(DBTournamentMatch)
+            .where(DBTournamentMatch.stage_id == stage_id)
+            .order_by(DBTournamentMatch.id.asc())
+        )
+        matches_db = result.scalars().all()
+        return [match.to_entity() for match in matches_db]
+
