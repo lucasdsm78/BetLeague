@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, UTC
+import logging
 from typing import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,13 +16,25 @@ from infrastructure.postgresql.tournament.tournament_players_repository import T
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
 
+logger = logging.getLogger(__name__)
+
+
 class TournamentSchedulerImpl(TournamentScheduler):
 
     def __init__(self, session_factory: Callable[[], AsyncSession]):
         self.session_factory = session_factory
 
-    async def process_tournaments(self):
-        """Fonction principale appelée chaque jour par un cron."""
+    @staticmethod
+    def _normalize_as_of(as_of: datetime | None) -> datetime:
+        if as_of is None:
+            return datetime.now(UTC)
+        if as_of.tzinfo is None:
+            return as_of.replace(tzinfo=UTC)
+        return as_of.astimezone(UTC)
+
+    async def process_tournaments(self, as_of: datetime | None = None):
+        """Traite les tournois dont l'étape active est échue."""
+        normalized_as_of = self._normalize_as_of(as_of)
         async with self.session_factory() as session:
             async with session.begin():
                 # Instanciation unique des repositories
@@ -32,8 +45,24 @@ class TournamentSchedulerImpl(TournamentScheduler):
                 ur = UserRepositoryImpl(session)
 
                 active = await tr.find_all_by_status(TournamentStatus.IN_PROGRESS.value)
+                logger.info(
+                    "tournament_scheduler.batch_started",
+                    extra={
+                        "event": "tournament_scheduler.batch_started",
+                        "as_of": normalized_as_of.isoformat(),
+                        "tournament_count": len(active),
+                    },
+                )
                 for tournament in active:
-                    await self._process_tournament(tournament, tr, sr, mr, pr, ur)
+                    await self._process_tournament(tournament, tr, sr, mr, pr, ur, normalized_as_of)
+                logger.info(
+                    "tournament_scheduler.batch_finished",
+                    extra={
+                        "event": "tournament_scheduler.batch_finished",
+                        "as_of": normalized_as_of.isoformat(),
+                        "tournament_count": len(active),
+                    },
+                )
 
     async def _process_tournament(
             self,
@@ -43,11 +72,47 @@ class TournamentSchedulerImpl(TournamentScheduler):
             mr: TournamentMatchRepositoryImpl,
             pr: TournamentPlayersRepositoryImpl,
             ur: UserRepositoryImpl,
+            as_of: datetime,
     ):
         stages = await sr.find_all_by_tournament(tournament.id)
         active_stage = next((s for s in stages if s.is_active), None)
         if not active_stage or not active_stage.end_date:
+            logger.info(
+                "tournament_scheduler.skipped",
+                extra={
+                    "event": "tournament_scheduler.skipped",
+                    "tournament_id": tournament.id,
+                    "reason": "no_active_stage",
+                    "as_of": as_of.isoformat(),
+                },
+            )
             return
+
+        if int(as_of.timestamp() * 1000) < int(active_stage.end_date):
+            logger.info(
+                "tournament_scheduler.skipped",
+                extra={
+                    "event": "tournament_scheduler.skipped",
+                    "tournament_id": tournament.id,
+                    "stage_id": active_stage.id,
+                    "stage_type": active_stage.type.value,
+                    "reason": "stage_not_due",
+                    "stage_end_date": active_stage.end_date,
+                    "as_of": as_of.isoformat(),
+                },
+            )
+            return
+
+        logger.info(
+            "tournament_scheduler.processing",
+            extra={
+                "event": "tournament_scheduler.processing",
+                "tournament_id": tournament.id,
+                "stage_id": active_stage.id,
+                "stage_type": active_stage.type.value,
+                "as_of": as_of.isoformat(),
+            },
+        )
 
         # 1) Finaliser l’étape actuelle
         await self._finalize_stage(tournament, active_stage, sr, mr, pr)
