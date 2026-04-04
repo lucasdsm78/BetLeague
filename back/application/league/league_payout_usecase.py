@@ -127,40 +127,57 @@ class LeaguePayoutUseCaseImpl(LeaguePayoutUseCase):
                             },
                         )
 
-                    reward_amount = None
-                    participants_count = None
-                    if winner_id is not None:
-                        if league.is_free:
-                            reward_amount = 200.0
-                        else:
-                            participants_count = await league_repo.count_players(league.id)
-                            reward_amount = float(participants_count * (league.nb_btl or 0))
-
-                        if reward_amount > 0:
-                            await user_repo.credit_btl(winner_id, reward_amount)
-                            logger.info(
-                                "league_payout.reward_credited",
-                                extra={
-                                    "event": "league_payout.reward_credited",
-                                    "league_id": league.id,
-                                    "winner_id": winner_id,
-                                    "reward_amount": reward_amount,
-                                    "is_free": league.is_free,
-                                    "participants_count": participants_count,
-                                    "entry_btl": league.nb_btl,
-                                    "as_of": normalized_as_of.isoformat(),
-                                },
-                            )
-                    else:
-                        logger.info(
-                            "league_payout.no_winner",
+                    if winner_id is None:
+                        logger.warning(
+                            "league_payout.skipped",
                             extra={
-                                "event": "league_payout.no_winner",
+                                "event": "league_payout.skipped",
                                 "league_id": league.id,
-                                "reason": "no_participants_or_no_score",
+                                "reason": "winner_not_found",
+                                "league_status": getattr(league.status, "value", league.status),
                                 "as_of": normalized_as_of.isoformat(),
                             },
                         )
+                        return
+
+                    reward_amount = None
+                    participants_count = None
+                    if league.is_free:
+                        reward_amount = 200.0
+                    else:
+                        participants_count = await league_repo.count_players(league.id)
+                        reward_amount = float(participants_count * (league.nb_btl or 0))
+
+                    if reward_amount <= 0:
+                        logger.warning(
+                            "league_payout.skipped",
+                            extra={
+                                "event": "league_payout.skipped",
+                                "league_id": league.id,
+                                "winner_id": winner_id,
+                                "participants_count": participants_count,
+                                "entry_btl": league.nb_btl,
+                                "reason": "invalid_reward_amount",
+                                "reward_amount": reward_amount,
+                                "as_of": normalized_as_of.isoformat(),
+                            },
+                        )
+                        return
+
+                    await user_repo.credit_btl(winner_id, reward_amount)
+                    logger.info(
+                        "league_payout.reward_credited",
+                        extra={
+                            "event": "league_payout.reward_credited",
+                            "league_id": league.id,
+                            "winner_id": winner_id,
+                            "reward_amount": reward_amount,
+                            "is_free": league.is_free,
+                            "participants_count": participants_count,
+                            "entry_btl": league.nb_btl,
+                            "as_of": normalized_as_of.isoformat(),
+                        },
+                    )
 
                     league.close(
                         closed_at=closed_at_ms,
@@ -190,6 +207,8 @@ class LeaguePayoutUseCaseImpl(LeaguePayoutUseCase):
                 },
             )
             raise
+
+
 
 
 
