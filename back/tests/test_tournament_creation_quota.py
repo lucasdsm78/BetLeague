@@ -208,6 +208,7 @@ async def test_query_usecase_reports_remaining_quota_for_non_subscriber():
         stage_repository=SimpleNamespace(),
         tournament_match_repository=SimpleNamespace(),
         tournament_subscription_repository=FakeSubscriptionQueryRepository(subscription=None),
+        invitation_repository=SimpleNamespace(),
         creation_policy=TournamentCreationPolicy(),
     )
 

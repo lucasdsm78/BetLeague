@@ -78,7 +78,10 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
         result = await self.session.execute(
             select(DBTournamentPlayer)
             .join(DBTournament, DBTournamentPlayer.tournament_id == DBTournament.id)
-            .where(DBTournamentPlayer.stage == stage.value)
+            .where(
+                DBTournamentPlayer.tournament_id == tournament_id,
+                DBTournamentPlayer.stage == stage.value,
+            )
         )
 
         tournaments_db = result.scalars().all()
@@ -114,3 +117,17 @@ class TournamentPlayersRepositoryImpl(TournamentPlayersRepository):
 
     async def rollback(self):
         await self.session.rollback()
+
+    async def find_qualified_players_by_stage(self, tournament_id: int, stage: StageType) -> List[TournamentPlayer]:
+        result = await self.session.execute(
+            select(DBTournamentPlayer)
+            .where(
+                DBTournamentPlayer.tournament_id == tournament_id,
+                DBTournamentPlayer.stage == stage.value,
+                DBTournamentPlayer.is_eliminated.is_(False),
+            )
+            .order_by(DBTournamentPlayer.id.asc())
+        )
+        players_db = result.scalars().all()
+        return [player.to_entity() for player in players_db]
+
