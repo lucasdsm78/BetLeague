@@ -66,6 +66,10 @@ celery_app.conf.update(
             "task": "infrastructure.celery.tasks.process_weekly_league_payouts",
             "schedule": crontab(day_of_week=1, hour=9, minute=0),
         },
+        "process-tournaments-scheduler": {
+            "task": "infrastructure.celery.tasks.process_tournaments_scheduler",
+            "schedule": crontab(minute="*/5"),
+        },
         "check-match-scores": {
             "task": "infrastructure.celery.tasks.check_match_scores",
             "schedule": 300.0,
