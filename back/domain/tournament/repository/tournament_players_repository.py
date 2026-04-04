@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from domain.tournament.model.tournament_player import TournamentPlayer
+from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament_stage import TournamentStage
 
 
@@ -54,3 +55,8 @@ class TournamentPlayersRepository(ABC):
     @abstractmethod
     async def rollback(self):
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_qualified_players_by_stage(self, tournament_id: int, stage: StageType) -> List[TournamentPlayer]:
+        raise NotImplementedError
+

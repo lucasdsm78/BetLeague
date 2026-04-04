@@ -204,6 +204,27 @@ def process_weekly_league_payouts(self):
     _run_async(_process_weekly_league_payouts_async())
 
 
+@celery_app.task(
+    bind=True,
+    name="infrastructure.celery.tasks.process_tournaments_scheduler",
+    max_retries=3,
+    default_retry_delay=60,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=300,
+)
+def process_tournaments_scheduler(self):
+    logger.info(
+        "tournament_scheduler.task_started",
+        extra={
+            "event": "tournament_scheduler.task_started",
+            "task_name": self.name,
+            "task_id": getattr(getattr(self, "request", None), "id", None),
+        },
+    )
+    _run_async(_process_tournaments_scheduler_async())
+
+
 async def _check_match_scores_async():
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.config import Settings
@@ -267,6 +288,43 @@ async def _process_weekly_league_payouts_async():
             "league_payout.task_failed",
             extra={
                 "event": "league_payout.task_failed",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        raise
+    finally:
+        await engine.dispose()
+
+
+async def _process_tournaments_scheduler_async():
+    import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
+    from infrastructure.scheduler.tournament_scheduler import TournamentSchedulerImpl
+
+    engine, session_factory = _make_session_factory()
+    scheduler = TournamentSchedulerImpl(session_factory=session_factory)
+    run_at = datetime.utcnow()
+
+    try:
+        logger.info(
+            "tournament_scheduler.task_dispatching",
+            extra={
+                "event": "tournament_scheduler.task_dispatching",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        await scheduler.process_tournaments(as_of=run_at)
+        logger.info(
+            "tournament_scheduler.task_finished",
+            extra={
+                "event": "tournament_scheduler.task_finished",
+                "as_of": run_at.isoformat(),
+            },
+        )
+    except Exception:
+        logger.exception(
+            "tournament_scheduler.task_failed",
+            extra={
+                "event": "tournament_scheduler.task_failed",
                 "as_of": run_at.isoformat(),
             },
         )

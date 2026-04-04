@@ -1,4 +1,5 @@
 from __future__ import annotations
+import secrets
 from infrastructure.postgresql.match.match_score_unit_of_work import MatchScoreUnitOfWorkImpl
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
 from application.league.league_query_usecase import LeagueQueryUseCase, LeagueQueryUseCaseImpl
@@ -20,6 +21,18 @@ from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase, ProcessStripeWebhookTournamentSubscriptionUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
+from application.tournament.advance_tournament_stage_usecase import (
+    AdvanceTournamentStageUseCase,
+    AdvanceTournamentStageUseCaseImpl,
+)
+from application.tournament.process_due_tournament_usecase import (
+    ProcessDueTournamentUseCase,
+    ProcessDueTournamentUseCaseImpl,
+)
+from application.tournament.process_tournament_scheduler_usecase import (
+    ProcessTournamentSchedulerUseCase,
+    ProcessTournamentSchedulerUseCaseImpl,
+)
 from application.tournament.tournament_command_usecase import TournamentCommandUseCase, TournamentCommandUseCaseImpl
 from application.tournament.tournament_query_usecase import TournamentQueryUseCase, TournamentQueryUseCaseImpl
 from application.notification.notification_command_usecase import NotificationCommandUseCase
@@ -123,6 +136,7 @@ from infrastructure.services.notification.redis_notification_realtime import (
 )
 
 jwt_auth = JwtBearer()
+jwt_auth_optional = JwtBearer(auto_error=False)
 
 
 def get_session() -> Iterator[Session]:
@@ -613,11 +627,37 @@ def tournament_query_usecase(
         invitation_repository=invitation_repository,
     )
 
+def advance_tournament_stage_usecase() -> AdvanceTournamentStageUseCase:
+    return AdvanceTournamentStageUseCaseImpl()
+
+
+def process_due_tournament_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        advance_usecase: AdvanceTournamentStageUseCase = Depends(advance_tournament_stage_usecase),
+) -> ProcessDueTournamentUseCase:
+    return ProcessDueTournamentUseCaseImpl(
+        session_factory=session_factory,
+        advance_tournament_stage_usecase=advance_usecase,
+    )
+
+
+def process_tournament_scheduler_usecase(
+        session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        due_usecase: ProcessDueTournamentUseCase = Depends(process_due_tournament_usecase),
+) -> ProcessTournamentSchedulerUseCase:
+    return ProcessTournamentSchedulerUseCaseImpl(
+        session_factory=session_factory,
+        process_due_tournament_usecase=due_usecase,
+    )
+
+
 def tournament_scheduler(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        usecase: ProcessTournamentSchedulerUseCase = Depends(process_tournament_scheduler_usecase),
 ) -> TournamentScheduler:
     return TournamentSchedulerImpl(
         session_factory=session_factory,
+        usecase=usecase,
     )
 
 
@@ -668,6 +708,41 @@ async def current_user(
 
     decoded['token'] = token  # Add original token for logout operations
     return decoded
+
+
+async def require_scheduler_access(
+        request: Request,
+        settings: Settings = Depends(get_settings),
+        manager_token: ManagerToken = Depends(manager_token_dependency),
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        token: str | None = Depends(jwt_auth_optional),
+) -> bool:
+    provided_internal_token = (request.headers.get("X-Internal-Token") or "").strip()
+    configured_internal_token = (settings.scheduler_internal_token or "").strip()
+    if configured_internal_token and provided_internal_token and secrets.compare_digest(
+        provided_internal_token,
+        configured_internal_token,
+    ):
+        return True
+
+    allowed_admin_emails = {
+        email.strip().lower()
+        for email in (settings.scheduler_admin_emails or "").split(",")
+        if email.strip()
+    }
+    if token and allowed_admin_emails:
+        decoded = await manager_token.verify_token(token)
+        if decoded:
+            email = (decoded.get("email") or "").strip().lower()
+            if email and email in allowed_admin_emails:
+                user = await user_repository.find_by_email(email)
+                if user is not None:
+                    return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Scheduler access forbidden",
+    )
 
 
 def stripe_service(settings: Settings = Depends(get_settings)) -> StripeService:

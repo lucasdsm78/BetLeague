@@ -1,7 +1,7 @@
 from typing import Union, Optional
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float, Index, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from domain.tournament.model import TournamentStage
@@ -16,6 +16,16 @@ def unixtimestamp() -> int:
 
 class DBTournamentStage(Base):
     __tablename__ = "tournament_stage"
+
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "type", name="uq_tournament_stage_tournament_type"),
+        Index(
+            "uq_tournament_stage_single_active_per_tournament",
+            "tournament_id",
+            unique=True,
+            postgresql_where=text("is_active = true"),
+        ),
+    )
 
     id = Column(Integer, index=True, primary_key=True)
     tournament_id = Column(Integer, ForeignKey("tournament.id"), nullable=False)

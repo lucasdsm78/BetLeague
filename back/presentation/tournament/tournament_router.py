@@ -23,7 +23,7 @@ from application.tournament_subscription.webhook.process_stripe_webhook import \
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
     stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
-    tournament_subscription_query_use_case
+    tournament_subscription_query_use_case, require_scheduler_access
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
@@ -342,7 +342,9 @@ async def update_tournament(
 async def process_tournaments_background(scheduler: TournamentScheduler):
     try:
         await scheduler.process_tournaments()
-    except Exception as e:
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Erreur lors de l'exécution background du scheduler tournoi")
         raise
 
 @router.post(
@@ -354,6 +356,7 @@ async def process_tournaments_background(scheduler: TournamentScheduler):
 async def run_tournament_scheduler(
         background_tasks: BackgroundTasks,
         scheduler: TournamentScheduler = Depends(tournament_scheduler),
+        _authorized: bool = Depends(require_scheduler_access),
 ):
     try:
         background_tasks.add_task(process_tournaments_background, scheduler)
