@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 # Celery prefork workers may lose /app from sys.path after fork
 _app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -183,6 +183,27 @@ def check_match_scores(self):
         _touch_score_check_finished(now_epoch=int(time.time()))
 
 
+@celery_app.task(
+    bind=True,
+    name="infrastructure.celery.tasks.process_weekly_league_payouts",
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=900,
+)
+def process_weekly_league_payouts(self):
+    logger.info(
+        "league_payout.task_started",
+        extra={
+            "event": "league_payout.task_started",
+            "task_name": self.name,
+            "task_id": getattr(getattr(self, "request", None), "id", None),
+        },
+    )
+    _run_async(_process_weekly_league_payouts_async())
+
+
 async def _check_match_scores_async():
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.config import Settings
@@ -215,3 +236,42 @@ async def _check_match_scores_async():
     finally:
         await client.close()
         await engine.dispose()
+
+
+async def _process_weekly_league_payouts_async():
+    import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
+    from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
+
+    engine, session_factory = _make_session_factory()
+    scheduler = LeaguePayoutSchedulerImpl(session_factory=session_factory)
+    run_at = datetime.utcnow()
+
+    try:
+        logger.info(
+            "league_payout.task_dispatching",
+            extra={
+                "event": "league_payout.task_dispatching",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        await scheduler.process_due_payouts(as_of=run_at)
+        logger.info(
+            "league_payout.task_finished",
+            extra={
+                "event": "league_payout.task_finished",
+                "as_of": run_at.isoformat(),
+            },
+        )
+    except Exception:
+        logger.exception(
+            "league_payout.task_failed",
+            extra={
+                "event": "league_payout.task_failed",
+                "as_of": run_at.isoformat(),
+            },
+        )
+        raise
+    finally:
+        await engine.dispose()
+
+

@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
 from sqlalchemy import Index
 from sqlalchemy.orm import relationship
 
-from domain.league.model.league import League
+from domain.league.model.league import League, LeagueStatus
 from domain.user.model.email import Email
 from domain.user.model.user_summary import UserSummary
 from infrastructure.postgresql.database import Base
@@ -21,6 +21,7 @@ class DBLeague(Base):
     __tablename__ = "league"
     __table_args__ = (
         Index('ix_league_is_started', 'is_started'),
+        Index('ix_league_status_end_date', 'status', 'end_date'),
     )
 
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
@@ -31,10 +32,14 @@ class DBLeague(Base):
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
     nb_btl: Union[int, Column] = Column(Integer, nullable=True)
     is_started: Union[bool, Column] = Column(Boolean, nullable=False, default=False)
+    status: Union[str, Column] = Column(String, nullable=False, default=LeagueStatus.OPEN.value)
     start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     max_players: Union[int, Column] = Column(Integer, nullable=False)
     winner_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
+    closed_at: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
+    reward_paid_at: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
+    rewarded_amount: Union[float, Column] = Column(Float, nullable=True)
     winner = relationship("DBUser", foreign_keys=[winner_id])
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     user = relationship("DBUser", foreign_keys=[user_id], back_populates="leagues")
@@ -52,6 +57,10 @@ class DBLeague(Base):
             nb_btl=self.nb_btl,
             winner_id=self.winner_id,
             is_started=self.is_started,
+            status=self.status,
+            closed_at=self.closed_at,
+            reward_paid_at=self.reward_paid_at,
+            rewarded_amount=self.rewarded_amount,
             is_private=self.is_private,
             max_players=self.max_players,
             name=self.name,
@@ -71,8 +80,12 @@ class DBLeague(Base):
         league_db_to_update.uuid = league.uuid
         league_db_to_update.is_free = league.is_free
         league_db_to_update.is_started = league.is_started
+        league_db_to_update.status = league.status.value
         league_db_to_update.nb_btl = league.nb_btl
         league_db_to_update.winner_id = league.winner_id
+        league_db_to_update.closed_at = league.closed_at
+        league_db_to_update.reward_paid_at = league.reward_paid_at
+        league_db_to_update.rewarded_amount = league.rewarded_amount
         league_db_to_update.is_private = league.is_private
         league_db_to_update.name = league.name
         league_db_to_update.nb_players_remaining = league.nb_players_remaining

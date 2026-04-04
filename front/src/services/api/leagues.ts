@@ -19,7 +19,7 @@ import type {
 } from '../../types/api';
 
 // Compat API légère (utilisée dans quelques endroits)
-export type LeagueSummaryApi = { id: number; name: string; start_date?: number; is_started?: boolean; nb_players_remaining?: number };
+export type LeagueSummaryApi = { id: number; name: string; start_date?: number; is_started?: boolean; nb_players_remaining?: number; status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED' };
 
 export async function createLeague(payload: ApiLeagueCreateRequest): Promise<ApiLeagueMessageResponse> {
   const res: ApiResponse<ApiLeagueMessageResponse> = await http.post('/league/create', payload);

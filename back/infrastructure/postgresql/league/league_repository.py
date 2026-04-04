@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from domain.league.exception.league_exception import LeagueNotFoundError
-from domain.league.model.league import League
+from domain.league.model.league import League, LeagueStatus
 from domain.league.repository.league_repository import LeagueRepository
 from infrastructure.postgresql.league.db_league import DBLeague
 from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers
@@ -52,7 +52,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             .select_from(DBLeague)
             .where(
                 DBLeague.is_private == False,
-                DBLeague.is_started == False,
+                DBLeague.status == LeagueStatus.OPEN.value,
                 DBLeague.user_id != user_id,
                 DBLeague.nb_players_remaining > 0,
                 DBLeague.id.notin_(
@@ -93,7 +93,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             .options(joinedload(DBLeague.user))   # ← charger aussi .user
             .where(
                 DBLeague.is_private == False,
-                DBLeague.is_started == False,
+                DBLeague.status == LeagueStatus.OPEN.value,
                 DBLeague.user_id != user_id,
                 DBLeague.nb_players_remaining > 0,
                 DBLeague.id.notin_(
@@ -188,14 +188,32 @@ class LeagueRepositoryImpl(LeagueRepository):
         except:
             raise
 
-    async def find_ended_before_not_paid(self, as_of: datetime) -> List[League]:
+    async def find_due_payout_ids(self, as_of: datetime) -> List[int]:
+        as_of_ms = int(as_of.timestamp() * 1000)
         q = (
-            select(DBLeague)
-            .where(DBLeague.end_date <= as_of, DBLeague.winner_id is None)
+            select(DBLeague.id)
+            .where(
+                DBLeague.end_date <= as_of_ms,
+                DBLeague.status == LeagueStatus.IN_PROGRESS.value,
+                DBLeague.closed_at.is_(None),
+            )
+            .order_by(DBLeague.end_date.asc(), DBLeague.id.asc())
         )
         result = await self.session.execute(q)
-        leagues_db = result.scalars().all()
-        return [l.to_entity() for l in leagues_db]
+        return [int(league_id) for league_id in result.scalars().all()]
+
+    async def find_by_id_for_update(self, league_id: int) -> Optional[League]:
+        q = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id == league_id)
+            .with_for_update(of=DBLeague, skip_locked=True)
+        )
+        result = await self.session.execute(q)
+        league_db = result.scalar_one_or_none()
+        if not league_db:
+            return None
+        return league_db.to_entity()
 
     async def find_all_by_ids(self, league_ids: List[int]) -> List[League]:
         if not league_ids:
@@ -228,7 +246,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             )
             .where(DBLeaguePlayers.league_id == league_id)
             .group_by(DBLeaguePlayers.user_id)
-            .order_by(func.sum(DBLeaguePlayers.nb_btl).desc())
+            .order_by(func.sum(DBLeaguePlayers.nb_btl).desc(), DBLeaguePlayers.user_id.asc())
             .limit(1)
         )
         result = await self.session.execute(q)
@@ -261,6 +279,9 @@ class LeagueRepositoryImpl(LeagueRepository):
         if int(league_db.nb_players_remaining or 0) <= 0:
             return None
 
+        if league_db.status == LeagueStatus.CLOSED.value:
+            return None
+
         league_db.nb_players_remaining = int(league_db.nb_players_remaining) - 1
         return league_db.to_entity()
 
@@ -275,6 +296,9 @@ class LeagueRepositoryImpl(LeagueRepository):
         league_db = result.scalar_one_or_none()
         if league_db is None:
             raise LeagueNotFoundError
+
+        if league_db.status == LeagueStatus.CLOSED.value:
+            return league_db.to_entity()
 
         league_db.nb_players_remaining = int(league_db.nb_players_remaining or 0) + 1
         return league_db.to_entity()
