@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     disable_2fa_rate_limit_window_s: int = Field(default=60, validation_alias="DISABLE_2FA_RATE_LIMIT_WINDOW_S")
     login_2fa_rate_limit_per_minute: int = Field(default=5, validation_alias="LOGIN_2FA_RATE_LIMIT_PER_MINUTE")
     login_2fa_rate_limit_window_s: int = Field(default=60, validation_alias="LOGIN_2FA_RATE_LIMIT_WINDOW_S")
+    tournament_mutation_rate_limit_per_minute: int = Field(default=20, validation_alias="TOURNAMENT_MUTATION_RATE_LIMIT_PER_MINUTE")
+    tournament_mutation_rate_limit_window_s: int = Field(default=60, validation_alias="TOURNAMENT_MUTATION_RATE_LIMIT_WINDOW_S")
     auth_redis_fail_closed: bool = Field(default=False, validation_alias="AUTH_REDIS_FAIL_CLOSED")
     auth_tokens_invalid_before_ttl_s: int = Field(default=60 * 60 * 24 * 90, validation_alias="AUTH_TOKENS_INVALID_BEFORE_TTL_S")
     auth_blacklisted_jti_ttl_grace_s: int = Field(default=60, validation_alias="AUTH_BLACKLISTED_JTI_TTL_GRACE_S")

@@ -89,6 +89,20 @@ class TournamentRepositoryImpl(TournamentRepository):
         tournaments_db = result.scalars().all()
         return [tournament_db.to_entity() for tournament_db in tournaments_db]
 
+    async def find_in_progress_for_user(self, user_id: int) -> List[Tournament]:
+        result = await self.session.execute(
+            select(DBTournament)
+            .options(joinedload(DBTournament.user))
+            .join(DBTournamentPlayer, DBTournament.id == DBTournamentPlayer.tournament_id)
+            .where(
+                DBTournamentPlayer.user_id == user_id,
+                DBTournament.status == TournamentStatus.IN_PROGRESS.value,
+            )
+            .order_by(DBTournament.start_date.asc(), DBTournament.id.asc())
+        )
+        tournaments_db = result.scalars().all()
+        return [tournament_db.to_entity() for tournament_db in tournaments_db]
+
     async def find_all_by_user_participant(
             self,
             user_id: int,

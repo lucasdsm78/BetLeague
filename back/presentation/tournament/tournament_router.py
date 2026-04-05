@@ -23,13 +23,13 @@ from application.tournament_subscription.webhook.process_stripe_webhook import \
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
     stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
-    tournament_subscription_query_use_case, require_scheduler_access
+    tournament_subscription_query_use_case, require_scheduler_access, rate_limit_tournament_mutation
 from domain.scheduler.tournament_scheduler import TournamentScheduler
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError, \
     TournamentMonthlyFreeCreationLimitReachedError, TournamentMaxPlayersError, TournamentSelfInvitationError, \
-    UserNotInvitationTournamentError
+    UserNotInvitationTournamentError, TournamentNotEnoughPlayersError, TournamentFullError, UserAlreadyInTournamentError
 from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
@@ -49,6 +49,7 @@ async def create_tournament(
     tournament_model: TournamentCreateModel,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
     current_user: dict = Depends(current_user),
+    _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         return await tournament_usecase.create_tournament(tournament_model, current_user.get("email", ""))
@@ -108,12 +109,13 @@ async def join_tournament(
     id: int,
     tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
     current_user: dict = Depends(current_user),
+    _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         return await tournament_usecase.join_tournament(id, current_user.get("email", ""))
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except ValueError as e:
+    except (TournamentFullError, UserAlreadyInTournamentError, ValueError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
@@ -131,6 +133,7 @@ async def start_tournament(
         id: int,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         return await tournament_usecase.start_tournament(
@@ -153,6 +156,10 @@ async def start_tournament(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=e.message
         )
+    except TournamentNotOwnerLeaguedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except TournamentNotEnoughPlayersError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -229,6 +236,26 @@ async def get_tournaments_registered(
             detail=f"Erreur lors de la récupération des tournois inscrits de l'utilisateur: {str(e)}"
         )
 
+
+@router.get(
+    "/tournaments/my/match-options",
+    status_code=status.HTTP_200_OK,
+    summary="Récupère toutes les options de matchs tournoi d'un utilisateur en une seule lecture",
+)
+async def get_user_tournament_match_options(
+        tournament_usecase: TournamentQueryUseCase = Depends(tournament_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        return await tournament_usecase.get_user_tournament_match_options(current_user.get("email", ""))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des options de matchs tournoi: {str(e)}"
+        )
+
 @router.get(
     "/tournaments/my/finished",
     status_code=status.HTTP_200_OK,
@@ -302,6 +329,7 @@ async def update_tournament(
         update_tournament_model: TournamentUpdateModel,
         tournament_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         update_tournament_result = await tournament_usecase.update(update_tournament_model, id, current_user.get('email'))
@@ -453,6 +481,7 @@ async def leave_tournament(
         id: int,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         delete_tournament_player = await tournament_command_usecase.leave_tournament(
@@ -524,6 +553,7 @@ async def invite_user_to_tournament(
         user_id: int = Path(..., gt=0),
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         invitation = await tournament_command_usecase.invite_user(tournament_id, user_id, current_user.get('email', ''))
@@ -593,6 +623,7 @@ async def delete_invitation(
         invitation_id: int = Path(..., gt=0),
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
         current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, int(current_user.get('id')))
@@ -620,7 +651,8 @@ async def update_tournament_invitation(
         invitation_id: int,
         action: bool,
         tournament_command_usecase: TournamentCommandUseCase = Depends(tournament_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation)
 ):
     try:
         return await tournament_command_usecase.update_invitation(

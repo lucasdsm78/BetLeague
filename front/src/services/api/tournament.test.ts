@@ -1,6 +1,6 @@
 import http from '../http';
 import { ApiClientError } from '../secureApiClient';
-import { createTournament, getTournamentCreationAccess, TournamentCreationError } from './tournament';
+import { createTournament, getTournamentCreationAccess, getUserTournamentMatches, TournamentCreationError } from './tournament';
 
 jest.mock('../http', () => ({
   __esModule: true,
@@ -76,6 +76,49 @@ describe('tournament api service', () => {
       can_create_tournament: true,
       requires_tournament_subscription: false,
     });
+  });
+
+  it('charge les options de matchs tournoi via le endpoint agrégé', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: {
+        matches: [
+          {
+            id: 11,
+            tournament_id: 2,
+            tournament_name: 'Knockout',
+            tournament_uuid: 'uuid-2',
+            stage_type: 'semi_final',
+            stage_label: 'Demi-finale',
+            player1_name: 'Lucas',
+            player2_name: 'Emma',
+            start_date: 100,
+            end_date: 200,
+            display_label: 'Knockout - Demi-finale - Lucas vs Emma',
+          },
+        ],
+      },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getUserTournamentMatches()).resolves.toEqual([
+      {
+        id: 11,
+        tournament_id: 2,
+        tournament_name: 'Knockout',
+        tournament_uuid: 'uuid-2',
+        stage_type: 'semi_final',
+        stage_label: 'Demi-finale',
+        player1_name: 'Lucas',
+        player2_name: 'Emma',
+        start_date: 100,
+        end_date: 200,
+        display_label: 'Knockout - Demi-finale - Lucas vs Emma',
+      },
+    ]);
+
+    expect(http.get).toHaveBeenCalledWith('/tournaments/my/match-options');
   });
 });
 

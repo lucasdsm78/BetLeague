@@ -14,6 +14,12 @@ class TournamentReadModel(BaseModel):
     name: str
     is_private: bool
     max_players: int
+    current_players: int
+    status: str
+    entry_fee: float
+    prize_pool: float
+    start_date: Optional[int] = None
+    end_date: Optional[int] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -26,6 +32,12 @@ class TournamentReadModel(BaseModel):
             name=tournament.name,
             is_private=tournament.is_private,
             max_players=tournament.max_players,
+            current_players=tournament.current_players,
+            status=tournament.status.value,
+            entry_fee=tournament.entry_fee,
+            prize_pool=tournament.prize_pool,
+            start_date=tournament.start_date,
+            end_date=tournament.end_date,
         )
 
 class TournamentStageReadModel(BaseModel):
@@ -173,3 +185,22 @@ class TournamentInvitationReadModel(BaseModel):
 class TournamentInvitationsResponse(BaseModel):
     tournament_id: int
     invitations: List[TournamentInvitationReadModel]
+
+
+class TournamentMatchOptionReadModel(BaseModel):
+    id: int
+    tournament_id: int
+    tournament_name: str
+    tournament_uuid: str
+    stage_type: str
+    stage_label: str
+    player1_name: str
+    player2_name: str
+    start_date: int
+    end_date: int
+    display_label: str
+
+
+class TournamentMatchOptionsResponse(BaseModel):
+    matches: List[TournamentMatchOptionReadModel]
+

@@ -293,7 +293,7 @@ echo "✅ Utilisateurs créés"
 echo ""
 echo "🏆 Création du tournoi"
 TOURNAMENT_NAME="Manual Scheduler E2E ${SUFFIX}"
-CREATE_RESPONSE="$(curl_json POST "${API_URL}/tournament/create" "{\"name\":\"${TOURNAMENT_NAME}\",\"is_private\":false,\"max_players\":16}" "$OWNER_TOKEN")"
+CREATE_RESPONSE="$(curl_json POST "${API_URL}/tournament/create" "{\"name\":\"${TOURNAMENT_NAME}\",\"is_private\":false,\"max_players\":4}" "$OWNER_TOKEN")"
 printf '%s' "$CREATE_RESPONSE" | pretty_json
 
 TOURNAMENT_ID="$(printf '%s' "$CREATE_RESPONSE" | json_get tournament_id)"
@@ -307,7 +307,12 @@ curl_json POST "${API_URL}/tournament/${TOURNAMENT_ID}/join" "" "$P4_TOKEN" | pr
 
 echo ""
 echo "▶️ Démarrage du tournoi par le créateur"
-curl_json POST "${API_URL}/tournament/${TOURNAMENT_ID}/start" "" "$OWNER_TOKEN" | pretty_json
+STATUS_AFTER_JOINS="$(psqlq "SELECT status FROM tournament WHERE id = ${TOURNAMENT_ID};")"
+if [[ "$STATUS_AFTER_JOINS" == "pending" ]]; then
+  curl_json POST "${API_URL}/tournament/${TOURNAMENT_ID}/start" "" "$OWNER_TOKEN" | pretty_json
+else
+  echo "ℹ️ Le tournoi est déjà ${STATUS_AFTER_JOINS} après les inscriptions (auto-start déclenché sur bracket complet)"
+fi
 
 echo ""
 echo "📋 Lecture des stages via API"
@@ -453,5 +458,7 @@ echo "🎉 TEST E2E DU SCHEDULER TOURNOI VALIDÉ"
 echo "Tournament ID: ${TOURNAMENT_ID}"
 echo "Winner ID: ${WINNER_ID}"
 echo "Winner wallet final: ${WINNER_AFTER_RERUN}"
+
+
 
 

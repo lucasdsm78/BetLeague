@@ -36,6 +36,27 @@ class FakeSession:
         return FakeTransaction()
 
 
+class FakeTournamentUnitOfWork:
+    def __init__(self, session: FakeSession):
+        self.user_repo = FakeUserRepository(session)
+        self.tournament_repo = FakeTournamentRepository(session)
+        self.tournament_players_repo = FakeTournamentPlayersRepository(session)
+        self.tournament_subscription_repo = FakeTournamentSubscriptionRepository(session)
+        self.ticket_repo = SimpleNamespace()
+        self.invitation_repo = SimpleNamespace()
+        self.tournament_stage_repo = SimpleNamespace()
+        self.tournament_match_repo = SimpleNamespace()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def commit(self):
+        return None
+
+
 class FakeUserRepository:
     def __init__(self, session: FakeSession):
         self.session = session
@@ -158,12 +179,11 @@ async def test_create_tournament_blocks_after_two_free_tournaments_without_subsc
     session.monthly_used = 2
     session.subscription = None
 
-    monkeypatch.setattr(tournament_command_usecase_module, "UserRepositoryImpl", FakeUserRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentRepositoryImpl", FakeTournamentRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentPlayersRepositoryImpl", FakeTournamentPlayersRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentSubscriptionRepositoryImpl", FakeTournamentSubscriptionRepository)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session, creation_policy=TournamentCreationPolicy())
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        creation_policy=TournamentCreationPolicy(),
+        uow_factory=lambda: FakeTournamentUnitOfWork(session),
+    )
 
     with pytest.raises(TournamentMonthlyFreeCreationLimitReachedError) as exc:
         await usecase.create_tournament(make_create_model(), "player@example.com")
@@ -180,12 +200,11 @@ async def test_create_tournament_allows_active_subscriber_beyond_free_limit(monk
     session.monthly_used = 2
     session.subscription = FakeSubscription(active=True)
 
-    monkeypatch.setattr(tournament_command_usecase_module, "UserRepositoryImpl", FakeUserRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentRepositoryImpl", FakeTournamentRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentPlayersRepositoryImpl", FakeTournamentPlayersRepository)
-    monkeypatch.setattr(tournament_command_usecase_module, "TournamentSubscriptionRepositoryImpl", FakeTournamentSubscriptionRepository)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session, creation_policy=TournamentCreationPolicy())
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        creation_policy=TournamentCreationPolicy(),
+        uow_factory=lambda: FakeTournamentUnitOfWork(session),
+    )
 
     response = await usecase.create_tournament(make_create_model(), "player@example.com")
 
