@@ -8,6 +8,7 @@ import './TournamentSubscriptionModal.css';
 import { createSubscriptionIntent } from '../../services/api/subscription';
 import {
   useCancelTournamentSubscriptionMutation,
+  useCurrentTournamentSubscriptionQuery,
   useTournamentSubscriptionPlansQuery,
 } from '../../hooks/queries/useTournamentQueries';
 import {
@@ -36,6 +37,15 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
+function formatSubscriptionDate(timestamp?: number | null): string {
+  if (!timestamp) return '—';
+  return new Date(timestamp).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = memo(({
   onClose,
   onSubscriptionComplete,
@@ -50,13 +60,17 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
   const isSubmitting = subscribing || cancelSubscriptionMutation.isPending;
 
   const plansQuery = useTournamentSubscriptionPlansQuery({ enabled: !isManagingSubscription });
+  const currentSubscriptionQuery = useCurrentTournamentSubscriptionQuery({ enabled: isManagingSubscription });
   const queryErrorMessage = !isManagingSubscription && plansQuery.error
     ? getErrorMessage(plansQuery.error, "Erreur lors du chargement des formules d'abonnement")
-    : null;
+    : isManagingSubscription && currentSubscriptionQuery.error
+      ? getErrorMessage(currentSubscriptionQuery.error, "Erreur lors du chargement de votre abonnement tournoi")
+      : null;
   const plans = useMemo(
     () => (plansQuery.data ? enrichSubscriptionPlans(plansQuery.data) : []),
     [plansQuery.data],
   );
+  const currentSubscription = currentSubscriptionQuery.data;
 
   useEffect(() => {
     if (plans.length === 0) return;
@@ -163,7 +177,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                 <div className="intro-pill intro-pill-active">Abonnement actif</div>
                 <p>
                   Votre accès illimité à la création de tournois est actif. Si vous annulez maintenant,
-                  vous revenez immédiatement au quota gratuit mensuel standard.
+                  la résiliation prendra effet à la fin de la période en cours.
                 </p>
               </div>
 
@@ -171,19 +185,27 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                 <div className="subscription-manage-card-header">
                   <div>
                     <h3>Gérer mon abonnement tournoi</h3>
-                    <p>Contrôle total, sans étape cachée.</p>
+                    <p>Contrôle total, avec visibilité claire sur votre échéance et votre accès.</p>
                   </div>
-                  <span className="subscription-manage-status">Actif</span>
+                  <span className="subscription-manage-status">
+                    {currentSubscription?.cancel_at_period_end ? 'Fin de période' : 'Actif'}
+                  </span>
                 </div>
 
                 <ul className="subscription-manage-list">
                   <li>
                     <span className="feature-icon">✓</span>
-                    <span className="feature-text">Aucun futur prélèvement ne sera déclenché après annulation.</span>
+                    <span className="feature-text">
+                      {currentSubscription?.cancel_at_period_end
+                        ? 'Votre résiliation est déjà planifiée : aucun renouvellement supplémentaire ne sera déclenché.'
+                        : 'Aucun futur prélèvement ne sera déclenché après résiliation à la fin de période.'}
+                    </span>
                   </li>
                   <li>
                     <span className="feature-icon">✓</span>
-                    <span className="feature-text">Votre compte repasse sur 2 créations gratuites par mois.</span>
+                    <span className="feature-text">
+                      Votre compte repassera sur 2 créations gratuites par mois une fois la période active terminée.
+                    </span>
                   </li>
                   <li>
                     <span className="feature-icon">✓</span>
@@ -191,11 +213,50 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                   </li>
                 </ul>
 
+                {currentSubscriptionQuery.isLoading ? (
+                  <div className="subscription-loading-state" aria-live="polite">
+                    <span className="btn-spinner subscription-spinner" />
+                    Chargement de votre abonnement…
+                  </div>
+                ) : currentSubscription ? (
+                  <div className="subscription-manage-metadata" aria-label="Détails de l'abonnement tournoi actuel">
+                    <div className="subscription-manage-metadata-item">
+                      <span className="subscription-manage-metadata-label">Formule</span>
+                      <strong>{currentSubscription.plan_name}</strong>
+                      <span>{formatPrice(currentSubscription.price_cents)}€ / {currentSubscription.interval === 'year' ? 'an' : 'mois'}</span>
+                    </div>
+                    <div className="subscription-manage-metadata-item">
+                      <span className="subscription-manage-metadata-label">Statut</span>
+                      <strong>{currentSubscription.cancel_at_period_end ? 'Résiliation planifiée' : 'Actif'}</strong>
+                      <span>{currentSubscription.has_tournament_access ? 'Accès tournoi maintenu' : 'Accès restreint'}</span>
+                    </div>
+                    <div className="subscription-manage-metadata-item">
+                      <span className="subscription-manage-metadata-label">
+                        {currentSubscription.cancel_at_period_end ? 'Fin d’accès' : 'Prochaine échéance'}
+                      </span>
+                      <strong>{formatSubscriptionDate(currentSubscription.current_period_end)}</strong>
+                      <span>
+                        {currentSubscription.cancel_at_period_end
+                          ? 'Votre accès illimité reste actif jusqu’à cette date.'
+                          : 'Renouvellement automatique à cette date si vous ne résiliez pas avant.'}
+                      </span>
+                    </div>
+                    {currentSubscription.cancellation_requested_at && (
+                      <div className="subscription-manage-metadata-item">
+                        <span className="subscription-manage-metadata-label">Résiliation demandée le</span>
+                        <strong>{formatSubscriptionDate(currentSubscription.cancellation_requested_at)}</strong>
+                        <span>La demande est bien enregistrée côté serveur.</span>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
                 <div className="subscription-manage-warning">
                   <span className="warning-icon">⚠️</span>
                   <p>
-                    Cette annulation est immédiate. Si votre quota gratuit mensuel est déjà consommé,
-                    vous devrez reprendre un abonnement pour créer de nouveaux tournois.
+                    {currentSubscription?.cancel_at_period_end
+                      ? 'Votre accès premium reste actif jusqu’à la fin de la période en cours. Après cette date, si votre quota gratuit mensuel est déjà consommé, vous devrez reprendre un abonnement pour créer de nouveaux tournois.'
+                      : 'La résiliation prendra effet à la fin de la période en cours. Si votre quota gratuit mensuel est déjà consommé à cette date, vous devrez reprendre un abonnement pour créer de nouveaux tournois.'}
                   </p>
                 </div>
               </div>
@@ -329,7 +390,9 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
           <button
             className={`btn ${isManagingSubscription ? 'btn-subscription-danger' : 'btn-primary btn-subscribe'}`}
             onClick={isManagingSubscription ? handleCancelSubscription : handleSubscribe}
-            disabled={isManagingSubscription ? isSubmitting : isSubmitting || plansQuery.isLoading || !selectedPlan}
+            disabled={isManagingSubscription
+              ? isSubmitting || currentSubscriptionQuery.isLoading || currentSubscription?.cancel_at_period_end === true
+              : isSubmitting || plansQuery.isLoading || !selectedPlan}
           >
             {isSubmitting ? (
               <>
@@ -340,7 +403,9 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
               <>
                 <span className="subscribe-icon">{isManagingSubscription ? '⛔' : '🏆'}</span>
                 {isManagingSubscription
-                  ? 'Confirmer l’annulation'
+                  ? currentSubscription?.cancel_at_period_end
+                    ? 'Résiliation déjà planifiée'
+                    : 'Planifier la résiliation'
                   : selectedPlan?.interval === 'year'
                     ? 'Choisir l’offre annuelle'
                     : 'Choisir l’offre mensuelle'}

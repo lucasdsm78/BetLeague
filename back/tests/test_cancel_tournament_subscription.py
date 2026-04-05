@@ -17,11 +17,11 @@ from domain.user.model.user_summary import UserSummary
 
 class FakeStripeService:
     def __init__(self):
-        self.cancelled_subscription_ids: list[str] = []
+        self.scheduled_subscription_ids: list[str] = []
 
-    async def cancel_tournament_subscription(self, subscription_id: str) -> dict:
-        self.cancelled_subscription_ids.append(subscription_id)
-        return {"id": subscription_id, "status": "canceled"}
+    async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
+        self.scheduled_subscription_ids.append(subscription_id)
+        return {"id": subscription_id, "cancel_at_period_end": True}
 
 
 class FakeUserRepository:
@@ -110,12 +110,17 @@ async def test_cancel_tournament_subscription_updates_subscription_and_user_stat
     response = await usecase.execute(user.email.value)
 
     assert response.success is True
-    assert "annulé" in response.message.lower()
-    assert stripe_service.cancelled_subscription_ids == ["stripe_sub_123"]
+    assert "fin de la période" in response.message.lower()
+    assert response.cancel_at_period_end is True
+    assert response.current_period_end == subscription.current_period_end
+    assert response.has_tournament_access is True
+    assert stripe_service.scheduled_subscription_ids == ["stripe_sub_123"]
     assert uow.tournament_subscription_repo.updated_subscription is subscription
-    assert subscription.status == TournamentSubscriptionStatus.CANCELLED
-    assert uow.user_repo.updated_user is user
-    assert user.is_tournament_subscriber is False
+    assert subscription.status == TournamentSubscriptionStatus.ACTIVE
+    assert subscription.cancel_at_period_end is True
+    assert subscription.cancellation_requested_at is not None
+    assert uow.user_repo.updated_user is None
+    assert user.is_tournament_subscriber is True
     assert uow.committed is True
 
 
@@ -131,7 +136,7 @@ async def test_cancel_tournament_subscription_requires_existing_user():
     with pytest.raises(UserNotFoundError):
         await usecase.execute("missing@example.com")
 
-    assert stripe_service.cancelled_subscription_ids == []
+    assert stripe_service.scheduled_subscription_ids == []
     assert uow.committed is False
 
 
@@ -148,7 +153,29 @@ async def test_cancel_tournament_subscription_requires_active_subscription():
     with pytest.raises(TournamentSubscriptionInactiveError):
         await usecase.execute(user.email.value)
 
-    assert stripe_service.cancelled_subscription_ids == []
+    assert stripe_service.scheduled_subscription_ids == []
     assert uow.committed is False
+
+
+@pytest.mark.asyncio
+async def test_cancel_tournament_subscription_is_idempotent_when_already_scheduled():
+    user = make_user()
+    subscription = make_subscription(user)
+    subscription.schedule_cancellation_at_period_end(requested_at=1_750_000_000_000)
+    uow = FakeTournamentSubscriptionUnitOfWork(user=user, subscription=subscription)
+    stripe_service = FakeStripeService()
+    usecase = CancelTournamentSubscriptionUseCaseImpl(
+        stripe_service=stripe_service,
+        uow_factory=lambda: uow,
+    )
+
+    response = await usecase.execute(user.email.value)
+
+    assert response.success is True
+    assert "déjà planifiée" in response.message.lower()
+    assert response.cancel_at_period_end is True
+    assert stripe_service.scheduled_subscription_ids == []
+    assert uow.committed is False
+
 
 

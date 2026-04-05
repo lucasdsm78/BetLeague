@@ -102,6 +102,39 @@
   gap: 0.75rem;
 }
 
+.subscription-manage-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.subscription-manage-metadata-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.subscription-manage-metadata-item strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.subscription-manage-metadata-item span {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-manage-metadata-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .subscription-manage-warning {
   display: flex;
   align-items: flex-start;
@@ -606,6 +639,10 @@
 
   .subscription-manage-card-header {
     flex-direction: column;
+  }
+
+  .subscription-manage-metadata {
+    grid-template-columns: 1fr;
   }
 
   .subscription-manage-status {

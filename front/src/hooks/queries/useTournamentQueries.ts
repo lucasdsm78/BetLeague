@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { cancelSubscription, getSubscriptionPlans } from '../../services/api/subscription';
+import { cancelSubscription, getCurrentTournamentSubscription, getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
   getTournamentInvitations,
@@ -14,7 +14,11 @@ import {
   leaveTournament,
 } from '../../services/api/tournament';
 import { secureApiClient } from '../../services/secureApiClient';
-import type { ApiCancelSubscriptionResponse, ApiSubscriptionPlansResponse } from '../../types/api/subscription';
+import type {
+  ApiCancelSubscriptionResponse,
+  ApiCurrentTournamentSubscription,
+  ApiSubscriptionPlansResponse,
+} from '../../types/api/subscription';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
@@ -179,6 +183,14 @@ export function useTournamentSubscriptionPlansQuery(options?: { enabled?: boolea
   });
 }
 
+export function useCurrentTournamentSubscriptionQuery(options?: { enabled?: boolean }) {
+  return useQuery<ApiCurrentTournamentSubscription, Error>({
+    queryKey: tournamentKeys.subscriptionCurrent,
+    queryFn: () => getCurrentTournamentSubscription(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
 export function useCancelTournamentSubscriptionMutation() {
   const qc = useQueryClient();
 
@@ -188,6 +200,7 @@ export function useCancelTournamentSubscriptionMutation() {
       secureApiClient.clearCache();
       qc.invalidateQueries({ queryKey: profileKeys.me() });
       qc.invalidateQueries({ queryKey: tournamentKeys.creationAccess });
+      qc.invalidateQueries({ queryKey: tournamentKeys.subscriptionCurrent });
     },
   });
 }
