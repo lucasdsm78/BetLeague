@@ -5,6 +5,8 @@ import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 
 const mockCreateSubscriptionIntent = jest.fn();
 const mockUseTournamentSubscriptionPlansQuery = jest.fn();
+const mockCancelSubscriptionMutateAsync = jest.fn();
+const mockUseCancelTournamentSubscriptionMutation = jest.fn();
 const mockAssign = jest.fn();
 let consoleErrorSpy: jest.SpyInstance;
 
@@ -14,6 +16,7 @@ jest.mock('../../services/api/subscription', () => ({
 
 jest.mock('../../hooks/queries/useTournamentQueries', () => ({
   useTournamentSubscriptionPlansQuery: () => mockUseTournamentSubscriptionPlansQuery(),
+  useCancelTournamentSubscriptionMutation: () => mockUseCancelTournamentSubscriptionMutation(),
 }));
 
 describe('TournamentSubscriptionModal', () => {
@@ -31,6 +34,10 @@ describe('TournamentSubscriptionModal', () => {
       },
       isLoading: false,
       error: null,
+    });
+    mockUseCancelTournamentSubscriptionMutation.mockReturnValue({
+      isPending: false,
+      mutateAsync: mockCancelSubscriptionMutateAsync,
     });
 
     Object.defineProperty(window, 'location', {
@@ -75,5 +82,31 @@ describe('TournamentSubscriptionModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /choisir l’offre annuelle/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Stripe indisponible'));
+  });
+
+  it('permet d’annuler un abonnement actif et ferme la modale', async () => {
+    const onClose = jest.fn();
+    const onCancellationComplete = jest.fn();
+    mockCancelSubscriptionMutateAsync.mockResolvedValueOnce({
+      success: true,
+      message: 'Votre abonnement tournoi a bien été annulé.',
+    });
+
+    render(
+      <TournamentSubscriptionModal
+        onClose={onClose}
+        onCancellationComplete={onCancellationComplete}
+        isSubscriber
+      />,
+    );
+
+    expect(screen.getByText(/gérer mon abonnement tournoi/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /confirmer l’annulation/i }));
+
+    await waitFor(() => expect(mockCancelSubscriptionMutateAsync).toHaveBeenCalled());
+
+    expect(onCancellationComplete).toHaveBeenCalledWith('Votre abonnement tournoi a bien été annulé.');
+    expect(onClose).toHaveBeenCalled();
   });
 });

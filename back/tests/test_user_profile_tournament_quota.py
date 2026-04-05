@@ -98,6 +98,15 @@ class FakeTournamentRepository(TournamentRepository):
     async def find_by_uuid(self, uuid: str):
         raise NotImplementedError
 
+    async def find_by_id_for_update(self, tournament_id: int):
+        raise NotImplementedError
+
+    async def find_due_tournament_ids(self, now_ms: int, limit: int):
+        raise NotImplementedError
+
+    async def find_in_progress_for_user(self, user_id: int):
+        raise NotImplementedError
+
     async def update(self, tournament):
         raise NotImplementedError
 

@@ -12,3 +12,11 @@ class TournamentSubscriptionNotFoundError(Exception):
 
     def __str__(self):
         return TournamentSubscriptionNotFoundError.message
+
+
+class TournamentSubscriptionInactiveError(Exception):
+    message = "Aucun abonnement tournoi actif à annuler"
+
+    def __str__(self):
+        return TournamentSubscriptionInactiveError.message
+

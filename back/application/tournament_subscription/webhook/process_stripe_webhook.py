@@ -3,6 +3,7 @@ from typing import Callable
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
+from domain.tournament_subscription.exception.tournament_subscription_exception import TournamentSubscriptionNotFoundError
 from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus
 from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
     TournamentSubscriptionRepositoryImpl
@@ -103,17 +104,26 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
                 user_repository = UserRepositoryImpl(session=session)
 
-                stripe_subscription_id = subscription_data["id"]
-                subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(stripe_subscription_id)
+                stripe_subscription_id = subscription_data.get("id")
+                if not stripe_subscription_id:
+                    return
+
+                try:
+                    subscription = await tournament_subscription_repository.find_by_stripe_subscription_id(stripe_subscription_id)
+                except TournamentSubscriptionNotFoundError:
+                    return
+
+                if not subscription:
+                    return
+
                 user = await user_repository.find_by_id(subscription.user.id)
 
-                if subscription:
-                    if user:
-                        user.is_tournament_subscriber = False
-                        await user_repository.update(user)
+                if user:
+                    user.is_tournament_subscriber = False
+                    await user_repository.update(user)
 
-                    subscription.cancel()
-                    await tournament_subscription_repository.update(subscription)
+                subscription.cancel()
+                await tournament_subscription_repository.update(subscription)
 
     async def _handle_payment_succeeded(self, invoice_data: dict) -> None:
         async with self._session_factory() as session:

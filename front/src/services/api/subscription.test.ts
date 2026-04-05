@@ -1,5 +1,6 @@
 import http from '../http';
 import {
+  cancelSubscription,
   createSubscriptionIntent,
   getSubscriptionPlans,
 } from './subscription';
@@ -57,5 +58,35 @@ describe('subscription api service', () => {
     expect(http.post).toHaveBeenCalledWith('/subscription/create-intent', {
       subscription_plan: 'yearly',
     });
+  });
+
+  it('annule l’abonnement tournoi via le bon endpoint', async () => {
+    (http.post as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: {
+        success: true,
+        message: 'Votre abonnement tournoi a bien été annulé.',
+      },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(cancelSubscription()).resolves.toEqual({
+      success: true,
+      message: 'Votre abonnement tournoi a bien été annulé.',
+    });
+
+    expect(http.post).toHaveBeenCalledWith('/subscription/cancel');
+  });
+
+  it('remonte une erreur exploitable si la réponse de résiliation est vide', async () => {
+    (http.post as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: null,
+      status: 200,
+      headers: {},
+    });
+
+    await expect(cancelSubscription()).rejects.toThrow("Impossible d'annuler l'abonnement");
   });
 });
