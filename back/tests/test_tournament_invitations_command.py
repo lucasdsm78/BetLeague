@@ -6,8 +6,10 @@ import application.tournament.tournament_command_usecase as command_module
 from application.tournament.tournament_command_usecase import TournamentCommandUseCaseImpl
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.tournament.exception.tournament_exception import TournamentSelfInvitationError
+from domain.tournament.model.tournament import Tournament
 from domain.tournament.model.tournament_status import TournamentStatus
 from domain.user.model.email import Email
+from domain.user.model.user_summary import UserSummary
 
 
 class FakeTransaction:
@@ -32,6 +34,27 @@ class FakeSession:
         return FakeTransaction()
 
 
+class FakeTournamentUnitOfWork:
+    def __init__(self, session):
+        self.user_repo = FakeUserRepository(session)
+        self.tournament_repo = FakeTournamentRepository(session)
+        self.tournament_players_repo = FakePlayersRepository(session)
+        self.invitation_repo = FakeInvitationRepository(session)
+        self.tournament_subscription_repo = SimpleNamespace()
+        self.ticket_repo = SimpleNamespace()
+        self.tournament_stage_repo = SimpleNamespace()
+        self.tournament_match_repo = SimpleNamespace()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def commit(self):
+        return None
+
+
 class FakeUserRepository:
     def __init__(self, session):
         self.session = session
@@ -48,15 +71,23 @@ class FakeTournamentRepository:
         self.session = session
 
     async def find_by_id(self, tournament_id: int):
-        return SimpleNamespace(
+        return Tournament(
             id=tournament_id,
-            user=SimpleNamespace(id=42),
+            uuid=f"tournament-{tournament_id}",
+            name=f"Tournament {tournament_id}",
+            is_private=True,
+            user=UserSummary(id=42, email=Email('owner@example.com'), pseudo='owner'),
             status=TournamentStatus.PENDING,
             current_players=4,
             max_players=16,
             min_players=8,
             start_date=9999999999999,
+            entry_fee=5.0,
+            prize_pool=20.0,
         )
+
+    async def find_by_id_for_update(self, tournament_id: int):
+        return await self.find_by_id(tournament_id)
 
 
 class FakePlayersRepository:
@@ -82,12 +113,10 @@ class FakeInvitationRepository:
 async def test_invite_user_creates_pending_tournament_invitation(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', FakeTournamentRepository)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', FakePlayersRepository)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', FakeInvitationRepository)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session),
+    )
 
     result = await usecase.invite_user(12, 7, 'owner@example.com')
 
@@ -103,12 +132,10 @@ async def test_invite_user_creates_pending_tournament_invitation(monkeypatch: py
 async def test_invite_user_rejects_self_invitation(monkeypatch: pytest.MonkeyPatch):
     session = FakeSession()
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', FakeTournamentRepository)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', FakePlayersRepository)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', FakeInvitationRepository)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session),
+    )
 
     with pytest.raises(TournamentSelfInvitationError):
         await usecase.invite_user(12, 42, 'owner@example.com')

@@ -1,12 +1,14 @@
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
+from domain.tournament.model.tournament import Tournament
+
 TOURNAMENT_NAME_REGEX = r"[A-Za-z0-9\s\-_éèêàâôûùçÉÈÊÀÂÔÛÙÇ]+"
 
 class TournamentCreateModel(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
     is_private: bool
-    max_players: int = Field(16, ge=16, le=16)
+    max_players: int = Field(Tournament.DEFAULT_BRACKET_SIZE)
     start_date: Optional[int] = None
 
     @field_validator('name')
@@ -18,6 +20,11 @@ class TournamentCreateModel(BaseModel):
         if not re.fullmatch(TOURNAMENT_NAME_REGEX, n):
             raise ValueError('Le nom contient des caractères invalides')
         return n
+
+    @field_validator('max_players')
+    @classmethod
+    def _validate_max_players(cls, v: int) -> int:
+        return Tournament.validate_max_players(v)
 
     @field_validator('start_date')
     @classmethod
@@ -37,6 +44,7 @@ class TournamentCreateResponse(BaseModel):
     tournament_id: Optional[int] = None
     tournament_uuid: Optional[str] = None
     name: Optional[str] = None
+    max_players: int = Tournament.DEFAULT_BRACKET_SIZE
     monthly_free_tournaments_limit: int = 2
     monthly_free_tournaments_used: int = 0
     monthly_free_tournaments_remaining: int = 2

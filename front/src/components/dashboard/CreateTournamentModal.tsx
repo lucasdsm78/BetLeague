@@ -26,6 +26,7 @@ type CreateTournamentFormErrors = Partial<{
 
 const TOURNAMENT_DURATION_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BRACKET_SIZES = [4, 8, 16] as const;
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -55,7 +56,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
   const [formData, setFormData] = useState<TournamentCreateRequest>({
     name: '',
     is_private: false,
-    max_players: 16,
+    max_players: 4,
     start_date: undefined,
   });
 
@@ -113,8 +114,8 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
       newErrors.name = 'Le nom contient des caractères invalides';
     }
 
-    if (formData.max_players !== 16) {
-      newErrors.max_players = 'Le nombre de joueurs doit être 16';
+    if (!BRACKET_SIZES.includes(formData.max_players as (typeof BRACKET_SIZES)[number])) {
+      newErrors.max_players = 'Le format du bracket doit être 4, 8 ou 16 joueurs';
     }
 
     // Dates: fin auto-calculée (+7 jours). On valide seulement le début.
@@ -171,7 +172,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
       const response = await createTournament({
         name: formData.name.trim(),
         is_private: formData.is_private,
-        max_players: 16,
+        max_players: formData.max_players,
         ...(typeof formData.start_date === 'number' ? { start_date: formData.start_date } : {}),
       });
 
@@ -254,7 +255,7 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
             </div>
 
             <p className="form-description">
-              Créez votre tournoi et affrontez 15 autres joueurs dans une compétition à élimination directe !
+              Créez votre tournoi et affrontez {Math.max(formData.max_players - 1, 1)} autres joueurs dans une compétition à élimination directe !
             </p>
 
             {isBlockedByQuota ? (
@@ -302,19 +303,30 @@ const CreateTournamentModal: React.FC<CreateTournamentModalProps> = ({
               </span>
             </div>
 
-            {/* Max Players - Fixed at 16 */}
+            {/* Max Players */}
             <div className="form-group">
               <label className="form-label">
                 <span className="label-icon">👥</span>
-                Nombre de joueurs
+                Format du bracket
               </label>
-              <div className="player-count-fixed">
-                <div className="player-count-display">
-                  <span className="count-number">16</span>
-                  <span className="count-label">joueurs maximum</span>
-                </div>
-                <span className="count-description">Format tournoi à élimination directe</span>
+              <div className="privacy-toggle-container">
+                {BRACKET_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    className={`privacy-option ${formData.max_players === size ? 'active' : ''}`}
+                    onClick={() => handleInputChange('max_players', size)}
+                    disabled={isSubmitting}
+                  >
+                    <span className="privacy-icon">🏁</span>
+                    <div className="privacy-content">
+                      <span className="privacy-title">{size} joueurs</span>
+                      <span className="privacy-description">Bracket {size / 2 > 1 ? `${size / 2} matchs au 1er tour` : 'direct'} </span>
+                    </div>
+                  </button>
+                ))}
               </div>
+              {errors.max_players && <span className="form-error">{errors.max_players}</span>}
             </div>
 
             {/* Privacy Toggle */}

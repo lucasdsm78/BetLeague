@@ -27,6 +27,7 @@ export interface TournamentCreateResponse extends Omit<TournamentCreationAccess,
   tournament_id?: number;
   tournament_uuid?: string;
   name?: string;
+  max_players?: number;
 }
 
 export interface Tournament {
@@ -126,12 +127,18 @@ export interface TournamentMatchOption {
   id: number;
   tournament_id: number;
   tournament_name: string;
+  tournament_uuid: string;
+  stage_type: string;
   stage_label: string;
   player1_name: string;
   player2_name: string;
   start_date: number;
   end_date: number;
   display_label: string;
+}
+
+export interface TournamentMatchOptionsResponse {
+  matches: TournamentMatchOption[];
 }
 
 export interface TournamentPlayerBalance {

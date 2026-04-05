@@ -34,7 +34,7 @@ class TournamentSelfInvitationError(Exception):
 
 
 class TournamentMaxPlayersError(Exception):
-    message = "The tournament can't have more players than the maximum of the players."
+    message = "Le tournoi a atteint son nombre maximum de joueurs"
 
     def __str__(self):
         return TournamentMaxPlayersError.message
@@ -55,7 +55,7 @@ class TournamentAlreadyStartedError(Exception):
 
 
 class TournamentNotEnoughPlayersError(Exception):
-    message = "Le tournoi nécessite un minimum de players pour démarrer"
+    message = "Le tournoi doit être complet pour démarrer le bracket"
 
     def __str__(self):
         return TournamentNotEnoughPlayersError.message
