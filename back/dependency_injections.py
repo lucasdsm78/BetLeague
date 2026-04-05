@@ -96,6 +96,9 @@ from infrastructure.postgresql.tournament.tournament_match_repository import Tou
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
     TournamentSubscriptionRepositoryImpl
+from infrastructure.postgresql.tournament_subscription.tournament_subscription_unit_of_work import (
+    TournamentSubscriptionUnitOfWorkImpl,
+)
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
@@ -810,10 +813,14 @@ def create_tournament_subscription_use_case(
         session_factory=session_factory,
         settings=settings,
     )
-
-
-def tournament_subscription_query_use_case() -> TournamentSubscriptionQueryUseCase:
-    return TournamentSubscriptionQueryUseCaseImpl()
+def tournament_subscription_query_use_case(
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+) -> TournamentSubscriptionQueryUseCase:
+    return TournamentSubscriptionQueryUseCaseImpl(
+        user_repository=user_repository,
+        tournament_subscription_repository=tournament_subscription_repository,
+    )
 
 
 def cancel_tournament_subscription_use_case(
@@ -821,15 +828,15 @@ def cancel_tournament_subscription_use_case(
         stripe_service_dependency: StripeService = Depends(stripe_service),
 ) -> CancelTournamentSubscriptionUseCase:
     return CancelTournamentSubscriptionUseCaseImpl(
-        session_factory=session_factory,
         stripe_service=stripe_service_dependency,
+        uow_factory=lambda: TournamentSubscriptionUnitOfWorkImpl(session_factory),
     )
 
 def process_webhook_tournament_subscription_use_case(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> ProcessStripeWebhookTournamentSubscriptionUseCase:
     return ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(
-        session_factory=session_factory,
+        uow_factory=lambda: TournamentSubscriptionUnitOfWorkImpl(session_factory),
     )
 
 

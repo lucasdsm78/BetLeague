@@ -90,11 +90,11 @@ class StripeServiceImpl(StripeService):
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la création de la session Stripe: {e}")
 
-    async def cancel_tournament_subscription(self, subscription_id: str) -> dict:
+    async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
         try:
-            return stripe.Subscription.cancel(subscription_id)
+            return stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
         except stripe.error.StripeError as e:
-            raise ValueError(f"Erreur lors de l'annulation de l'abonnement: {e}")
+            raise ValueError(f"Erreur lors de la planification de l'annulation de l'abonnement: {e}")
 
     def verify_webhook(self, payload: bytes, sig_header: str) -> dict:
         try:

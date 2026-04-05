@@ -6,12 +6,19 @@ import type {
   ApiCreateSubscriptionRequest,
   ApiCreateSubscriptionResponse,
   ApiCancelSubscriptionResponse,
+  ApiCurrentTournamentSubscription,
   ApiSubscriptionPlansResponse,
 } from '../../types/api/subscription';
 
 export async function getSubscriptionPlans(): Promise<ApiSubscriptionPlansResponse> {
   const response: ApiResponse<ApiSubscriptionPlansResponse> = await http.get('/subscription/plans');
   if (!response.data) throw new Error("Impossible de charger les formules d'abonnement");
+  return response.data;
+}
+
+export async function getCurrentTournamentSubscription(): Promise<ApiCurrentTournamentSubscription> {
+  const response: ApiResponse<ApiCurrentTournamentSubscription> = await http.get('/subscription/me');
+  if (!response.data) throw new Error("Impossible de charger votre abonnement tournoi");
   return response.data;
 }
 

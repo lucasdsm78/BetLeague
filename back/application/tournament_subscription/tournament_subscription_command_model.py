@@ -23,6 +23,14 @@ class SubscriptionResponse(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     checkout_url: str
 
+
+class CancelSubscriptionResponse(BaseModel):
+    success: bool
+    message: str
+    cancel_at_period_end: bool
+    current_period_end: Optional[int] = None
+    has_tournament_access: bool
+
 class StripeWebhookRequest(BaseModel):
     type: str
     data: Dict[str, Any]
