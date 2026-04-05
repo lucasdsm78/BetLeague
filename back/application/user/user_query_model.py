@@ -34,6 +34,7 @@ class UserReadModel(BaseModel):
     def from_entity(
         user: User,
         tournament_creation_access: Optional[TournamentCreationAccessReadModel] = None,
+        is_tournament_subscriber: Optional[bool] = None,
     ) -> "UserReadModel":
         return UserReadModel(
             id=user.id,
@@ -42,7 +43,7 @@ class UserReadModel(BaseModel):
             nb_win=user.nb_win,
             nb_lose=user.nb_lose,
             nb_btl=user.nb_btl,
-            is_tournament_subscriber=user.is_tournament_subscriber,
+            is_tournament_subscriber=user.is_tournament_subscriber if is_tournament_subscriber is None else is_tournament_subscriber,
             is_two_factor_enabled=user.is_two_factor_enabled,
             tournament_creation_access=tournament_creation_access,
         )

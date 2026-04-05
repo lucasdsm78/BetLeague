@@ -72,14 +72,16 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
             next_month_start_ms,
         )
         subscription = await self.tournament_subscription_repository.find_active_by_user_id(user.id)
+        has_active_subscription = bool(subscription and subscription.is_active())
         access = self.tournament_creation_policy.evaluate(
-            has_active_subscription=bool(subscription and subscription.is_active()),
+            has_active_subscription=has_active_subscription,
             monthly_free_tournaments_used=monthly_used,
         )
 
         return UserReadModel.from_entity(
             user,
             tournament_creation_access=TournamentCreationAccessReadModel(**access.__dict__),
+            is_tournament_subscriber=has_active_subscription,
         )
 
     async def get_all_rank_users(self) -> List[Dict[str, any]]:

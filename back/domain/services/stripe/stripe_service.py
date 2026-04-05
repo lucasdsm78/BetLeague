@@ -27,5 +27,13 @@ class StripeService(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def retrieve_checkout_session(self, session_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def retrieve_subscription(self, subscription_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
     def verify_webhook(self, payload: bytes, sig_header: str) -> dict:
         raise NotImplementedError
