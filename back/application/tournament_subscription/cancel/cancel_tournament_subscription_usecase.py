@@ -35,17 +35,28 @@ class CancelTournamentSubscriptionUseCaseImpl(CancelTournamentSubscriptionUseCas
             if not subscription or not subscription.stripe_subscription_id:
                 raise TournamentSubscriptionInactiveError
 
-            await self._stripe_service.cancel_tournament_subscription(subscription.stripe_subscription_id)
+            if subscription.cancel_at_period_end:
+                return CancelSubscriptionResponse(
+                    success=True,
+                    message="La résiliation de votre abonnement tournoi est déjà planifiée pour la fin de période.",
+                    cancel_at_period_end=True,
+                    current_period_end=subscription.current_period_end,
+                    has_tournament_access=subscription.is_active(),
+                )
 
-            subscription.cancel()
+            await self._stripe_service.schedule_tournament_subscription_cancellation_at_period_end(
+                subscription.stripe_subscription_id,
+            )
+
+            subscription.schedule_cancellation_at_period_end()
             await uow.tournament_subscription_repo.update(subscription)
-
-            user.is_tournament_subscriber = False
-            await uow.user_repo.update(user)
             await uow.commit()
 
             return CancelSubscriptionResponse(
                 success=True,
-                message="Votre abonnement tournoi a bien été annulé. Vous repassez sur le quota gratuit mensuel.",
+                message="Votre abonnement tournoi sera résilié à la fin de la période en cours. Votre accès reste actif jusque-là.",
+                cancel_at_period_end=True,
+                current_period_end=subscription.current_period_end,
+                has_tournament_access=subscription.is_active(),
             )
 

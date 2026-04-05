@@ -813,10 +813,14 @@ def create_tournament_subscription_use_case(
         session_factory=session_factory,
         settings=settings,
     )
-
-
-def tournament_subscription_query_use_case() -> TournamentSubscriptionQueryUseCase:
-    return TournamentSubscriptionQueryUseCaseImpl()
+def tournament_subscription_query_use_case(
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+) -> TournamentSubscriptionQueryUseCase:
+    return TournamentSubscriptionQueryUseCaseImpl(
+        user_repository=user_repository,
+        tournament_subscription_repository=tournament_subscription_repository,
+    )
 
 
 def cancel_tournament_subscription_use_case(
@@ -832,7 +836,7 @@ def process_webhook_tournament_subscription_use_case(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
 ) -> ProcessStripeWebhookTournamentSubscriptionUseCase:
     return ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(
-        session_factory=session_factory,
+        uow_factory=lambda: TournamentSubscriptionUnitOfWorkImpl(session_factory),
     )
 
 

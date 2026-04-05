@@ -157,12 +157,11 @@ const ShopSection: React.FC = memo(() => {
   }, [refetch]);
 
   const handleSubscriptionCancellationComplete = useCallback((message: string) => {
-    updateUser({ isTournamentSubscriber: false });
-    toast.showSuccess('Abonnement tournoi annulé', message);
+    toast.showSuccess('Résiliation planifiée', message);
     void refetch().then((res) => {
       updateUser({ isTournamentSubscriber: Boolean(res.data?.is_tournament_subscriber) });
     }).catch(() => {
-      // best effort: l'état local a déjà été aligné pour garder une UX fluide
+      // best effort: l'état du store reste cohérent avec l'accès encore actif jusqu'à fin de période
     });
   }, [refetch, toast, updateUser]);
 

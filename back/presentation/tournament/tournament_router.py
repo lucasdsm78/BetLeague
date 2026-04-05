@@ -17,7 +17,8 @@ from application.tournament_subscription.create.create_tournament_subscription_u
 from application.tournament_subscription.query_tournament_subscription_usecase import TournamentSubscriptionQueryUseCase
 from application.tournament_subscription.tournament_subscription_command_model import CheckoutSessionResponse, \
     CreateSubscriptionRequest, CancelSubscriptionResponse
-from application.tournament_subscription.tournament_subscription_query_model import TournamentSubscriptionPlansResponse
+from application.tournament_subscription.tournament_subscription_query_model import TournamentSubscriptionPlansResponse, \
+    TournamentCurrentSubscriptionReadModel
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
 from domain.tournament_subscription.exception.tournament_subscription_exception import TournamentSubscriptionInactiveError
@@ -408,6 +409,28 @@ async def get_tournament_subscription_plans(
         use_case: TournamentSubscriptionQueryUseCase = Depends(tournament_subscription_query_use_case),
 ):
     return await use_case.get_available_plans()
+
+
+@router.get(
+    "/subscription/me",
+    response_model=TournamentCurrentSubscriptionReadModel,
+    status_code=status.HTTP_200_OK,
+)
+async def get_current_tournament_subscription(
+        current_user: dict = Depends(current_user),
+        use_case: TournamentSubscriptionQueryUseCase = Depends(tournament_subscription_query_use_case),
+):
+    try:
+        return await use_case.get_current_subscription(current_user.get('email', ''))
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la récupération de l'abonnement tournoi",
+        )
 
 
 @router.post(

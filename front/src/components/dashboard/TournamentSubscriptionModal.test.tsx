@@ -5,6 +5,7 @@ import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 
 const mockCreateSubscriptionIntent = jest.fn();
 const mockUseTournamentSubscriptionPlansQuery = jest.fn();
+const mockUseCurrentTournamentSubscriptionQuery = jest.fn();
 const mockCancelSubscriptionMutateAsync = jest.fn();
 const mockUseCancelTournamentSubscriptionMutation = jest.fn();
 const mockAssign = jest.fn();
@@ -16,6 +17,7 @@ jest.mock('../../services/api/subscription', () => ({
 
 jest.mock('../../hooks/queries/useTournamentQueries', () => ({
   useTournamentSubscriptionPlansQuery: () => mockUseTournamentSubscriptionPlansQuery(),
+  useCurrentTournamentSubscriptionQuery: () => mockUseCurrentTournamentSubscriptionQuery(),
   useCancelTournamentSubscriptionMutation: () => mockUseCancelTournamentSubscriptionMutation(),
 }));
 
@@ -38,6 +40,23 @@ describe('TournamentSubscriptionModal', () => {
     mockUseCancelTournamentSubscriptionMutation.mockReturnValue({
       isPending: false,
       mutateAsync: mockCancelSubscriptionMutateAsync,
+    });
+    mockUseCurrentTournamentSubscriptionQuery.mockReturnValue({
+      data: {
+        plan_id: 'yearly',
+        plan_name: 'Annuel',
+        price_cents: 2999,
+        currency: 'EUR',
+        interval: 'year',
+        status: 'active',
+        current_period_start: 1700000000000,
+        current_period_end: 1800000000000,
+        cancel_at_period_end: false,
+        cancellation_requested_at: null,
+        has_tournament_access: true,
+      },
+      isLoading: false,
+      error: null,
     });
 
     Object.defineProperty(window, 'location', {
@@ -89,7 +108,10 @@ describe('TournamentSubscriptionModal', () => {
     const onCancellationComplete = jest.fn();
     mockCancelSubscriptionMutateAsync.mockResolvedValueOnce({
       success: true,
-      message: 'Votre abonnement tournoi a bien été annulé.',
+      message: 'Votre abonnement tournoi sera résilié à la fin de la période en cours. Votre accès reste actif jusque-là.',
+      cancel_at_period_end: true,
+      current_period_end: 1800000000000,
+      has_tournament_access: true,
     });
 
     render(
@@ -101,12 +123,39 @@ describe('TournamentSubscriptionModal', () => {
     );
 
     expect(screen.getByText(/gérer mon abonnement tournoi/i)).toBeInTheDocument();
+    expect(screen.getByText(/annuel/i)).toBeInTheDocument();
+    expect(screen.getByText(/prochaine échéance/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /confirmer l’annulation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /planifier la résiliation/i }));
 
     await waitFor(() => expect(mockCancelSubscriptionMutateAsync).toHaveBeenCalled());
 
-    expect(onCancellationComplete).toHaveBeenCalledWith('Votre abonnement tournoi a bien été annulé.');
+    expect(onCancellationComplete).toHaveBeenCalledWith('Votre abonnement tournoi sera résilié à la fin de la période en cours. Votre accès reste actif jusque-là.');
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('désactive l’action si la résiliation est déjà planifiée', () => {
+    mockUseCurrentTournamentSubscriptionQuery.mockReturnValue({
+      data: {
+        plan_id: 'yearly',
+        plan_name: 'Annuel',
+        price_cents: 2999,
+        currency: 'EUR',
+        interval: 'year',
+        status: 'active',
+        current_period_start: 1700000000000,
+        current_period_end: 1800000000000,
+        cancel_at_period_end: true,
+        cancellation_requested_at: 1750000000000,
+        has_tournament_access: true,
+      },
+      isLoading: false,
+      error: null,
+    });
+
+    render(<TournamentSubscriptionModal onClose={() => {}} isSubscriber />);
+
+    expect(screen.getByRole('button', { name: /résiliation déjà planifiée/i })).toBeDisabled();
+    expect(screen.getByText(/résiliation demandée le/i)).toBeInTheDocument();
   });
 });

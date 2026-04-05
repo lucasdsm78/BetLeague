@@ -22,6 +22,8 @@ class TournamentSubscription:
             id: Optional[int] = None,
             stripe_subscription_id: Optional[str] = None,
             updated_at: Optional[int] = None,
+            cancel_at_period_end: bool = False,
+            cancellation_requested_at: Optional[int] = None,
     ):
         self._id = id
         self._user = user
@@ -34,6 +36,12 @@ class TournamentSubscription:
         self._current_period_end = current_period_end
         self._created_at = created_at
         self._updated_at = updated_at
+        self._cancel_at_period_end = cancel_at_period_end
+        self._cancellation_requested_at = cancellation_requested_at
+
+    @staticmethod
+    def _now_ms() -> int:
+        return int(datetime.utcnow().timestamp() * 1000)
 
     @property
     def id(self) -> Optional[int]:
@@ -79,6 +87,14 @@ class TournamentSubscription:
     def updated_at(self) -> Optional[int]:
         return self._updated_at
 
+    @property
+    def cancel_at_period_end(self) -> bool:
+        return self._cancel_at_period_end
+
+    @property
+    def cancellation_requested_at(self) -> Optional[int]:
+        return self._cancellation_requested_at
+
     def _calculate_period_end(self) -> int:
         if self._current_period_start is None:
             raise ValueError("Current period start is not set.")
@@ -93,26 +109,43 @@ class TournamentSubscription:
 
     def activate(self, period_start: int, period_end: int) -> None:
         if self._status == TournamentSubscriptionStatus.ACTIVE:
+            self._cancel_at_period_end = False
+            self._cancellation_requested_at = None
             return
 
         self._status = TournamentSubscriptionStatus.ACTIVE
         self._current_period_start = period_start
         self._current_period_end = period_end
-        self._updated_at = int(datetime.utcnow().timestamp() * 1000)
+        self._cancel_at_period_end = False
+        self._cancellation_requested_at = None
+        self._updated_at = self._now_ms()
 
-    def cancel(self) -> None:
+    def schedule_cancellation_at_period_end(self, requested_at: Optional[int] = None) -> None:
+        if self._status == TournamentSubscriptionStatus.CANCELLED:
+            raise ValueError("L'abonnement tournoi est déjà terminé")
+
+        if self._cancel_at_period_end:
+            return
+
+        self._cancel_at_period_end = True
+        self._cancellation_requested_at = requested_at or self._now_ms()
+        self._updated_at = self._cancellation_requested_at
+
+    def cancel(self, cancelled_at: Optional[int] = None) -> None:
         self._status = map_stripe_status_to_enum(TournamentSubscriptionStatus.CANCELLED.value)
-        self._updated_at = int(datetime.utcnow().timestamp() * 1000)
+        self._cancel_at_period_end = False
+        self._updated_at = cancelled_at or self._now_ms()
 
     def update_status_from_stripe(
             self,
             status: str,
             period_start: int,
-            period_end: int
+            period_end: int,
+            cancel_at_period_end: Optional[bool] = None,
     ) -> None:
-
-        old_status = self._status
-        self._status = map_stripe_status_to_enum(status)
+        mapped_status = map_stripe_status_to_enum(status)
+        if mapped_status is not None:
+            self._status = mapped_status
 
 
         if period_start is not None:
@@ -121,8 +154,17 @@ class TournamentSubscription:
         if period_end is not None:
             self._current_period_end = period_end
 
-        if hasattr(self, 'updated_at'):
-            self._updated_at = int(datetime.utcnow().timestamp() * 1000)
+        if cancel_at_period_end is not None:
+            self._cancel_at_period_end = cancel_at_period_end
+            if cancel_at_period_end:
+                self._cancellation_requested_at = self._cancellation_requested_at or self._now_ms()
+            elif self._status != TournamentSubscriptionStatus.CANCELLED:
+                self._cancellation_requested_at = None
+
+        if self._status == TournamentSubscriptionStatus.CANCELLED:
+            self._cancel_at_period_end = False
+
+        self._updated_at = self._now_ms()
 
     def update_stripe_subscription_id_from_stripe(
                 self,
@@ -132,4 +174,5 @@ class TournamentSubscription:
 
     def is_active(self) -> bool:
         return (self._status == TournamentSubscriptionStatus.ACTIVE and
-                self._current_period_end > int(datetime.utcnow().timestamp() * 1000))
+                self._current_period_end is not None and
+                self._current_period_end > self._now_ms())

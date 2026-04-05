@@ -2,6 +2,7 @@ import http from '../http';
 import {
   cancelSubscription,
   createSubscriptionIntent,
+  getCurrentTournamentSubscription,
   getSubscriptionPlans,
 } from './subscription';
 
@@ -65,7 +66,10 @@ describe('subscription api service', () => {
       success: true,
       data: {
         success: true,
-        message: 'Votre abonnement tournoi a bien été annulé.',
+        message: 'Votre abonnement tournoi sera résilié à la fin de la période en cours.',
+        cancel_at_period_end: true,
+        current_period_end: 1800000000000,
+        has_tournament_access: true,
       },
       status: 200,
       headers: {},
@@ -73,7 +77,10 @@ describe('subscription api service', () => {
 
     await expect(cancelSubscription()).resolves.toEqual({
       success: true,
-      message: 'Votre abonnement tournoi a bien été annulé.',
+      message: 'Votre abonnement tournoi sera résilié à la fin de la période en cours.',
+      cancel_at_period_end: true,
+      current_period_end: 1800000000000,
+      has_tournament_access: true,
     });
 
     expect(http.post).toHaveBeenCalledWith('/subscription/cancel');
@@ -88,5 +95,42 @@ describe('subscription api service', () => {
     });
 
     await expect(cancelSubscription()).rejects.toThrow("Impossible d'annuler l'abonnement");
+  });
+
+  it('retourne l’abonnement tournoi courant pour le mode gérer', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: {
+        plan_id: 'yearly',
+        plan_name: 'Annuel',
+        price_cents: 2999,
+        currency: 'EUR',
+        interval: 'year',
+        status: 'active',
+        current_period_start: 1700000000000,
+        current_period_end: 1800000000000,
+        cancel_at_period_end: true,
+        cancellation_requested_at: 1750000000000,
+        has_tournament_access: true,
+      },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getCurrentTournamentSubscription()).resolves.toEqual({
+      plan_id: 'yearly',
+      plan_name: 'Annuel',
+      price_cents: 2999,
+      currency: 'EUR',
+      interval: 'year',
+      status: 'active',
+      current_period_start: 1700000000000,
+      current_period_end: 1800000000000,
+      cancel_at_period_end: true,
+      cancellation_requested_at: 1750000000000,
+      has_tournament_access: true,
+    });
+
+    expect(http.get).toHaveBeenCalledWith('/subscription/me');
   });
 });

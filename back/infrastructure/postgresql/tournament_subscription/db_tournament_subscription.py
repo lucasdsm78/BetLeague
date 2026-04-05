@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 
 from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
@@ -34,6 +34,8 @@ class DBTournamentSubscription(Base):
     updated_at: Union[int, Column] = Column(BigInteger, nullable=False)
     start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
     end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
+    cancel_at_period_end: Union[bool, Column] = Column(Boolean, nullable=False, default=False)
+    cancellation_requested_at: Union[int, Column] = Column(BigInteger, nullable=True)
 
     def to_entity(self) -> TournamentSubscription:
         return TournamentSubscription(
@@ -47,7 +49,9 @@ class DBTournamentSubscription(Base):
             created_at=self.created_at,
             updated_at=self.updated_at,
             current_period_start=self.start_date,
-            current_period_end=self.end_date
+            current_period_end=self.end_date,
+            cancel_at_period_end=bool(self.cancel_at_period_end),
+            cancellation_requested_at=self.cancellation_requested_at,
         )
 
     @staticmethod
@@ -63,6 +67,8 @@ class DBTournamentSubscription(Base):
         tournament_subscription_db.plan = tournament_subscription.plan.value
         tournament_subscription_db.start_date = tournament_subscription.current_period_start
         tournament_subscription_db.end_date = tournament_subscription.current_period_end
+        tournament_subscription_db.cancel_at_period_end = tournament_subscription.cancel_at_period_end
+        tournament_subscription_db.cancellation_requested_at = tournament_subscription.cancellation_requested_at
         tournament_subscription_db.user_id = tournament_subscription.user.id
         # Preserve original creation time when updating
         tournament_subscription_db.created_at = tournament_subscription_db.created_at if db_tournament_subscription is not None else now
