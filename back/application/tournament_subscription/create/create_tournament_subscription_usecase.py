@@ -68,8 +68,8 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
                 )
 
                 stripe_sub_id = session_stripe.subscription
-
-                subscription.update_stripe_subscription_id_from_stripe(stripe_sub_id)
+                if stripe_sub_id:
+                    subscription.update_stripe_subscription_id_from_stripe(stripe_sub_id)
 
                 await tournament_subscription_repository.create(subscription)
 
