@@ -7,12 +7,14 @@ from application.tournament.tournament_query_model import TournamentReadModel, T
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
     TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel, \
     TournamentCreatedResponse, TournamentCreatedReadModel, TournamentCreationAccessResponse, \
-    TournamentInvitationsResponse, TournamentInvitationReadModel
+    TournamentInvitationsResponse, TournamentInvitationReadModel, TournamentMatchOptionsResponse, \
+    TournamentMatchOptionReadModel
 from application.user.user_query_model import UserSummaryReadModel
 from domain.invitation.repository.invitation_repository import InvitationRepository
 from domain.tournament.exception.tournament_exception import TournamentNotFoundError, TournamentStageNotFoundError
 from domain.tournament.exception.tournament_exception import TournamentNotOwnerLeaguedError
 from domain.tournament.repository.tournament_match_repository import TournamentMatchRepository
+from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.repository.tournament_stage_repository import TournamentStageRepository
 from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
@@ -55,8 +57,19 @@ class TournamentQueryUseCase(ABC):
     async def get_tournament_invitations(self, tournament_id: int, email: str) -> TournamentInvitationsResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_user_tournament_match_options(self, email: str) -> TournamentMatchOptionsResponse:
+        raise NotImplementedError
+
 
 class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
+
+    _STAGE_LABELS = {
+        "final": "Finale",
+        "semi_final": "Demi-finale",
+        "quarter_final": "Quart de finale",
+        "eighth_final": "Huitième de finale",
+    }
 
     def __init__(
             self,
@@ -68,6 +81,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             tournament_match_repository: TournamentMatchRepository,
             tournament_subscription_repository: TournamentSubscriptionRepository,
             invitation_repository: InvitationRepository,
+            tournament_players_repository: TournamentPlayersRepository | None = None,
             creation_policy: TournamentCreationPolicy | None = None,
     ):
         self.tournament_repository: TournamentRepository = tournament_repository
@@ -76,12 +90,31 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         self.tournament_stage_repository: TournamentStageRepository = tournament_stage_repository
         self.stage_repository: TournamentStageRepository = stage_repository
         self.tournament_match_repository: TournamentMatchRepository = tournament_match_repository
+        self.tournament_players_repository = tournament_players_repository
         self.tournament_subscription_repository: TournamentSubscriptionRepository = tournament_subscription_repository
         self.invitation_repository: InvitationRepository = invitation_repository
         self.creation_policy = creation_policy or TournamentCreationPolicy()
 
     class Config:
         arbitrary_types_allowed = True
+
+    async def _load_match_user_lookup(self, tournament_id: int, matches: list):
+        if self.tournament_players_repository is None:
+            return {}, {}
+
+        tournament_players = await self.tournament_players_repository.find_players_by_tournament_id(tournament_id)
+        tournament_player_to_user_id = {
+            player.id: player.user_id
+            for player in tournament_players
+            if player.id is not None
+        }
+        user_ids = {
+            tournament_player_to_user_id.get(player_id)
+            for match in matches
+            for player_id in (match.player1_id, match.player2_id)
+        }
+        user_ids = {user_id for user_id in user_ids if user_id is not None}
+        return await self.user_repository.find_users_by_ids(list(user_ids)), tournament_player_to_user_id
 
     async def get_tournament_stages(self, tournament_id: int, email: str) -> dict:
         result = {"stages": []}
@@ -136,17 +169,11 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     raise TournamentStageNotFoundError
 
                 matches = await self.tournament_match_repository.find_matches_by_tournament_stages(tournament.id, stage)
-
-                player_ids = set()
-                for match in matches:
-                    player_ids.add(match.player1_id)
-                    player_ids.add(match.player2_id)
-
-                players = await self.user_repository.find_users_by_ids(list(player_ids))
+                players, tournament_player_to_user_id = await self._load_match_user_lookup(tournament.id, matches)
 
                 for match in matches:
-                    player1 = players[match.player1_id]
-                    player2 = players[match.player2_id]
+                    player1 = players[tournament_player_to_user_id[match.player1_id]]
+                    player2 = players[tournament_player_to_user_id[match.player2_id]]
 
                     match_model = TournamentMatchReadModel(
                         id=match.id,
@@ -325,3 +352,51 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                         for invitation in invitations
                     ],
                 )
+
+    async def get_user_tournament_match_options(self, email: str) -> TournamentMatchOptionsResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user = await self.user_repository.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                tournaments = await self.tournament_repository.find_in_progress_for_user(user.id)
+                match_options: list[TournamentMatchOptionReadModel] = []
+
+                for tournament in tournaments:
+                    stages = await self.stage_repository.find_all_by_tournament(tournament.id)
+                    matches = await self.tournament_match_repository.find_matches_by_tournament_id(tournament.id)
+                    if not matches:
+                        continue
+
+                    stage_by_id = {stage.id: stage for stage in stages}
+                    players, tournament_player_to_user_id = await self._load_match_user_lookup(tournament.id, matches)
+
+                    for match in matches:
+                        stage = stage_by_id.get(match.stage_id)
+                        player1 = players.get(tournament_player_to_user_id.get(match.player1_id))
+                        player2 = players.get(tournament_player_to_user_id.get(match.player2_id))
+                        if stage is None or player1 is None or player2 is None:
+                            continue
+
+                        stage_type = stage.type.value
+                        stage_label = self._STAGE_LABELS.get(stage_type, stage_type)
+                        match_options.append(
+                            TournamentMatchOptionReadModel(
+                                id=match.id,
+                                tournament_id=tournament.id,
+                                tournament_name=tournament.name,
+                                tournament_uuid=tournament.uuid,
+                                stage_type=stage_type,
+                                stage_label=stage_label,
+                                player1_name=player1.pseudo,
+                                player2_name=player2.pseudo,
+                                start_date=stage.start_date,
+                                end_date=stage.end_date,
+                                display_label=f"{tournament.name} - {stage_label} - {player1.pseudo} vs {player2.pseudo}",
+                            )
+                        )
+
+                match_options.sort(key=lambda item: (item.start_date, item.id))
+                return TournamentMatchOptionsResponse(matches=match_options)
+
