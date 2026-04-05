@@ -96,6 +96,9 @@ from infrastructure.postgresql.tournament.tournament_match_repository import Tou
 from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
 from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
     TournamentSubscriptionRepositoryImpl
+from infrastructure.postgresql.tournament_subscription.tournament_subscription_unit_of_work import (
+    TournamentSubscriptionUnitOfWorkImpl,
+)
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
@@ -821,8 +824,8 @@ def cancel_tournament_subscription_use_case(
         stripe_service_dependency: StripeService = Depends(stripe_service),
 ) -> CancelTournamentSubscriptionUseCase:
     return CancelTournamentSubscriptionUseCaseImpl(
-        session_factory=session_factory,
         stripe_service=stripe_service_dependency,
+        uow_factory=lambda: TournamentSubscriptionUnitOfWorkImpl(session_factory),
     )
 
 def process_webhook_tournament_subscription_use_case(

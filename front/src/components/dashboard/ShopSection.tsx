@@ -156,6 +156,16 @@ const ShopSection: React.FC = memo(() => {
     refetch();
   }, [refetch]);
 
+  const handleSubscriptionCancellationComplete = useCallback((message: string) => {
+    updateUser({ isTournamentSubscriber: false });
+    toast.showSuccess('Abonnement tournoi annulé', message);
+    void refetch().then((res) => {
+      updateUser({ isTournamentSubscriber: Boolean(res.data?.is_tournament_subscriber) });
+    }).catch(() => {
+      // best effort: l'état local a déjà été aligné pour garder une UX fluide
+    });
+  }, [refetch, toast, updateUser]);
+
   return (
     <div className="shop-section">
       <div className="shop-header">
@@ -336,10 +346,17 @@ const ShopSection: React.FC = memo(() => {
               )}
 
               {user?.isTournamentSubscriber ? (
-                <button className="btn btn-secondary btn-lg" disabled>
-                  <span className="check-icon">✓</span>
-                  Déjà abonné
-                </button>
+                <div className="subscription-action-stack">
+                  <button
+                    className="btn btn-secondary btn-lg tournament-manage-btn"
+                    onClick={handleOpenTournamentSubscription}
+                  >
+                    Gérer mon abonnement
+                  </button>
+                  <p className="subscription-action-hint">
+                    Annulation immédiate, sécurisée et sans étape cachée depuis votre espace boutique.
+                  </p>
+                </div>
               ) : (
                 <button
                   className="btn btn-primary btn-lg tournament-subscribe-btn"
@@ -453,6 +470,8 @@ const ShopSection: React.FC = memo(() => {
         <TournamentSubscriptionModal
           onClose={handleCloseTournamentSubscription}
           onSubscriptionComplete={handleSubscriptionComplete}
+          onCancellationComplete={handleSubscriptionCancellationComplete}
+          isSubscriber={Boolean(user?.isTournamentSubscriber)}
         />
       )}
 

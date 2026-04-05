@@ -16,10 +16,11 @@ from application.tournament_subscription.cancel.cancel_tournament_subscription_u
 from application.tournament_subscription.create.create_tournament_subscription_usecase import CreateTournamentSubscriptionUseCase
 from application.tournament_subscription.query_tournament_subscription_usecase import TournamentSubscriptionQueryUseCase
 from application.tournament_subscription.tournament_subscription_command_model import CheckoutSessionResponse, \
-    CreateSubscriptionRequest
+    CreateSubscriptionRequest, CancelSubscriptionResponse
 from application.tournament_subscription.tournament_subscription_query_model import TournamentSubscriptionPlansResponse
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase
+from domain.tournament_subscription.exception.tournament_subscription_exception import TournamentSubscriptionInactiveError
 from dependency_injections import current_user, tournament_command_usecase, tournament_query_usecase, \
     tournament_scheduler, create_tournament_subscription_use_case, cancel_tournament_subscription_use_case, \
     stripe_service, process_webhook_tournament_subscription_use_case, get_async_session, \
@@ -418,6 +419,7 @@ async def create_tournament_subscription_checkout(
         subscription_request: CreateSubscriptionRequest,
         current_user: dict = Depends(current_user),
         use_case: CreateTournamentSubscriptionUseCase = Depends(create_tournament_subscription_use_case),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         result = await use_case.execute(current_user.get('email', ''), subscription_request)
@@ -435,18 +437,29 @@ async def create_tournament_subscription_checkout(
 
 @router.post(
     "/subscription/cancel",
+    response_model=CancelSubscriptionResponse,
     status_code=status.HTTP_200_OK,
 )
 async def cancel_user_subscription(
         current_user: dict = Depends(current_user),
         tournament_subscription_cancel_use_case: CancelTournamentSubscriptionUseCase = Depends(cancel_tournament_subscription_use_case),
+        _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
         result = await tournament_subscription_cancel_use_case.execute(current_user.get('email', ''))
 
         return result
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except TournamentSubscriptionInactiveError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de l'annulation de l'abonnement tournoi",
+        )
 
 @router.post(
     "/subscription/webhook",

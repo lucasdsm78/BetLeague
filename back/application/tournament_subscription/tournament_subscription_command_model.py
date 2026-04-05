@@ -23,6 +23,11 @@ class SubscriptionResponse(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     checkout_url: str
 
+
+class CancelSubscriptionResponse(BaseModel):
+    success: bool
+    message: str
+
 class StripeWebhookRequest(BaseModel):
     type: str
     data: Dict[str, Any]
