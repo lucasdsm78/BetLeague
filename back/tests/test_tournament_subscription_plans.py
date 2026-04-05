@@ -10,7 +10,12 @@ from application.tournament_subscription.query_tournament_subscription_usecase i
     TournamentSubscriptionQueryUseCaseImpl,
 )
 from application.tournament_subscription.tournament_subscription_command_model import CreateSubscriptionRequest
+from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
+from domain.tournament_subscription.model.tournament_subscription_plan import TournamentSubscriptionPlan
+from domain.tournament_subscription.model.tournament_subscription_price import TournamentSubscriptionPrice
+from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus
 from domain.user.model.email import Email
+from domain.user.model.user_summary import UserSummary
 
 
 class FakeTransaction:
@@ -67,6 +72,29 @@ class FakeStripeService:
         return SimpleNamespace(url='https://checkout.stripe.test/session', subscription='stripe_sub_123')
 
 
+class FakeQueryUserRepository:
+    async def find_by_email(self, email: str):
+        return SimpleNamespace(id=42, email=Email(email), pseudo='player')
+
+
+class FakeQueryTournamentSubscriptionRepository:
+    async def find_active_by_user_id(self, user_id: int):
+        subscription = TournamentSubscription(
+            id=4,
+            uuid='sub-uuid',
+            user=UserSummary(id=user_id, email=Email('player@example.com'), pseudo='player'),
+            plan=TournamentSubscriptionPlan.YEARLY,
+            price=TournamentSubscriptionPrice(amount=29.99),
+            status=TournamentSubscriptionStatus.ACTIVE,
+            current_period_start=1_700_000_000_000,
+            current_period_end=1_800_000_000_000,
+            stripe_subscription_id='stripe_sub_123',
+            cancel_at_period_end=True,
+            cancellation_requested_at=1_750_000_000_000,
+        )
+        return subscription
+
+
 @pytest.mark.asyncio
 async def test_query_usecase_returns_monthly_and_yearly_plans():
     result = await TournamentSubscriptionQueryUseCaseImpl().get_available_plans()
@@ -115,3 +143,23 @@ async def test_create_usecase_builds_server_side_urls_and_supports_yearly_plan(m
             'subscription_plan': 'yearly',
         },
     }]
+
+
+@pytest.mark.asyncio
+async def test_query_usecase_returns_current_subscription_details_for_manage_view():
+    usecase = TournamentSubscriptionQueryUseCaseImpl(
+        user_repository=FakeQueryUserRepository(),
+        tournament_subscription_repository=FakeQueryTournamentSubscriptionRepository(),
+    )
+
+    result = await usecase.get_current_subscription('player@example.com')
+
+    assert result.plan_id == 'yearly'
+    assert result.plan_name == 'Annuel'
+    assert result.price_cents == 2999
+    assert result.interval == 'year'
+    assert result.cancel_at_period_end is True
+    assert result.cancellation_requested_at == 1_750_000_000_000
+    assert result.has_tournament_access is True
+
+

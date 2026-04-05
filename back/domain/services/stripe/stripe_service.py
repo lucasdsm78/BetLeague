@@ -12,7 +12,7 @@ class StripeService(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def cancel_tournament_subscription(self, subscription_id: str) -> dict:
+    async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
         raise NotImplementedError
 
     @abstractmethod

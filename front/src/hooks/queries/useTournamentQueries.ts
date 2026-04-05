@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSubscriptionPlans } from '../../services/api/subscription';
+import { cancelSubscription, getCurrentTournamentSubscription, getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
   getTournamentInvitations,
@@ -14,7 +14,11 @@ import {
   leaveTournament,
 } from '../../services/api/tournament';
 import { secureApiClient } from '../../services/secureApiClient';
-import type { ApiSubscriptionPlansResponse } from '../../types/api/subscription';
+import type {
+  ApiCancelSubscriptionResponse,
+  ApiCurrentTournamentSubscription,
+  ApiSubscriptionPlansResponse,
+} from '../../types/api/subscription';
 import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
@@ -27,6 +31,7 @@ import type {
   TournamentsResponse,
   TournamentCreationAccess,
 } from '../../types/api/tournament';
+import { profileKeys } from './profileKeys';
 import { tournamentKeys } from './tournamentKeys';
 
 export function useTournamentCreationAccessQuery(options?: { enabled?: boolean }) {
@@ -175,6 +180,28 @@ export function useTournamentSubscriptionPlansQuery(options?: { enabled?: boolea
     queryFn: () => getSubscriptionPlans(),
     enabled: options?.enabled ?? true,
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+export function useCurrentTournamentSubscriptionQuery(options?: { enabled?: boolean }) {
+  return useQuery<ApiCurrentTournamentSubscription, Error>({
+    queryKey: tournamentKeys.subscriptionCurrent,
+    queryFn: () => getCurrentTournamentSubscription(),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useCancelTournamentSubscriptionMutation() {
+  const qc = useQueryClient();
+
+  return useMutation<ApiCancelSubscriptionResponse, Error>({
+    mutationFn: () => cancelSubscription(),
+    onSuccess: () => {
+      secureApiClient.clearCache();
+      qc.invalidateQueries({ queryKey: profileKeys.me() });
+      qc.invalidateQueries({ queryKey: tournamentKeys.creationAccess });
+      qc.invalidateQueries({ queryKey: tournamentKeys.subscriptionCurrent });
+    },
   });
 }
 

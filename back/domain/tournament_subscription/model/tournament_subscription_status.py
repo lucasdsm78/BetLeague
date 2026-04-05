@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
@@ -6,7 +5,6 @@ from domain.tournament_subscription.exception.tournament_subscription_exception 
     InvalidTournamentSubscriptionStatusException
 
 
-@dataclass(init=False, eq=True, frozen=True)
 class TournamentSubscriptionStatus(Enum):
     INCOMPLETE = "incomplete"
     ACTIVE = "active"
