@@ -6,9 +6,11 @@ import application.tournament.tournament_command_usecase as command_module
 from application.tournament.tournament_command_usecase import TournamentCommandUseCaseImpl
 from domain.invitation.exception.invitation_exception import InvitationNotFoundError
 from domain.invitation.model.invitation_status import InvitationStatus
+from domain.tournament.model.tournament import Tournament
 from domain.tournament.exception.tournament_exception import UserNotInvitationTournamentError
 from domain.tournament.model.tournament_status import TournamentStatus
 from domain.user.model.email import Email
+from domain.user.model.user_summary import UserSummary
 
 
 class FakeTransaction:
@@ -35,6 +37,27 @@ class FakeSession:
         return FakeTransaction()
 
 
+class FakeTournamentUnitOfWork:
+    def __init__(self, session, tournament_repo, players_repo, invitation_repo):
+        self.user_repo = FakeUserRepository(session)
+        self.tournament_repo = tournament_repo
+        self.tournament_players_repo = players_repo
+        self.invitation_repo = invitation_repo
+        self.tournament_subscription_repo = SimpleNamespace()
+        self.ticket_repo = SimpleNamespace()
+        self.tournament_stage_repo = SimpleNamespace()
+        self.tournament_match_repo = SimpleNamespace()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def commit(self):
+        return None
+
+
 class FakeUserRepository:
     def __init__(self, session):
         self.session = session
@@ -50,15 +73,21 @@ class FakeTournamentRepository:
         self.status = TournamentStatus.PENDING
 
     async def find_by_id(self, tournament_id: int):
-        return SimpleNamespace(
+        return Tournament(
             id=tournament_id,
+            uuid=f"tournament-{tournament_id}",
+            name=f"Tournament {tournament_id}",
+            is_private=True,
             current_players=self.current_players,
             max_players=16,
             prize_pool=75.0,
             entry_fee=5.0,
             status=self.status,
-            user=SimpleNamespace(id=42, email=Email('owner@example.com'), pseudo='owner'),
+            user=UserSummary(id=42, email=Email('owner@example.com'), pseudo='owner'),
         )
+
+    async def find_by_id_for_update(self, tournament_id: int):
+        return await self.find_by_id(tournament_id)
 
     async def update(self, tournament):
         self.session.updated_tournament = tournament
@@ -105,12 +134,10 @@ async def test_accept_tournament_invitation_adds_player_and_starts_when_full(mon
     players_repo = FakePlayersRepository(session)
     invitation_repo = FakeInvitationRepository(session)
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', lambda s: tournament_repo)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', lambda s: players_repo)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', lambda s: invitation_repo)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session, tournament_repo, players_repo, invitation_repo),
+    )
 
     started = {}
 
@@ -139,12 +166,10 @@ async def test_decline_tournament_invitation_only_deletes_invitation(monkeypatch
     players_repo = FakePlayersRepository(session)
     invitation_repo = FakeInvitationRepository(session)
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', lambda s: tournament_repo)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', lambda s: players_repo)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', lambda s: invitation_repo)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session, tournament_repo, players_repo, invitation_repo),
+    )
     result = await usecase.update_invitation(5, False, 'invitee@example.com')
 
     assert result.message == 'Tournament invitation declined successfully'
@@ -161,12 +186,10 @@ async def test_accept_tournament_invitation_rejects_non_recipient(monkeypatch: p
     invitation_repo = FakeInvitationRepository(session)
     invitation_repo.user_id = 999
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', lambda s: tournament_repo)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', lambda s: players_repo)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', lambda s: invitation_repo)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session, tournament_repo, players_repo, invitation_repo),
+    )
 
     with pytest.raises(UserNotInvitationTournamentError):
         await usecase.update_invitation(5, True, 'invitee@example.com')
@@ -180,12 +203,10 @@ async def test_accept_tournament_invitation_rejects_non_tournament_invitation(mo
     invitation_repo = FakeInvitationRepository(session)
     invitation_repo.tournament_id = None
 
-    monkeypatch.setattr(command_module, 'UserRepositoryImpl', FakeUserRepository)
-    monkeypatch.setattr(command_module, 'TournamentRepositoryImpl', lambda s: tournament_repo)
-    monkeypatch.setattr(command_module, 'TournamentPlayersRepositoryImpl', lambda s: players_repo)
-    monkeypatch.setattr(command_module, 'InvitationRepositoryImpl', lambda s: invitation_repo)
-
-    usecase = TournamentCommandUseCaseImpl(session_factory=lambda: session)
+    usecase = TournamentCommandUseCaseImpl(
+        session_factory=lambda: session,
+        uow_factory=lambda: FakeTournamentUnitOfWork(session, tournament_repo, players_repo, invitation_repo),
+    )
 
     with pytest.raises(InvitationNotFoundError):
         await usecase.update_invitation(5, True, 'invitee@example.com')

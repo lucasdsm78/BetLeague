@@ -99,6 +99,7 @@ from infrastructure.postgresql.tournament_subscription.tournament_subscription_r
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_repository import TournamentRepositoryImpl
 from infrastructure.postgresql.tournament.tournament_players_repository import TournamentPlayersRepositoryImpl
+from infrastructure.postgresql.tournament.tournament_unit_of_work import TournamentUnitOfWorkImpl
 from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
 from infrastructure.scheduler.tournament_scheduler import TournamentScheduler, TournamentSchedulerImpl
 from infrastructure.services.authentication.authentication import AuthenticationToken
@@ -603,7 +604,8 @@ def tournament_command_usecase(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory)
 ) -> TournamentCommandUseCase:
     return TournamentCommandUseCaseImpl(
-        session_factory=session_factory
+        session_factory=session_factory,
+        uow_factory=lambda: TournamentUnitOfWorkImpl(session_factory),
     )
 
 
@@ -613,6 +615,7 @@ def tournament_query_usecase(
         user_repository: UserRepository = Depends(user_repository_dependency),
         stage_repository: TournamentStageRepository = Depends(tournament_stage_repository_dependency),
         tournament_match_repository: TournamentMatchRepository = Depends(tournament_match_repository_dependency),
+        tournament_players_repository: TournamentPlayersRepository = Depends(tournament_players_repository_dependency),
         tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
         invitation_repository: InvitationRepository = Depends(invitation_repository_dependency),
 ) -> TournamentQueryUseCase:
@@ -622,6 +625,7 @@ def tournament_query_usecase(
         user_repository=user_repository,
         tournament_stage_repository=stage_repository,
         tournament_match_repository=tournament_match_repository,
+        tournament_players_repository=tournament_players_repository,
         stage_repository=stage_repository,
         tournament_subscription_repository=tournament_subscription_repository,
         invitation_repository=invitation_repository,
@@ -1190,6 +1194,62 @@ def redis_login_2fa_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | 
     if r is None:
         return None
     return RedisSlidingWindowRateLimiter(redis=r)
+
+
+@lru_cache()
+def tournament_mutation_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "tournament_mutation_rate_limit_per_minute", 20)),
+        window_s=int(getattr(settings, "tournament_mutation_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_tournament_mutation_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
+
+
+async def rate_limit_tournament_mutation(
+    request: Request,
+    current_user: dict = Depends(current_user),
+    limiter: SlidingWindowRateLimiter = Depends(tournament_mutation_rate_limiter_singleton),
+):
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "unknown")
+    )
+    user_id = current_user.get("id")
+
+    route = None
+    if hasattr(request, "scope") and isinstance(request.scope, dict):
+        route = request.scope.get("route")
+    route_path = getattr(route, "path", None) or getattr(getattr(request, "url", None), "path", None) or "tournament"
+    method = (getattr(request, "method", None) or (request.scope.get("method") if hasattr(request, "scope") and isinstance(request.scope, dict) else "POST") or "POST").upper()
+
+    key = f"tournament_mutation:{method}:{route_path}:ip:{client_ip}:user:{user_id}"
+
+    settings = get_settings()
+    limit = int(getattr(settings, "tournament_mutation_rate_limit_per_minute", 20))
+    window_s = int(getattr(settings, "tournament_mutation_rate_limit_window_s", 60))
+
+    redis_limiter = redis_tournament_mutation_rate_limiter_singleton()
+    if redis_limiter is not None:
+        result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+    else:
+        result = limiter.allow(key)
+
+    if not result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Trop d'actions tournoi. Réessayez plus tard.", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(result.retry_after_s)},
+        )
+
+    return True
 
 
 async def rate_limit_login_with_2fa_code(

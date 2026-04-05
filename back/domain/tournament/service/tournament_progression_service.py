@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import random
+from datetime import timedelta
 
 from domain.tournament.model.stage_type import StageType
 from domain.tournament.model.tournament import Tournament
@@ -28,6 +28,43 @@ class CompletedTournamentResult:
 
 class TournamentProgressionService:
     """Encapsule les règles métier de progression d'un tournoi."""
+
+    _BRACKET_STAGES: dict[int, list[StageType]] = {
+        4: [StageType.SEMI_FINAL, StageType.FINAL],
+        8: [StageType.QUARTER_FINAL, StageType.SEMI_FINAL, StageType.FINAL],
+        16: [StageType.EIGHTH_FINAL, StageType.QUARTER_FINAL, StageType.SEMI_FINAL, StageType.FINAL],
+    }
+
+    def stage_types_for_bracket_size(self, max_players: int) -> list[StageType]:
+        normalized = Tournament.validate_max_players(max_players)
+        return self._BRACKET_STAGES[normalized][:]
+
+    def build_stages_for_tournament(
+        self,
+        *,
+        tournament: Tournament,
+        owner_user_id: int,
+        start_ms: int,
+    ) -> list[TournamentStage]:
+        stages: list[TournamentStage] = []
+        current_start_ms = start_ms
+
+        for index, stage_type in enumerate(self.stage_types_for_bracket_size(tournament.max_players)):
+            duration_days = 1 if stage_type == StageType.FINAL else 2
+            end_ms = current_start_ms + int(timedelta(days=duration_days).total_seconds() * 1000)
+            stages.append(
+                TournamentStage(
+                    user_id=owner_user_id,
+                    tournament_id=tournament.id,
+                    type=stage_type,
+                    start_date=current_start_ms,
+                    end_date=end_ms,
+                    is_active=index == 0,
+                )
+            )
+            current_start_ms = end_ms
+
+        return stages
 
     @staticmethod
     def _pick_match_winner(
@@ -108,7 +145,7 @@ class TournamentProgressionService:
         players: list[TournamentPlayer],
         *,
         stage_type: StageType,
-        reset_btl_to: float = 100,
+        reset_btl_to: float = Tournament.DEFAULT_PLAYER_START_BTL,
     ) -> list[TournamentPlayer]:
         for player in players:
             player.current_stage = stage_type
@@ -126,14 +163,13 @@ class TournamentProgressionService:
         if len(eligible_players) < 2:
             return []
 
-        shuffled_players = eligible_players[:]
-        random.shuffle(shuffled_players)
+        seeded_players = sorted(eligible_players, key=lambda player: ((player.id or 0), player.user_id))
 
         matches: list[TournamentMatch] = []
-        for index in range(0, len(shuffled_players) - 1, 2):
+        for index in range(0, len(seeded_players) - 1, 2):
             player1, player2 = self._normalize_match_players(
-                shuffled_players[index],
-                shuffled_players[index + 1],
+                seeded_players[index],
+                seeded_players[index + 1],
             )
             matches.append(
                 TournamentMatch(
@@ -163,4 +199,5 @@ class TournamentProgressionService:
             winner_user_id=winner_user_id,
             payout_amount=payout_amount,
         )
+
 

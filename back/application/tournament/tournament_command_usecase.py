@@ -3,40 +3,48 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 import shortuuid
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.tournament.tournament_command_model import (
+    InvitationDeleteResponse,
+    InvitationUpdateResponse,
     TournamentCreateModel,
     TournamentCreateResponse,
-    TournamentJoinResponse, TournamentStartResponse, TournamentUpdateModel, TournamentUpdateResponse,
-    TournamentPlayerDeletedResponse, TournamentInviteResponse, InvitationDeleteResponse, InvitationUpdateResponse
+    TournamentInviteResponse,
+    TournamentJoinResponse,
+    TournamentPlayerDeletedResponse,
+    TournamentStartResponse,
+    TournamentUpdateModel,
+    TournamentUpdateResponse,
 )
-from domain.ticket.model.ticket_status import TicketStatus
-from domain.tournament.exception.tournament_exception import UserNotSubscribedError, TournamentNotFoundError, \
-    TournamentNotOwnerLeaguedError, TournamentNameAlreadyExistsError, TournamentAlreadyStartedError, \
-    NotEnoughPaidPlayersError, TournamentPlayerNotFoundError, TournamentNotThePlayerError, TournamentMaxPlayersError, \
-    TournamentPlayerFoundError, TournamentMonthlyFreeCreationLimitReachedError, TournamentSelfInvitationError, \
-    UserNotInvitationTournamentError
-from domain.tournament.model.stage_type import StageType
-from domain.tournament.model.tournament import Tournament
-from domain.tournament.model.tournament_stage import TournamentStage
-from domain.tournament.model.tournament_player import TournamentPlayer
-from domain.tournament.model.tournament_match import TournamentMatch
-from domain.tournament.model.tournament_status import TournamentStatus
-from domain.user.exception.user_exception import UserNotFoundError
-from domain.user.model.user_summary import UserSummary
-from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
-from infrastructure.postgresql.tournament import TournamentRepositoryImpl, TournamentPlayersRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_match_repository import TournamentMatchRepositoryImpl
-from infrastructure.postgresql.tournament.tournament_stage_repository import TournamentStageRepositoryImpl
-from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
-from infrastructure.postgresql.invitation.invitation_repository import InvitationRepositoryImpl
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
+from domain.ticket.model.ticket_status import TicketStatus
+from domain.tournament.exception.tournament_exception import (
+    TournamentAlreadyStartedError,
+    TournamentMaxPlayersError,
+    TournamentMonthlyFreeCreationLimitReachedError,
+    TournamentNameAlreadyExistsError,
+    TournamentNotEnoughPlayersError,
+    TournamentNotFoundError,
+    TournamentNotOwnerLeaguedError,
+    TournamentNotThePlayerError,
+    TournamentPlayerFoundError,
+    TournamentPlayerNotFoundError,
+    TournamentSelfInvitationError,
+    TournamentFullError,
+    UserAlreadyInTournamentError,
+    UserNotInvitationTournamentError,
+)
+from domain.tournament.model.tournament import Tournament
+from domain.tournament.model.tournament_player import TournamentPlayer
+from domain.tournament.model.tournament_status import TournamentStatus
 from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
-from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import TournamentSubscriptionRepositoryImpl
+from domain.tournament.service.tournament_progression_service import TournamentProgressionService
+from domain.tournament.unit_of_work import TournamentUnitOfWork
+from domain.user.exception.user_exception import UserNotFoundError
+from domain.user.model.user_summary import UserSummary
 
 
 
@@ -79,92 +87,99 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         self,
         session_factory: Callable[[], AsyncSession],
         creation_policy: TournamentCreationPolicy | None = None,
+        progression_service: TournamentProgressionService | None = None,
+        uow_factory: Callable[[], TournamentUnitOfWork] | None = None,
     ):
         self._session_factory = session_factory
         self._creation_policy = creation_policy or TournamentCreationPolicy()
+        self._progression_service = progression_service or TournamentProgressionService()
+        if uow_factory is None:
+            raise ValueError("TournamentCommandUseCaseImpl requires a TournamentUnitOfWork factory")
+        self._uow_factory = uow_factory
+
+    def _initial_stage_type_for_tournament(self, max_players: int):
+        return self._progression_service.stage_types_for_bracket_size(max_players)[0]
+
+    def _build_player(self, *, user_id: int, tournament_id: int, max_players: int) -> TournamentPlayer:
+        return TournamentPlayer(
+            user_id=user_id,
+            tournament_id=tournament_id,
+            nb_btl=Tournament.DEFAULT_PLAYER_START_BTL,
+            is_eliminated=False,
+            current_stage=self._initial_stage_type_for_tournament(max_players),
+        )
 
     async def create_tournament(self, data: TournamentCreateModel, email: str) -> TournamentCreateResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                players_repo = TournamentPlayersRepositoryImpl(session)
-                subscription_repo = TournamentSubscriptionRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
-
-                month_start_ms, next_month_start_ms = current_month_window_ms()
-                monthly_used = await tournament_repo.count_created_by_user_between(
-                    user.id,
-                    month_start_ms,
-                    next_month_start_ms,
-                )
-                subscription = await subscription_repo.find_active_by_user_id(user.id)
-                access = self._creation_policy.evaluate(
-                    has_active_subscription=bool(subscription and subscription.is_active()),
-                    monthly_free_tournaments_used=monthly_used,
-                )
-                if not access.can_create_tournament:
-                    raise TournamentMonthlyFreeCreationLimitReachedError(
-                        monthly_free_limit=access.monthly_free_tournaments_limit,
-                        monthly_free_used=access.monthly_free_tournaments_used,
-                    )
-
-                existing = await tournament_repo.find_by_name(data.name)
-                if existing is not None:
-                    raise TournamentNameAlreadyExistsError
-
-                uuid = shortuuid.uuid()
-                now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-
-                start_ms = data.start_date if data.start_date is not None else now_ms
-                end_ms = start_ms + int(timedelta(days=7).total_seconds() * 1000)
-
-                max_players = 16
-                tournament = Tournament(
-                    uuid=uuid,
-                    name=data.name,
-                    is_private=data.is_private,
-                    max_players=max_players,
-                    current_players=0,
-                    prize_pool=0,
-                    entry_fee=5.0,
-                    status=TournamentStatus.PENDING,
-                    start_date=start_ms,
-                    end_date=end_ms,
-                    user=UserSummary(id=user.id, email=user.email, pseudo=user.pseudo),
+            month_start_ms, next_month_start_ms = current_month_window_ms()
+            monthly_used = await uow.tournament_repo.count_created_by_user_between(
+                user.id,
+                month_start_ms,
+                next_month_start_ms,
+            )
+            subscription = await uow.tournament_subscription_repo.find_active_by_user_id(user.id)
+            access = self._creation_policy.evaluate(
+                has_active_subscription=bool(subscription and subscription.is_active()),
+                monthly_free_tournaments_used=monthly_used,
+            )
+            if not access.can_create_tournament:
+                raise TournamentMonthlyFreeCreationLimitReachedError(
+                    monthly_free_limit=access.monthly_free_tournaments_limit,
+                    monthly_free_used=access.monthly_free_tournaments_used,
                 )
 
-                await tournament_repo.create(tournament)
+            existing = await uow.tournament_repo.find_by_name(data.name)
+            if existing is not None:
+                raise TournamentNameAlreadyExistsError
 
-                created_tournament = await tournament_repo.find_by_uuid(uuid)
+            uuid = shortuuid.uuid()
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            start_ms = data.start_date if data.start_date is not None else now_ms
+            end_ms = start_ms + int(timedelta(days=7).total_seconds() * 1000)
 
-                # Auto-inscription du créateur (atomique, pas de second appel API)
-                existing_player = await players_repo.get_player(created_tournament.id, user.id)
-                if not existing_player:
-                    player = TournamentPlayer(
+            tournament = Tournament(
+                uuid=uuid,
+                name=data.name,
+                is_private=data.is_private,
+                max_players=data.max_players,
+                current_players=0,
+                prize_pool=0,
+                entry_fee=Tournament.DEFAULT_ENTRY_FEE,
+                start_date=start_ms,
+                end_date=end_ms,
+                user=UserSummary(id=user.id, email=user.email, pseudo=user.pseudo),
+            )
+            await uow.tournament_repo.create(tournament)
+
+            created_tournament = await uow.tournament_repo.find_by_uuid(uuid)
+            existing_player = await uow.tournament_players_repo.get_player(created_tournament.id, user.id)
+            if existing_player is None:
+                await uow.tournament_players_repo.add_player(
+                    self._build_player(
                         user_id=user.id,
                         tournament_id=created_tournament.id,
-                        nb_btl=100,
-                        is_eliminated=False,
+                        max_players=created_tournament.max_players,
                     )
-                    await players_repo.add_player(player)
-
-                    created_tournament.current_players += 1
-                    created_tournament.prize_pool += created_tournament.entry_fee
-                    await tournament_repo.update(created_tournament)
-
-                created_access = self._creation_policy.evaluate(
-                    has_active_subscription=access.has_active_subscription,
-                    monthly_free_tournaments_used=access.monthly_free_tournaments_used + 1,
                 )
+                created_tournament.register_player()
+                await uow.tournament_repo.update(created_tournament)
+
+            await uow.commit()
+
+            created_access = self._creation_policy.evaluate(
+                has_active_subscription=access.has_active_subscription,
+                monthly_free_tournaments_used=access.monthly_free_tournaments_used + 1,
+            )
 
         return TournamentCreateResponse(
             tournament_id=created_tournament.id,
             tournament_uuid=created_tournament.uuid,
             name=created_tournament.name,
+            max_players=created_tournament.max_players,
             monthly_free_tournaments_limit=created_access.monthly_free_tournaments_limit,
             monthly_free_tournaments_used=created_access.monthly_free_tournaments_used,
             monthly_free_tournaments_remaining=created_access.monthly_free_tournaments_remaining,
@@ -173,48 +188,40 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         )
 
     async def join_tournament(self, tournament_id: int, email: str) -> TournamentJoinResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                players_repo = TournamentPlayersRepositoryImpl(session)
+        tournament_full = False
+        owner_email = None
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
-                if not tournament:
-                    raise TournamentNotFoundError
+            tournament = await uow.tournament_repo.find_by_id_for_update(tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                if tournament.current_players >= tournament.max_players:
-                    raise ValueError("Tournament full")
+            try:
+                tournament.ensure_joinable()
+            except TournamentMaxPlayersError as exc:
+                raise TournamentFullError from exc
 
-                if tournament.status != TournamentStatus.PENDING:
-                    raise ValueError("Impossible de rejoindre un tournoi déjà commencé")
+            existing_player = await uow.tournament_players_repo.get_player(tournament.id, user.id)
+            if existing_player:
+                raise UserAlreadyInTournamentError
 
-                existing_player = await players_repo.get_player(tournament.id, user.id)
-                if existing_player:
-                    raise ValueError("User already joined the tournament")
-
-                player = TournamentPlayer(
+            await uow.tournament_players_repo.add_player(
+                self._build_player(
                     user_id=user.id,
                     tournament_id=tournament.id,
-                    nb_btl=100,
-                    is_eliminated=False
+                    max_players=tournament.max_players,
                 )
-                await players_repo.add_player(player)
+            )
+            tournament.register_player()
+            await uow.tournament_repo.update(tournament)
 
-                tournament.current_players += 1
-                tournament.prize_pool += tournament.entry_fee
-
-                await tournament_repo.update(tournament)
-
-                owner_email = tournament.user.email.value
-                tournament_full = tournament.current_players >= tournament.max_players
-
-                if tournament_full:
-                    pass
+            tournament_full = tournament.is_full
+            owner_email = tournament.user.email.value
+            await uow.commit()
 
         if tournament_full:
             await self.start_tournament(tournament_id, owner_email)
@@ -222,171 +229,86 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         return TournamentJoinResponse()
 
     async def start_tournament(self, tournament_id: int, email: str) -> TournamentStartResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                tournament_repo = TournamentRepositoryImpl(session)
-                user_repo = UserRepositoryImpl(session)
-                tournament_stage_repository = TournamentStageRepositoryImpl(session)
-                tournament_player_repo = TournamentPlayersRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            tournament = await uow.tournament_repo.find_by_id_for_update(tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
-                if not tournament:
-                    raise ValueError("Tournoi introuvable")
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            tournament.ensure_startable(user.id)
 
-                if tournament.user.id != user.id:
-                    raise ValueError("Seul le créateur du tournoi peut le démarrer")
-
-                if tournament.current_players < tournament.min_players:
-                    raise ValueError(f"Minimum {tournament.min_players} players requis pour démarrer le tournoi")
-
-                if tournament.status != TournamentStatus.PENDING:
-                    raise ValueError("Le tournoi a déjà commencé ou est terminé")
-
-                # Définir les dates du tournoi
-                now = datetime.utcnow()
-                now_timestamp = int(now.timestamp() * 1000)
-                tournament.start_date = now_timestamp
-                tournament.end_date = int((now + timedelta(days=7)).timestamp() * 1000)
-                tournament.status = TournamentStatus.IN_PROGRESS
-
-                # Créer les étapes du tournoi
-                stages = []
-
-                # 8èmes de finales
-                round_of_8_stage = TournamentStage(
-                    user_id=user.id,
-                    tournament_id=tournament.id,
-                    type=StageType.EIGHTH_FINAL,
-                    start_date=now_timestamp,
-                    end_date=int((now + timedelta(days=2)).timestamp() * 1000),
-                    is_active=True
-                )
-                stages.append(round_of_8_stage)
-                start_date_next = now + timedelta(days=2)
-                start_date_next_timestamp = int(start_date_next.timestamp() * 1000)
-
-                # Quarts de finale
-                quarter_final_stage = TournamentStage(
-                    user_id=user.id,
-                    tournament_id=tournament.id,
-                    type=StageType.QUARTER_FINAL,
-                    start_date=start_date_next_timestamp,
-                    end_date=int((start_date_next + timedelta(days=2)).timestamp() * 1000),
-                    is_active=False
-                )
-                stages.append(quarter_final_stage)
-
-                # Demi-finales
-                semi_final_stage = TournamentStage(
-                    user_id=user.id,
-                    tournament_id=tournament.id,
-                    type=StageType.SEMI_FINAL,
-                    start_date=int((start_date_next + timedelta(days=2)).timestamp() * 1000),
-                    end_date=int((start_date_next + timedelta(days=4)).timestamp() * 1000),
-                    is_active=False
-                )
-                stages.append(semi_final_stage)
-
-                # Finale
-                final_stage = TournamentStage(
-                    user_id=user.id,
-                    tournament_id=tournament.id,
-                    type=StageType.FINAL,
-                    start_date=int((start_date_next + timedelta(days=4)).timestamp() * 1000),
-                    end_date=int((start_date_next + timedelta(days=5)).timestamp() * 1000),
-                    is_active=False
-                )
-                stages.append(final_stage)
-
-                # Sauvegarder les étapes
-                for stage in stages:
-                    await tournament_stage_repository.add_stage(stage)
-
-                await tournament_repo.update(tournament)
-
-                # Générer les matchs pour la première étape active
-                await self._generate_matches_for_active_stage(tournament.id, session)
-
-                return TournamentStartResponse()
-
-    async def _generate_matches_for_active_stage(self, tournament_id: int, session: AsyncSession):
-
-        # Instancier les repositories avec la session
-        stage_repository = TournamentStageRepositoryImpl(session)
-        player_repository = TournamentPlayersRepositoryImpl(session)
-        match_repository = TournamentMatchRepositoryImpl(session)
-
-        # Récupérer l'étape active
-        active_stage = await stage_repository.get_active_stage(tournament_id)
-        if not active_stage:
-            return
-
-        if active_stage.type == StageType.EIGHTH_FINAL:
-            # Tous les joueurs non éliminés participent
-            players = await player_repository.get_non_eliminated_players(tournament_id)
-        else:
-            # Seuls les joueurs de l'étape courante non éliminés participent
-            players = await player_repository.find_players_by_stage(
-                tournament_id,
-                active_stage.type
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            stages = self._progression_service.build_stages_for_tournament(
+                tournament=tournament,
+                owner_user_id=user.id,
+                start_ms=now_ms,
             )
+            tournament.start(at_ms=now_ms, end_date_ms=stages[-1].end_date)
 
-        if len(players) < 2:
-            return
+            players = await uow.tournament_players_repo.find_players_by_tournament_id(tournament.id)
+            if len(players) != tournament.max_players:
+                raise TournamentNotEnoughPlayersError
 
-        # Mélanger les joueurs pour des matchs aléatoires
-        import random
-        random.shuffle(players)
-        matches = []
+            for stage in stages:
+                await uow.tournament_stage_repo.add_stage(stage)
 
-        # Créer les matchs
-        for i in range(0, len(players), 2):
-            if i + 1 < len(players):
-                match = TournamentMatch(
-                    tournament_id=tournament_id,
-                    stage_id=active_stage.id,
-                    player1_id=players[i].id,
-                    player2_id=players[i + 1].id,
-                    type=active_stage.type,
-                )
-                matches.append(match)
+            active_stage = stages[0]
+            promoted_players = self._progression_service.promote_players_to_stage(
+                players,
+                stage_type=active_stage.type,
+            )
+            for player in promoted_players:
+                await uow.tournament_players_repo.update(player)
 
-        for match in matches:
-            await match_repository.add_match(match)
+            await uow.tournament_repo.update(tournament)
+            persisted_active_stage = await uow.tournament_stage_repo.get_active_stage(tournament.id)
+            if persisted_active_stage is None:
+                raise TournamentNotFoundError
+            matches = self._progression_service.build_matches_for_stage(
+                tournament_id=tournament.id,
+                stage=persisted_active_stage,
+                qualified_players=promoted_players,
+            )
+            for match in matches:
+                await uow.tournament_match_repo.add_match(match)
+
+            await uow.commit()
+
+        return TournamentStartResponse()
 
 
     async def update_tournament_btl_scores(self, ticket_id: int):
-            async with self._session_factory() as session:
-                async with session.begin():
-                    ticket_repo = TicketRepositoryImpl(session)
-                    tournament_repo = TournamentRepositoryImpl(session)
-                    tournament_player_repo = TournamentPlayersRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            ticket = await uow.ticket_repo.find_by_id(ticket_id)
+            if not ticket or ticket.status != TicketStatus.correct:
+                return
 
-                    ticket = await ticket_repo.find_by_id(ticket_id)
-                    if not ticket or ticket.status != TicketStatus.correct:
-                        return
+            active_tournaments = await uow.tournament_repo.find_in_progress_for_user(ticket.user_id)
+            for tournament in active_tournaments:
+                active_stage = await uow.tournament_stage_repo.get_active_stage(tournament.id)
+                if active_stage is None:
+                    continue
 
-                    active_tournaments = await tournament_repo.find_all_active_by_participant(ticket.user_id)
+                players = await uow.tournament_players_repo.find_players_by_tournament_id(tournament.id)
+                player = next(
+                    (
+                        participant for participant in players
+                        if participant.user_id == ticket.user_id
+                        and not participant.is_eliminated
+                        and participant.current_stage == active_stage.type
+                    ),
+                    None,
+                )
+                if player is None:
+                    continue
 
-                    for tournament in active_tournaments:
-                        # Trouver le player
-                        player = next((p for p in tournament.players if p.user_id == ticket.user_id and not p.is_eliminated), None)
-                        if player:
-                            # Trouver l'étape active
-                            active_stage = next((s for s in tournament.stages if s.is_active), None)
-                            if active_stage and player.current_stage == active_stage.type:
-                                # Calculer les BTL gagnés (1 BTL par euro gagné)
-                                btl_gained = int(ticket.gain)
+                player.nb_btl += int(ticket.gain or 0)
+                await uow.tournament_players_repo.update(player)
 
-                                # Mise à jour du score BTL
-                                player.btl_score += btl_gained
-
-                                # Sauvegarder
-                                await tournament_player_repo.update_participant(player)
+            await uow.commit()
 
 
     async def update(
@@ -395,70 +317,61 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 tournament_id: int,
                 email: str
         ) -> TournamentUpdateResponse:
-            async with self._session_factory() as session:
-                async with session.begin():
+            async with self._uow_factory() as uow:
+                user = await uow.user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
 
-                    user_repo = UserRepositoryImpl(session)
-                    tournament_repo = TournamentRepositoryImpl(session)
+                tournament = await uow.tournament_repo.find_by_id_for_update(tournament_id)
+                if not tournament:
+                    raise TournamentNotFoundError
 
-                    user = await user_repo.find_by_email(email)
-                    if not user:
-                        raise UserNotFoundError
+                if tournament.user.id != user.id:
+                    raise TournamentNotOwnerLeaguedError
 
-                    tournament = await tournament_repo.find_by_id(tournament_id)
-                    if not tournament:
-                        raise TournamentNotFoundError
+                if data.name != tournament.name and await uow.tournament_repo.find_by_name(data.name):
+                    raise TournamentNameAlreadyExistsError
 
-                    if tournament.user.id != user.id:
-                        raise TournamentNotOwnerLeaguedError
+                if tournament.status != TournamentStatus.PENDING:
+                    raise TournamentAlreadyStartedError
 
-                    if data.name != tournament.name and await tournament_repo.find_by_name(data.name):
-                        raise TournamentNameAlreadyExistsError
-
-                    if tournament.status.value != TournamentStatus.PENDING.value:
-                        raise TournamentAlreadyStartedError
-
-                    tournament.name       = data.name
+                if data.name is not None:
+                    tournament.name = data.name
+                if data.start_date is not None:
                     tournament.start_date = data.start_date
+                if data.is_private is not None:
                     tournament.is_private = data.is_private
+                if data.end_date is not None:
                     tournament.end_date = data.end_date
 
-                    await tournament_repo.update(tournament)
+                await uow.tournament_repo.update(tournament)
+                await uow.commit()
 
-            return TournamentUpdateResponse()
+                return TournamentUpdateResponse()
 
     async def leave_tournament(
             self,
             tournament_id: int,
             user_id: int
     ) -> TournamentPlayerDeletedResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                tournament_repo = TournamentRepositoryImpl(session)
-                players_repo = TournamentPlayersRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            tournament = await uow.tournament_repo.find_by_id_for_update(tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
-                if not tournament:
-                    raise TournamentNotFoundError
+            tournament_player = await uow.tournament_players_repo.get_player(
+                tournament_id=tournament.id,
+                user_id=user_id,
+            )
+            if not tournament_player:
+                raise TournamentPlayerNotFoundError
+            if tournament_player.user_id != user_id:
+                raise TournamentNotThePlayerError
 
-                if tournament.status != TournamentStatus.PENDING:
-                    raise TournamentAlreadyStartedError
-
-                tournament_player = await players_repo.get_player(
-                    tournament_id=tournament.id,
-                    user_id=user_id
-                )
-
-                if not tournament_player:
-                    raise TournamentPlayerNotFoundError
-
-                if tournament_player.user_id != user_id:
-                    raise TournamentNotThePlayerError
-
-                tournament.current_players -= 1
-
-                await players_repo.unregister_tournament(tournament_player.id)
-                await tournament_repo.update(tournament)
+            tournament.unregister_player()
+            await uow.tournament_players_repo.unregister_tournament(tournament_player.id)
+            await uow.tournament_repo.update(tournament)
+            await uow.commit()
 
         return TournamentPlayerDeletedResponse()
 
@@ -468,51 +381,42 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             user_id: int,
             user_owner_email: str
     ) -> TournamentInviteResponse:
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo        = UserRepositoryImpl(session)
-                tournament_repo      = TournamentRepositoryImpl(session)
-                players_repo     = TournamentPlayersRepositoryImpl(session)
-                invitation_repo  = InvitationRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user_owner = await uow.user_repo.find_by_email(user_owner_email)
+            if not user_owner:
+                raise UserNotFoundError
 
-                user_owner = await user_repo.find_by_email(user_owner_email)
-                if not user_owner:
-                    raise UserNotFoundError
+            if int(user_id) == int(user_owner.id):
+                raise TournamentSelfInvitationError
 
-                if int(user_id) == int(user_owner.id):
-                    raise TournamentSelfInvitationError
+            user = await uow.user_repo.find_by_id(user_id)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_id(user_id)
-                if not user:
-                    raise UserNotFoundError
+            tournament = await uow.tournament_repo.find_by_id_for_update(tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                tournament = await tournament_repo.find_by_id(tournament_id)
-                if not tournament:
-                    raise TournamentNotFoundError
+            if user_owner.id != tournament.user.id:
+                raise TournamentNotOwnerLeaguedError
 
-                if user_owner.id != tournament.user.id:
-                    raise TournamentNotOwnerLeaguedError
+            tournament.ensure_joinable()
 
-                if tournament.status != TournamentStatus.PENDING:
-                    raise TournamentAlreadyStartedError
+            if await uow.tournament_players_repo.get_player(tournament_id, user.id):
+                raise TournamentPlayerFoundError
 
-                if await players_repo.get_player(tournament_id, user.id):
-                    raise TournamentPlayerFoundError
+            if await uow.invitation_repo.find_by_user_id_tournament_id(user.id, tournament.id):
+                raise InvitationFoundError
 
-                if await invitation_repo.find_by_user_id_tournament_id(user.id, tournament.id):
-                    raise InvitationFoundError
-
-                if tournament.current_players == tournament.max_players:
-                    raise TournamentMaxPlayersError
-
-                invitation = Invitation(
-                    league_id=None,
-                    tournament_id=tournament.id,
-                    user_sender_id=user_owner.id,
-                    user_id=user.id,
-                    status=InvitationStatus.pending
-                )
-                await invitation_repo.add(invitation)
+            invitation = Invitation(
+                league_id=None,
+                tournament_id=tournament.id,
+                user_sender_id=user_owner.id,
+                user_id=user.id,
+                status=InvitationStatus.pending,
+            )
+            await uow.invitation_repo.add(invitation)
+            await uow.commit()
 
         return TournamentInviteResponse()
 
@@ -525,56 +429,44 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         tournament_full = False
         owner_email = None
 
-        async with self._session_factory() as session:
-            async with session.begin():
-                user_repo = UserRepositoryImpl(session)
-                tournament_repo = TournamentRepositoryImpl(session)
-                players_repo = TournamentPlayersRepositoryImpl(session)
-                invitation_repo = InvitationRepositoryImpl(session)
+        async with self._uow_factory() as uow:
+            user = await uow.user_repo.find_by_email(email)
+            if not user:
+                raise UserNotFoundError
 
-                user = await user_repo.find_by_email(email)
-                if not user:
-                    raise UserNotFoundError
+            invitation = await uow.invitation_repo.find_by_id(invitation_id)
+            if not invitation or invitation.tournament_id is None:
+                raise InvitationNotFoundError
 
-                invitation = await invitation_repo.find_by_id(invitation_id)
-                if not invitation:
-                    raise InvitationNotFoundError
+            if user.id != invitation.user_id:
+                raise UserNotInvitationTournamentError
 
-                if invitation.tournament_id is None:
-                    raise InvitationNotFoundError
+            tournament = await uow.tournament_repo.find_by_id_for_update(invitation.tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
 
-                if user.id != invitation.user_id:
-                    raise UserNotInvitationTournamentError
+            if tournament.status != TournamentStatus.PENDING:
+                raise TournamentAlreadyStartedError
 
-                tournament = await tournament_repo.find_by_id(invitation.tournament_id)
-                if not tournament:
-                    raise TournamentNotFoundError
-
-                if tournament.status != TournamentStatus.PENDING:
-                    raise TournamentAlreadyStartedError
-
-                if action:
-                    existing_player = await players_repo.get_player(tournament.id, user.id)
-                    if existing_player is None:
-                        if tournament.current_players >= tournament.max_players:
-                            raise TournamentMaxPlayersError
-
-                        player = TournamentPlayer(
+            if action:
+                existing_player = await uow.tournament_players_repo.get_player(tournament.id, user.id)
+                if existing_player is None:
+                    tournament.ensure_joinable()
+                    await uow.tournament_players_repo.add_player(
+                        self._build_player(
                             user_id=user.id,
                             tournament_id=tournament.id,
-                            nb_btl=100,
-                            is_eliminated=False,
+                            max_players=tournament.max_players,
                         )
-                        await players_repo.add_player(player)
+                    )
+                    tournament.register_player()
+                    await uow.tournament_repo.update(tournament)
 
-                        tournament.current_players += 1
-                        tournament.prize_pool += tournament.entry_fee
-                        await tournament_repo.update(tournament)
+                owner_email = tournament.user.email.value
+                tournament_full = tournament.is_full
 
-                    owner_email = tournament.user.email.value
-                    tournament_full = tournament.current_players >= tournament.max_players
-
-                await invitation_repo.delete(invitation.id)
+            await uow.invitation_repo.delete(invitation.id)
+            await uow.commit()
 
         if action and tournament_full and owner_email:
             await self.start_tournament(invitation.tournament_id, owner_email)
@@ -584,16 +476,13 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
         )
 
     async def delete_invitation(self, invitation_id: int, owner_user_id: int):
-        async with self._session_factory() as session:
-             async with session.begin():
-                 invitation_repo  = InvitationRepositoryImpl(session)
-
-                 deleted = await invitation_repo.delete_tournament_invitation_if_owner(
-                     invitation_id=invitation_id,
-                     owner_user_id=int(owner_user_id),
-                 )
-
-                 if not deleted:
-                     raise InvitationNotFoundError
+        async with self._uow_factory() as uow:
+            deleted = await uow.invitation_repo.delete_tournament_invitation_if_owner(
+                invitation_id=invitation_id,
+                owner_user_id=int(owner_user_id),
+            )
+            if not deleted:
+                raise InvitationNotFoundError
+            await uow.commit()
 
         return InvitationDeleteResponse()

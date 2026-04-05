@@ -14,10 +14,9 @@ import type {
   StageMatchesResponse,
   TournamentsFinishedResponse,
   TournamentMatchOption,
-  TournamentStage,
-  StageMatch,
   TournamentCreationAccess,
   TournamentInvitationsResponse,
+  TournamentMatchOptionsResponse,
 } from '../../types/api/tournament';
 
 export class TournamentCreationError extends Error {
@@ -106,7 +105,7 @@ export async function createTournament(data: TournamentCreateRequest): Promise<T
   const payload: TournamentCreateRequest = {
     name: String(data.name ?? '').trim(),
     is_private: Boolean(data.is_private),
-    max_players: 16,
+    max_players: Number(data.max_players),
     ...(typeof data.start_date === 'number' ? { start_date: data.start_date } : {}),
   };
 
@@ -210,53 +209,9 @@ export async function getFinishedTournaments(page = 1, pageSize = 10): Promise<T
   return response.data as TournamentsFinishedResponse;
 }
 
-function getStageLabelFromType(type: string): string {
-  const labels: Record<string, string> = {
-    final: 'Finale',
-    semi_final: 'Demi-finale',
-    quarter_final: 'Quart de finale',
-    eighth_final: 'Huitième de finale',
-    round_16: '1/16ème',
-    group: 'Groupes',
-    qualifying: 'Qualifications',
-  };
-  return labels[type] || type;
-}
-
-// Note: cette méthode est pratique côté UI mais peut être optimisée (batching + RQ).
 export async function getUserTournamentMatches(): Promise<TournamentMatchOption[]> {
-  const myTournamentsResponse = await getMyTournaments(1, 100);
-  const tournaments = myTournamentsResponse.tournaments;
-
-  if (!tournaments || tournaments.length === 0) return [];
-
-  const allMatches: TournamentMatchOption[] = [];
-
-  for (const tournament of tournaments) {
-    const stagesResponse = await getTournamentStages(tournament.id);
-    const stages: TournamentStage[] = stagesResponse.stages || [];
-
-    for (const stage of stages) {
-      const matchesResponse = await getStageMatches(tournament.id, stage.type);
-      const matches: StageMatch[] = matchesResponse.matches || [];
-
-      const matchOptions: TournamentMatchOption[] = matches.map(match => ({
-        id: match.id,
-        tournament_id: tournament.id,
-        tournament_name: tournament.name,
-        stage_label: getStageLabelFromType(stage.type),
-        player1_name: match.player1_summary.pseudo,
-        player2_name: match.player2_summary.pseudo,
-        start_date: match.start_date,
-        end_date: match.end_date,
-        display_label: `${tournament.name} - ${getStageLabelFromType(stage.type)} - ${match.player1_summary.pseudo} vs ${match.player2_summary.pseudo}`
-      }));
-
-      allMatches.push(...matchOptions);
-    }
-  }
-
-  return allMatches.sort((a, b) => a.start_date - b.start_date);
+  const response: ApiResponse<TournamentMatchOptionsResponse> = await http.get('/tournaments/my/match-options');
+  return (response.data?.matches ?? []).sort((a, b) => a.start_date - b.start_date);
 }
 
 /** Legacy helper: en attendant un vrai endpoint back, on renvoie un placeholder. */
