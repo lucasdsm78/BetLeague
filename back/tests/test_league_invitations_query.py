@@ -27,7 +27,7 @@ class FakeInvitationRepository:
                 id=5,
                 status='PENDING',
                 created_at=1710000000000,
-                user=SimpleNamespace(id=7, pseudo='emma', email=Email('emma@example.com')),
+                user=SimpleNamespace(id=7, pseudo='emma', email='emma@example.com'),
             )
         ]
 
@@ -46,6 +46,7 @@ async def test_get_league_invitations_returns_owner_sent_invitations():
     assert result.league_id == 12
     assert len(result.invitations) == 1
     assert result.invitations[0].user.pseudo == 'emma'
+    assert result.invitations[0].user.email == 'emma@example.com'
     assert result.invitations[0].status == 'PENDING'
 
 

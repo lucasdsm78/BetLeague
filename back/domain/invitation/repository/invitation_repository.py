@@ -54,6 +54,24 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+            page: int = 1,
+            page_size: int = 20,
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_invitations(
             self,
             user_id: int,
@@ -68,9 +86,6 @@ class InvitationRepository(ABC):
     async def count_by_status(self, user_id: int, is_received: bool) -> Dict[str, int]:
         raise NotImplementedError
 
-    @abstractmethod
-    async def delete_tournament_invitation_if_owner(self, *, invitation_id: int, owner_user_id: int) -> bool:
-        raise NotImplementedError
 
     @abstractmethod
     async def begin(self):

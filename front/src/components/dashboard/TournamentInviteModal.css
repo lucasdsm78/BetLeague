@@ -194,6 +194,28 @@
   background: var(--bg-elevated);
 }
 
+.tournament-invitations-error-state {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.tournament-invitations-retry {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.tournament-invitations-retry:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
+}
+
 .tournament-invitations-spinner {
   width: 1.4rem;
   height: 1.4rem;

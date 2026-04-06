@@ -17,7 +17,11 @@ from application.tournament.tournament_command_model import (
     TournamentUpdateModel,
     TournamentUpdateResponse,
 )
-from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
+from domain.invitation.exception.invitation_exception import (
+    InvitationDeletionNotAllowedError,
+    InvitationFoundError,
+    InvitationNotFoundError,
+)
 from domain.invitation.model.invitation import Invitation
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.ticket.model.ticket_status import TicketStatus
@@ -70,7 +74,7 @@ class TournamentCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
+    async def delete_invitation(self, invitation_id: int, owner_email: str):
         raise NotImplementedError
 
     @abstractmethod
@@ -475,14 +479,30 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             message="Tournament invitation accepted successfully" if action else "Tournament invitation declined successfully"
         )
 
-    async def delete_invitation(self, invitation_id: int, owner_user_id: int):
+    async def delete_invitation(self, invitation_id: int, owner_email: str):
         async with self._uow_factory() as uow:
-            deleted = await uow.invitation_repo.delete_tournament_invitation_if_owner(
-                invitation_id=invitation_id,
-                owner_user_id=int(owner_user_id),
-            )
-            if not deleted:
+            owner = await uow.user_repo.find_by_email(owner_email)
+            if not owner:
+                raise UserNotFoundError
+
+            invitation = await uow.invitation_repo.find_by_id(invitation_id)
+            if not invitation or invitation.tournament_id is None:
                 raise InvitationNotFoundError
+
+            if invitation.status != InvitationStatus.pending:
+                raise InvitationDeletionNotAllowedError
+
+            tournament = await uow.tournament_repo.find_by_id_for_update(invitation.tournament_id)
+            if not tournament:
+                raise TournamentNotFoundError
+
+            if tournament.user.id != owner.id or invitation.user_sender_id != owner.id:
+                raise TournamentNotOwnerLeaguedError
+
+            if tournament.status != TournamentStatus.PENDING:
+                raise TournamentAlreadyStartedError
+
+            await uow.invitation_repo.delete(invitation.id)
             await uow.commit()
 
         return InvitationDeleteResponse()

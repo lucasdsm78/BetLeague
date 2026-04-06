@@ -1,10 +1,8 @@
-from dataclasses import dataclass
 from enum import Enum
 
 from domain.tournament.exception.tournament_exception import InvalidTournamentStatusException
 
 
-@dataclass(init=False, eq=True, frozen=True)
 class TournamentStatus(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
