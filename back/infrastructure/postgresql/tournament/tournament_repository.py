@@ -285,8 +285,9 @@ class TournamentRepositoryImpl(TournamentRepository):
 
     async def find_due_tournament_ids(self, as_of: datetime) -> List[int]:
         as_of_ms = int(as_of.timestamp() * 1000)
+        due_end_date = func.min(DBTournamentStage.end_date).label("due_end_date")
         result = await self.session.execute(
-            select(DBTournament.id, func.min(DBTournamentStage.end_date).label("due_end_date"))
+            select(DBTournament.id, due_end_date)
             .join(DBTournamentStage, DBTournamentStage.tournament_id == DBTournament.id)
             .where(
                 DBTournament.status == TournamentStatus.IN_PROGRESS.value,
@@ -296,7 +297,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournamentStage.end_date <= as_of_ms,
             )
             .group_by(DBTournament.id)
-            .order_by(func.min(DBTournamentStage.end_date).asc(), DBTournament.id.asc())
+            .order_by(due_end_date.asc(), DBTournament.id.asc())
         )
         return [int(row[0]) for row in result.all()]
 
