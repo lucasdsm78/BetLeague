@@ -32,7 +32,8 @@ from domain.services.stripe.stripe_service import StripeService
 from domain.tournament.exception.tournament_exception import TournamentAlreadyStartedError, TournamentNotFoundError, \
     TournamentNameAlreadyExistsError, TournamentNotOwnerLeaguedError, TournamentPlayerFoundError, \
     TournamentMonthlyFreeCreationLimitReachedError, TournamentMaxPlayersError, TournamentSelfInvitationError, \
-    UserNotInvitationTournamentError, TournamentNotEnoughPlayersError, TournamentFullError, UserAlreadyInTournamentError
+    UserNotInvitationTournamentError, TournamentNotEnoughPlayersError, TournamentFullError, UserAlreadyInTournamentError, \
+    TournamentOwnerCannotLeaveError, TournamentPlayerNotFoundError, TournamentNotThePlayerError
 from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
@@ -543,9 +544,21 @@ async def leave_tournament(
             detail=e.message,
         )
 
+    except TournamentPlayerNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except (TournamentOwnerCannotLeaveError, TournamentNotThePlayerError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message,
+        )
+
     except TournamentAlreadyStartedError as e:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_409_CONFLICT,
             detail=e.message,
         )
 

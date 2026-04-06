@@ -5,6 +5,7 @@ from domain.tournament.exception.tournament_exception import (
     TournamentMaxPlayersError,
     TournamentNotEnoughPlayersError,
     TournamentNotOwnerLeaguedError,
+    TournamentOwnerCannotLeaveError,
 )
 from domain.tournament.model.tournament_status import TournamentStatus
 
@@ -79,6 +80,12 @@ class Tournament:
             raise TournamentAlreadyStartedError
         self.current_players = max(0, int(self.current_players) - 1)
         self.prize_pool = max(0.0, float(self.prize_pool or 0.0) - float(self.entry_fee or 0.0))
+
+    def ensure_player_can_leave(self, player_user_id: int) -> None:
+        if self.status != TournamentStatus.PENDING:
+            raise TournamentAlreadyStartedError
+        if self.user.id == player_user_id:
+            raise TournamentOwnerCannotLeaveError
 
     def ensure_startable(self, owner_user_id: int) -> None:
         if self.user.id != owner_user_id:

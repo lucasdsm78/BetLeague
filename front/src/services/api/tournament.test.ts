@@ -1,12 +1,13 @@
 import http from '../http';
 import { ApiClientError } from '../secureApiClient';
-import { createTournament, getTournamentCreationAccess, getUserTournamentMatches, TournamentCreationError } from './tournament';
+import { createTournament, getTournamentCreationAccess, getUserTournamentMatches, leaveTournament, TournamentCreationError } from './tournament';
 
 jest.mock('../http', () => ({
   __esModule: true,
   default: {
     post: jest.fn(),
     get: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -119,6 +120,32 @@ describe('tournament api service', () => {
     ]);
 
     expect(http.get).toHaveBeenCalledWith('/tournaments/my/match-options');
+  });
+
+  it('mappe une tentative de départ interdite vers le message backend', async () => {
+    (http.delete as jest.Mock).mockRejectedValueOnce(
+      new ApiClientError('forbidden', {
+        status: 403,
+        details: {
+          detail: 'Le créateur du tournoi ne peut pas quitter son propre tournoi',
+        },
+      })
+    );
+
+    await expect(leaveTournament(12)).rejects.toThrow('Le créateur du tournoi ne peut pas quitter son propre tournoi');
+  });
+
+  it('mappe un tournoi déjà démarré vers le message backend', async () => {
+    (http.delete as jest.Mock).mockRejectedValueOnce(
+      new ApiClientError('conflict', {
+        status: 409,
+        details: {
+          detail: 'Le tournoi a déjà commencé',
+        },
+      })
+    );
+
+    await expect(leaveTournament(12)).rejects.toThrow('Le tournoi a déjà commencé');
   });
 });
 

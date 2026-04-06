@@ -3,7 +3,7 @@
  * Pure UI component: mutation is handled by the parent
  */
 
-import React, { useEffect, useCallback, memo } from 'react';
+import React, { useEffect, useCallback, memo, useId, useRef } from 'react';
 import type { MyTournament } from '../../types/api/tournament';
 import './LeaveTournamentModal.css';
 
@@ -22,6 +22,11 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
   onClose,
   onConfirm,
 }) => {
+  const titleId = useId();
+  const descriptionId = useId();
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+
   // Disable body scroll when modal is open
   useEffect(() => {
     if (tournament) {
@@ -31,6 +36,20 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
     }
     return () => {
       document.body.style.overflow = '';
+    };
+  }, [tournament]);
+
+  useEffect(() => {
+    if (!tournament) return;
+
+    previousActiveElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const rafId = window.requestAnimationFrame(() => {
+      cancelButtonRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      previousActiveElementRef.current?.focus?.();
     };
   }, [tournament]);
 
@@ -46,8 +65,8 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
     return () => document.removeEventListener('keydown', handleEsc);
   }, [tournament, isLeaving, onClose]);
 
-  const handleOverlayClick = useCallback(() => {
-    if (!isLeaving) onClose();
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isLeaving) onClose();
   }, [isLeaving, onClose]);
 
   const handleContentClick = useCallback((e: React.MouseEvent) => {
@@ -58,12 +77,19 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
 
   return (
     <div className="leave-tournament-overlay" onClick={handleOverlayClick}>
-      <div className="leave-tournament-content" onClick={handleContentClick}>
+      <div
+        className="leave-tournament-content"
+        onClick={handleContentClick}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+      >
         {/* Header */}
         <div className="leave-tournament-header">
           <div className="leave-tournament-title-section">
             <span className="leave-tournament-warning-icon">⚠️</span>
-            <h2 className="leave-tournament-title">Quitter le tournoi</h2>
+            <h2 className="leave-tournament-title" id={titleId}>Quitter le tournoi</h2>
           </div>
           <button
             className="leave-tournament-close-btn"
@@ -77,7 +103,7 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
 
         {/* Body */}
         <div className="leave-tournament-body">
-          <p className="leave-tournament-message">
+          <p className="leave-tournament-message" id={descriptionId}>
             Êtes-vous sûr de vouloir quitter le tournoi{' '}
             <strong>{tournament.name}</strong> ?
           </p>
@@ -100,6 +126,7 @@ const LeaveTournamentModal: React.FC<LeaveTournamentModalProps> = memo(({
             className="leave-tournament-btn leave-tournament-btn-cancel"
             onClick={onClose}
             disabled={isLeaving}
+            ref={cancelButtonRef}
           >
             Annuler
           </button>

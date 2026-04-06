@@ -3,7 +3,7 @@
  * Shows all tournaments the user is currently participating in
  */
 
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useEffect } from 'react';
 import { useMyTournamentsQuery, useLeaveTournamentMutation } from '../../hooks/queries/useTournamentQueries';
 import type { MyTournament } from '../../types/api/tournament';
 import TournamentStages from './TournamentStages';
@@ -17,7 +17,7 @@ const MyTournaments: React.FC = memo(() => {
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
   const [tournamentToLeave, setTournamentToLeave] = useState<MyTournament | null>(null);
   const [leaveError, setLeaveError] = useState('');
-  const { showError, showSuccess } = useGlobalToast();
+  const { showSuccess } = useGlobalToast();
 
   const myQuery = useMyTournamentsQuery(page, pageSize);
   const tournaments = myQuery.data?.tournaments ?? [];
@@ -71,6 +71,12 @@ const MyTournaments: React.FC = memo(() => {
   }, [tournamentToLeave, leaveMutation, showSuccess]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  useEffect(() => {
+    if (!isLoading && !error && page > 1 && totalCount > 0 && tournaments.length === 0) {
+      setPage(prev => Math.max(1, prev - 1));
+    }
+  }, [error, isLoading, page, totalCount, tournaments.length]);
 
   return (
     <div className="my-tournaments">
@@ -144,6 +150,8 @@ const MyTournaments: React.FC = memo(() => {
                       <button
                         className="btn-view-stages"
                         onClick={() => handleViewStages(tournament.id)}
+                        aria-expanded={selectedTournamentId === tournament.id}
+                        aria-controls={`tournament-stages-${tournament.id}`}
                       >
                         <span className="btn-icon">
                           {selectedTournamentId === tournament.id ? '▼' : '▶'}
@@ -153,6 +161,7 @@ const MyTournaments: React.FC = memo(() => {
                       <button
                         className="btn-leave-tournament"
                         onClick={() => handleOpenLeaveModal(tournament)}
+                        aria-label={`Quitter le tournoi ${tournament.name}`}
                       >
                         <span className="btn-icon">🚪</span>
                         Quitter
@@ -191,7 +200,7 @@ const MyTournaments: React.FC = memo(() => {
 
                   {/* Stages Section (Expandable) */}
                   {selectedTournamentId === tournament.id && (
-                    <div className="my-tournament-stages-container">
+                    <div className="my-tournament-stages-container" id={`tournament-stages-${tournament.id}`}>
                       <TournamentStages
                         tournamentId={tournament.id}
                         tournamentName={tournament.name}
