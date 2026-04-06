@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
     LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse, \
-    TournamentInvitationReceivedSummary, LeagueInvitationsSentResponse, LeagueInvitationSentReadModel
+    TournamentInvitationReceivedSummary, LeagueInvitationsSentResponse, LeagueInvitationSentReadModel, \
+    InvitationsSentResponse, InvitationSentReadModel
 from application.user.user_query_model import UserSummaryReadModel
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.invitation.repository.invitation_repository import InvitationRepository
@@ -58,6 +59,16 @@ class LeagueQueryUseCase(ABC):
     async def get_league_invitations(self, league_id: int, email: str) -> LeagueInvitationsSentResponse:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_sent_invitations(
+            self,
+            email: str,
+            status: InvitationStatus | None = None,
+            page: int = 1,
+            page_size: int = 20,
+    ) -> InvitationsSentResponse:
+        raise NotImplementedError
+
 
 class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     league_players_repository: LeaguePlayersRepository
@@ -67,6 +78,10 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+    @staticmethod
+    def _extract_email_value(raw_email) -> str:
+        return raw_email.value if hasattr(raw_email, 'value') else str(raw_email)
 
     async def get_rank_by_league_id(
             self,
@@ -360,10 +375,100 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                     created_at=invitation.created_at,
                     user=UserSummaryReadModel(
                         id=invitation.user.id,
-                        email=invitation.user.email.value,
+                        email=self._extract_email_value(invitation.user.email),
                         pseudo=invitation.user.pseudo,
                     ),
                 )
                 for invitation in invitations
             ],
         )
+
+    async def get_sent_invitations(
+            self,
+            email: str,
+            status: InvitationStatus | None = None,
+            page: int = 1,
+            page_size: int = 20,
+    ) -> InvitationsSentResponse:
+        user = await self.user_repository.find_by_email(email)
+        if not user:
+            raise UserNotFoundError
+
+        total = await self.invitation_repository.count_sent_invitations(
+            user_id=user.id,
+            status=status,
+        )
+
+        db_invitations = await self.invitation_repository.find_sent_invitations(
+            user_id=user.id,
+            status=status,
+            page=page,
+            page_size=page_size,
+        )
+
+        result = InvitationsSentResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+        if not db_invitations:
+            return result
+
+        for db_inv in db_invitations:
+            common_payload = {
+                'id': db_inv.id,
+                'status': db_inv.status,
+                'created_at': db_inv.created_at,
+                'user': UserSummaryReadModel(
+                    id=db_inv.user.id,
+                    email=self._extract_email_value(db_inv.user.email),
+                    pseudo=db_inv.user.pseudo,
+                ),
+            }
+
+            if db_inv.league_id and db_inv.league is not None:
+                league = db_inv.league
+                result.invitations.append(InvitationSentReadModel(
+                    type='league',
+                    league=LeagueInvitationReceivedSummary(
+                        id=league.id,
+                        name=league.name,
+                        max_players=league.max_players,
+                        start_date=league.start_date,
+                        nb_players_remaining=league.nb_players_remaining,
+                        is_started=league.is_started,
+                        user_creator=UserSummaryLeagueDetail(
+                            id=user.id,
+                            pseudo=user.pseudo,
+                        ),
+                    ),
+                    tournament=None,
+                    **common_payload,
+                ))
+                continue
+
+            if db_inv.tournament_id and db_inv.tournament is not None:
+                tournament = db_inv.tournament
+                result.invitations.append(InvitationSentReadModel(
+                    type='tournament',
+                    league=None,
+                    tournament=TournamentInvitationReceivedSummary(
+                        id=tournament.id,
+                        name=tournament.name,
+                        max_players=tournament.max_players,
+                        current_players=tournament.current_players,
+                        start_date=tournament.start_date,
+                        end_date=tournament.end_date,
+                        is_private=tournament.is_private,
+                        status=tournament.status,
+                        user_creator=UserSummaryLeagueDetail(
+                            id=user.id,
+                            pseudo=user.pseudo,
+                        ),
+                    ),
+                    **common_payload,
+                ))
+
+        return result
+

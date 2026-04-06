@@ -4,22 +4,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import InviteUserModal from './InviteUserModal';
 
 const mockInviteUserToLeague = jest.fn();
-const mockDeleteLeagueInvitation = jest.fn();
-const mockUseLeagueSentInvitationsQuery = jest.fn();
-const mockInvalidateLeagueSent = jest.fn();
-const mockRefetch = jest.fn();
+const mockInvalidateAll = jest.fn();
 
 jest.mock('../../services/api/leagues', () => ({
   inviteUserToLeague: (...args: unknown[]) => mockInviteUserToLeague(...args),
 }));
 
-jest.mock('../../services/api/invitations', () => ({
-  deleteLeagueInvitation: (...args: unknown[]) => mockDeleteLeagueInvitation(...args),
-}));
-
 jest.mock('../../hooks/queries/useInvitationsQueries', () => ({
-  useLeagueSentInvitationsQuery: (...args: unknown[]) => mockUseLeagueSentInvitationsQuery(...args),
-  useInvalidateInvitations: () => ({ invalidateLeagueSent: mockInvalidateLeagueSent }),
+  useInvalidateInvitations: () => ({ invalidateAll: mockInvalidateAll }),
 }));
 
 jest.mock('./UserSearchInput', () => ({
@@ -34,28 +26,10 @@ jest.mock('./UserSearchInput', () => ({
 describe('InviteUserModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRefetch.mockResolvedValue(undefined);
-    mockInvalidateLeagueSent.mockResolvedValue(undefined);
-    mockUseLeagueSentInvitationsQuery.mockReturnValue({
-      data: {
-        league_id: 12,
-        invitations: [
-          {
-            id: 4,
-            status: 'PENDING',
-            created_at: 1710000000000,
-            user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
-          },
-        ],
-      },
-      isLoading: false,
-      refetch: mockRefetch,
-    });
+    mockInvalidateAll.mockResolvedValue(undefined);
   });
 
-  it('affiche les invitations envoyées et permet de retirer une invitation', async () => {
-    mockDeleteLeagueInvitation.mockResolvedValueOnce({ message: 'The invitation is well deleted.', success: true });
-
+  it('ouvre la modale sans afficher de bloc invitations envoyées centralisées', () => {
     render(
       <InviteUserModal
         isOpen
@@ -65,15 +39,11 @@ describe('InviteUserModal', () => {
       />,
     );
 
-    expect(screen.getByText(/emma@example.com/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /retirer/i }));
-
-    await waitFor(() => expect(mockDeleteLeagueInvitation).toHaveBeenCalledWith(4));
-    expect(mockInvalidateLeagueSent).toHaveBeenCalledWith(12);
-    expect(mockRefetch).toHaveBeenCalled();
+    expect(screen.queryByText(/invitations > envoyées/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/rechercher un utilisateur/i)).toBeInTheDocument();
   });
 
-  it('envoie une invitation puis recharge la liste', async () => {
+  it('envoie une invitation puis invalide les listes invitations', async () => {
     mockInviteUserToLeague.mockResolvedValueOnce({ message: 'The user is invited to join this league' });
 
     render(
@@ -89,8 +59,7 @@ describe('InviteUserModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /envoyer l'invitation/i }));
 
     await waitFor(() => expect(mockInviteUserToLeague).toHaveBeenCalledWith(12, 8));
-    expect(mockInvalidateLeagueSent).toHaveBeenCalledWith(12);
-    expect(mockRefetch).toHaveBeenCalled();
+    expect(mockInvalidateAll).toHaveBeenCalled();
   });
 });
 

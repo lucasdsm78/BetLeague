@@ -54,6 +54,24 @@ class InvitationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def find_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+            page: int = 1,
+            page_size: int = 20,
+    ):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def count_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+    ) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_invitations(
             self,
             user_id: int,

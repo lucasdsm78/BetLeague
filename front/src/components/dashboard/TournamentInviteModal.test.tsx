@@ -3,19 +3,19 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import TournamentInviteModal from './TournamentInviteModal';
 
-const mockUseTournamentInvitationsQuery = jest.fn();
 const mockInviteMutateAsync = jest.fn();
-const mockDeleteMutateAsync = jest.fn();
-const mockRefetch = jest.fn();
+const mockInvalidateAll = jest.fn();
 
 jest.mock('../../hooks/queries/useTournamentQueries', () => ({
-  useTournamentInvitationsQuery: (...args: unknown[]) => mockUseTournamentInvitationsQuery(...args),
   useInviteUserToTournamentMutation: () => ({
     mutateAsync: (...args: unknown[]) => mockInviteMutateAsync(...args),
     isPending: false,
   }),
-  useDeleteTournamentInvitationMutation: () => ({
-    mutateAsync: (...args: unknown[]) => mockDeleteMutateAsync(...args),
+}));
+
+jest.mock('../../hooks/queries/useInvitationsQueries', () => ({
+  useInvalidateInvitations: () => ({
+    invalidateAll: mockInvalidateAll,
   }),
 }));
 
@@ -35,25 +35,10 @@ jest.mock('../league/UserSearchInput', () => ({
 describe('TournamentInviteModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRefetch.mockResolvedValue(undefined);
-    mockUseTournamentInvitationsQuery.mockReturnValue({
-      data: {
-        tournament_id: 12,
-        invitations: [
-          {
-            id: 4,
-            status: 'pending',
-            created_at: 1710000000000,
-            user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
-          },
-        ],
-      },
-      isLoading: false,
-      refetch: mockRefetch,
-    });
+    mockInvalidateAll.mockResolvedValue(undefined);
   });
 
-  it('invite un joueur sélectionné puis recharge les invitations', async () => {
+  it('invite un joueur sélectionné puis invalide les listes invitations', async () => {
     mockInviteMutateAsync.mockResolvedValueOnce({ message: 'Invitation envoyée.' });
 
     render(
@@ -69,13 +54,11 @@ describe('TournamentInviteModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /envoyer l’invitation/i }));
 
     await waitFor(() => expect(mockInviteMutateAsync).toHaveBeenCalledWith({ userId: 7 }));
-    expect(mockRefetch).toHaveBeenCalled();
+    expect(mockInvalidateAll).toHaveBeenCalled();
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Invitation envoyée.'));
   });
 
-  it('supprime une invitation existante', async () => {
-    mockDeleteMutateAsync.mockResolvedValueOnce({ message: 'Invitation retirée.' });
-
+  it('ouvre la modale sans afficher de bloc invitations envoyées centralisées', () => {
     render(
       <TournamentInviteModal
         isOpen
@@ -85,39 +68,7 @@ describe('TournamentInviteModal', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /retirer/i }));
-
-    await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith({ invitationId: 4 }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Invitation retirée.'));
-  });
-
-  it('désactive le retrait pour une invitation non pending', () => {
-    mockUseTournamentInvitationsQuery.mockReturnValue({
-      data: {
-        tournament_id: 12,
-        invitations: [
-          {
-            id: 9,
-            status: 'accepted',
-            created_at: 1710000000000,
-            user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
-          },
-        ],
-      },
-      isLoading: false,
-      isError: false,
-      refetch: mockRefetch,
-    });
-
-    render(
-      <TournamentInviteModal
-        isOpen
-        tournamentId={12}
-        tournamentName="Tournoi privé"
-        onClose={() => {}}
-      />,
-    );
-
-    expect(screen.getByRole('button', { name: /retirer/i })).toBeDisabled();
+    expect(screen.queryByText(/invitations > envoyées/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/rechercher un utilisateur/i)).toBeInTheDocument();
   });
 });
