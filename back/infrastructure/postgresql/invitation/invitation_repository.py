@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict
-from sqlalchemy import select, func, case
+from sqlalchemy import select, func, case, or_
 from sqlalchemy import delete
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -149,6 +149,56 @@ class InvitationRepositoryImpl(InvitationRepository):
         )
         return result.scalar_one()
 
+    async def find_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+            page: int = 1,
+            page_size: int = 20,
+    ) -> List[DBInvitation]:
+        offset = (page - 1) * page_size
+
+        filters = [or_(DBLeague.user_id == user_id, DBTournament.user_id == user_id)]
+        if status is not None:
+            filters.append(DBInvitation.status == status.value)
+
+        query = (
+            select(DBInvitation)
+            .outerjoin(DBLeague, DBInvitation.league_id == DBLeague.id)
+            .outerjoin(DBTournament, DBInvitation.tournament_id == DBTournament.id)
+            .where(*filters)
+            .options(
+                selectinload(DBInvitation.league),
+                selectinload(DBInvitation.tournament),
+                selectinload(DBInvitation.user),
+                selectinload(DBInvitation.user_sender),
+            )
+            .order_by(DBInvitation.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def count_sent_invitations(
+            self,
+            user_id: int,
+            status: Optional[InvitationStatus] = None,
+    ) -> int:
+        filters = [or_(DBLeague.user_id == user_id, DBTournament.user_id == user_id)]
+        if status is not None:
+            filters.append(DBInvitation.status == status.value)
+
+        result = await self.session.execute(
+            select(func.count(DBInvitation.id))
+            .select_from(DBInvitation)
+            .outerjoin(DBLeague, DBInvitation.league_id == DBLeague.id)
+            .outerjoin(DBTournament, DBInvitation.tournament_id == DBTournament.id)
+            .where(*filters)
+        )
+        return result.scalar_one()
+
     async def find_invitations(
             self,
             user_id: int,
@@ -203,8 +253,9 @@ class InvitationRepositoryImpl(InvitationRepository):
                     DBInvitation.status,
                     func.count().label('cnt'),
                 )
-                .join(DBLeague, DBInvitation.league_id == DBLeague.id)
-                .where(DBLeague.user_id == user_id)
+                .outerjoin(DBLeague, DBInvitation.league_id == DBLeague.id)
+                .outerjoin(DBTournament, DBInvitation.tournament_id == DBTournament.id)
+                .where(or_(DBLeague.user_id == user_id, DBTournament.user_id == user_id))
                 .group_by(DBInvitation.status)
             )
         else:

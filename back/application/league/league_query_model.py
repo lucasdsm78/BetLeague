@@ -115,6 +115,23 @@ class InvitationsReceivedResponse(BaseModel):
     page_size: int = 20
 
 
+class InvitationSentReadModel(BaseModel):
+    id: int
+    type: str
+    user: UserSummaryReadModel
+    league: Optional[LeagueInvitationReceivedSummary] = None
+    tournament: Optional[TournamentInvitationReceivedSummary] = None
+    status: str
+    created_at: int
+
+
+class InvitationsSentResponse(BaseModel):
+    invitations: List[InvitationSentReadModel] = Field(default_factory=list)
+    total: int = 0
+    page: int = 1
+    page_size: int = 20
+
+
 class InvitationCountsResponse(BaseModel):
     pending: int = 0
     accepted: int = 0

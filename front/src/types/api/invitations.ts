@@ -15,6 +15,22 @@ export interface ApiInvitationReceivedItem {
   status: string;
 }
 
+export interface ApiInvitationSentUser {
+  id: number;
+  pseudo: string;
+  email: string;
+}
+
+export interface ApiInvitationSentItem {
+  id: number;
+  type: 'league' | 'tournament';
+  league?: ApiInvitationLeagueSummary;
+  tournament?: ApiInvitationTournamentSummary;
+  user: ApiInvitationSentUser;
+  status: string;
+  created_at: number;
+}
+
 export interface ApiInvitationLeagueSummary {
   id: number;
   name: string;
@@ -54,6 +70,13 @@ export interface ApiLeagueInvitationSentItem {
 
 export interface ApiInvitationsReceivedResponse {
   invitations: ApiInvitationReceivedItem[];
+  total?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface ApiInvitationsSentResponse {
+  invitations: ApiInvitationSentItem[];
   total?: number;
   page?: number;
   page_size?: number;

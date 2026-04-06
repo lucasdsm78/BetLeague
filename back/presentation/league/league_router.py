@@ -7,7 +7,7 @@ from application.league.league_command_model import LeagueCreateModel, LeagueFre
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
     LeagueUpdateModel, LeagueInjectBtlModel, LeagueInjectBtlResponse, InvitationDeleteResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
-from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse, InvitationsReceivedResponse, InvitationCountsResponse, LeagueInvitationsSentResponse
+from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse, InvitationsReceivedResponse, InvitationCountsResponse, LeagueInvitationsSentResponse, InvitationsSentResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
 from dependency_injections import current_user, league_command_usecase, league_query_usecase
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationDeletionNotAllowedError
@@ -520,6 +520,47 @@ async def get_invitations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des invitations."
+        )
+
+
+@router.get(
+    "/invitations/sent",
+    response_model=InvitationsSentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Récupérer les invitations envoyées",
+)
+async def get_sent_invitations(
+        invitation_status: str | None = Query(None, alias="status"),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(20, ge=1, le=100),
+        league_query_usecase: LeagueQueryUseCase = Depends(league_query_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        status_enum = None
+        if invitation_status:
+            try:
+                status_enum = InvitationStatus.from_str(invitation_status.upper())
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Statut invalide: {invitation_status}. Valeurs acceptées: PENDING, ACCEPTED, REFUSED"
+                )
+
+        return await league_query_usecase.get_sent_invitations(
+            current_user.get('email', ''),
+            status=status_enum,
+            page=page,
+            page_size=page_size,
+        )
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération des invitations envoyées."
         )
 
 
