@@ -107,6 +107,7 @@ describe('InvitationsSection', () => {
     render(<InvitationsSection />);
 
     fireEvent.click(screen.getByRole('button', { name: /accepter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirmer/i }));
 
     await waitFor(() => expect(mockUpdateTournamentInvitation).toHaveBeenCalledWith(9, true));
     expect(mockInvalidateAll).toHaveBeenCalled();
@@ -125,6 +126,7 @@ describe('InvitationsSection', () => {
     render(<InvitationsSection />);
 
     fireEvent.click(screen.getByRole('button', { name: /refuser/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirmer/i }));
 
     await waitFor(() => expect(mockUpdateTournamentInvitation).toHaveBeenCalledWith(9, false));
     expect(mockInvalidateAll).toHaveBeenCalled();
@@ -152,6 +154,7 @@ describe('InvitationsSection', () => {
     expect(screen.queryByText(/tournoi knockout/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^retirer$/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^retirer$/i })[0]);
 
     await waitFor(() => expect(mockDeleteLeagueInvitation).toHaveBeenCalledWith(15));
     expect(mockInvalidateAll).toHaveBeenCalled();
