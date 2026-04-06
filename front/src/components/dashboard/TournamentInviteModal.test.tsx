@@ -3,20 +3,20 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import TournamentInviteModal from './TournamentInviteModal';
 
-const mockInviteUserToTournament = jest.fn();
-const mockDeleteTournamentInvitation = jest.fn();
-const mockUseTournamentInvitationsQuery = jest.fn();
-const mockInvalidateInvitations = jest.fn();
-const mockRefetch = jest.fn();
-
-jest.mock('../../services/api/tournament', () => ({
-  inviteUserToTournament: (...args: unknown[]) => mockInviteUserToTournament(...args),
-  deleteTournamentInvitation: (...args: unknown[]) => mockDeleteTournamentInvitation(...args),
-}));
+const mockInviteMutateAsync = jest.fn();
+const mockInvalidateAll = jest.fn();
 
 jest.mock('../../hooks/queries/useTournamentQueries', () => ({
-  useTournamentInvitationsQuery: (...args: unknown[]) => mockUseTournamentInvitationsQuery(...args),
-  useTournamentLists: () => ({ invalidateInvitations: mockInvalidateInvitations }),
+  useInviteUserToTournamentMutation: () => ({
+    mutateAsync: (...args: unknown[]) => mockInviteMutateAsync(...args),
+    isPending: false,
+  }),
+}));
+
+jest.mock('../../hooks/queries/useInvitationsQueries', () => ({
+  useInvalidateInvitations: () => ({
+    invalidateAll: mockInvalidateAll,
+  }),
 }));
 
 jest.mock('../../store/authStore', () => ({
@@ -35,27 +35,11 @@ jest.mock('../league/UserSearchInput', () => ({
 describe('TournamentInviteModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRefetch.mockResolvedValue(undefined);
-    mockInvalidateInvitations.mockResolvedValue(undefined);
-    mockUseTournamentInvitationsQuery.mockReturnValue({
-      data: {
-        tournament_id: 12,
-        invitations: [
-          {
-            id: 4,
-            status: 'pending',
-            created_at: 1710000000000,
-            user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' },
-          },
-        ],
-      },
-      isLoading: false,
-      refetch: mockRefetch,
-    });
+    mockInvalidateAll.mockResolvedValue(undefined);
   });
 
-  it('invite un joueur sélectionné puis recharge les invitations', async () => {
-    mockInviteUserToTournament.mockResolvedValueOnce({ message: 'Invitation envoyée.' });
+  it('invite un joueur sélectionné puis invalide les listes invitations', async () => {
+    mockInviteMutateAsync.mockResolvedValueOnce({ message: 'Invitation envoyée.' });
 
     render(
       <TournamentInviteModal
@@ -69,15 +53,12 @@ describe('TournamentInviteModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /sélectionner lucas/i }));
     fireEvent.click(screen.getByRole('button', { name: /envoyer l’invitation/i }));
 
-    await waitFor(() => expect(mockInviteUserToTournament).toHaveBeenCalledWith(12, 7));
-    expect(mockInvalidateInvitations).toHaveBeenCalledWith(12);
-    expect(mockRefetch).toHaveBeenCalled();
+    await waitFor(() => expect(mockInviteMutateAsync).toHaveBeenCalledWith({ userId: 7 }));
+    expect(mockInvalidateAll).toHaveBeenCalled();
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Invitation envoyée.'));
   });
 
-  it('supprime une invitation existante', async () => {
-    mockDeleteTournamentInvitation.mockResolvedValueOnce({ message: 'Invitation supprimée.' });
-
+  it('ouvre la modale sans afficher de bloc invitations envoyées centralisées', () => {
     render(
       <TournamentInviteModal
         isOpen
@@ -87,9 +68,7 @@ describe('TournamentInviteModal', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /supprimer/i }));
-
-    await waitFor(() => expect(mockDeleteTournamentInvitation).toHaveBeenCalledWith(4));
-    expect(mockInvalidateInvitations).toHaveBeenCalledWith(12);
+    expect(screen.queryByText(/invitations > envoyées/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/rechercher un utilisateur/i)).toBeInTheDocument();
   });
 });

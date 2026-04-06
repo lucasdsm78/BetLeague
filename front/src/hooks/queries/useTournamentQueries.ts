@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelSubscription, getCurrentTournamentSubscription, getSubscriptionPlans } from '../../services/api/subscription';
 import {
   createTournament,
+  deleteTournamentInvitation,
   getTournamentInvitations,
   getFinishedTournaments,
   getMyCreatedTournaments,
@@ -10,6 +11,7 @@ import {
   getTournamentCreationAccess,
   getTournamentStages,
   getTournaments,
+  inviteUserToTournament,
   joinTournament,
   leaveTournament,
 } from '../../services/api/tournament';
@@ -23,6 +25,7 @@ import type {
   CreatedTournamentsResponse,
   MyTournamentsResponse,
   StageMatchesResponse,
+  TournamentInvitation,
   TournamentInvitationsResponse,
   TournamentCreateRequest,
   TournamentCreateResponse,
@@ -93,6 +96,63 @@ export function useTournamentInvitationsQuery(tournamentId: number | null, optio
       return getTournamentInvitations(tournamentId);
     },
     enabled: (options?.enabled ?? true) && tournamentId !== null,
+  });
+}
+
+export function useInviteUserToTournamentMutation(tournamentId: number | null) {
+  const qc = useQueryClient();
+
+  return useMutation<{ message: string }, Error, { userId: number }>({
+    mutationFn: ({ userId }) => {
+      if (tournamentId === null) throw new Error('Tournament invalide');
+      return inviteUserToTournament(tournamentId, userId);
+    },
+    onSuccess: () => {
+      if (tournamentId !== null) {
+        qc.invalidateQueries({ queryKey: tournamentKeys.invitations(tournamentId) });
+      }
+    },
+  });
+}
+
+export function useDeleteTournamentInvitationMutation(tournamentId: number | null) {
+  const qc = useQueryClient();
+
+  type Context = {
+    previousInvitations?: TournamentInvitationsResponse;
+  };
+
+  return useMutation<{ message: string }, Error, { invitationId: number }, Context>({
+    mutationFn: ({ invitationId }) => deleteTournamentInvitation(invitationId),
+    onMutate: async ({ invitationId }) => {
+      if (tournamentId === null) return {};
+
+      await qc.cancelQueries({ queryKey: tournamentKeys.invitations(tournamentId) });
+      const previousInvitations = qc.getQueryData<TournamentInvitationsResponse>(tournamentKeys.invitations(tournamentId));
+
+      qc.setQueryData<TournamentInvitationsResponse>(
+        tournamentKeys.invitations(tournamentId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            invitations: old.invitations.filter((invitation: TournamentInvitation) => invitation.id !== invitationId),
+          };
+        },
+      );
+
+      return { previousInvitations };
+    },
+    onError: (_error, _variables, context) => {
+      if (tournamentId !== null && context?.previousInvitations) {
+        qc.setQueryData(tournamentKeys.invitations(tournamentId), context.previousInvitations);
+      }
+    },
+    onSettled: () => {
+      if (tournamentId !== null) {
+        qc.invalidateQueries({ queryKey: tournamentKeys.invitations(tournamentId) });
+      }
+    },
   });
 }
 

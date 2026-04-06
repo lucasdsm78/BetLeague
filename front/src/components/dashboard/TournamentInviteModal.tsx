@@ -1,7 +1,9 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { deleteTournamentInvitation, inviteUserToTournament } from '../../services/api/tournament';
-import { useTournamentInvitationsQuery, useTournamentLists } from '../../hooks/queries/useTournamentQueries';
+import {
+  useInviteUserToTournamentMutation,
+} from '../../hooks/queries/useTournamentQueries';
+import { useInvalidateInvitations } from '../../hooks/queries/useInvitationsQueries';
 import { useAuthStore } from '../../store/authStore';
 import type { UserSearchResult } from 'types/entities/userSearch';
 import UserSearchInput from '../league/UserSearchInput';
@@ -14,25 +16,11 @@ interface TournamentInviteModalProps {
   onClose: () => void;
 }
 
-function getInvitationStatusLabel(status: string): string {
-  switch (status.toLowerCase()) {
-    case 'accepted':
-      return 'Acceptée';
-    case 'refused':
-      return 'Refusée';
-    default:
-      return 'En attente';
-  }
-}
-
-function formatInvitationDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+type FeedbackState = {
+  tone: 'success' | 'error';
+  title: string;
+  message: string;
+} | null;
 
 const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
   isOpen,
@@ -41,33 +29,27 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
   onClose,
 }) => {
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
-  const [isInviting, setIsInviting] = useState(false);
-  const [deletingInvitationId, setDeletingInvitationId] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
 
   const authUser = useAuthStore((state) => state.user);
-  const tournamentLists = useTournamentLists();
-  const invitationsQuery = useTournamentInvitationsQuery(isOpen ? tournamentId : null, {
-    enabled: isOpen && tournamentId !== null,
-  });
+  const inviteMutation = useInviteUserToTournamentMutation(tournamentId);
+  const invalidateInvitations = useInvalidateInvitations();
+  const isInviting = inviteMutation.isPending;
 
-  const invitations = invitationsQuery.data?.invitations ?? [];
   const currentUserId = authUser?.id ? Number(authUser.id) : null;
 
   const excludeUserIds = useMemo(() => {
-    const ids = invitations.map((invitation) => invitation.user.id);
+    const ids: number[] = [];
     if (typeof currentUserId === 'number' && currentUserId > 0) {
       ids.push(currentUserId);
     }
     return Array.from(new Set(ids));
-  }, [currentUserId, invitations]);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!isOpen) return;
     setSelectedUser(null);
-    setError('');
-    setSuccessMessage('');
+    setFeedback(null);
   }, [isOpen, tournamentId]);
 
   useEffect(() => {
@@ -85,75 +67,63 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
     if (!isOpen) return undefined;
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isInviting && deletingInvitationId === null) {
+      if (event.key === 'Escape' && !isInviting) {
         onClose();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [deletingInvitationId, isInviting, isOpen, onClose]);
+  }, [isInviting, isOpen, onClose]);
 
   const handleUserSelect = useCallback((user: UserSearchResult) => {
     setSelectedUser(user);
-    setError('');
-    setSuccessMessage('');
+    setFeedback(null);
   }, []);
 
   const handleInvite = useCallback(async () => {
     if (!selectedUser || !tournamentId || isInviting) return;
 
-    setIsInviting(true);
-    setError('');
-    setSuccessMessage('');
+    setFeedback(null);
 
     try {
-      const response = await inviteUserToTournament(tournamentId, selectedUser.id);
-      setSuccessMessage(response.message || `Invitation envoyée à ${selectedUser.pseudo}.`);
+      const response = await inviteMutation.mutateAsync({ userId: selectedUser.id });
+      setFeedback({
+        tone: 'success',
+        title: 'Invitation envoyée',
+        message: response.message || `Invitation envoyée à ${selectedUser.pseudo}.`,
+      });
+      invalidateInvitations.invalidateAll();
       setSelectedUser(null);
-      await tournamentLists.invalidateInvitations(tournamentId);
-      await invitationsQuery.refetch();
     } catch (inviteError) {
-      setError(inviteError instanceof Error ? inviteError.message : "Impossible d'envoyer l'invitation.");
-    } finally {
-      setIsInviting(false);
+      setFeedback({
+        tone: 'error',
+        title: 'Erreur',
+        message: inviteError instanceof Error ? inviteError.message : "Impossible d'envoyer l'invitation.",
+      });
     }
-  }, [invitationsQuery, isInviting, selectedUser, tournamentId, tournamentLists]);
-
-  const handleDeleteInvitation = useCallback(async (invitationId: number) => {
-    if (deletingInvitationId !== null || !tournamentId) return;
-
-    setDeletingInvitationId(invitationId);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const response = await deleteTournamentInvitation(invitationId);
-      setSuccessMessage(response.message || 'Invitation supprimée.');
-      await tournamentLists.invalidateInvitations(tournamentId);
-      await invitationsQuery.refetch();
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Impossible de supprimer l'invitation.");
-    } finally {
-      setDeletingInvitationId(null);
-    }
-  }, [deletingInvitationId, invitationsQuery, tournamentId, tournamentLists]);
+  }, [invalidateInvitations, inviteMutation, isInviting, selectedUser, tournamentId]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedUser(null);
-    setError('');
-    setSuccessMessage('');
+    setFeedback(null);
   }, []);
 
   if (!isOpen) return null;
 
   return (
-    <div className="tournament-invite-modal-overlay" onClick={onClose}>
-      <div className="tournament-invite-modal" onClick={(event) => event.stopPropagation()}>
+    <div className="tournament-invite-modal-overlay" onClick={() => { if (!isInviting) onClose(); }}>
+      <div
+        className="tournament-invite-modal"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tournament-invite-title"
+      >
         <div className="tournament-invite-header">
           <div>
             <p className="tournament-invite-eyebrow">Invitation tournoi</p>
-            <h2>Inviter un joueur</h2>
+            <h2 id="tournament-invite-title">Inviter un joueur</h2>
             <p className="tournament-invite-subtitle">
               {tournamentName ? `Tournoi : ${tournamentName}` : 'Sélectionnez un joueur à inviter sur ce tournoi.'}
             </p>
@@ -163,24 +133,17 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
             className="tournament-invite-close"
             onClick={onClose}
             aria-label="Fermer"
-            disabled={isInviting || deletingInvitationId !== null}
+            disabled={isInviting}
           >
             ✕
           </button>
         </div>
 
         <div className="tournament-invite-body">
-          {successMessage && (
-            <div className="tournament-invite-feedback success" role="status">
-              <strong>Invitation envoyée</strong>
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {error && (
-            <div className="tournament-invite-feedback error" role="alert">
-              <strong>Erreur</strong>
-              <span>{error}</span>
+          {feedback && (
+            <div className={`tournament-invite-feedback ${feedback.tone}`} role={feedback.tone === 'success' ? 'status' : 'alert'}>
+              <strong>{feedback.title}</strong>
+              <span>{feedback.message}</span>
             </div>
           )}
 
@@ -217,54 +180,6 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
             )}
           </section>
 
-          <section className="tournament-invite-panel">
-            <div className="tournament-invite-panel-header">
-              <h3>Invitations envoyées</h3>
-              <p>Suivez les joueurs déjà contactés pour ce tournoi.</p>
-            </div>
-
-            {invitationsQuery.isLoading ? (
-              <div className="tournament-invitations-loading">
-                <div className="tournament-invitations-spinner" />
-                <span>Chargement des invitations…</span>
-              </div>
-            ) : invitations.length === 0 ? (
-              <div className="tournament-invitations-empty">
-                <span className="empty-icon">📨</span>
-                <p>Aucune invitation envoyée pour le moment.</p>
-              </div>
-            ) : (
-              <div className="tournament-invitations-list">
-                {invitations.map((invitation) => (
-                  <div key={invitation.id} className="tournament-invitation-item">
-                    <div className="tournament-invitation-user">
-                      <div className="tournament-invitation-avatar">👤</div>
-                      <div>
-                        <div className="tournament-invitation-pseudo">{invitation.user.pseudo}</div>
-                        <div className="tournament-invitation-email">{invitation.user.email}</div>
-                      </div>
-                    </div>
-
-                    <div className="tournament-invitation-meta">
-                      <span className={`tournament-invitation-status status-${invitation.status.toLowerCase()}`}>
-                        {getInvitationStatusLabel(invitation.status)}
-                      </span>
-                      <span className="tournament-invitation-date">{formatInvitationDate(invitation.created_at)}</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="tournament-invitation-delete"
-                      onClick={() => handleDeleteInvitation(invitation.id)}
-                      disabled={deletingInvitationId === invitation.id}
-                    >
-                      {deletingInvitationId === invitation.id ? 'Suppression…' : 'Supprimer'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
         </div>
 
         <div className="tournament-invite-footer">
@@ -272,7 +187,7 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
             type="button"
             className="tournament-invite-btn secondary"
             onClick={onClose}
-            disabled={isInviting || deletingInvitationId !== null}
+              disabled={isInviting}
           >
             Fermer
           </button>

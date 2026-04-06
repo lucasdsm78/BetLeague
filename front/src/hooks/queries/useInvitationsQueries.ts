@@ -3,9 +3,10 @@ import {
   getReceivedInvitations,
   getInvitationCounts,
   getSentLeagueInvitations,
+  getSentInvitations,
   type InvitationCounts,
 } from '../../services/api/invitations';
-import type { InvitationsReceivedResponse, LeagueSentInvitationsResponse } from '../../types/entities/invitation';
+import type { InvitationsReceivedResponse, InvitationsSentResponse, LeagueSentInvitationsResponse } from '../../types/entities/invitation';
 
 export type InvitationsServerFilter = {
   status?: InvitationStatusFilter | null;
@@ -41,8 +42,17 @@ export const invitationsKeys = {
       filter: stableFilter(args?.filter),
     },
   ] as const,
+  sent: (args?: InvitationsListQueryArgs) => [
+    ...invitationsKeys.all,
+    'sent',
+    {
+      page: args?.page ?? 1,
+      pageSize: args?.pageSize ?? 20,
+      filter: stableFilter(args?.filter),
+    },
+  ] as const,
   leagueSent: (leagueId: number) => [...invitationsKeys.all, 'league-sent', leagueId] as const,
-  counts: () => [...invitationsKeys.all, 'counts'] as const,
+  counts: (isReceived: boolean = true) => [...invitationsKeys.all, 'counts', isReceived ? 'received' : 'sent'] as const,
 };
 
 export function useReceivedInvitationsQuery(
@@ -65,8 +75,35 @@ export function useReceivedInvitationsQuery(
 
 export function useInvitationCountsQuery(options?: InvitationsQueryOptions) {
   return useQuery<InvitationCounts, Error>({
-    queryKey: invitationsKeys.counts(),
-    queryFn: getInvitationCounts,
+    queryKey: invitationsKeys.counts(true),
+    queryFn: () => getInvitationCounts({ isReceived: true }),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchIntervalMs,
+  });
+}
+
+export function useSentInvitationCountsQuery(options?: InvitationsQueryOptions) {
+  return useQuery<InvitationCounts, Error>({
+    queryKey: invitationsKeys.counts(false),
+    queryFn: () => getInvitationCounts({ isReceived: false }),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchIntervalMs,
+  });
+}
+
+export function useSentInvitationsQuery(
+  args?: InvitationsListQueryArgs,
+  options?: InvitationsQueryOptions,
+) {
+  return useQuery<InvitationsSentResponse, Error>({
+    queryKey: invitationsKeys.sent(args),
+    queryFn: async () => {
+      return getSentInvitations({
+        page: args?.page ?? 1,
+        pageSize: args?.pageSize ?? 20,
+        status: stableFilter(args?.filter).status,
+      });
+    },
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchIntervalMs,
   });
@@ -92,7 +129,8 @@ export function useInvalidateInvitations() {
   return {
     invalidateAll: () => qc.invalidateQueries({ queryKey: invitationsKeys.all }),
     invalidateReceived: () => qc.invalidateQueries({ queryKey: [...invitationsKeys.all, 'received'] }),
+    invalidateSent: () => qc.invalidateQueries({ queryKey: [...invitationsKeys.all, 'sent'] }),
     invalidateLeagueSent: (leagueId: number) => qc.invalidateQueries({ queryKey: invitationsKeys.leagueSent(leagueId) }),
-    invalidateCounts: () => qc.invalidateQueries({ queryKey: invitationsKeys.counts() }),
+    invalidateCounts: () => qc.invalidateQueries({ queryKey: [...invitationsKeys.all, 'counts'] }),
   };
 }

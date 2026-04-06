@@ -95,6 +95,10 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
         self.invitation_repository: InvitationRepository = invitation_repository
         self.creation_policy = creation_policy or TournamentCreationPolicy()
 
+    @staticmethod
+    def _extract_email_value(raw_email) -> str:
+        return raw_email.value if hasattr(raw_email, 'value') else str(raw_email)
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -345,7 +349,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                             created_at=invitation.created_at,
                             user=UserSummaryReadModel(
                                 id=invitation.user.id,
-                                email=invitation.user.email.value,
+                                email=self._extract_email_value(invitation.user.email),
                                 pseudo=invitation.user.pseudo,
                             ),
                         )

@@ -38,7 +38,11 @@ from domain.user.exception.user_exception import UserNotFoundError
 from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
 from application.tournament.tournament_query_model import TournamentInvitationsResponse
 
-from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
+from domain.invitation.exception.invitation_exception import (
+    InvitationDeletionNotAllowedError,
+    InvitationFoundError,
+    InvitationNotFoundError,
+)
 
 router = APIRouter(prefix="/api", tags=["tournament"])
 logger = logging.getLogger(__name__)
@@ -665,17 +669,39 @@ async def delete_invitation(
         _rate_limited: bool = Depends(rate_limit_tournament_mutation),
 ):
     try:
-        delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, int(current_user.get('id')))
+        delete_invitation_result = await tournament_command_usecase.delete_invitation(invitation_id, current_user.get('email', ''))
     except InvitationNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
+        )
+    except InvitationDeletionNotAllowedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+    except TournamentNotOwnerLeaguedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.message,
+        )
+    except TournamentAlreadyStartedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message,
+        )
+    except TournamentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la suppression d'une l'invitation à un tournoi"
         )
+
+    return delete_invitation_result
 
     return delete_invitation_result
 
