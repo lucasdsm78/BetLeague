@@ -116,6 +116,13 @@ class TournamentNotThePlayerError(Exception):
         return TournamentNotThePlayerError.message
 
 
+class TournamentOwnerCannotLeaveError(Exception):
+    message = "Le créateur du tournoi ne peut pas quitter son propre tournoi"
+
+    def __str__(self):
+        return TournamentOwnerCannotLeaveError.message
+
+
 class TournamentNameAlreadyExistsError(Exception):
     message = "The tournament with the name you specified already exists."
 

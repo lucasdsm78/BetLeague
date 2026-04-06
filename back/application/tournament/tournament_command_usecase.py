@@ -33,7 +33,6 @@ from domain.tournament.exception.tournament_exception import (
     TournamentNotEnoughPlayersError,
     TournamentNotFoundError,
     TournamentNotOwnerLeaguedError,
-    TournamentNotThePlayerError,
     TournamentPlayerFoundError,
     TournamentPlayerNotFoundError,
     TournamentSelfInvitationError,
@@ -369,9 +368,8 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             )
             if not tournament_player:
                 raise TournamentPlayerNotFoundError
-            if tournament_player.user_id != user_id:
-                raise TournamentNotThePlayerError
 
+            tournament.ensure_player_can_leave(user_id)
             tournament.unregister_player()
             await uow.tournament_players_repo.unregister_tournament(tournament_player.id)
             await uow.tournament_repo.update(tournament)

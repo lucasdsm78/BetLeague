@@ -196,9 +196,11 @@ export async function leaveTournament(tournamentId: number): Promise<{ message: 
     return (response.data ?? { message: '' }) as { message: string };
   } catch (e) {
     if (e instanceof ApiClientError) {
-      if (e.status === 401) throw new Error('Le tournoi a déjà commencé ou session expirée.');
+      if (e.status === 403) throw new Error(getApiErrorMessage(e, 'Vous ne pouvez pas quitter ce tournoi.'));
+      if (e.status === 409) throw new Error(getApiErrorMessage(e, 'Le tournoi a déjà commencé.'));
+      if (e.status === 401) throw new Error('Session expirée.');
       if (e.status === 402) throw new Error('Abonnement tournoi requis.');
-      if (e.status === 404) throw new Error('Tournoi ou utilisateur introuvable.');
+      if (e.status === 404) throw new Error(getApiErrorMessage(e, 'Tournoi ou utilisateur introuvable.'));
     }
     throw e;
   }
