@@ -72,6 +72,15 @@ class FakeStripeService:
         return SimpleNamespace(url='https://checkout.stripe.test/session', subscription='stripe_sub_123')
 
 
+class FakeStripeServiceWithoutImmediateSubscription:
+    def __init__(self):
+        self.calls = []
+
+    async def create_subscription_session(self, **kwargs):
+        self.calls.append(kwargs)
+        return SimpleNamespace(url='https://checkout.stripe.test/session', subscription=None)
+
+
 class FakeQueryUserRepository:
     async def find_by_email(self, email: str):
         return SimpleNamespace(id=42, email=Email(email), pseudo='player')
@@ -143,6 +152,30 @@ async def test_create_usecase_builds_server_side_urls_and_supports_yearly_plan(m
             'subscription_plan': 'yearly',
         },
     }]
+
+
+@pytest.mark.asyncio
+async def test_create_usecase_allows_checkout_session_without_immediate_subscription_id(monkeypatch: pytest.MonkeyPatch):
+    session = FakeSession()
+    stripe_service = FakeStripeServiceWithoutImmediateSubscription()
+
+    monkeypatch.setattr(create_usecase_module, 'UserRepositoryImpl', FakeUserRepository)
+    monkeypatch.setattr(create_usecase_module, 'TournamentSubscriptionRepositoryImpl', FakeTournamentSubscriptionRepository)
+
+    usecase = CreateTournamentSubscriptionUseCaseImpl(
+        session_factory=lambda: session,
+        stripe_service=stripe_service,
+        domain_service=FakeDomainService(),
+        settings=SimpleNamespace(app_frontend_url='https://betleague.app'),
+    )
+
+    response = await usecase.execute(
+        'player@example.com',
+        CreateSubscriptionRequest(subscription_plan='yearly'),
+    )
+
+    assert response.checkout_url == 'https://checkout.stripe.test/session'
+    assert session.created_subscription is not None
 
 
 @pytest.mark.asyncio

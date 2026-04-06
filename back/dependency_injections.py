@@ -834,9 +834,11 @@ def cancel_tournament_subscription_use_case(
 
 def process_webhook_tournament_subscription_use_case(
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
+        stripe_service_dependency: StripeService = Depends(stripe_service),
 ) -> ProcessStripeWebhookTournamentSubscriptionUseCase:
     return ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(
         uow_factory=lambda: TournamentSubscriptionUnitOfWorkImpl(session_factory),
+        stripe_service=stripe_service_dependency,
     )
 
 

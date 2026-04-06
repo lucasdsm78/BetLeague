@@ -219,3 +219,21 @@ async def test_fetch_user_by_id_reports_unlimited_when_subscription_active():
     assert result.tournament_creation_access.requires_tournament_subscription is False
     assert result.tournament_creation_access.monthly_free_tournaments_used == 2
     assert result.tournament_creation_access.monthly_free_tournaments_remaining == 0
+    assert result.is_tournament_subscriber is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_by_id_uses_active_subscription_as_source_of_truth_for_profile_flag():
+    user = make_user()
+    user.is_tournament_subscriber = False
+    usecase = UserQueryUseCaseImpl(
+        user_repository=FakeUserRepository(user),
+        tournament_repository=FakeTournamentRepository(monthly_used=2),
+        tournament_subscription_repository=FakeTournamentSubscriptionRepository(subscription=FakeSubscription(active=True)),
+        tournament_creation_policy=TournamentCreationPolicy(),
+    )
+
+    result = await usecase.fetch_user_by_id(user.id, user.email.value)
+
+    assert result is not None
+    assert result.is_tournament_subscriber is True

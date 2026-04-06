@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request, Header
 from fastapi import Path
+import logging
 from domain.user.model.user import User
 
 from application.tournament import TournamentQueryUseCase
@@ -40,6 +41,7 @@ from application.tournament.tournament_query_model import TournamentInvitationsR
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError
 
 router = APIRouter(prefix="/api", tags=["tournament"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -505,6 +507,7 @@ async def stripe_webhook(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
+        logger.exception("Erreur interne lors du traitement du webhook Stripe tournoi")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur webhook")
 
 @router.delete(

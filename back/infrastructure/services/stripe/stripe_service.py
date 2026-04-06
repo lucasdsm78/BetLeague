@@ -90,6 +90,18 @@ class StripeServiceImpl(StripeService):
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la création de la session Stripe: {e}")
 
+    async def retrieve_checkout_session(self, session_id: str) -> dict[str, Any]:
+        try:
+            return stripe.checkout.Session.retrieve(session_id)
+        except stripe.error.StripeError as e:
+            raise ValueError(f"Erreur lors de la récupération de la session Stripe: {e}")
+
+    async def retrieve_subscription(self, subscription_id: str) -> dict[str, Any]:
+        try:
+            return stripe.Subscription.retrieve(subscription_id)
+        except stripe.error.StripeError as e:
+            raise ValueError(f"Erreur lors de la récupération de l'abonnement Stripe: {e}")
+
     async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
         try:
             return stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
