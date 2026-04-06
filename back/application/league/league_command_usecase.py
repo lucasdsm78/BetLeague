@@ -1,12 +1,12 @@
 import time
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import shortuuid
 
-from application.league.constants import MAX_PLAYERS, MIN_PLAYERS
+from application.league.constants import LEAGUE_DURATION_DAYS, MAX_PLAYERS, MIN_PLAYERS
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, \
     LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse
@@ -134,7 +134,9 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     if not ok:
                         raise LeagueNbBtlIsNotEnoughError
 
-                now_ms = int(datetime.utcnow().timestamp() * 1000)
+                now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+                start_ms = data.start_date if data.start_date is not None else now_ms
+                end_ms = start_ms + int(timedelta(days=LEAGUE_DURATION_DAYS).total_seconds() * 1000)
                 uuid = shortuuid.uuid()
                 league = League(
                     is_free=data.is_free,
@@ -145,8 +147,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     name=data.name,
                     max_players=data.max_players,
                     is_private=data.is_private,
-                    start_date=now_ms,
-                    end_date=int((datetime.utcnow() + timedelta(weeks=1)).timestamp() * 1000),
+                    start_date=start_ms,
+                    end_date=end_ms,
                     nb_players_remaining=data.max_players - 1,
                     user=UserSummary(
                         id=user.id,
