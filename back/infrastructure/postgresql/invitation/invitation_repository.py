@@ -233,17 +233,6 @@ class InvitationRepositoryImpl(InvitationRepository):
 
         return counts
 
-    async def delete_tournament_invitation_if_owner(self, *, invitation_id: int, owner_user_id: int) -> bool:
-        exists_subq = (
-            select(1)
-            .where(DBTournament.id == DBInvitation.tournament_id)
-            .where(DBTournament.user_id == owner_user_id)
-            .exists()
-        )
-
-        stmt = delete(DBInvitation).where(DBInvitation.id == invitation_id).where(exists_subq)
-        res = await self.session.execute(stmt)
-        return bool(res.rowcount and res.rowcount > 0)
 
     async def begin(self):
         await self.session.begin()

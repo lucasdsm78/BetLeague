@@ -68,9 +68,6 @@ class InvitationRepository(ABC):
     async def count_by_status(self, user_id: int, is_received: bool) -> Dict[str, int]:
         raise NotImplementedError
 
-    @abstractmethod
-    async def delete_tournament_invitation_if_owner(self, *, invitation_id: int, owner_user_id: int) -> bool:
-        raise NotImplementedError
 
     @abstractmethod
     async def begin(self):
