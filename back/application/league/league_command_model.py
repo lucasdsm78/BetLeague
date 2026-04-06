@@ -9,6 +9,7 @@ class LeagueCreateModel(BaseModel):
     is_private: bool
     is_free: bool = True
     nb_btl: Optional[int] = None
+    start_date: Optional[int] = None
 
     @field_validator('name')
     @classmethod
@@ -19,6 +20,19 @@ class LeagueCreateModel(BaseModel):
         if not re.fullmatch(r"[A-Za-z0-9\s\-_.]+", n):
             raise ValueError('Nom invalide (caractères non autorisés)')
         return n
+
+    @field_validator('start_date')
+    @classmethod
+    def _validate_start_date_ms(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return v
+        if not isinstance(v, int):
+            raise ValueError('start_date invalide')
+        if v < 0:
+            raise ValueError('start_date doit être positive')
+        if v < 1_000_000_000_000:
+            raise ValueError('start_date doit être en millisecondes')
+        return v
 
     @model_validator(mode='after')
     def _validate_paid_rules(self):

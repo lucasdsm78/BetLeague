@@ -32,6 +32,7 @@ export interface ApiLeagueCreateRequest {
   is_private: boolean;
   is_free: boolean;
   nb_btl?: number;
+  start_date?: number;
 }
 
 export interface ApiLeagueMessageResponse {
