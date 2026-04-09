@@ -7,6 +7,7 @@ import { getSharedTicketDetail } from '../../services/api/tickets';
 import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
 import { getTicketContextLabel } from '../../utils/ticketContext';
+import { formatTicketAmount } from '../../utils/ticketAmount';
 import TicketShareSheet from './TicketShareSheet';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
@@ -161,11 +162,11 @@ const SharedTicketSection: React.FC = memo(() => {
           <section className="ticket-summary-grid">
             <div className="summary-card">
               <div className="label">Mise</div>
-              <div className="value">{summary.mise.toFixed(2)}€</div>
+              <div className="value">{formatTicketAmount(summary.mise)}</div>
             </div>
             <div className="summary-card">
               <div className="label">Gain</div>
-              <div className="value win">{summary.gain.toFixed(2)}€</div>
+              <div className="value win">{formatTicketAmount(summary.gain)}</div>
             </div>
             <div className="summary-card">
               <div className="label">Sélections</div>

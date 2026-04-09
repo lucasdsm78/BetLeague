@@ -6,6 +6,7 @@ import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
 import { getTicketContextLabel } from 'utils/ticketContext';
+import { formatTicketAmount } from 'utils/ticketAmount';
 import { formatMatchDateTime } from '../../utils/time';
 import TicketShareSheet from './TicketShareSheet';
 
@@ -221,12 +222,12 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
               <section className="ticket-summary-grid">
                 <div className="summary-card">
                   <div className="label">Mise</div>
-                  <div className="value">{summary.mise.toFixed(2)}€</div>
+                  <div className="value">{formatTicketAmount(summary.mise)}</div>
                 </div>
                 <div className="summary-card">
                   <div className="label">Gain {normalizeStatus(ticket.status) === 'pending' ? 'potentiel' : ''}</div>
                   <div className={`value ${normalizeStatus(ticket.status) === 'correct' ? 'win' : ''}`}>
-                    {summary.gain.toFixed(2)}€
+                    {formatTicketAmount(summary.gain)}
                   </div>
                 </div>
                 <div className="summary-card">

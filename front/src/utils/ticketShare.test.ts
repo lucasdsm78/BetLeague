@@ -40,7 +40,7 @@ describe('ticketShare utils', () => {
       origin: 'https://betleague.app',
     });
 
-    expect(message).toContain("J'ai misé 12.99€ et gagné 42.50€ sur BetLeague dans Ligue VIP");
+    expect(message).toContain("J'ai misé 12,99 BTL et gagné 42,50 BTL sur BetLeague dans Ligue VIP");
     expect(message).toContain('https://betleague.app/tickets/shared/abc-123');
   });
 
@@ -115,5 +115,6 @@ describe('ticketShare utils', () => {
     const svgContent = await new Response(file).text();
     expect(svgContent).toContain('Ligue VIP');
     expect(svgContent).toContain('TICKET GAGNANT');
+    expect(svgContent).toContain('BTL');
   });
 });
