@@ -29,6 +29,7 @@ export interface MatchChoiceSummary {
 export interface TournamentMatchSummary {
   tournament_match_id: number;
   tournament_id: number;
+  name?: string | null;
   stage_id: number;
   type: string;
 }

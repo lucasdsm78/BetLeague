@@ -23,6 +23,14 @@ export interface ApiMatchChoiceSummary {
   match_odd_summary?: ApiMatchOddSummary;
 }
 
+export interface ApiTournamentMatchSummary {
+  tournament_match_id: number;
+  tournament_id: number;
+  name?: string | null;
+  stage_id: number;
+  type: string;
+}
+
 // Read model tel que renvoyé par l'API
 export interface ApiTicketReadModel {
   id: number;
@@ -31,7 +39,7 @@ export interface ApiTicketReadModel {
   gain: number;
   status: string;
   league_summary?: ApiLeagueSummary | null;
-  tournament_match_summary?: unknown | null;
+  tournament_match_summary?: ApiTournamentMatchSummary | null;
   match_choice_summaries: ApiMatchChoiceSummary[];
 }
 
@@ -41,7 +49,7 @@ export interface ApiSharedTicketReadModel {
   gain: number;
   status: string;
   league_summary?: ApiLeagueSummary | null;
-  tournament_match_summary?: unknown | null;
+  tournament_match_summary?: ApiTournamentMatchSummary | null;
   match_choice_summaries: ApiMatchChoiceSummary[];
 }
 
