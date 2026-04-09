@@ -5,6 +5,7 @@ import './TicketsSection.css';
 import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from 'types/entities/ticket';
 import { formatBetTypeLabel, formatChoiceLabelFr } from 'utils/oddsLabel';
+import { getTicketContextLabel } from 'utils/ticketContext';
 import { formatMatchDateTime } from '../../utils/time';
 import TicketShareSheet from './TicketShareSheet';
 
@@ -134,7 +135,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleKeyDown]);
 
-  const leagueName = ticket?.league_summary?.name || 'Ligues';
+  const ticketContextLabel = getTicketContextLabel(ticket);
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
   const badgeClass =
     isWin
@@ -213,7 +214,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
                 </div>
                 <div className="status">
                   <span className={badgeClass}>{statusLabel}</span>
-                  <span className="league">{leagueName}</span>
+                  <span className="league" title={ticketContextLabel}>{ticketContextLabel}</span>
                 </div>
               </header>
 
@@ -289,7 +290,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             uuid: ticket.uuid,
             gain: ticket.gain,
             mise: ticket.mise,
-            leagueName: ticket.league_summary?.name,
+              leagueName: ticketContextLabel,
             choices: ticket.match_choice_summaries.map((choice) => ({
               homeTeam: choice.match_summary.home_team,
               awayTeam: choice.match_summary.away_team,

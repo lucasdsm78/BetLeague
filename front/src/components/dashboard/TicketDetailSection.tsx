@@ -5,6 +5,7 @@ import { useTicketDetail } from 'hooks/useTicketDetail';
 import type { MatchChoiceSummary } from '../../types/entities/ticket';
 import { formatBetTypeLabel } from '../../utils/oddsLabel';
 import { formatMatchDateTime } from '../../utils/time';
+import { getTicketContextLabel } from '../../utils/ticketContext';
 import TicketShareSheet from './TicketShareSheet';
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
@@ -82,7 +83,7 @@ const TicketDetailSection: React.FC = memo(() => {
   const { ticket, loading, error, refetch, lastUpdated } = useTicketDetail(ticketId ?? '');
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
-  const leagueName = ticket?.league_summary?.name || 'Ligues';
+  const ticketContextLabel = getTicketContextLabel(ticket);
   const isWin = ticket ? normalizeStatus(ticket.status) === 'correct' : false;
   const badgeClass = isWin ? 'badge badge-success' : normalizeStatus(ticket?.status) === 'wrong' ? 'badge badge-danger' : 'badge badge-warning';
   const statusLabel = statusToLabel(ticket?.status);
@@ -136,7 +137,7 @@ const TicketDetailSection: React.FC = memo(() => {
             </div>
             <div className="status">
               <span className={badgeClass}>{statusLabel}</span>
-              <span className="league">{leagueName}</span>
+              <span className="league" title={ticketContextLabel}>{ticketContextLabel}</span>
             </div>
           </header>
 
@@ -195,7 +196,7 @@ const TicketDetailSection: React.FC = memo(() => {
               uuid: ticket.uuid,
               gain: ticket.gain,
               mise: ticket.mise,
-              leagueName: ticket.league_summary?.name,
+              leagueName: ticketContextLabel,
               choices: ticket.match_choice_summaries.map((choice) => ({
                 homeTeam: choice.match_summary.home_team,
                 awayTeam: choice.match_summary.away_team,

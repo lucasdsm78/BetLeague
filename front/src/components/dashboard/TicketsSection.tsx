@@ -17,6 +17,7 @@ import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 import { useMyLeaguesQuery } from '../../hooks/queries/useLeaguesLiteQueries';
+import { getTicketContextLabel } from '../../utils/ticketContext';
 
 type TabType = 'current' | 'finished';
 
@@ -58,16 +59,6 @@ function applyFilter(tickets: TicketReadModel[], filter: TicketFilter): TicketRe
     return tickets.filter(t => t.league_summary?.id === filter.id);
   }
   return tickets.filter(t => t.tournament_match_summary != null);
-}
-
-function getTicketContextLabel(ticket: TicketReadModel): string {
-  const tournamentName = ticket.tournament_match_summary?.name?.trim();
-  if (ticket.tournament_match_summary?.tournament_id != null) {
-    return `Tournoi : ${tournamentName || 'Tournoi'}`;
-  }
-
-  const leagueName = ticket.league_summary?.name?.trim();
-  return `Ligue : ${leagueName || 'Ligue'}`;
 }
 
 const IconAll = () => (
