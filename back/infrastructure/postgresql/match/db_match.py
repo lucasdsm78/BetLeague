@@ -19,7 +19,7 @@ class DBMatch(Base):
 
     __tablename__ = "match"
 
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True)
     home_team: Union[str, Column] = Column(String, nullable=False)
     away_team: Union[str, Column] = Column(String, nullable=False)
@@ -43,6 +43,7 @@ class DBMatch(Base):
     match_choices = relationship("DBMatchChoices", back_populates="match")
 
     __table_args__ = (
+        Index('ix_match_time', 'time'),
         Index('ix_match_sport_time', 'sport', 'time'),
         Index('ix_match_status', 'status'),
     )

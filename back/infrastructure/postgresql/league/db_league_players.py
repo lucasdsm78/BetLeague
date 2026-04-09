@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, ForeignKey, BigInteger, Float, Index
+from sqlalchemy import Column, Integer, ForeignKey, BigInteger, Float, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from domain.league.model.league_players import LeaguePlayers
@@ -28,13 +28,19 @@ class DBLeaguePlayers(Base):
     updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
 
     __table_args__ = (
-        Index("idx_user_league_league_players", "user_id", "league_id"),
+        UniqueConstraint("user_id", "league_id", name="uq_leagues_players_user_league"),
         Index(
             "idx_league_players_league_id",
             "league_id",
         ),
         Index(
             "idx_league_players_user_id",
+            "user_id",
+        ),
+        Index(
+            "ix_leagues_players_league_btl_rank",
+            "league_id",
+            "btl_from_tickets",
             "user_id",
         ),
     )

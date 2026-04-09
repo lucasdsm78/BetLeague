@@ -16,7 +16,7 @@ def unixtimestamp() -> int:
 class DBPack(Base):
 
     __tablename__ = "pack"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     name: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     price_cents: Union[int, Column] = Column(Integer)
     nb_btl: Union[float, Column] = Column(Float, nullable=False)
