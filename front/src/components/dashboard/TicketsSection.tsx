@@ -18,6 +18,7 @@ import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
 import { useMyLeaguesQuery } from '../../hooks/queries/useLeaguesLiteQueries';
 import { getTicketContextLabel } from '../../utils/ticketContext';
+import { formatTicketAmount } from '../../utils/ticketAmount';
 
 type TabType = 'current' | 'finished';
 
@@ -304,12 +305,12 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, 
       <div className="ticket-stats">
         <div className="stat">
           <span className="label">Mise</span>
-          <span className="value">{ticket.mise}€</span>
+          <span className="value">{formatTicketAmount(ticket.mise, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="divider" />
         <div className="stat primary">
           <span className="label">Gain potentiel</span>
-          <span className="value">{potentialGain.toFixed(2)}€</span>
+          <span className="value">{formatTicketAmount(potentialGain)}</span>
         </div>
       </div>
 
@@ -362,12 +363,12 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
       <div className="ticket-stats">
         <div className="stat">
           <span className="label">Mise</span>
-          <span className="value">{ticket.mise}€</span>
+          <span className="value">{formatTicketAmount(ticket.mise, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
         </div>
         <div className="divider" />
         <div className="stat primary">
           <span className="label">Gain</span>
-          <span className="value">{Number(ticket.gain || 0).toFixed(2)}€</span>
+          <span className="value">{formatTicketAmount(Number(ticket.gain || 0))}</span>
         </div>
       </div>
 
@@ -409,15 +410,15 @@ const StatsPanelCurrent: React.FC<{ tickets: TicketReadModel[]; lastUpdated: num
           <span className="stat-label">Tickets</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{stats.totalStake}€</span>
+          <span className="stat-value">{formatTicketAmount(stats.totalStake, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
           <span className="stat-label">Mise totale</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{stats.totalPotential.toFixed(2)}€</span>
+          <span className="stat-value">{formatTicketAmount(stats.totalPotential)}</span>
           <span className="stat-label">Gain potentiel</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{stats.avgStake.toFixed(1)}€</span>
+          <span className="stat-value">{formatTicketAmount(stats.avgStake, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
           <span className="stat-label">Mise moyenne</span>
         </div>
       </div>
@@ -467,11 +468,11 @@ const StatsPanelFinished: React.FC<{ tickets: TicketReadModel[]; lastUpdated: nu
           <span className="stat-label">Win rate</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{stats.totalStake.toFixed(2)}€</span>
+          <span className="stat-value">{formatTicketAmount(stats.totalStake)}</span>
           <span className="stat-label">Mise totale</span>
         </div>
         <div className="stat-item">
-          <span className="stat-value">{stats.totalGain.toFixed(2)}€</span>
+          <span className="stat-value">{formatTicketAmount(stats.totalGain)}</span>
           <span className="stat-label">Gain total</span>
         </div>
       </div>

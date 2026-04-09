@@ -1,3 +1,5 @@
+import { formatTicketAmount } from './ticketAmount';
+
 export type TicketShareNetwork = 'system' | 'instagram' | 'tiktok';
 export type TicketShareVariant = 'feed' | 'story';
 export type TicketShareAction = 'share' | 'copy-link' | 'download-image';
@@ -100,12 +102,12 @@ export function buildSharedWinningTicketUrl(ticketUuid: string, origin?: string)
 
 export function buildWinningTicketShareMessage(input: ShareWinningTicketInput): string {
   const url = buildSharedWinningTicketUrl(input.ticketUuid, input.origin);
-  const gain = Number.isFinite(input.gain) ? input.gain.toFixed(2) : '0.00';
-  const mise = Number.isFinite(input.mise) ? Number(input.mise).toFixed(2) : '0.00';
+  const gain = formatTicketAmount(input.gain);
+  const mise = formatTicketAmount(input.mise);
   const networkLabel = getNetworkLabel(input.network ?? 'system');
   const intro = input.leagueName
-    ? `J'ai misé ${mise}€ et gagné ${gain}€ sur BetLeague dans ${input.leagueName}`
-    : `J'ai misé ${mise}€ et gagné ${gain}€ sur BetLeague`;
+    ? `J'ai misé ${mise} et gagné ${gain} sur BetLeague dans ${input.leagueName}`
+    : `J'ai misé ${mise} et gagné ${gain} sur BetLeague`;
   const storyHint = input.variant === 'story'
     ? ` Je partage aussi le ticket en story sur ${networkLabel}.`
     : ` Regardez mon ticket.`;
@@ -113,8 +115,8 @@ export function buildWinningTicketShareMessage(input: ShareWinningTicketInput): 
 }
 
 function buildTicketShareSvg(input: ShareWinningTicketInput): string {
-  const gain = Number.isFinite(input.gain) ? input.gain.toFixed(2) : '0.00';
-  const mise = Number.isFinite(input.mise) ? Number(input.mise).toFixed(2) : '0.00';
+  const gain = formatTicketAmount(input.gain, { withUnit: false });
+  const mise = formatTicketAmount(input.mise, { withUnit: false });
   const multiplier = (input.mise && input.mise > 0) ? (input.gain / input.mise).toFixed(1) : null;
   const isStory = (input.variant ?? 'feed') === 'story';
   const width = isStory ? 1080 : 1200;
@@ -273,11 +275,11 @@ function buildTicketShareSvg(input: ShareWinningTicketInput): string {
     <!-- Gain amount with glow -->
     <text x="${cx}" y="${isStory ? 560 : 485}" fill="#FFFFFF" font-size="${isStory ? 130 : 120}" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="middle" filter="url(#gainShadow)">${gainLabel}</text>
     <text x="${cx + (isStory ? 10 : 5)}" y="${isStory ? 560 : 485}" fill="url(#gainGlow)" font-size="${isStory ? 130 : 120}" font-family="Inter, Arial, sans-serif" font-weight="900" text-anchor="middle">${gainLabel}</text>
-    <!-- Euro symbol -->
-    <text x="${cx}" y="${isStory ? 610 : 535}" fill="#34D399" font-size="48" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">EUR</text>
+    <!-- BTL symbol -->
+    <text x="${cx}" y="${isStory ? 610 : 535}" fill="#34D399" font-size="48" font-family="Inter, Arial, sans-serif" font-weight="700" text-anchor="middle">BTL</text>
 
     <!-- Mise + Multiplier row -->
-    <text x="${isStory ? 200 : 240}" y="${isStory ? 680 : 595}" fill="rgba(255,255,255,0.7)" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="600" text-anchor="middle">${miseLabel} EUR</text>
+    <text x="${isStory ? 200 : 240}" y="${isStory ? 680 : 595}" fill="rgba(255,255,255,0.7)" font-size="30" font-family="Inter, Arial, sans-serif" font-weight="600" text-anchor="middle">${miseLabel} BTL</text>
     ${multiplierSvg}
 
     <!-- Ticket ID -->
