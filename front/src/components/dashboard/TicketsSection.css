@@ -831,6 +831,8 @@
   display: inline-flex;
   gap: 0.5rem;
   align-items: center;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .ticket-card-header .right {
@@ -838,9 +840,14 @@
   font-weight: 500;
 }
 
-.ticket-league {
+.ticket-context {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Badges */
@@ -1205,6 +1212,26 @@
 }
 
 @media (max-width: 640px) {
+  .ticket-card-header {
+    align-items: flex-start;
+  }
+
+  .ticket-card-header .left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.375rem;
+  }
+
+  .ticket-context {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: 0.85rem;
+  }
+
   .ticket-header {
     flex-direction: column;
     gap: 0.5rem;

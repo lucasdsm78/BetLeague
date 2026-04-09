@@ -10,6 +10,7 @@ from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
+from infrastructure.postgresql.tournament.db_tournament_match import DBTournamentMatch
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 
 
@@ -30,7 +31,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 joinedload(DBTicket.user),
                 joinedload(DBTicket.league),
-                joinedload(DBTicket.tournament_match),
+                joinedload(DBTicket.tournament_match).joinedload(DBTournamentMatch.tournament),
                 selectinload(DBTicket.match_choices)
             )
             .where(DBTicket.id == ticket_id)
@@ -60,7 +61,7 @@ class TicketRepositoryImpl(TicketRepository):
             .options(
                 joinedload(DBTicket.user),
                 joinedload(DBTicket.league),
-                joinedload(DBTicket.tournament_match),
+                joinedload(DBTicket.tournament_match).joinedload(DBTournamentMatch.tournament),
                 joinedload(DBTicket.match_choices),
             )
             .where(DBTicket.uuid == ticket_uuid)
@@ -106,7 +107,7 @@ class TicketRepositoryImpl(TicketRepository):
             .where(*filters)
             .options(
                 selectinload(DBTicket.league),
-                selectinload(DBTicket.tournament_match),
+                selectinload(DBTicket.tournament_match).selectinload(DBTournamentMatch.tournament),
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)
             )
@@ -160,7 +161,7 @@ class TicketRepositoryImpl(TicketRepository):
             .where(*filters)
             .options(
                 selectinload(DBTicket.league),
-                selectinload(DBTicket.tournament_match),
+                selectinload(DBTicket.tournament_match).selectinload(DBTournamentMatch.tournament),
                 selectinload(DBTicket.match_choices)
                 .selectinload(DBMatchChoices.match)
             )

@@ -43,6 +43,19 @@ def _get_match_odd_summary(odd_map: dict[int, object], odd_id: Optional[int]) ->
     return _odd_to_summary(odd) if odd else None
 
 
+def _build_tournament_match_summary(tm) -> TournamentMatchSummary:
+    tournament = getattr(tm, 'tournament', None)
+    tournament_name = getattr(tournament, 'name', None) if tournament is not None else None
+    match_type = tm.type.value if hasattr(tm.type, 'value') else tm.type
+    return TournamentMatchSummary(
+        tournament_match_id=tm.id,
+        tournament_id=tm.tournament_id,
+        name=tournament_name,
+        type=str(match_type),
+        stage_id=tm.stage_id,
+    )
+
+
 class TicketQueryUseCase(ABC):
 
     @abstractmethod
@@ -125,19 +138,9 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                 tournament_match = await tournament_match_repo.find_by_id(ticket.tournament_match_id)
                 if not tournament_match:
                     raise TournamentMatchNotFoundError
-                tournament_match_summary = TournamentMatchSummary(
-                    tournament_match_id=tournament_match.id,
-                    tournament_id=tournament_match.tournament_id,
-                    type=tournament_match.type.value,
-                    stage_id=tournament_match.stage_id
-                )
+                tournament_match_summary = _build_tournament_match_summary(tournament_match)
             else:
-                tournament_match_summary = TournamentMatchSummary(
-                    tournament_match_id=tm.id,
-                    tournament_id=tm.tournament_id,
-                    type=tm.type,
-                    stage_id=tm.stage_id
-                )
+                tournament_match_summary = _build_tournament_match_summary(tm)
 
         choices = await match_choices_repo.find_all_by_ticket_id(ticket.id)
 
@@ -290,12 +293,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         tm = getattr(db_ticket, 'tournament_match', None)
                         if tm is None:
                             raise TournamentMatchNotFoundError
-                        tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tm.id,
-                            tournament_id=tm.tournament_id,
-                            type=tm.type,
-                            stage_id=tm.stage_id
-                        )
+                        tournament_match_summary = _build_tournament_match_summary(tm)
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
                     for db_choice in db_ticket.match_choices:
@@ -387,12 +385,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                         tm = getattr(db_ticket, 'tournament_match', None)
                         if tm is None:
                             raise TournamentMatchNotFoundError
-                        tournament_match_summary = TournamentMatchSummary(
-                            tournament_match_id=tm.id,
-                            tournament_id=tm.tournament_id,
-                            type=tm.type,
-                            stage_id=tm.stage_id
-                        )
+                        tournament_match_summary = _build_tournament_match_summary(tm)
 
                     match_choice_summaries: List[MatchChoiceSummary] = []
                     for db_choice in db_ticket.match_choices:

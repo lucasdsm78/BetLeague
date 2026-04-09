@@ -60,6 +60,16 @@ function applyFilter(tickets: TicketReadModel[], filter: TicketFilter): TicketRe
   return tickets.filter(t => t.tournament_match_summary != null);
 }
 
+function getTicketContextLabel(ticket: TicketReadModel): string {
+  const tournamentName = ticket.tournament_match_summary?.name?.trim();
+  if (ticket.tournament_match_summary?.tournament_id != null) {
+    return `Tournoi : ${tournamentName || 'Tournoi'}`;
+  }
+
+  const leagueName = ticket.league_summary?.name?.trim();
+  return `Ligue : ${leagueName || 'Ligue'}`;
+}
+
 const IconAll = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
@@ -276,7 +286,7 @@ interface InProgressTicketCardProps {
 }
 
 const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
-  const leagueName = ticket.league_summary?.name || 'Ligues';
+  const ticketContextLabel = getTicketContextLabel(ticket);
   const potentialGain = Number(ticket.gain ?? 0); // backend returns gain (potential when pending)
 
   return (
@@ -284,7 +294,7 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, 
       <header className="ticket-card-header">
         <div className="left">
           <span className="badge badge-warning">{statusToLabel(ticket.status)}</span>
-          <span className="ticket-league" title={leagueName}>{leagueName}</span>
+          <span className="ticket-context" title={ticketContextLabel}>{ticketContextLabel}</span>
         </div>
         <div className="right">
           <span className="ticket-id">#{ticket.id}</span>
@@ -331,7 +341,7 @@ interface FinishedTicketCardProps {
 }
 
 const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) => {
-  const leagueName = ticket.league_summary?.name || 'Ligues';
+  const ticketContextLabel = getTicketContextLabel(ticket);
   const normalizedStatus = normalizeStatus(ticket.status);
   const isWin = normalizedStatus === 'correct';
   const badgeClass = isWin ? 'badge-success' : 'badge-danger';
@@ -342,7 +352,7 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
       <header className="ticket-card-header">
         <div className="left">
           <span className={`badge ${badgeClass}`}>{resultLabel}</span>
-          <span className="ticket-league" title={leagueName}>{leagueName}</span>
+          <span className="ticket-context" title={ticketContextLabel}>{ticketContextLabel}</span>
         </div>
         <div className="right">
           <span className="ticket-id">#{ticket.id}</span>

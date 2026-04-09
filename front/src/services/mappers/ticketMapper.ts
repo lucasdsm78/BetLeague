@@ -3,6 +3,7 @@ import type {
   ApiMatchSummary,
   ApiSharedTicketReadModel,
   ApiTicketReadModel,
+  ApiTournamentMatchSummary,
 } from '../../types/api/tickets';
 import type { ApiLeagueSummary } from '../../types/api/leagues';
 import type {
@@ -12,6 +13,7 @@ import type {
   TicketReadModel,
   MatchOddSummary,
   SharedTicketReadModel,
+  TournamentMatchSummary,
 } from '../../types/entities/ticket';
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -78,6 +80,16 @@ function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): TicketLeagueSummary {
   };
 }
 
+function mapApiTournamentMatchSummaryToUi(api: ApiTournamentMatchSummary): TournamentMatchSummary {
+  return {
+    tournament_match_id: asNumber(api.tournament_match_id),
+    tournament_id: asNumber(api.tournament_id),
+    name: api.name == null ? null : asString(api.name),
+    stage_id: asNumber(api.stage_id),
+    type: asString(api.type),
+  };
+}
+
 function asNumberOrZero(value: unknown): number {
   if (value === null || value === undefined) return 0;
   if (typeof value === 'number' && !Number.isNaN(value)) return value;
@@ -116,7 +128,7 @@ export function mapApiTicketToUi(api: ApiTicketReadModel): TicketReadModel {
     gain: asNumberOrZero((api as any).gain),
     status: asStringOrEmpty((api as any).status),
     league_summary: leagueSummary ? mapApiLeagueSummaryToUi(leagueSummary as ApiLeagueSummary) : null,
-    tournament_match_summary: tournamentMatchSummary ?? null,
+    tournament_match_summary: tournamentMatchSummary ? mapApiTournamentMatchSummaryToUi(tournamentMatchSummary as ApiTournamentMatchSummary) : null,
     match_choice_summaries: matchChoices.map((c: any) => mapApiMatchChoiceSummaryToUi(c as ApiMatchChoiceSummary)),
   };
 }
@@ -140,7 +152,7 @@ export function mapApiSharedTicketToUi(api: ApiSharedTicketReadModel): SharedTic
     gain: asNumberOrZero((api as any).gain),
     status: asStringOrEmpty((api as any).status),
     league_summary: leagueSummary ? mapApiLeagueSummaryToUi(leagueSummary as ApiLeagueSummary) : null,
-    tournament_match_summary: tournamentMatchSummary ?? null,
+    tournament_match_summary: tournamentMatchSummary ? mapApiTournamentMatchSummaryToUi(tournamentMatchSummary as ApiTournamentMatchSummary) : null,
     match_choice_summaries: matchChoices.map((c: any) => mapApiMatchChoiceSummaryToUi(c as ApiMatchChoiceSummary)),
   };
 }

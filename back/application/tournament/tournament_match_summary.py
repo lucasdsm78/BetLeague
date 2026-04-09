@@ -4,6 +4,7 @@ class TournamentMatchSummary(BaseModel):
 
     tournament_match_id: int
     tournament_id: int
+    name: str | None = None
     stage_id: int
     type: str
 

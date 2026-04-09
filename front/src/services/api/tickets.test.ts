@@ -22,7 +22,7 @@ describe('tickets api service', () => {
         mise: 10,
         gain: 28.5,
         status: 'CORRECT',
-        league_summary: { id: 11, name: 'Ligue VIP' },
+        league_summary: { id: 11, name: 'Ligue VIP', max_players: 20 },
         match_choice_summaries: [],
       },
       status: 200,
