@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float, Index
 from sqlalchemy.orm import relationship
 
 from domain.purchase.model.pack_summary import PackSummary
@@ -20,7 +20,12 @@ def unixtimestamp() -> int:
 class DBPurchase(Base):
 
     __tablename__ = "purchase"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    __table_args__ = (
+        Index("ix_purchase_pack_id", "pack_id"),
+        Index("ix_purchase_user_created_id", "user_id", "created_at", "id"),
+    )
+
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     stripe_session_id: Union[str, Column] = Column(String, nullable=True, index=True)
     status: Union[str, Column] = Column(String, nullable=False)

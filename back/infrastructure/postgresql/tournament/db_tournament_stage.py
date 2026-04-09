@@ -25,9 +25,17 @@ class DBTournamentStage(Base):
             unique=True,
             postgresql_where=text("is_active = true"),
         ),
+        Index(
+            "ix_tournament_stage_due_active",
+            "tournament_id",
+            "end_date",
+            "start_date",
+            "id",
+            postgresql_where=text("is_active = true AND is_completed = false"),
+        ),
     )
 
-    id = Column(Integer, index=True, primary_key=True)
+    id = Column(Integer, primary_key=True)
     tournament_id = Column(Integer, ForeignKey("tournament.id"), nullable=False)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     user = relationship('DBUser', back_populates="tournament_stages", foreign_keys=[user_id])

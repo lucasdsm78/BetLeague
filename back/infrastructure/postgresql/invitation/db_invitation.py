@@ -17,7 +17,7 @@ def unixtimestamp() -> int:
 class DBInvitation(Base):
 
     __tablename__ = "invitation"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'), index=True)
     user_sender_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     user_sender = relationship("DBUser", foreign_keys=[user_sender_id])
@@ -33,6 +33,8 @@ class DBInvitation(Base):
     __table_args__ = (
         Index("idx_user_league_invitations", "user_id", "league_id"),
         Index("idx_user_tournament_invitations", "user_id", "tournament_id"),
+        Index("ix_invitation_user_created_at", "user_id", "created_at", "id"),
+        Index("ix_invitation_user_status_created_at", "user_id", "status", "created_at", "id"),
     )
 
     def to_entity(self) -> Invitation:

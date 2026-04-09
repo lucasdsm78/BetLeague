@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional, Union
 
-from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String, Index, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -13,7 +13,16 @@ from infrastructure.postgresql.database import Base
 class DBNotification(Base):
     __tablename__ = "notification"
 
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    __table_args__ = (
+        Index("ix_notification_user_created_id", "user_id", "created_at", "id"),
+        Index(
+            "ix_notification_user_unread",
+            "user_id",
+            postgresql_where=text("read_at IS NULL"),
+        ),
+    )
+
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     user_id: Union[int, Column] = Column(BigInteger, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
 
     type: Union[str, Column] = Column(String(80), nullable=False, index=True)
