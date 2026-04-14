@@ -46,6 +46,7 @@ export interface LeagueSummary {
   readonly playersRemaining?: number;
   readonly isFree?: boolean;
   readonly nbBtl?: number;
+  readonly estimatedTotalPot?: number;
 }
 
 export interface LeagueRules {

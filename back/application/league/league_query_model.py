@@ -61,6 +61,7 @@ class LeagueReadModel(BaseModel):
     user_creator: Optional[UserSummaryLeagueDetail] = None
     is_started: Optional[bool] = None
     nb_players_remaining: Optional[int] = None
+    estimated_total_pot: float = 0
 
     class Config:
         arbitrary_types_allowed = True
@@ -72,6 +73,7 @@ class LeagueReadModel(BaseModel):
             uuid=league.uuid,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
+            estimated_total_pot=league.estimated_total_pot,
             start_date=league.start_date,
             max_players=league.max_players,
             name=league.name,
@@ -93,6 +95,7 @@ class LeagueReadModel(BaseModel):
             status=league.status.value,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
+            estimated_total_pot=league.estimated_total_pot,
         )
 
 
