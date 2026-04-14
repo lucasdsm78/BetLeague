@@ -34,14 +34,22 @@ def test_league_read_model_exposes_estimated_total_pot_for_detail_and_list_views
     assert summary.estimated_total_pot == 30.0
 
 
-def test_league_estimated_total_pot_is_zero_for_free_or_incomplete_leagues():
+def test_league_estimated_total_pot_is_none_when_not_applicable():
     free_league = _build_league(nb_btl=None, nb_players_remaining=4)
     incomplete_league = _build_league(nb_btl=15, nb_players_remaining=None)
 
-    assert free_league.estimated_total_pot == 0.0
-    assert LeagueReadModel.from_entity_get_by_id(free_league).estimated_total_pot == 0.0
+    assert free_league.estimated_total_pot is None
+    assert LeagueReadModel.from_entity_get_by_id(free_league).estimated_total_pot is None
 
     assert incomplete_league.current_players is None
-    assert incomplete_league.estimated_total_pot == 0.0
-    assert LeagueReadModel.from_entity_get_all(incomplete_league).estimated_total_pot == 0.0
+    assert incomplete_league.estimated_total_pot is None
+    assert LeagueReadModel.from_entity_get_all(incomplete_league).estimated_total_pot is None
+
+
+def test_league_estimated_total_pot_can_be_zero_when_paid_league_has_no_current_participants():
+    empty_paid_league = _build_league(nb_btl=20, nb_players_remaining=8)
+
+    assert empty_paid_league.current_players == 0
+    assert empty_paid_league.estimated_total_pot == 0.0
+    assert LeagueReadModel.from_entity_get_by_id(empty_paid_league).estimated_total_pot == 0.0
 

@@ -70,14 +70,17 @@ class League:
         return max(self.max_players - self.nb_players_remaining, 0)
 
     @property
-    def estimated_total_pot(self) -> float:
+    def estimated_total_pot(self) -> Optional[float]:
         current_players = self.current_players
         if current_players is None:
-            return 0.0
+            return None
 
-        entry_fee = float(self.nb_btl or 0)
-        if entry_fee <= 0:
-            return 0.0
+        if self.is_free or self.nb_btl is None:
+            return None
+
+        entry_fee = float(self.nb_btl)
+        if entry_fee < 0:
+            return None
 
         return float(current_players * entry_fee)
 

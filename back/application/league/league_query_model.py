@@ -61,7 +61,7 @@ class LeagueReadModel(BaseModel):
     user_creator: Optional[UserSummaryLeagueDetail] = None
     is_started: Optional[bool] = None
     nb_players_remaining: Optional[int] = None
-    estimated_total_pot: float = 0
+    estimated_total_pot: Optional[float] = None
 
     class Config:
         arbitrary_types_allowed = True

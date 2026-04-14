@@ -309,7 +309,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                             <div className="stat-icon">🏦</div>
                             <div className="stat-content">
                                 <div className="stat-value stat-value-pot">{estimatedTotalPotLabel}</div>
-                                <div className="stat-label">Pot total estimé</div>
+                                <div className="stat-label">Pot actuel</div>
                             </div>
                         </div>
                     )}
