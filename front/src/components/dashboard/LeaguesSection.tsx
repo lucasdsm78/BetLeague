@@ -13,6 +13,7 @@ import LeagueRankingModal from '../league/LeagueRankingModal';
 import LeaveLeagueModal from '../league/LeaveLeagueModal';
 import EditLeagueModal from '../league/EditLeagueModal';
 import InsufficientBTLModal from '../InsufficientBTLModal';
+import { formatTicketAmount } from '../../utils/ticketAmount';
 import './LeaguesSection.css';
 import type { LeagueSummary } from 'types/entities/league';
 import type { UserSearchResult } from 'types/entities/userSearch';
@@ -114,6 +115,10 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
         return String(myBalanceBtl);
     };
 
+    const estimatedTotalPotLabel = typeof league.estimatedTotalPot === 'number'
+        ? formatTicketAmount(league.estimatedTotalPot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+        : null;
+
     return (
         <div className="league-card">
             <div className="league-header">
@@ -144,6 +149,12 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <span className="stat-value">{statusLabel}</span>
                     <span className="stat-label">Statut</span>
                 </div>
+                {estimatedTotalPotLabel && (
+                    <div className="stat stat-pot">
+                        <span className="stat-value stat-value-pot">{estimatedTotalPotLabel}</span>
+                        <span className="stat-label">Pot total estimé</span>
+                    </div>
+                )}
                 {replaceEntryFeeWithBalance ? (
                     <div className="stat stat-btl">
                         <span className="stat-value stat-value-btl" aria-busy={isLoadingBalance}>
@@ -468,9 +479,10 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const handleEditLeague = useCallback(async (league: LeagueSummary) => {
         try {
             const data = await getLeagueDetails(league.id);
-            const startDate = data.start_date > 9999999999
-                ? Math.floor(data.start_date / 1000)
-                : Math.floor(data.start_date);
+            const rawStartDate = Number(data.start_date);
+            const startDate = rawStartDate > 9999999999
+                ? Math.floor(rawStartDate / 1000)
+                : Math.floor(rawStartDate);
 
             setSelectedLeagueForEdit({
                 id: data.id,
@@ -478,7 +490,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 isStarted: data.is_started,
                 maxPlayers: data.max_players,
                 isFree: data.is_free,
-                nbBtl: (data as any).nb_btl,
+                nbBtl: data.nb_btl,
                 startDate: startDate
             });
             setIsEditModalOpen(true);

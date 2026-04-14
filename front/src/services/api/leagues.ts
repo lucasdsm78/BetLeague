@@ -5,6 +5,7 @@ import http, { type ApiResponse } from '../http';
 import { mapLeaguesPage, type LeaguesPage } from '../mappers/leaguesPagingMapper';
 import type {
   ApiLeaguesPage,
+  ApiLeagueDetail,
   ApiLeagueCreateRequest,
   ApiLeagueMessageResponse,
   ApiLeagueRankingRow,
@@ -19,7 +20,15 @@ import type {
 } from '../../types/api';
 
 // Compat API légère (utilisée dans quelques endroits)
-export type LeagueSummaryApi = { id: number; name: string; start_date?: number; is_started?: boolean; nb_players_remaining?: number; status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED' };
+export type LeagueSummaryApi = {
+  id: number;
+  name: string;
+  start_date?: number;
+  is_started?: boolean;
+  nb_players_remaining?: number;
+  estimated_total_pot?: number;
+  status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
+};
 
 export async function createLeague(payload: ApiLeagueCreateRequest): Promise<ApiLeagueMessageResponse> {
   const res: ApiResponse<ApiLeagueMessageResponse> = await http.post('/league/create', payload);
@@ -81,10 +90,10 @@ export async function getLeagueBalance(leagueId: number): Promise<number> {
   return dto.nb_btl;
 }
 
-export async function getLeagueDetails(leagueId: number): Promise<any> {
+export async function getLeagueDetails(leagueId: number): Promise<ApiLeagueDetail> {
   if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
-  const res: ApiResponse<any> = await http.get(`/league/${leagueId}`);
-  return res.data;
+  const res: ApiResponse<ApiLeagueDetail> = await http.get(`/league/${leagueId}`);
+  return res.data as ApiLeagueDetail;
 }
 
 export async function inviteUserToLeague(leagueId: number, userId: number): Promise<ApiLeagueMessageResponse> {

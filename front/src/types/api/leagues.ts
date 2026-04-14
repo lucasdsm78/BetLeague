@@ -22,6 +22,27 @@ export interface ApiLeagueSummary {
   };
   nb_players_remaining?: number;
   is_started?: boolean;
+  estimated_total_pot?: number;
+}
+
+export interface ApiLeagueDetail {
+  id: number;
+  name: string;
+  status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
+  is_private?: boolean;
+  is_free?: boolean;
+  nb_btl?: number;
+  uuid?: string;
+  start_date: string | number;
+  end_date?: string | number;
+  max_players: number;
+  nb_players_remaining?: number;
+  is_started?: boolean;
+  estimated_total_pot?: number;
+  user_creator?: {
+    id: number;
+    pseudo: string;
+  };
 }
 
 export type ApiLeaguesPage = ApiPaginatedResponse<ApiLeagueSummary>;

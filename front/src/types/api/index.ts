@@ -6,6 +6,7 @@ export * from './matches';
 // Leagues: export explicite (évite les surprises de TS server)
 export type {
   ApiLeagueSummary,
+  ApiLeagueDetail,
   ApiLeaguesPage,
   ApiLeagueCreateRequest,
   ApiLeagueMessageResponse,

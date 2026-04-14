@@ -1,24 +1,8 @@
 import React, { memo, useEffect, useState, useCallback } from 'react';
 import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
+import type { ApiLeagueDetail } from '../../types/api';
+import { formatTicketAmount } from '../../utils/ticketAmount';
 import './LeagueDetailsModal.css';
-
-// Types for league details based on backend LeagueReadModel
-interface LeagueDetailData {
-    id: number;
-    name: string;
-    uuid?: string;
-    status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
-    is_free?: boolean;
-    start_date: number;
-    end_date?: number;
-    max_players?: number;
-    is_started?: boolean;
-    nb_players_remaining?: number;
-    user_creator?: {
-        id: number;
-        pseudo: string;
-    };
-}
 
 interface LeagueDetailsModalProps {
   isOpen: boolean;
@@ -29,7 +13,7 @@ interface LeagueDetailsModalProps {
 const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, leagueId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [details, setDetails] = useState<LeagueDetailData | null>(null);
+  const [details, setDetails] = useState<ApiLeagueDetail | null>(null);
   const [joining, setJoining] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -154,9 +138,20 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
 
   if (!isOpen) return null;
 
-  const formatDate = (timestamp: number) => {
+  const toEpochMs = (timestamp: string | number | null | undefined): number | null => {
+    if (timestamp === null || timestamp === undefined) return null;
+    const parsed = typeof timestamp === 'string' ? Number(timestamp) : timestamp;
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const formatDate = (timestamp: string | number | null | undefined) => {
+    const epochMs = toEpochMs(timestamp);
+    if (epochMs === null) {
+      return 'Date non définie';
+    }
+
     try {
-      return new Date(timestamp).toLocaleDateString('fr-FR', {
+      return new Date(epochMs).toLocaleDateString('fr-FR', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -170,6 +165,8 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
   const getStatusInfo = () => {
     if (!details) return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };
 
+    const startDateMs = toEpochMs(details.start_date);
+
     if (details.status === 'CLOSED') {
       return { label: 'Fermée', color: 'var(--text-secondary)', icon: '⚫' };
     }
@@ -177,13 +174,20 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     if (details.is_started) {
       return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };
     }
-    if (details.start_date && details.start_date > Date.now()) {
+    if (startDateMs !== null && startDateMs > Date.now()) {
       return { label: 'À venir', color: 'var(--warning-color)', icon: '🟡' };
     }
     return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };
   };
 
   const statusInfo = getStatusInfo();
+  const currentPlayersLabel =
+    typeof details?.max_players === 'number' && typeof details?.nb_players_remaining === 'number'
+      ? `${Math.max(details.max_players - details.nb_players_remaining, 0)}/${details.max_players}`
+      : 'N/A';
+  const estimatedTotalPotLabel = typeof details?.estimated_total_pot === 'number'
+    ? formatTicketAmount(details.estimated_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : null;
 
   return (
     <div className="league-modal-overlay" onClick={onClose}>
@@ -247,12 +251,7 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
               <div className="stat-card-modal">
                 <div className="stat-icon">👥</div>
                 <div className="stat-content">
-                  <div className="stat-value">
-                    {details.max_players ?
-                      `${details.max_players - (details.nb_players_remaining || 0)}/${details.max_players}`
-                      : 'N/A'
-                    }
-                  </div>
+                  <div className="stat-value">{currentPlayersLabel}</div>
                   <div className="stat-label">Participants</div>
                 </div>
               </div>
@@ -284,6 +283,16 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
                   <div className="stat-label">Type de ligue</div>
                 </div>
               </div>
+
+              {estimatedTotalPotLabel && (
+                <div className="stat-card-modal stat-card-modal-pot">
+                  <div className="stat-icon">🏦</div>
+                  <div className="stat-content">
+                    <div className="stat-value stat-value-pot">{estimatedTotalPotLabel}</div>
+                    <div className="stat-label">Pot total estimé</div>
+                  </div>
+                </div>
+              )}
 
               {details.nb_players_remaining !== undefined && (
                 <div className="stat-card-modal">
