@@ -22,7 +22,7 @@ export interface ApiLeagueSummary {
   };
   nb_players_remaining?: number;
   is_started?: boolean;
-  estimated_total_pot?: number | null;
+  current_total_pot?: number | null;
 }
 
 export interface ApiLeagueDetail {
@@ -38,7 +38,7 @@ export interface ApiLeagueDetail {
   max_players: number;
   nb_players_remaining?: number;
   is_started?: boolean;
-  estimated_total_pot?: number | null;
+  current_total_pot?: number | null;
   user_creator?: {
     id: number;
     pseudo: string;

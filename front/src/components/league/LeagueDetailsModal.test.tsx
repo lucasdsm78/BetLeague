@@ -26,7 +26,7 @@ describe('LeagueDetailsModal', () => {
       end_date: 1_710_604_800_000,
       max_players: 10,
       nb_players_remaining: 7,
-      estimated_total_pot: 30,
+      current_total_pot: 30,
       user_creator: {
         id: 4,
         pseudo: 'owner',
@@ -60,7 +60,7 @@ describe('LeagueDetailsModal', () => {
       start_date: 1_710_000_000_000,
       max_players: 10,
       nb_players_remaining: 9,
-      estimated_total_pot: null,
+      current_total_pot: null,
     });
 
     render(

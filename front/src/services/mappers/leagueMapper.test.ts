@@ -11,10 +11,10 @@ describe('leagueMapper', () => {
       is_free: false,
       nb_btl: 10,
       nb_players_remaining: 7,
-      estimated_total_pot: 30,
+      current_total_pot: 30,
     });
 
-    expect(league.estimatedTotalPot).toBe(30);
+    expect(league.currentTotalPot).toBe(30);
     expect(league.playersRemaining).toBe(7);
     expect(league.nbBtl).toBe(10);
     expect(league.startDate).toBe(new Date(1_710_000_000_000).toISOString());
@@ -26,7 +26,7 @@ describe('leagueMapper', () => {
       name: 'Ligue gratuite',
       max_players: 8,
       start_date: 1_710_000_000_000,
-      estimated_total_pot: null,
+      current_total_pot: null,
     });
 
     const zeroPotLeague = mapApiLeagueSummaryToUi({
@@ -34,7 +34,7 @@ describe('leagueMapper', () => {
       name: 'Ligue payante vide',
       max_players: 8,
       start_date: 1_710_000_000_000,
-      estimated_total_pot: 0,
+      current_total_pot: 0,
     });
 
     const negativePotLeague = mapApiLeagueSummaryToUi({
@@ -42,7 +42,7 @@ describe('leagueMapper', () => {
       name: 'Ligue incohérente',
       max_players: 8,
       start_date: 1_710_000_000_000,
-      estimated_total_pot: -12,
+      current_total_pot: -12,
     });
 
     const fallbackCamelCaseLeague = mapApiLeagueSummaryToUi({
@@ -50,13 +50,13 @@ describe('leagueMapper', () => {
       name: 'Ligue fallback',
       max_players: 8,
       start_date: 1_710_000_000_000,
-      estimatedTotalPot: 42,
+      currentTotalPot: 42,
     } as any);
 
-    expect(nullPotLeague.estimatedTotalPot).toBeNull();
-    expect(zeroPotLeague.estimatedTotalPot).toBe(0);
-    expect(negativePotLeague.estimatedTotalPot).toBe(0);
-    expect(fallbackCamelCaseLeague.estimatedTotalPot).toBe(42);
+    expect(nullPotLeague.currentTotalPot).toBeNull();
+    expect(zeroPotLeague.currentTotalPot).toBe(0);
+    expect(negativePotLeague.currentTotalPot).toBe(0);
+    expect(fallbackCamelCaseLeague.currentTotalPot).toBe(42);
   });
 });
 
