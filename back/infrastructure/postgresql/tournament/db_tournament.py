@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float, UniqueConstraint, Index, text
 from sqlalchemy.orm import relationship
 
 from domain.tournament.model.tournament import Tournament
@@ -22,6 +22,12 @@ class DBTournament(Base):
     __table_args__ = (
         UniqueConstraint('name', name='uq_tournament_name'),
         Index('ix_tournament_user_created_at', 'user_id', 'created_at'),
+        Index(
+            'ix_tournament_public_pending_joinable_created_at_desc',
+            text('created_at DESC'),
+            text('id DESC'),
+            postgresql_where=text("is_private = false AND status = 'pending' AND current_players < max_players"),
+        ),
     )
 
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)

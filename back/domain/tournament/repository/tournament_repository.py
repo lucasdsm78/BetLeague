@@ -11,7 +11,7 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
+    async def find_by_id(self, tournament_id: int) -> Tournament:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,7 +62,7 @@ class TournamentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:
+    async def find_by_uuid(self, uuid: str) -> Tournament:
         raise NotImplementedError
 
     @abstractmethod

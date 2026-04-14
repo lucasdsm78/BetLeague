@@ -26,7 +26,7 @@ class TournamentRepositoryImpl(TournamentRepository):
         except IntegrityError as e:
              raise TournamentNameAlreadyExistsError from e
 
-    async def find_by_id(self, tournament_id: int) -> Optional[Tournament]:
+    async def find_by_id(self, tournament_id: int) -> Tournament:
         result = await self.session.execute(
             select(DBTournament)
             .options(joinedload(DBTournament.user))
@@ -48,7 +48,7 @@ class TournamentRepositoryImpl(TournamentRepository):
             return None
         return tournament_db.to_entity()
 
-    async def find_by_uuid(self, uuid: str) -> Optional[Tournament]:
+    async def find_by_uuid(self, uuid: str) -> Tournament:
         result = await self.session.execute(
             select(DBTournament)
             .options(
@@ -66,12 +66,13 @@ class TournamentRepositoryImpl(TournamentRepository):
     async def find_all_by_user_creator(self, user_id: int) -> List[Tournament]:
         result = await self.session.execute(
             select(DBTournament)
-            .join(DBTournamentPlayer, DBTournament.id == DBTournamentPlayer.tournament_id)
             .options(
+                joinedload(DBTournament.user),
                 selectinload(DBTournament.stages),
                 selectinload(DBTournament.players)
             )
             .where(DBTournament.user_id == user_id)
+            .order_by(DBTournament.created_at.desc(), DBTournament.id.desc())
         )
         tournaments_db = result.scalars().all()
         return [tournament_db.to_entity() for tournament_db in tournaments_db]
@@ -114,6 +115,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament,
                 func.count().over().label("total_count")
             )
+            .options(joinedload(DBTournament.user))
             .join(
                 DBTournamentPlayer,
                 DBTournament.id == DBTournamentPlayer.tournament_id
@@ -122,7 +124,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournamentPlayer.user_id == user_id,
                 DBTournament.user_id != user_id
             )
-            .order_by(DBTournament.created_at.desc())
+            .order_by(DBTournament.created_at.desc(), DBTournament.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -137,10 +139,7 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         db_tournaments = [row[0] for row in rows]
 
-        tournaments: List[Tournament] = await self.session.run_sync(
-            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
-            db_tournaments
-        )
+        tournaments = [db_tournament.to_entity() for db_tournament in db_tournaments]
 
         return tournaments, total_count
 
@@ -165,6 +164,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament,
                 func.count().over().label("total_count")
             )
+            .options(joinedload(DBTournament.user))
             .where(
                 DBTournament.is_private == False,
                 DBTournament.current_players < DBTournament.max_players,
@@ -172,7 +172,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament.user_id != user_id,  # Not the creator
                 ~participant_exists  # Not a participant
             )
-            .order_by(DBTournament.created_at.desc())
+            .order_by(DBTournament.created_at.desc(), DBTournament.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -187,10 +187,7 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         db_tournaments = [row[0] for row in rows]
 
-        tournaments: List[Tournament] = await self.session.run_sync(
-            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
-            db_tournaments
-        )
+        tournaments = [db_tournament.to_entity() for db_tournament in db_tournaments]
 
         return tournaments, total_count
 
@@ -205,6 +202,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament,
                 func.count().over().label("total_count")
             )
+            .options(joinedload(DBTournament.user))
             .join(
                 DBTournamentPlayer,
                 DBTournament.id == DBTournamentPlayer.tournament_id
@@ -213,7 +211,7 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournamentPlayer.user_id == user_id,
                 DBTournament.status == TournamentStatus.COMPLETED.value
             )
-            .order_by(DBTournament.end_date.desc())
+            .order_by(DBTournament.end_date.desc(), DBTournament.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -228,10 +226,7 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         db_tournaments = [row[0] for row in rows]
 
-        tournaments: List[Tournament] = await self.session.run_sync(
-            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
-            db_tournaments
-        )
+        tournaments = [db_tournament.to_entity() for db_tournament in db_tournaments]
 
         return tournaments, total_count
 
@@ -246,10 +241,11 @@ class TournamentRepositoryImpl(TournamentRepository):
                 DBTournament,
                 func.count().over().label("total_count")
             )
+            .options(joinedload(DBTournament.user))
             .where(
                 DBTournament.user_id == user_id,
             )
-            .order_by(DBTournament.end_date.desc())
+            .order_by(DBTournament.end_date.desc(), DBTournament.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -264,10 +260,7 @@ class TournamentRepositoryImpl(TournamentRepository):
 
         db_tournaments = [row[0] for row in rows]
 
-        tournaments: List[Tournament] = await self.session.run_sync(
-            lambda sync_sess, objs: [DBTournament.to_entity(o) for o in objs],
-            db_tournaments
-        )
+        tournaments = [db_tournament.to_entity() for db_tournament in db_tournaments]
 
         return tournaments, total_count
 

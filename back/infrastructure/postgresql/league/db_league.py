@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Union, Optional
 
 from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
-from sqlalchemy import Index
+from sqlalchemy import Index, text
 from sqlalchemy.orm import relationship
 
 from domain.league.model.league import League, LeagueStatus
@@ -23,6 +23,12 @@ class DBLeague(Base):
         Index('ix_league_is_started', 'is_started'),
         Index('ix_league_status_end_date', 'status', 'end_date'),
         Index('ix_league_user_created_at', 'user_id', 'created_at'),
+        Index(
+            'ix_league_public_open_joinable_created_at_desc',
+            text('created_at DESC'),
+            text('id DESC'),
+            postgresql_where=text("is_private = false AND status = 'OPEN' AND nb_players_remaining > 0"),
+        ),
     )
 
     id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
