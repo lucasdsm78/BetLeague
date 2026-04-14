@@ -36,6 +36,16 @@ export function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
         : typeof (api as any).nbBtl === 'number' && (api as any).nbBtl > 0
           ? (api as any).nbBtl
           : undefined,
+    currentTotalPot:
+      typeof (api as any).current_total_pot === 'number' && Number.isFinite((api as any).current_total_pot)
+        ? Math.max(0, (api as any).current_total_pot)
+        : (api as any).current_total_pot === null
+          ? null
+        : typeof (api as any).currentTotalPot === 'number' && Number.isFinite((api as any).currentTotalPot)
+          ? Math.max(0, (api as any).currentTotalPot)
+          : (api as any).currentTotalPot === null
+            ? null
+            : undefined,
   };
 }
 
