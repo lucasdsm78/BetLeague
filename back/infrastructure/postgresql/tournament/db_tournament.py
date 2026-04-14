@@ -21,12 +21,12 @@ class DBTournament(Base):
 
     __table_args__ = (
         UniqueConstraint('name', name='uq_tournament_name'),
-        Index('ix_tournament_name_unique', 'name', unique=True),
+        Index('ix_tournament_user_created_at', 'user_id', 'created_at'),
     )
 
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
-    name: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
+    name: Union[str, Column] = Column(String, nullable=False)
     is_private: Union[bool, Column] = Column(Boolean, nullable=False)
     max_players = Column(Integer, default=16)
     min_players = Column(Integer, default=3)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, BigInteger, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey, String, BigInteger, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from typing import Optional, Union
 from domain.tournament.model.tournament_match import TournamentMatch
@@ -11,10 +11,11 @@ class DBTournamentMatch(Base):
     __tablename__ = "tournament_match"
 
     __table_args__ = (
+        Index("ix_tournament_match_tournament_type", "tournament_id", "type"),
         UniqueConstraint("stage_id", "player1_id", "player2_id", name="uq_tournament_match_stage_players"),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     stage_id = Column(Integer, ForeignKey("tournament_stage.id"), nullable=False)
     tournament_id = Column(Integer, ForeignKey("tournament.id"), nullable=False)
     type = Column(String(50), nullable=False)
