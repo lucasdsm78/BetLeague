@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Union, Optional
 
-from sqlalchemy import Column, Integer, String, Boolean, BigInteger, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float, Index
 from sqlalchemy.orm import relationship
 
 from domain.ticket.model.ticket import Ticket
@@ -19,7 +19,14 @@ def unixtimestamp() -> int:
 class DBTicket(Base):
 
     __tablename__ = "ticket"
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    __table_args__ = (
+        Index("ix_ticket_league_id", "league_id"),
+        Index("ix_ticket_tournament_match_id", "tournament_match_id"),
+        Index("ix_ticket_user_status_league_id_id", "user_id", "status", "league_id", "id"),
+        Index("ix_ticket_user_tournament_match", "user_id", "tournament_match_id"),
+    )
+
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     mise: Union[int, Column] = Column(BigInteger, nullable=False)
     gain: Union[float, Column] = Column(Float, nullable=False)

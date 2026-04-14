@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Union
 
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float, Boolean
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Float, Boolean, Index
 from sqlalchemy.orm import relationship
 
 from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
@@ -21,7 +21,11 @@ def unixtimestamp() -> int:
 class DBTournamentSubscription(Base):
     __tablename__ = "tournament_subscription"
 
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    __table_args__ = (
+        Index("ix_tournament_subscription_user_status", "user_id", "status"),
+    )
+
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     stripe_subscription_id: Union[str, Column] = Column(String, nullable=True, index=True)
     price_amount: Union[float, Column] = Column(Float, nullable=False)

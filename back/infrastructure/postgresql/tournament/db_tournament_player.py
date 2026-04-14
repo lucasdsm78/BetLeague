@@ -31,6 +31,13 @@ class DBTournamentPlayer(Base):
     __table_args__ = (
         Index('idx_tournament_player_tournament', 'tournament_id'),
         Index('idx_tournament_player_user', 'user_id'),
+        Index(
+            'ix_tournament_player_tournament_stage_eliminated',
+            'tournament_id',
+            'stage',
+            'is_eliminated',
+            'id',
+        ),
         UniqueConstraint('tournament_id', 'user_id', name='uq_tournament_player_tournament_user'),
     )
 

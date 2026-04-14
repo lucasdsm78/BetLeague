@@ -22,9 +22,10 @@ class DBLeague(Base):
     __table_args__ = (
         Index('ix_league_is_started', 'is_started'),
         Index('ix_league_status_end_date', 'status', 'end_date'),
+        Index('ix_league_user_created_at', 'user_id', 'created_at'),
     )
 
-    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
     uuid: Union[str, Column] = Column(String, nullable=False, unique=True, index=True)
     name: Union[str, Column] = Column(String, nullable=False, index=True)
     is_free: Union[bool, Column] = Column(Boolean, nullable=False)

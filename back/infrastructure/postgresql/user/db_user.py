@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Union, Optional
 from sqlalchemy import Float
 
-from sqlalchemy import Column, Integer, String, BigInteger, Boolean
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, Index, text
 from sqlalchemy.orm import relationship
 
 from domain.user.model.email import Email
@@ -18,7 +18,15 @@ def unixtimestamp() -> int:
 
 class DBUser(Base):
     __tablename__ = "user"
-    id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True, index=True)
+    __table_args__ = (
+        Index(
+            "ix_user_pseudo_active",
+            "pseudo",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False)
     uuid = Column(String(30), unique=True, nullable=False)  # Augmentation de la taille
     password = Column(String(255), nullable=False)
