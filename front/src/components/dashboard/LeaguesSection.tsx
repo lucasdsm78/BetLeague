@@ -152,7 +152,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 {estimatedTotalPotLabel && (
                     <div className="stat stat-pot">
                         <span className="stat-value stat-value-pot">{estimatedTotalPotLabel}</span>
-                        <span className="stat-label">Pot total estimé</span>
+                        <span className="stat-label">Pot actuel</span>
                     </div>
                 )}
                 {replaceEntryFeeWithBalance ? (

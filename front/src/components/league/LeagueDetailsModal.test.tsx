@@ -15,7 +15,7 @@ describe('LeagueDetailsModal', () => {
     (joinLeague as jest.Mock).mockResolvedValue({ message: 'joined' });
   });
 
-  it('affiche le pot total estimé et le nombre courant de participants', async () => {
+  it('affiche le pot actuel et le nombre courant de participants', async () => {
     (getLeagueDetails as jest.Mock).mockResolvedValueOnce({
       id: 12,
       name: 'Ligue Premium',
@@ -45,10 +45,38 @@ describe('LeagueDetailsModal', () => {
       expect(getLeagueDetails).toHaveBeenCalledWith(12);
     });
 
-    expect(await screen.findByText('Pot total estimé')).toBeInTheDocument();
+    expect(await screen.findByText('Pot actuel')).toBeInTheDocument();
     expect(screen.getByText('30 BTL')).toBeInTheDocument();
     expect(screen.getByText('3/10')).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
+  });
+
+  it('n’affiche pas de bloc pot quand la donnée n’est pas applicable', async () => {
+    (getLeagueDetails as jest.Mock).mockResolvedValueOnce({
+      id: 13,
+      name: 'Ligue Gratuite',
+      status: 'OPEN',
+      is_free: true,
+      start_date: 1_710_000_000_000,
+      max_players: 10,
+      nb_players_remaining: 9,
+      estimated_total_pot: null,
+    });
+
+    render(
+      <LeagueDetailsModal
+        isOpen
+        leagueId={13}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getLeagueDetails).toHaveBeenCalledWith(13);
+    });
+
+    expect(screen.queryByText('Pot actuel')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 BTL')).not.toBeInTheDocument();
   });
 });
 

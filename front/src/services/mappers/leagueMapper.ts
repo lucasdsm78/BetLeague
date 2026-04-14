@@ -39,9 +39,13 @@ export function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
     estimatedTotalPot:
       typeof (api as any).estimated_total_pot === 'number' && Number.isFinite((api as any).estimated_total_pot)
         ? Math.max(0, (api as any).estimated_total_pot)
+        : (api as any).estimated_total_pot === null
+          ? null
         : typeof (api as any).estimatedTotalPot === 'number' && Number.isFinite((api as any).estimatedTotalPot)
           ? Math.max(0, (api as any).estimatedTotalPot)
-          : undefined,
+          : (api as any).estimatedTotalPot === null
+            ? null
+            : undefined,
   };
 }
 
