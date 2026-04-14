@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import select, func, or_
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -19,10 +19,7 @@ class LeagueRepositoryImpl(LeagueRepository):
 
     async def create(self, league: League):
         league_db = DBLeague.from_entity(league)
-        try:
-            self.session.add(league_db)
-        except:
-            raise
+        self.session.add(league_db)
 
     async def find_by_id(self, league_id: int) -> League:
         q = (
@@ -37,14 +34,11 @@ class LeagueRepositoryImpl(LeagueRepository):
         return league_db.to_entity()
 
     async def find_by_name(self, name: str) -> bool:
-        try:
-            result = await self.session.execute(
-                select(DBLeague).where(DBLeague.name == name)
-            )
-            league_db = result.scalar_one_or_none()
-            return league_db is not None
-        except:
-            raise
+        result = await self.session.execute(
+            select(DBLeague).where(DBLeague.name == name)
+        )
+        league_db = result.scalar_one_or_none()
+        return league_db is not None
 
     async def count_leagues(self, user_id: int) -> int:
         q = (
@@ -102,7 +96,7 @@ class LeagueRepositoryImpl(LeagueRepository):
                     .scalar_subquery()
                 ),
                 )
-            .order_by(DBLeague.created_at.desc())
+            .order_by(DBLeague.created_at.desc(), DBLeague.id.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -124,7 +118,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             select(DBLeague)
             .options(joinedload(DBLeague.user))
             .where(DBLeague.user_id == user_id)
-            .order_by(DBLeague.created_at.desc())
+            .order_by(DBLeague.created_at.desc(), DBLeague.id.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -151,7 +145,7 @@ class LeagueRepositoryImpl(LeagueRepository):
                 DBLeaguePlayers.user_id == user_id,
                 DBLeague.user_id != user_id
             )
-            .order_by(DBLeague.created_at.desc())
+            .order_by(DBLeague.created_at.desc(), DBLeague.id.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -164,7 +158,7 @@ class LeagueRepositoryImpl(LeagueRepository):
 
         return [league_db.to_entity() for league_db in leagues_dbs]
 
-    async def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+    async def find_by_uuid(self, league_uuid: str) -> League:
         q = (
             select(DBLeague)
             .options(joinedload(DBLeague.user))
@@ -179,14 +173,11 @@ class LeagueRepositoryImpl(LeagueRepository):
             raise LeagueNotFoundError
 
     async def update(self, league: League):
-        try:
-            result = await self.session.execute(
-                select(DBLeague).where(DBLeague.id == league.id)
-            )
-            _league = result.scalar_one()
-            league_db = DBLeague.from_entity(league, _league)
-        except:
-            raise
+        result = await self.session.execute(
+            select(DBLeague).where(DBLeague.id == league.id)
+        )
+        _league = result.scalar_one()
+        DBLeague.from_entity(league, _league)
 
     async def find_due_payout_ids(self, as_of: datetime) -> List[int]:
         as_of_ms = int(as_of.timestamp() * 1000)
@@ -219,15 +210,14 @@ class LeagueRepositoryImpl(LeagueRepository):
         if not league_ids:
             return []
 
-        query = select(DBLeague).where(DBLeague.id.in_(league_ids))
+        query = (
+            select(DBLeague)
+            .options(joinedload(DBLeague.user))
+            .where(DBLeague.id.in_(league_ids))
+        )
         result = await self.session.execute(query)
         db_leagues = result.scalars().all()
-
-        leagues = await self.session.run_sync(
-            lambda sync_sess, objs: [DBLeague.to_entity(o) for o in objs],
-            db_leagues
-        )
-        return leagues
+        return [db_league.to_entity() for db_league in db_leagues]
 
     async def count_players(self, league_id: int) -> int:
         q = (
@@ -264,7 +254,7 @@ class LeagueRepositoryImpl(LeagueRepository):
     async def rollback(self):
         await self.session.rollback()
 
-    async def decrement_players_remaining_if_available(self, league_id: int) -> League:
+    async def decrement_players_remaining_if_available(self, league_id: int) -> Optional[League]:
         stmt = (
             select(DBLeague)
             .options(joinedload(DBLeague.user))
@@ -323,7 +313,7 @@ class LeagueRepositoryImpl(LeagueRepository):
             select(DBLeague)
             .options(joinedload(DBLeague.user))
             .where(DBLeague.id.in_(select(league_ids_sq.c.id)))
-            .order_by(DBLeague.created_at.desc())
+            .order_by(DBLeague.created_at.desc(), DBLeague.id.desc())
             .offset(offset)
             .limit(limit)
         )

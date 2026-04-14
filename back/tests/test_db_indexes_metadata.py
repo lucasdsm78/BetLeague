@@ -28,6 +28,10 @@ def _index_by_name(table, name: str):
     return None
 
 
+def _index_expression_strings(index) -> list[str]:
+    return [str(expression) for expression in index.expressions]
+
+
 @pytest.mark.parametrize(
     ("table", "index_name", "columns"),
     [
@@ -89,6 +93,22 @@ def test_outbox_stale_lock_partial_index_is_declared() -> None:
     assert str(index.dialect_options["postgresql"]["where"]) == "processed_at IS NULL AND locked_at IS NOT NULL"
 
 
+def test_league_discovery_partial_index_is_declared() -> None:
+    index = _index_by_name(DBLeague.__table__, "ix_league_public_open_joinable_created_at_desc")
+
+    assert index is not None
+    assert _index_expression_strings(index) == ["created_at DESC", "id DESC"]
+    assert str(index.dialect_options["postgresql"]["where"]) == "is_private = false AND status = 'OPEN' AND nb_players_remaining > 0"
+
+
+def test_tournament_discovery_partial_index_is_declared() -> None:
+    index = _index_by_name(DBTournament.__table__, "ix_tournament_public_pending_joinable_created_at_desc")
+
+    assert index is not None
+    assert _index_expression_strings(index) == ["created_at DESC", "id DESC"]
+    assert str(index.dialect_options["postgresql"]["where"]) == "is_private = false AND status = 'pending' AND current_players < max_players"
+
+
 def test_tournament_name_has_single_named_unique_constraint_without_duplicate_indexes() -> None:
     unique_constraints = [
         constraint
@@ -123,6 +143,7 @@ def test_leagues_players_redundant_composite_index_is_not_declared() -> None:
 )
 def test_redundant_primary_key_indexes_are_not_declared_in_metadata(table, index_name: str) -> None:
     assert _index_by_name(table, index_name) is None
+
 
 
 

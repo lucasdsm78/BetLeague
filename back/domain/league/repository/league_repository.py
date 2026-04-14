@@ -12,7 +12,7 @@ class LeagueRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_id(self, league_id: int) -> Optional[League]:
+    async def find_by_id(self, league_id: int) -> League:
         raise NotImplementedError
 
     @abstractmethod
@@ -44,7 +44,7 @@ class LeagueRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_uuid(self, league_uuid: str) -> Optional[League]:
+    async def find_by_uuid(self, league_uuid: str) -> League:
         raise NotImplementedError
 
     @abstractmethod
