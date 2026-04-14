@@ -62,6 +62,28 @@ class League:
     def is_closed(self) -> bool:
         return self.status == LeagueStatus.CLOSED
 
+    @property
+    def current_players(self) -> Optional[int]:
+        if self.nb_players_remaining is None:
+            return None
+
+        return max(self.max_players - self.nb_players_remaining, 0)
+
+    @property
+    def current_total_pot(self) -> Optional[float]:
+        current_players = self.current_players
+        if current_players is None:
+            return None
+
+        if self.is_free or self.nb_btl is None:
+            return None
+
+        entry_fee = float(self.nb_btl)
+        if entry_fee < 0:
+            return None
+
+        return float(current_players * entry_fee)
+
     def mark_started(self) -> None:
         self.is_started = True
         self.status = LeagueStatus.IN_PROGRESS

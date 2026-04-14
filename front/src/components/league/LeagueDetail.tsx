@@ -1,26 +1,10 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
+import type { ApiLeagueDetail } from '../../types/api';
+import { formatTicketAmount } from '../../utils/ticketAmount';
 import LeagueRankingModal from './LeagueRankingModal';
 import './LeagueDetail.css';
-
-// Types for league details based on backend LeagueReadModel
-interface LeagueDetailData {
-    id: number;
-    name: string;
-    uuid?: string;
-    status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
-    is_free?: boolean;
-    start_date: number;
-    end_date?: number;
-    max_players?: number;
-    is_started?: boolean;
-    nb_players_remaining?: number;
-    user_creator?: {
-        id: number;
-        pseudo: string;
-    };
-}
 
 interface LeagueDetailProps {
     leagueId?: number;
@@ -30,7 +14,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const [leagueData, setLeagueData] = useState<LeagueDetailData | null>(null);
+    const [leagueData, setLeagueData] = useState<ApiLeagueDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [isJoining, setIsJoining] = useState(false);
@@ -171,9 +155,20 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         );
     }
 
-    const formatDate = (timestamp: number) => {
+    const toEpochMs = (timestamp: string | number | null | undefined): number | null => {
+        if (timestamp === null || timestamp === undefined) return null;
+        const parsed = typeof timestamp === 'string' ? Number(timestamp) : timestamp;
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const formatDate = (timestamp: string | number | null | undefined) => {
+        const epochMs = toEpochMs(timestamp);
+        if (epochMs === null) {
+            return 'Date non définie';
+        }
+
         try {
-            return new Date(timestamp).toLocaleDateString('fr-FR', {
+            return new Date(epochMs).toLocaleDateString('fr-FR', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -185,13 +180,15 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     };
 
     const getStatusInfo = () => {
+        const startDateMs = toEpochMs(leagueData.start_date);
+
         if (leagueData.status === 'CLOSED') {
             return { label: 'Fermée', color: 'var(--text-secondary)', icon: '⚫' };
         }
         if (leagueData.is_started) {
             return { label: 'En cours', color: 'var(--success-color)', icon: '🟢' };
         }
-        if (leagueData.start_date && leagueData.start_date > Date.now()) {
+        if (startDateMs !== null && startDateMs > Date.now()) {
             return { label: 'À venir', color: 'var(--warning-color)', icon: '🟡' };
         }
         return { label: 'En attente', color: 'var(--text-secondary)', icon: '⚪' };
@@ -199,6 +196,13 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 
     const statusInfo = getStatusInfo();
     const canJoin = leagueData.status !== 'CLOSED' && !leagueData.is_started && (leagueData.nb_players_remaining || 0) > 0;
+    const currentPlayersLabel =
+        typeof leagueData.max_players === 'number' && typeof leagueData.nb_players_remaining === 'number'
+            ? `${Math.max(leagueData.max_players - leagueData.nb_players_remaining, 0)}/${leagueData.max_players}`
+            : 'N/A';
+    const currentTotalPotLabel = typeof leagueData.current_total_pot === 'number'
+        ? formatTicketAmount(leagueData.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+        : null;
 
     return (
         <div className="league-detail-container">
@@ -267,12 +271,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                     <div className="stat-card">
                         <div className="stat-icon">👥</div>
                         <div className="stat-content">
-                            <div className="stat-value">
-                                {leagueData.max_players ?
-                                    `${leagueData.max_players - (leagueData.nb_players_remaining || 0)}/${leagueData.max_players}`
-                                    : 'N/A'
-                                }
-                            </div>
+                            <div className="stat-value">{currentPlayersLabel}</div>
                             <div className="stat-label">Participants</div>
                         </div>
                     </div>
@@ -304,6 +303,16 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                             <div className="stat-label">Type de ligue</div>
                         </div>
                     </div>
+
+                    {currentTotalPotLabel && (
+                        <div className="stat-card stat-card-pot">
+                            <div className="stat-icon">🏦</div>
+                            <div className="stat-content">
+                                <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
+                                <div className="stat-label">Pot actuel</div>
+                            </div>
+                        </div>
+                    )}
 
                     {leagueData.nb_players_remaining !== undefined && (
                         <div className="stat-card">
