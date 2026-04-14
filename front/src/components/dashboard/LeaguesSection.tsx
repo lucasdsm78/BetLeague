@@ -115,8 +115,8 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
         return String(myBalanceBtl);
     };
 
-    const estimatedTotalPotLabel = typeof league.estimatedTotalPot === 'number'
-        ? formatTicketAmount(league.estimatedTotalPot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    const currentTotalPotLabel = typeof league.currentTotalPot === 'number'
+        ? formatTicketAmount(league.currentTotalPot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
         : null;
 
     return (
@@ -149,9 +149,9 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <span className="stat-value">{statusLabel}</span>
                     <span className="stat-label">Statut</span>
                 </div>
-                {estimatedTotalPotLabel && (
+                {currentTotalPotLabel && (
                     <div className="stat stat-pot">
-                        <span className="stat-value stat-value-pot">{estimatedTotalPotLabel}</span>
+                        <span className="stat-value stat-value-pot">{currentTotalPotLabel}</span>
                         <span className="stat-label">Pot actuel</span>
                     </div>
                 )}

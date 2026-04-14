@@ -200,8 +200,8 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         typeof leagueData.max_players === 'number' && typeof leagueData.nb_players_remaining === 'number'
             ? `${Math.max(leagueData.max_players - leagueData.nb_players_remaining, 0)}/${leagueData.max_players}`
             : 'N/A';
-    const estimatedTotalPotLabel = typeof leagueData.estimated_total_pot === 'number'
-        ? formatTicketAmount(leagueData.estimated_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    const currentTotalPotLabel = typeof leagueData.current_total_pot === 'number'
+        ? formatTicketAmount(leagueData.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
         : null;
 
     return (
@@ -304,11 +304,11 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                         </div>
                     </div>
 
-                    {estimatedTotalPotLabel && (
+                    {currentTotalPotLabel && (
                         <div className="stat-card stat-card-pot">
                             <div className="stat-icon">🏦</div>
                             <div className="stat-content">
-                                <div className="stat-value stat-value-pot">{estimatedTotalPotLabel}</div>
+                                <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
                                 <div className="stat-label">Pot actuel</div>
                             </div>
                         </div>

@@ -70,7 +70,7 @@ class League:
         return max(self.max_players - self.nb_players_remaining, 0)
 
     @property
-    def estimated_total_pot(self) -> Optional[float]:
+    def current_total_pot(self) -> Optional[float]:
         current_players = self.current_players
         if current_players is None:
             return None

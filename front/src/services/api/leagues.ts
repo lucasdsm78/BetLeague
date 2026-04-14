@@ -26,7 +26,7 @@ export type LeagueSummaryApi = {
   start_date?: number;
   is_started?: boolean;
   nb_players_remaining?: number;
-  estimated_total_pot?: number | null;
+  current_total_pot?: number | null;
   status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
 };
 

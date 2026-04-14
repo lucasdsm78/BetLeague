@@ -185,8 +185,8 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     typeof details?.max_players === 'number' && typeof details?.nb_players_remaining === 'number'
       ? `${Math.max(details.max_players - details.nb_players_remaining, 0)}/${details.max_players}`
       : 'N/A';
-  const estimatedTotalPotLabel = typeof details?.estimated_total_pot === 'number'
-    ? formatTicketAmount(details.estimated_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  const currentTotalPotLabel = typeof details?.current_total_pot === 'number'
+    ? formatTicketAmount(details.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     : null;
 
   return (
@@ -284,11 +284,11 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
                 </div>
               </div>
 
-              {estimatedTotalPotLabel && (
+              {currentTotalPotLabel && (
                 <div className="stat-card-modal stat-card-modal-pot">
                   <div className="stat-icon">🏦</div>
                   <div className="stat-content">
-                    <div className="stat-value stat-value-pot">{estimatedTotalPotLabel}</div>
+                    <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
                     <div className="stat-label">Pot actuel</div>
                   </div>
                 </div>
