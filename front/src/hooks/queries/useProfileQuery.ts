@@ -26,6 +26,13 @@ async function fetchMe(): Promise<ApiUserProfile> {
             requires_tournament_subscription: Boolean(currentUser.tournament_creation_access.requires_tournament_subscription ?? false),
           }
         : undefined,
+      commerce_availability: currentUser.commerce_availability
+        ? {
+            shop_enabled: Boolean(currentUser.commerce_availability.shop_enabled ?? false),
+            btl_purchase_enabled: Boolean(currentUser.commerce_availability.btl_purchase_enabled ?? false),
+            tournament_subscription_enabled: Boolean(currentUser.commerce_availability.tournament_subscription_enabled ?? false),
+          }
+        : undefined,
     };
   }
 

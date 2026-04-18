@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import './BTLPurchaseModal.css';
 import { getAllPacks, createPurchaseIntent } from '../../services/api/packs';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { formatPrice, calculateBonusPercentage } from '../../utils/pricing';
 import type { ApiPack as Pack } from '../../types/api/packs';
 
@@ -8,6 +9,14 @@ interface BTLPurchaseModalProps {
   onClose: () => void;
   suggestedAmount?: number;
   onPurchaseComplete?: () => void;
+}
+
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
 }
 
 function getPackMarketingBadge(pack: Pack): { label: string; className: string } | null {
@@ -27,15 +36,13 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
   suggestedAmount,
   onPurchaseComplete
 }) => {
+  const { data: profile, isLoading: isProfileLoading } = useProfileMeQuery();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadPacks();
-  }, []);
+  const isBTLPurchaseEnabled = profile?.commerce_availability?.btl_purchase_enabled !== false;
 
   // Close on Escape for better UX
   useEffect(() => {
@@ -46,7 +53,15 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose, purchasing]);
 
-  const loadPacks = async () => {
+  const loadPacks = useCallback(async () => {
+    if (!isBTLPurchaseEnabled) {
+      setError("L'achat de BTL est temporairement indisponible.");
+      setLoading(false);
+      setPacks([]);
+      setSelectedPack(null);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -61,15 +76,27 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
         }
       }
     } catch (err) {
-      setError('Impossible de charger les packs. Veuillez réessayer.');
+      setError(getErrorMessage(err, 'Impossible de charger les packs. Veuillez réessayer.'));
       console.error('Error loading packs:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isBTLPurchaseEnabled, suggestedAmount]);
+
+  useEffect(() => {
+    if (isProfileLoading) {
+      return;
+    }
+
+    void loadPacks();
+  }, [isProfileLoading, loadPacks]);
 
   const handlePurchase = useCallback(async () => {
     if (!selectedPack || purchasing) return;
+    if (!isBTLPurchaseEnabled) {
+      setError("L'achat de BTL est temporairement indisponible.");
+      return;
+    }
 
     try {
       setPurchasing(true);
@@ -93,12 +120,12 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
         throw new Error('Réponse de paiement invalide');
       }
     } catch (err) {
-      setError('Erreur lors de la création du paiement. Veuillez réessayer.');
+      setError(getErrorMessage(err, 'Erreur lors de la création du paiement. Veuillez réessayer.'));
       console.error('Error creating purchase:', err);
     } finally {
       setPurchasing(false);
     }
-  }, [selectedPack, onPurchaseComplete]);
+  }, [isBTLPurchaseEnabled, selectedPack]);
 
   const handlePackSelect = useCallback((pack: Pack) => {
     setSelectedPack(pack);
@@ -146,7 +173,7 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
             </div>
           ) : packs.length === 0 ? (
             <div className="no-packs">
-              <p>Aucun pack disponible pour le moment.</p>
+              <p>{isBTLPurchaseEnabled ? 'Aucun pack disponible pour le moment.' : 'La boutique BTL est temporairement indisponible.'}</p>
             </div>
           ) : (
             <div className="packs-grid">
@@ -228,7 +255,7 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
           <button
             className="btn btn-primary"
             onClick={handlePurchase}
-            disabled={!selectedPack || purchasing || loading}
+            disabled={!selectedPack || purchasing || loading || !isBTLPurchaseEnabled}
           >
             {purchasing ? (
               <>

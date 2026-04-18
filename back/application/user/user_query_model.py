@@ -15,6 +15,12 @@ class TournamentCreationAccessReadModel(BaseModel):
     requires_tournament_subscription: bool
 
 
+class CommerceAvailabilityReadModel(BaseModel):
+    shop_enabled: bool
+    btl_purchase_enabled: bool
+    tournament_subscription_enabled: bool
+
+
 class UserReadModel(BaseModel):
 
     id: int
@@ -26,6 +32,7 @@ class UserReadModel(BaseModel):
     is_tournament_subscriber: bool = False
     is_two_factor_enabled: bool = False
     tournament_creation_access: Optional[TournamentCreationAccessReadModel] = None
+    commerce_availability: Optional[CommerceAvailabilityReadModel] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -35,6 +42,7 @@ class UserReadModel(BaseModel):
         user: User,
         tournament_creation_access: Optional[TournamentCreationAccessReadModel] = None,
         is_tournament_subscriber: Optional[bool] = None,
+        commerce_availability: Optional[CommerceAvailabilityReadModel] = None,
     ) -> "UserReadModel":
         return UserReadModel(
             id=user.id,
@@ -46,6 +54,7 @@ class UserReadModel(BaseModel):
             is_tournament_subscriber=user.is_tournament_subscriber if is_tournament_subscriber is None else is_tournament_subscriber,
             is_two_factor_enabled=user.is_two_factor_enabled,
             tournament_creation_access=tournament_creation_access,
+            commerce_availability=commerce_availability,
         )
 
 

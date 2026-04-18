@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     stripe_api_key: str
     stripe_webhook_secret: str
     app_frontend_url: str = Field(default="http://localhost:3000", validation_alias="APP_FRONTEND_URL")
+    shop_enabled: bool = Field(default=False, validation_alias="SHOP_ENABLED")
+    btl_purchase_enabled: bool = Field(default=False, validation_alias="BTL_PURCHASE_ENABLED")
+    tournament_subscription_enabled: bool = Field(default=False, validation_alias="TOURNAMENT_SUBSCRIPTION_ENABLED")
     the_odds_api_api_key: str
     vapid_private_key: str = Field(default="", validation_alias="VAPID_PRIVATE_KEY")
     vapid_public_key: str = Field(default="", validation_alias="VAPID_PUBLIC_KEY")
