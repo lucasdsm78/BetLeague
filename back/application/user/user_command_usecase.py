@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, UTC
 
 from application.user.user_command_model import (
-    UserCreateModel, UserLoginResponse, UserLoginModel,
+    UserCreateModel, UserCreateResponse, UserLoginResponse, UserLoginModel,
     InvalidPasswordError, UserDeleteResponse, UserUpdateModel,
     UserUpdateResponse, RefreshTokenResponse, DeleteMyAccountModel,
     ChangeMyPasswordModel, ChangeMyPasswordResponse,
@@ -38,7 +38,7 @@ def _utc_iso_z(dt: datetime) -> str:
 class UserCommandUseCase(ABC):
 
     @abstractmethod
-    async def create(self, user_create_model: UserCreateModel) -> UserLoginResponse:
+    async def create(self, user_create_model: UserCreateModel) -> UserCreateResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -97,12 +97,13 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         self.settings = settings
         self.cipher_suite = Fernet(self.settings.encryption_key.encode())
 
-    async def create(self, data: UserCreateModel) -> UserLoginResponse:
+    async def create(self, data: UserCreateModel) -> UserCreateResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 repo = UserRepositoryImpl(session)
                 if await repo.find_by_email(data.email):
-                    raise UserEmailAlreadyExistsError
+                    await self.hasher.bcrypt(data.password)
+                    return UserCreateResponse()
                 hashed = await self.hasher.bcrypt(data.password)
                 user = User(
                     email=Email(data.email),
@@ -111,16 +112,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     password=Password(hashed)
                 )
                 await repo.create(user)
-        token_coro = self.manager_token.generate_token_login(user)
-        refresh_coro = self.manager_token.generate_expiration_token_login(user)
-        token, refresh = await asyncio.gather(token_coro, refresh_coro)
-        expiration_time = datetime.now(UTC) + timedelta(minutes=self.settings.access_token_expire_minutes)
-        return UserLoginResponse(
-            uuid=user.uuid,
-            token_auth=token,
-            refresh_token=refresh,
-            token_expiration=_utc_iso_z(expiration_time),
-        )
+        return UserCreateResponse()
 
     async def login(self, model: UserLoginModel) -> UserLoginResponse:
         async with self._session_factory() as session:
@@ -265,6 +257,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
     async def update_user_profile(
             self, email: str, data: UserUpdateModel
     ) -> UserUpdateResponse:
+        email_changed = False
         async with self._session_factory() as session:
             async with session.begin():
                 repo = UserRepositoryImpl(session)
@@ -276,11 +269,19 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 if user.is_two_factor_enabled:
                     if not data.two_fa_code:
                         raise FARequiredError
+                    if not user.two_factor_secret:
+                        raise HTTPException(status_code=500, detail="2FA secret missing for user")
                     secret = await self.totp_service.decrypt_secret(
                         user.two_factor_secret, self.cipher_suite
                     )
                     if not await self.totp_service.verify_code(secret, data.two_fa_code):
                         raise Invalid2FACodeError
+
+                if data.email and data.email != user.email.value:
+                    if not data.current_password:
+                        raise HTTPException(status_code=400, detail={"message": "Le mot de passe actuel est requis.", "code": "CURRENT_PASSWORD_REQUIRED"})
+                    if not await self.hasher.verify(data.current_password, user.password.password):
+                        raise InvalidPasswordError(email)
 
                 to_check = {}
                 if data.pseudo and data.pseudo != user.pseudo:
@@ -298,12 +299,13 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     if 'pseudo' in to_check:
                         user.pseudo = to_check['pseudo']
                     if 'email' in to_check:
-                        user.email  = Email(to_check['email'])
-
-                if data.password:
-                    user.password = Password(await self.hasher.bcrypt(data.password))
+                        user.email = Email(to_check['email'])
+                        email_changed = True
 
                 await repo.update(user)
+
+        if email_changed:
+            await self.manager_token.invalidate_all_user_tokens(str(user.id))
 
         token_coro   = self.manager_token.generate_token_login(user)
         refresh_coro = self.manager_token.generate_expiration_token_login(user)
@@ -321,8 +323,20 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     detail="Invalid or expired refresh token"
                 )
 
+            if payload.get("type") != "refresh":
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid refresh token type"
+                )
+
             user_email = payload.get("email") or payload.get("sub")
+            user_id = payload.get("id")
             if not user_email:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid token payload"
+                )
+            if user_id is None:
                 raise HTTPException(
                     status_code=401,
                     detail="Invalid token payload"
@@ -338,7 +352,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                             detail="User not found"
                         )
 
-            await self.manager_token.invalidate_token(refresh_token, user_email)
+            await self.manager_token.invalidate_token(refresh_token, str(user_id))
 
             token_coro = self.manager_token.generate_token_login(user)
             refresh_coro = self.manager_token.generate_expiration_token_login(user)
@@ -355,7 +369,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
 
         except HTTPException:
             raise
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=401,
                 detail="Token refresh failed"
@@ -379,7 +393,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
 
         except HTTPException:
             raise
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=500,
                 detail="Erreur lors de la déconnexion"

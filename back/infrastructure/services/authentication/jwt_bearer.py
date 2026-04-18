@@ -13,19 +13,19 @@ class JwtBearer(HTTPBearer):
     def __init__(self, auto_error: bool = True):
         super().__init__(auto_error=auto_error)
         self.model: APIKey = APIKey(
-            **{"in": APIKeyIn.header}, name="X-Authentication"
+            **{"in": APIKeyIn.header}, name="Authorization"
         )
 
     async def __call__(self, request: Request):
-        r = await self.__call__with_x_authentication(request)
+        r = await self.__call__with_authentication_headers(request)
         if r is None:
             return None
         return r.credentials
 
-    async def __call__with_x_authentication(
+    async def __call__with_authentication_headers(
             self, request: Request
     ) -> Optional[HTTPAuthorizationCredentials]:
-        authorization = request.headers.get("X-Authentication")
+        authorization = request.headers.get("Authorization") or request.headers.get("X-Authentication")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
             if self.auto_error:

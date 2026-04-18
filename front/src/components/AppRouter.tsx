@@ -39,20 +39,7 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete, recoverFromStoredToken, attemptHydrateFromAnyStorage } = useEnhancedAuth();
-
-  // Déplacer les tentatives d'hydratation dans useEffect pour éviter setState pendant le rendu
-  React.useEffect(() => {
-    if (!initializationComplete && !isLoading && attemptHydrateFromAnyStorage) {
-      attemptHydrateFromAnyStorage();
-    }
-  }, [initializationComplete, isLoading, attemptHydrateFromAnyStorage]);
-
-  React.useEffect(() => {
-    if (initializationComplete && !isAuthenticated && recoverFromStoredToken) {
-      recoverFromStoredToken();
-    }
-  }, [initializationComplete, isAuthenticated, recoverFromStoredToken]);
+  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete } = useEnhancedAuth();
 
   // Attendre la fin de l'initialisation globale
   if (!initializationComplete) {

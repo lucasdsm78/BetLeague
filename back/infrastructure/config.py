@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
+from urllib.parse import urlsplit
 
 
 class Settings(BaseSettings):
@@ -30,6 +31,9 @@ class Settings(BaseSettings):
     stripe_api_key: str
     stripe_webhook_secret: str
     app_frontend_url: str = Field(default="http://localhost:3000", validation_alias="APP_FRONTEND_URL")
+    cors_allowed_origins: str = Field(default="", validation_alias="CORS_ALLOWED_ORIGINS")
+    trusted_hosts: str = Field(default="localhost,127.0.0.1", validation_alias="TRUSTED_HOSTS")
+    trusted_proxy_ips: str = Field(default="", validation_alias="TRUSTED_PROXY_IPS")
     shop_enabled: bool = Field(default=False, validation_alias="SHOP_ENABLED")
     btl_purchase_enabled: bool = Field(default=False, validation_alias="BTL_PURCHASE_ENABLED")
     tournament_subscription_enabled: bool = Field(default=False, validation_alias="TOURNAMENT_SUBSCRIPTION_ENABLED")
@@ -59,15 +63,79 @@ class Settings(BaseSettings):
     two_factor_verify_rate_limit_window_s: int = Field(default=60, validation_alias="TWO_FACTOR_VERIFY_RATE_LIMIT_WINDOW_S")
     disable_2fa_rate_limit_per_minute: int = Field(default=5, validation_alias="DISABLE_2FA_RATE_LIMIT_PER_MINUTE")
     disable_2fa_rate_limit_window_s: int = Field(default=60, validation_alias="DISABLE_2FA_RATE_LIMIT_WINDOW_S")
+    login_rate_limit_per_minute: int = Field(default=10, validation_alias="LOGIN_RATE_LIMIT_PER_MINUTE")
+    login_rate_limit_window_s: int = Field(default=60, validation_alias="LOGIN_RATE_LIMIT_WINDOW_S")
     login_2fa_rate_limit_per_minute: int = Field(default=5, validation_alias="LOGIN_2FA_RATE_LIMIT_PER_MINUTE")
     login_2fa_rate_limit_window_s: int = Field(default=60, validation_alias="LOGIN_2FA_RATE_LIMIT_WINDOW_S")
     tournament_mutation_rate_limit_per_minute: int = Field(default=20, validation_alias="TOURNAMENT_MUTATION_RATE_LIMIT_PER_MINUTE")
     tournament_mutation_rate_limit_window_s: int = Field(default=60, validation_alias="TOURNAMENT_MUTATION_RATE_LIMIT_WINDOW_S")
-    auth_redis_fail_closed: bool = Field(default=False, validation_alias="AUTH_REDIS_FAIL_CLOSED")
+    auth_redis_fail_closed: bool = Field(default=True, validation_alias="AUTH_REDIS_FAIL_CLOSED")
     auth_tokens_invalid_before_ttl_s: int = Field(default=60 * 60 * 24 * 90, validation_alias="AUTH_TOKENS_INVALID_BEFORE_TTL_S")
     auth_blacklisted_jti_ttl_grace_s: int = Field(default=60, validation_alias="AUTH_BLACKLISTED_JTI_TTL_GRACE_S")
     scheduler_internal_token: str = Field(default="", validation_alias="SCHEDULER_INTERNAL_TOKEN")
     scheduler_admin_emails: str = Field(default="", validation_alias="SCHEDULER_ADMIN_EMAILS")
+    auth_refresh_cookie_name: str = Field(default="betleague_refresh_token", validation_alias="AUTH_REFRESH_COOKIE_NAME")
+    auth_refresh_cookie_domain: str = Field(default="", validation_alias="AUTH_REFRESH_COOKIE_DOMAIN")
+    auth_refresh_cookie_path: str = Field(default="/api/auth", validation_alias="AUTH_REFRESH_COOKIE_PATH")
+    auth_refresh_cookie_samesite: str = Field(default="lax", validation_alias="AUTH_REFRESH_COOKIE_SAMESITE")
+    auth_refresh_cookie_secure: bool | None = Field(default=None, validation_alias="AUTH_REFRESH_COOKIE_SECURE")
+
+    @staticmethod
+    def _split_csv(raw: str) -> list[str]:
+        return [item.strip() for item in (raw or "").split(",") if item.strip()]
+
+    @property
+    def app_frontend_origin(self) -> str:
+        parsed = urlsplit(self.app_frontend_url)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+        return self.app_frontend_url.rstrip("/")
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        origins = self._split_csv(self.cors_allowed_origins)
+        frontend_origin = self.app_frontend_origin
+        if frontend_origin:
+            origins.insert(0, frontend_origin)
+
+        if self.environment != "prod":
+            origins.extend([
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:3001",
+            ])
+
+        unique: list[str] = []
+        for origin in origins:
+            if origin not in unique:
+                unique.append(origin)
+        return unique
+
+    @property
+    def trusted_hosts_list(self) -> list[str]:
+        hosts = self._split_csv(self.trusted_hosts)
+        if self.environment != "prod":
+            for host in ["localhost", "127.0.0.1"]:
+                if host not in hosts:
+                    hosts.append(host)
+        return hosts
+
+    @property
+    def trusted_proxy_ips_list(self) -> list[str]:
+        return self._split_csv(self.trusted_proxy_ips)
+
+    @property
+    def auth_refresh_cookie_secure_value(self) -> bool:
+        if self.auth_refresh_cookie_secure is not None:
+            return bool(self.auth_refresh_cookie_secure)
+        return self.environment == "prod"
+
+    @property
+    def auth_refresh_cookie_samesite_value(self) -> str:
+        value = (self.auth_refresh_cookie_samesite or "lax").strip().lower()
+        if value not in {"lax", "strict", "none"}:
+            return "lax"
+        return value
 
     class Config:
         env_file = ".env"

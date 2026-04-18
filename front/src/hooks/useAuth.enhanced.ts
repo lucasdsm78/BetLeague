@@ -111,44 +111,14 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
       (window as any).__AUTH_INITIALIZED__ = true;
       setLoading(true);
       try {
-        const hasToken = enhancedAuthService.isAuthenticated();
-        if (!hasToken) {
-          const hydrated = hydrateFromPersistedAuthStore();
-          if (hydrated) {
-            setLoading(false);
-            setInitializationComplete(true);
-            return;
-          }
+        const restoredSession = await enhancedAuthService.restoreSession();
+        if (restoredSession) {
+          storeLogin(restoredSession.user, restoredSession.token);
+        } else {
           const authStore = useAuthStore.getState();
           if (authStore.isAuthenticated) {
             authStore.logout();
           }
-          setLoading(false);
-          setInitializationComplete(true);
-          return;
-        }
-        const timeUntilExpiry = enhancedAuthService.getTimeUntilExpiry();
-        if (timeUntilExpiry <= 0) {
-          const refreshed = await enhancedAuthService.forceRefresh();
-          if (!refreshed) {
-            await enhancedAuthService.logout();
-            setLoading(false);
-            setInitializationComplete(true);
-            return;
-          }
-        }
-        const currentToken = enhancedAuthService.getCurrentToken();
-        if (currentToken) {
-          try {
-            const tokenPayload = JSON.parse(atob(currentToken.split('.')[1]));
-            const user = {
-              id: tokenPayload.id || tokenPayload.user_id,
-              email: tokenPayload.sub || tokenPayload.email,
-              username: tokenPayload.username || tokenPayload.pseudo,
-              pseudo: tokenPayload.pseudo
-            };
-            storeLogin(user, currentToken);
-          } catch {}
         }
       } catch (error) {
         if (error instanceof AuthError && error.isUnauthorized()) {
@@ -183,7 +153,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
         userId: user?.id,
         isLoading,
         initializationComplete,
-        token: enhancedAuthService.getCurrentToken()?.slice(0, 20) + '...'
+          token: enhancedAuthService.getCurrentToken() ? '[memory-token]' : null
       });
     }
   }, [isAuthenticated, user, isLoading, initializationComplete, debugMode]);
@@ -285,68 +255,14 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   // Recover from stored token function
   const recoverFromStoredToken = useCallback(() => {
-    const currentToken = enhancedAuthService.getCurrentToken();
-    if (!currentToken) return false;
-    try {
-      const payload = JSON.parse(atob(currentToken.split('.')[1]));
-      const recoveredUser: User = {
-        id: payload.id || payload.user_id,
-        email: payload.sub || payload.email,
-        username: payload.username || payload.pseudo,
-        pseudo: payload.pseudo || payload.username || (payload.sub || '').split('@')[0]
-      };
-      if (debugMode) console.log('[AuthDebug] recoverFromStoredToken: Hydrating user from token payload', recoveredUser);
-      storeLogin(recoveredUser, currentToken);
-      setInitializationComplete(true);
-      setLoading(false);
-      return true;
-    } catch (e) {
-      console.warn('[AuthDebug] recoverFromStoredToken: Failed to decode token', e);
-      return false;
-    }
+    return false;
   }, [storeLogin, debugMode, setLoading]);
 
   const scanLegacyTokens = useCallback((): string[] => {
-    const keys = [
-      'authToken', 'auth_access_token', 'auth_token', 'token',
-      'refresh_token', 'auth_refresh_token', 'auth_store', 'auth-store',
-      'user_data', 'token_expiry'
-    ];
-    const found: string[] = [];
-    for (const k of keys) {
-      try {
-        const v = localStorage.getItem(k) || sessionStorage.getItem(k);
-        if (v) found.push(`${k}:${String(v).slice(0,25)}...`);
-      } catch {}
-    }
-    if (debugMode) console.log('[AuthDebug] scanLegacyTokens found', found);
-    return found;
+    return [];
   }, [debugMode]);
 
   const attemptHydrateFromAnyStorage = useCallback((): boolean => {
-    // Priorité: token JWT dans localStorage sous diverses clés
-    const candidateKeys = ['auth_access_token','auth_token','authToken','token'];
-    for (const key of candidateKeys) {
-      const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
-      if (raw && raw.split('.').length === 3) {
-        try {
-          const payload = JSON.parse(atob(raw.split('.')[1]));
-          const recoveredUser: User = {
-            id: payload.id || payload.user_id,
-            email: payload.sub || payload.email,
-            username: payload.username || payload.pseudo,
-            pseudo: payload.pseudo || payload.username || (payload.sub || '').split('@')[0]
-          };
-          if (debugMode) console.log('[AuthDebug] attemptHydrateFromAnyStorage success via key', key, recoveredUser);
-          storeLogin(recoveredUser, raw);
-          setInitializationComplete(true);
-          setLoading(false);
-          return true;
-        } catch (e) {
-          if (debugMode) console.warn('[AuthDebug] attemptHydrateFromAnyStorage decode fail', key, e);
-        }
-      }
-    }
     return false;
   }, [storeLogin, debugMode, setLoading]);
 
@@ -365,37 +281,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   }, [scanLegacyTokens, initializationComplete]);
 
   const hydrateFromPersistedAuthStore = useCallback((): boolean => {
-    try {
-      const raw = localStorage.getItem('auth-store');
-      if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      const inner = parsed?.state;
-      if (!inner) return false;
-      const persistedIsAuth = inner.isAuthenticated || inner.isAuthenticate; // gestion d’un éventuel typo
-      const persistedToken = inner.token;
-      const persistedUser = inner.user;
-      if (debugMode) console.log('[AuthDebug] hydrateFromPersistedAuthStore raw snapshot', inner);
-      if (persistedIsAuth && persistedToken && persistedUser) {
-        // Validation minimale du token (structure JWT possible)
-        if (typeof persistedToken === 'string' && persistedToken.split('.').length === 3) {
-          storeLogin(persistedUser as User, persistedToken);
-          setInitializationComplete(true);
-          setLoading(false);
-          if (debugMode) console.log('[AuthDebug] hydrateFromPersistedAuthStore success (JWT token)');
-          return true;
-        }
-        // Accepter token non JWT (fallback) mais loguer
-        storeLogin(persistedUser as User, persistedToken as string);
-        setInitializationComplete(true);
-        setLoading(false);
-        if (debugMode) console.log('[AuthDebug] hydrateFromPersistedAuthStore success (non-JWT token)');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.warn('[AuthDebug] hydrateFromPersistedAuthStore failed', e);
-      return false;
-    }
+    return false;
   }, [storeLogin, debugMode, setLoading]);
 
   return {

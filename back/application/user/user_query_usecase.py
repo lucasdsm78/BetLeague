@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 
@@ -17,6 +18,9 @@ from domain.tournament.service.tournament_creation_policy import TournamentCreat
 from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.user.exception.user_exception import UserNotFoundError, UserNotOwnerError
 from domain.user.repository.user_repository import UserRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserQueryUseCase(ABC):
@@ -131,6 +135,6 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
 
         except ValueError as ve:
             raise ve
-        except Exception as e:
-            print(f"User search error in use case: {e}")
+        except Exception:
+            logger.exception("Erreur inattendue lors de la recherche utilisateur")
             raise
