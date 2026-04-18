@@ -6,6 +6,7 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import './TournamentSubscriptionModal.css';
 import { createSubscriptionIntent } from '../../services/api/subscription';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import {
   useCancelTournamentSubscriptionMutation,
   useCurrentTournamentSubscriptionQuery,
@@ -52,16 +53,21 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
   onCancellationComplete,
   isSubscriber = false,
 }) => {
+  const { data: profile, isLoading: isProfileLoading } = useProfileMeQuery();
   const [subscribing, setSubscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionPlanId>('yearly');
   const cancelSubscriptionMutation = useCancelTournamentSubscriptionMutation();
   const isManagingSubscription = isSubscriber;
   const isSubmitting = subscribing || cancelSubscriptionMutation.isPending;
+  const isTournamentSubscriptionEnabled = profile?.commerce_availability?.tournament_subscription_enabled !== false;
+  const isSubscriptionTemporarilyUnavailable = !isManagingSubscription && !isTournamentSubscriptionEnabled;
 
-  const plansQuery = useTournamentSubscriptionPlansQuery({ enabled: !isManagingSubscription });
+  const plansQuery = useTournamentSubscriptionPlansQuery({ enabled: !isManagingSubscription && !isSubscriptionTemporarilyUnavailable && !isProfileLoading });
   const currentSubscriptionQuery = useCurrentTournamentSubscriptionQuery({ enabled: isManagingSubscription });
-  const queryErrorMessage = !isManagingSubscription && plansQuery.error
+  const queryErrorMessage = isSubscriptionTemporarilyUnavailable
+    ? "L'abonnement tournoi est temporairement indisponible."
+    : !isManagingSubscription && plansQuery.error
     ? getErrorMessage(plansQuery.error, "Erreur lors du chargement des formules d'abonnement")
     : isManagingSubscription && currentSubscriptionQuery.error
       ? getErrorMessage(currentSubscriptionQuery.error, "Erreur lors du chargement de votre abonnement tournoi")
@@ -86,6 +92,10 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
 
   const handleSubscribe = useCallback(async () => {
     if (!selectedPlan) return;
+    if (isSubscriptionTemporarilyUnavailable) {
+      setError("L'abonnement tournoi est temporairement indisponible.");
+      return;
+    }
 
     try {
       setSubscribing(true);
@@ -119,7 +129,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
     } finally {
       setSubscribing(false);
     }
-  }, [onSubscriptionComplete, selectedPlan]);
+  }, [isSubscriptionTemporarilyUnavailable, onSubscriptionComplete, selectedPlan]);
 
   const handleCancelSubscription = useCallback(async () => {
     try {
@@ -270,10 +280,18 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                 </p>
               </div>
 
-              {plansQuery.isLoading ? (
+              {isProfileLoading || plansQuery.isLoading ? (
                 <div className="subscription-loading-state" aria-live="polite">
                   <span className="btn-spinner subscription-spinner" />
                   Chargement des formules…
+                </div>
+              ) : isSubscriptionTemporarilyUnavailable ? (
+                <div className="subscription-intro-card subscription-intro-card-manage" aria-live="polite">
+                  <div className="intro-pill">Indisponible temporairement</div>
+                  <p>
+                    La souscription à l’abonnement tournoi est actuellement suspendue.
+                    Revenez plus tard pour débloquer à nouveau la création illimitée.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -392,7 +410,7 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
             onClick={isManagingSubscription ? handleCancelSubscription : handleSubscribe}
             disabled={isManagingSubscription
               ? isSubmitting || currentSubscriptionQuery.isLoading || currentSubscription?.cancel_at_period_end === true
-              : isSubmitting || plansQuery.isLoading || !selectedPlan}
+              : isSubmitting || isProfileLoading || plansQuery.isLoading || !selectedPlan || isSubscriptionTemporarilyUnavailable}
           >
             {isSubmitting ? (
               <>
@@ -406,6 +424,8 @@ const TournamentSubscriptionModal: React.FC<TournamentSubscriptionModalProps> = 
                   ? currentSubscription?.cancel_at_period_end
                     ? 'Résiliation déjà planifiée'
                     : 'Planifier la résiliation'
+                  : isSubscriptionTemporarilyUnavailable
+                    ? 'Abonnement indisponible'
                   : selectedPlan?.interval === 'year'
                     ? 'Choisir l’offre annuelle'
                     : 'Choisir l’offre mensuelle'}

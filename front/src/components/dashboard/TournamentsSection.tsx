@@ -11,6 +11,7 @@ import TournamentSubscriptionModal from './TournamentSubscriptionModal';
 import MyTournaments from './MyTournaments';
 import MyCreatedTournaments from './MyCreatedTournaments';
 import FinishedTournaments from './FinishedTournaments';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useAvailableTournamentsQuery, useJoinTournamentMutation, useTournamentCreationAccessQuery } from '../../hooks/queries/useTournamentQueries';
 import type { Tournament, TournamentCreateResponse } from '../../types/api/tournament';
@@ -27,11 +28,15 @@ const TournamentsSection: React.FC = () => {
   const [joinedTournament, setJoinedTournament] = useState<Tournament | null>(null);
 
   const { showInfo, showError } = useGlobalToast();
+  const { data: profile } = useProfileMeQuery();
 
   const creationAccessQuery = useTournamentCreationAccessQuery();
   const creationAccess = creationAccessQuery.data;
   const isCreationBlocked = Boolean(creationAccess && !creationAccess.can_create_tournament);
-  const createButtonLabel = isCreationBlocked ? 'Passer à l’illimité' : 'Créer un tournoi';
+  const isTournamentSubscriptionEnabled = profile?.commerce_availability?.tournament_subscription_enabled !== false;
+  const createButtonLabel = isCreationBlocked
+    ? (isTournamentSubscriptionEnabled ? 'Passer à l’illimité' : 'Abonnement indisponible')
+    : 'Créer un tournoi';
   const createButtonIcon = isCreationBlocked ? '✨' : '➕';
 
   const availableQuery = useAvailableTournamentsQuery(page, pageSize, { enabled: activeTab === 'available' });
@@ -46,16 +51,24 @@ const TournamentsSection: React.FC = () => {
     e?.stopPropagation();
     e?.preventDefault();
     if (isCreationBlocked) {
+      if (!isTournamentSubscriptionEnabled) {
+        showError('Indisponible', "L'abonnement tournoi est temporairement indisponible.");
+        return;
+      }
       showInfo('Quota mensuel atteint', 'Vos 2 tournois gratuits du mois sont utilisés. Passez à l’abonnement pour créer sans limite.');
       setIsTournamentSubscriptionModalOpen(true);
       return;
     }
     setIsCreateModalOpen(true);
-  }, [isCreationBlocked, showInfo]);
+  }, [isCreationBlocked, isTournamentSubscriptionEnabled, showError, showInfo]);
 
   const handleOpenTournamentSubscription = useCallback(() => {
+    if (!isTournamentSubscriptionEnabled) {
+      showError('Indisponible', "L'abonnement tournoi est temporairement indisponible.");
+      return;
+    }
     setIsTournamentSubscriptionModalOpen(true);
-  }, []);
+  }, [isTournamentSubscriptionEnabled, showError]);
 
   const handleCloseTournamentSubscription = useCallback(() => {
     setIsTournamentSubscriptionModalOpen(false);
@@ -146,7 +159,9 @@ const TournamentsSection: React.FC = () => {
                 ? 'Votre abonnement tournoi vous donne un accès illimité à la création, idéal pour organiser plusieurs compétitions chaque mois.'
                 : creationAccess.can_create_tournament
                   ? 'Chaque mois, vous pouvez lancer 2 tournois gratuitement. Le compteur se réinitialise automatiquement au début du mois suivant.'
-                  : 'Vous avez utilisé vos 2 tournois gratuits du mois. L’abonnement tournoi vous permet de continuer sans limite, sur mobile comme sur desktop.'
+                  : isTournamentSubscriptionEnabled
+                    ? 'Vous avez utilisé vos 2 tournois gratuits du mois. L’abonnement tournoi vous permet de continuer sans limite, sur mobile comme sur desktop.'
+                    : 'Vous avez utilisé vos 2 tournois gratuits du mois. La souscription tournoi est momentanément suspendue.'
               }
             </p>
           </div>
@@ -165,8 +180,9 @@ const TournamentsSection: React.FC = () => {
                 type="button"
                 className={`btn ${creationAccess.has_active_subscription ? 'btn-secondary' : creationAccess.can_create_tournament ? 'btn-primary' : 'btn-primary'}`}
                 onClick={creationAccess.can_create_tournament ? handleOpenCreateModal : handleOpenTournamentSubscription}
+                disabled={!creationAccess.can_create_tournament && !isTournamentSubscriptionEnabled}
               >
-                {creationAccess.can_create_tournament ? 'Créer maintenant' : 'Débloquer l’illimité'}
+                {creationAccess.can_create_tournament ? 'Créer maintenant' : (isTournamentSubscriptionEnabled ? 'Débloquer l’illimité' : 'Indisponible temporairement')}
               </button>
             </div>
           </div>

@@ -10,6 +10,8 @@ from application.tournament_subscription.query_tournament_subscription_usecase i
     TournamentSubscriptionQueryUseCaseImpl,
 )
 from application.tournament_subscription.tournament_subscription_command_model import CreateSubscriptionRequest
+from domain.shop.exception.shop_exception import TournamentSubscriptionDisabledError
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
 from domain.tournament_subscription.model.tournament_subscription_plan import TournamentSubscriptionPlan
 from domain.tournament_subscription.model.tournament_subscription_price import TournamentSubscriptionPrice
@@ -127,6 +129,7 @@ async def test_create_usecase_builds_server_side_urls_and_supports_yearly_plan(m
         stripe_service=stripe_service,
         domain_service=FakeDomainService(),
         settings=SimpleNamespace(app_frontend_url='https://betleague.app'),
+        shop_availability_policy=ShopAvailabilityPolicy(),
     )
 
     response = await usecase.execute(
@@ -167,6 +170,7 @@ async def test_create_usecase_allows_checkout_session_without_immediate_subscrip
         stripe_service=stripe_service,
         domain_service=FakeDomainService(),
         settings=SimpleNamespace(app_frontend_url='https://betleague.app'),
+        shop_availability_policy=ShopAvailabilityPolicy(),
     )
 
     response = await usecase.execute(
@@ -194,5 +198,38 @@ async def test_query_usecase_returns_current_subscription_details_for_manage_vie
     assert result.cancel_at_period_end is True
     assert result.cancellation_requested_at == 1_750_000_000_000
     assert result.has_tournament_access is True
+
+
+@pytest.mark.asyncio
+async def test_query_usecase_raises_when_tournament_subscription_disabled():
+    usecase = TournamentSubscriptionQueryUseCaseImpl(
+        shop_availability_policy=ShopAvailabilityPolicy(shop_enabled=True, tournament_subscription_enabled=False),
+    )
+
+    with pytest.raises(TournamentSubscriptionDisabledError):
+        await usecase.get_available_plans()
+
+
+@pytest.mark.asyncio
+async def test_create_usecase_raises_when_tournament_subscription_disabled(monkeypatch: pytest.MonkeyPatch):
+    session = FakeSession()
+    stripe_service = FakeStripeService()
+
+    monkeypatch.setattr(create_usecase_module, 'UserRepositoryImpl', FakeUserRepository)
+    monkeypatch.setattr(create_usecase_module, 'TournamentSubscriptionRepositoryImpl', FakeTournamentSubscriptionRepository)
+
+    usecase = CreateTournamentSubscriptionUseCaseImpl(
+        session_factory=lambda: session,
+        stripe_service=stripe_service,
+        domain_service=FakeDomainService(),
+        settings=SimpleNamespace(app_frontend_url='https://betleague.app'),
+        shop_availability_policy=ShopAvailabilityPolicy(shop_enabled=True, tournament_subscription_enabled=False),
+    )
+
+    with pytest.raises(TournamentSubscriptionDisabledError):
+        await usecase.execute(
+            'player@example.com',
+            CreateSubscriptionRequest(subscription_plan='yearly'),
+        )
 
 

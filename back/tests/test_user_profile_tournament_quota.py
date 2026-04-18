@@ -1,6 +1,7 @@
 import pytest
 
 from application.user.user_query_usecase import UserQueryUseCaseImpl
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.tournament.repository.tournament_repository import TournamentRepository
 from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy
 from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
@@ -198,6 +199,10 @@ async def test_fetch_user_by_id_includes_tournament_creation_access_for_profile_
     assert result.tournament_creation_access.monthly_free_tournaments_remaining == 1
     assert result.tournament_creation_access.has_active_subscription is False
     assert result.tournament_creation_access.can_create_tournament is True
+    assert result.commerce_availability is not None
+    assert result.commerce_availability.shop_enabled is True
+    assert result.commerce_availability.btl_purchase_enabled is True
+    assert result.commerce_availability.tournament_subscription_enabled is True
 
 
 @pytest.mark.asyncio
@@ -237,3 +242,24 @@ async def test_fetch_user_by_id_uses_active_subscription_as_source_of_truth_for_
 
     assert result is not None
     assert result.is_tournament_subscriber is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_user_by_id_exposes_disabled_commerce_flags():
+    user = make_user()
+    usecase = UserQueryUseCaseImpl(
+        user_repository=FakeUserRepository(user),
+        tournament_repository=FakeTournamentRepository(monthly_used=0),
+        tournament_subscription_repository=FakeTournamentSubscriptionRepository(subscription=None),
+        tournament_creation_policy=TournamentCreationPolicy(),
+        shop_availability_policy=ShopAvailabilityPolicy(shop_enabled=False),
+    )
+
+    result = await usecase.fetch_user_by_id(user.id, user.email.value)
+
+    assert result is not None
+    assert result.commerce_availability is not None
+    assert result.commerce_availability.shop_enabled is False
+    assert result.commerce_availability.btl_purchase_enabled is False
+    assert result.commerce_availability.tournament_subscription_enabled is False
+

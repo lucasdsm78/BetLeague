@@ -70,6 +70,7 @@ from domain.tournament.repository.tournament_repository import TournamentReposit
 from domain.tournament.repository.tournament_players_repository import TournamentPlayersRepository
 from domain.notification.repository.notification_repository import NotificationRepository
 from domain.scheduler.league_payout_scheduler import LeaguePayoutScheduler
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.push_subscription.repository.push_subscription_repository import PushSubscriptionRepository
 from domain.services.push.web_push_service import WebPushService
 
@@ -163,6 +164,16 @@ def get_session_factory() -> Callable[[], AsyncSession]:
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+
+@lru_cache()
+def shop_availability_policy() -> ShopAvailabilityPolicy:
+    settings = get_settings()
+    return ShopAvailabilityPolicy(
+        shop_enabled=settings.shop_enabled,
+        btl_purchase_enabled=settings.btl_purchase_enabled,
+        tournament_subscription_enabled=settings.tournament_subscription_enabled,
+    )
 
 
 from domain.services.authentication.token_blacklist import TokenBlacklistService
@@ -572,11 +583,13 @@ def user_query_usecase(
         user_repository: UserRepository = Depends(user_repository_dependency),
         tournament_repository: TournamentRepository = Depends(tournament_repository_dependency),
         tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+        shop_policy: ShopAvailabilityPolicy = Depends(shop_availability_policy),
 ) -> UserQueryUseCase:
     return UserQueryUseCaseImpl(
         user_repository=user_repository,
         tournament_repository=tournament_repository,
         tournament_subscription_repository=tournament_subscription_repository,
+        shop_availability_policy=shop_policy,
     )
 
 
@@ -770,6 +783,7 @@ def purchase_command_usecase(
         purchase_repository: PurchaseRepository = Depends(purchase_repository_dependency),
         pack_repository: PackRepository = Depends(pack_repository_dependency),
         stripe_service_dependency: StripeService = Depends(stripe_service),
+        shop_policy: ShopAvailabilityPolicy = Depends(shop_availability_policy),
 ) -> PurchaseCommandUseCase:
     return PurchaseCommandUseCaseImpl(
         purchase_repository=purchase_repository,
@@ -777,18 +791,21 @@ def purchase_command_usecase(
         session_factory=session_factory,
         user_repository=user_repository,
         stripe_service=stripe_service_dependency,
+        shop_availability_policy=shop_policy,
     )
 
 
 def purchase_query_usecase(
         pack_repository: PackRepository = Depends(pack_repository_dependency),
         purchase_repository: PurchaseRepository = Depends(purchase_repository_dependency),
-        user_repository: UserRepository = Depends(user_repository_dependency)
+        user_repository: UserRepository = Depends(user_repository_dependency),
+        shop_policy: ShopAvailabilityPolicy = Depends(shop_availability_policy),
 ) -> PurchaseQueryUseCase:
     return PurchaseQueryUseCaseImpl(
         pack_repository=pack_repository,
         purchase_repository=purchase_repository,
-        user_repository=user_repository
+        user_repository=user_repository,
+        shop_availability_policy=shop_policy,
     )
 
 
@@ -806,20 +823,24 @@ def create_tournament_subscription_use_case(
         domain_service: SubscriptionDomainService = Depends(tournament_subscription_domain_service_dependency),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),
         settings: Settings = Depends(get_settings),
+        shop_policy: ShopAvailabilityPolicy = Depends(shop_availability_policy),
  ) -> CreateTournamentSubscriptionUseCase:
     return CreateTournamentSubscriptionUseCaseImpl(
         stripe_service=stripe_service_dependency,
         domain_service=domain_service,
         session_factory=session_factory,
         settings=settings,
+        shop_availability_policy=shop_policy,
     )
 def tournament_subscription_query_use_case(
         user_repository: UserRepository = Depends(user_repository_dependency),
         tournament_subscription_repository: TournamentSubscriptionRepository = Depends(tournament_subscription_repository_dependency),
+        shop_policy: ShopAvailabilityPolicy = Depends(shop_availability_policy),
 ) -> TournamentSubscriptionQueryUseCase:
     return TournamentSubscriptionQueryUseCaseImpl(
         user_repository=user_repository,
         tournament_subscription_repository=tournament_subscription_repository,
+        shop_availability_policy=shop_policy,
     )
 
 

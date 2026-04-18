@@ -7,6 +7,12 @@ export interface ApiTournamentCreationAccess {
   requires_tournament_subscription: boolean;
 }
 
+export interface ApiCommerceAvailability {
+  shop_enabled: boolean;
+  btl_purchase_enabled: boolean;
+  tournament_subscription_enabled: boolean;
+}
+
 export interface ApiUserProfile {
   id: number;
   email: string;
@@ -17,6 +23,7 @@ export interface ApiUserProfile {
   is_tournament_subscriber?: boolean;
   is_two_factor_enabled?: boolean;
   tournament_creation_access?: ApiTournamentCreationAccess;
+  commerce_availability?: ApiCommerceAvailability;
 }
 
 // 2FA
@@ -53,6 +60,7 @@ export interface ApiUpdateUserResponse {
   is_tournament_subscriber?: boolean;
   is_two_factor_enabled?: boolean;
   tournament_creation_access?: ApiTournamentCreationAccess;
+  commerce_availability?: ApiCommerceAvailability;
 }
 
 // Legacy compat (userProfile.ts)

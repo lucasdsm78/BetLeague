@@ -127,6 +127,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const { showError } = useGlobalToast();
   const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });
   const profile = profileQuery.data;
+  const isShopEnabled = profile?.commerce_availability?.shop_enabled !== false;
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -160,13 +161,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   // Get visible tabs based on user subscription
   const visibleTabs = useMemo(() => {
     return Object.values(TABS).filter(tab => {
+      if ((tab.id === 'shop' || tab.id === 'tournaments') && !isShopEnabled) {
+        return false;
+      }
+
       // If tab requires subscription, check if user is subscribed
       if (tab.requiresSubscription) {
         return user?.isTournamentSubscriber === true;
       }
       return true;
     });
-  }, [user]);
+  }, [isShopEnabled, user]);
 
   // Get tabs for bottom navigation (exclude shop and profile on mobile)
   const bottomNavTabs = useMemo(() => {
@@ -265,6 +270,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
     const tab = TABS[tabId as TabId];
 
+    if ((tab.id === 'shop' || tab.id === 'tournaments') && !isShopEnabled) {
+      showError('Indisponible', 'Cette section est temporairement indisponible.');
+      return;
+    }
+
     // Security: Check permissions if required (source de vérité: securityContext)
     if (tab.requiresPermission && !hasPermission(tab.requiresPermission)) {
       console.warn('🔒 Insufficient permissions for tab:', tabId);
@@ -292,7 +302,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       console.error('🔒 Navigation error:', error);
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
-  }, [navigate, hasPermission, securityState.lastActivity]);
+  }, [navigate, hasPermission, isShopEnabled, securityState.lastActivity, showError]);
 
   // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {
@@ -342,8 +352,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }, [navigate]);
 
   const handleGoToShop = useCallback(() => {
+    if (!isShopEnabled) {
+      return;
+    }
     navigate('/shop');
-  }, [navigate]);
+  }, [isShopEnabled, navigate]);
 
   // Security: Handle clicks outside to close menus
   useEffect(() => {
@@ -450,13 +463,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               {/* Notifications are rendered once above; CSS handles visibility */}
 
               {/* Shop Button */}
-              <button
-                className="mobile-shop-btn"
-                onClick={handleGoToShop}
-                aria-label="Boutique"
-              >
-                <span className="shop-icon">🛒</span>
-              </button>
+              {isShopEnabled && (
+                <button
+                  className="mobile-shop-btn"
+                  onClick={handleGoToShop}
+                  aria-label="Boutique"
+                >
+                  <span className="shop-icon">🛒</span>
+                </button>
+              )}
 
               {/* User Avatar with Dropdown (optional on mobile to avoid duplication) */}
               {enableMobileUserDropdown && (
