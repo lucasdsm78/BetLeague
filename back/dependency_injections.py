@@ -982,6 +982,17 @@ from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
 from infrastructure.security.redis_rate_limiter import RedisSlidingWindowRateLimiter
 
 
+def get_request_client_ip(request: Request, settings: Settings | None = None) -> str:
+    settings = settings or get_settings()
+    direct_ip = request.client.host if request.client else "unknown"
+    trusted_proxy_ips = set(getattr(settings, "trusted_proxy_ips_list", []))
+    if direct_ip in trusted_proxy_ips:
+        forwarded = (request.headers.get("x-forwarded-for", "").split(",")[0].strip())
+        if forwarded:
+            return forwarded
+    return direct_ip
+
+
 @lru_cache()
 def delete_account_rate_limiter_singleton() -> SlidingWindowRateLimiter:
     settings = get_settings()
@@ -1005,15 +1016,12 @@ async def rate_limit_delete_my_account(
     current_user: dict = Depends(current_user),
     limiter: SlidingWindowRateLimiter = Depends(delete_account_rate_limiter_singleton),
 ):
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
     user_id = current_user.get("id")
 
     key = f"delete_my_account:ip:{client_ip}:user:{user_id}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "delete_account_rate_limit_per_minute", 3))
     window_s = int(getattr(settings, "delete_account_rate_limit_window_s", 60))
 
@@ -1059,15 +1067,12 @@ async def rate_limit_change_my_password(
     current_user: dict = Depends(current_user),
     limiter: SlidingWindowRateLimiter = Depends(change_password_rate_limiter_singleton),
 ):
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
     user_id = current_user.get("id")
 
     key = f"change_my_password:ip:{client_ip}:user:{user_id}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "change_password_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "change_password_rate_limit_window_s", 60))
 
@@ -1119,15 +1124,12 @@ async def rate_limit_verify_2fa_activation(
     current_user: dict = Depends(current_user),
     limiter: SlidingWindowRateLimiter = Depends(two_factor_verify_rate_limiter_singleton),
 ) -> Verify2FARateLimitContext:
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
     user_id = current_user.get("id")
 
     key = f"verify_2fa_activation:ip:{client_ip}:user:{user_id}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "two_factor_verify_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "two_factor_verify_rate_limit_window_s", 60))
 
@@ -1181,15 +1183,12 @@ async def rate_limit_disable_2fa(
     current_user: dict = Depends(current_user),
     limiter: SlidingWindowRateLimiter = Depends(disable_2fa_rate_limiter_singleton),
 ):
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
     user_id = current_user.get("id")
 
     key = f"disable_2fa:ip:{client_ip}:user:{user_id}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "disable_2fa_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "disable_2fa_rate_limit_window_s", 60))
 
@@ -1207,6 +1206,23 @@ async def rate_limit_disable_2fa(
         )
 
     return True
+
+
+@lru_cache()
+def login_rate_limiter_singleton() -> SlidingWindowRateLimiter:
+    settings = get_settings()
+    return SlidingWindowRateLimiter(
+        limit=int(getattr(settings, "login_rate_limit_per_minute", 10)),
+        window_s=int(getattr(settings, "login_rate_limit_window_s", 60)),
+    )
+
+
+@lru_cache()
+def redis_login_rate_limiter_singleton() -> RedisSlidingWindowRateLimiter | None:
+    r = redis_client_singleton()
+    if r is None:
+        return None
+    return RedisSlidingWindowRateLimiter(redis=r)
 
 
 @lru_cache()
@@ -1248,10 +1264,8 @@ async def rate_limit_tournament_mutation(
     current_user: dict = Depends(current_user),
     limiter: SlidingWindowRateLimiter = Depends(tournament_mutation_rate_limiter_singleton),
 ):
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
     user_id = current_user.get("id")
 
     route = None
@@ -1262,7 +1276,6 @@ async def rate_limit_tournament_mutation(
 
     key = f"tournament_mutation:{method}:{route_path}:ip:{client_ip}:user:{user_id}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "tournament_mutation_rate_limit_per_minute", 20))
     window_s = int(getattr(settings, "tournament_mutation_rate_limit_window_s", 60))
 
@@ -1288,20 +1301,34 @@ async def rate_limit_login_with_2fa_code(
     limiter: SlidingWindowRateLimiter | None = None,
 ):
     if limiter is None:
-        limiter = login_2fa_rate_limiter_singleton()
+        limiter = login_rate_limiter_singleton()
+
+    settings = get_settings()
+    client_ip = get_request_client_ip(request, settings)
+    email = (user_login_model.email or "").strip().lower()
+
+    login_key = f"login:ip:{client_ip}:email:{email}"
+    login_limit = int(getattr(settings, "login_rate_limit_per_minute", 10))
+    login_window_s = int(getattr(settings, "login_rate_limit_window_s", 60))
+
+    redis_login_limiter = redis_login_rate_limiter_singleton()
+    if redis_login_limiter is not None:
+        login_result = await redis_login_limiter.allow(key=login_key, limit=login_limit, window_s=login_window_s)
+    else:
+        login_result = limiter.allow(login_key)
+
+    if not login_result.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"message": "Trop de tentatives de connexion. Réessayez plus tard.", "code": "RATE_LIMITED"},
+            headers={"Retry-After": str(login_result.retry_after_s)},
+        )
 
     if not (user_login_model.code or "").strip():
         return True
 
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        or (request.client.host if request.client else "unknown")
-    )
-    email = (user_login_model.email or "").strip().lower()
-
     key = f"login_2fa:ip:{client_ip}:email:{email}"
 
-    settings = get_settings()
     limit = int(getattr(settings, "login_2fa_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "login_2fa_rate_limit_window_s", 60))
 

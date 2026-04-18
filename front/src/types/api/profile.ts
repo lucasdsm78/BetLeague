@@ -45,6 +45,8 @@ export type ApiTwoFactorSetupRawResponse = Blob | ApiTwoFactorSetupResponse;
 export interface ApiUpdateUserPayload {
   pseudo?: string;
   email?: string;
+  current_password?: string;
+  two_fa_code?: string;
 }
 
 export interface ApiUpdateUserResponse {
@@ -68,7 +70,6 @@ export type ApiUpdateProfileData = ApiUpdateUserPayload;
 export interface ApiUpdateProfileResponse {
   message: string;
   token_auth?: string;
-  refresh_token?: string;
   user?: ApiUserProfile;
 }
 

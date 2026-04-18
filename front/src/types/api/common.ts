@@ -11,6 +11,9 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  message?: string;
+  status?: number;
+  headers?: Record<string, string>;
 }
 
 export interface ApiPaginatedResponse<T> {

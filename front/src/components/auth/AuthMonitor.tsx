@@ -45,7 +45,7 @@ const AuthMonitor = memo<AuthMonitorProps>(({
   } = useEnhancedAuth({
     autoRefresh: true,
     activityTracking: true,
-    debugMode: true,
+    debugMode: process.env.REACT_APP_DEBUG === 'true',
   });
 
   const {

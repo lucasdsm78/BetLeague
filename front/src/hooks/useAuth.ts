@@ -1,11 +1,11 @@
 /**
  * useAuth Hook - TypeScript version
- * Optimized authentication hook with comprehensive error handling
+ * Réécrit pour déléguer au hook sécurisé useEnhancedAuth
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import authService, { AuthError } from '../services/authService';
-import { useAuthStore } from '../store/authStore';
+import { useEffect, useCallback, useState } from 'react';
+import { useEnhancedAuth } from './useAuth.enhanced';
+import { AuthError } from '../services/authService.enhanced';
 import type { User, LoginForm, RegisterForm } from '../types';
 
 export interface UseAuthReturn {
@@ -43,223 +43,40 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     onError,
   } = options;
 
-  // Zustand store
-  const {
-    isAuthenticated,
-    user,
-    isLoading,
-    error,
-    login: storeLogin,
-    logout: storeLogout,
-    setLoading,
-    setError,
-    clearError: storeClearError,
-    refreshSession,
-    checkSessionExpiry,
-    hasPermission,
-    hasRole,
-  } = useAuthStore();
+  const auth = useEnhancedAuth({
+    autoRefresh,
+    onAuthChange,
+    onError,
+  });
 
-  // Initialize authentication state - Check if user is already authenticated
+  // Redirection en cas d'expiration de session
   useEffect(() => {
-    const initAuth = async () => {
-
-      // If already authenticated and not loading, we're done
-      if (isAuthenticated && user && !isLoading) {
-        return;
-      }
-
-      // Check if we're already loading to avoid duplicate initialization
-      if (isLoading) {
-        return;
-      }
-
-      setLoading(true);
-
-      const token = authService.getCurrentToken();
-
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Validate token with API
-        const validation = await authService.validateToken();
-
-        if (!validation.user) {
-          throw new AuthError('Données utilisateur manquantes dans la validation', 401);
-        }
-
-        storeLogin(validation.user, token);
-
-      } catch (error) {
-        console.error('🔐 useAuth - Error during validation:', error);
-        if (error instanceof AuthError) {
-          if (error.isUnauthorized()) {
-            await storeLogout();
-          } else {
-            setError(error.getDisplayMessage());
-            if (onError) onError(error);
-          }
-        }
-        setLoading(false);
-      }
-    };
-
-    // Initialize if we have no authentication data or if the store state is inconsistent
-    const needsInit = !isAuthenticated || !user;
-
-    if (needsInit) {
-      initAuth();
+    if (!redirectOnExpiry) return;
+    if (auth.isLoading) return;
+    if (auth.initializationComplete === false) return;
+    if (!auth.isAuthenticated) {
+      window.location.href = '/login';
     }
-  }, []); // Empty dependency array to run only once
-
-  // Session monitoring
-  useEffect(() => {
-    if (!isAuthenticated || !autoRefresh) return;
-
-    const monitorSession = () => {
-      // Check if session expired
-      if (checkSessionExpiry()) {
-        if (redirectOnExpiry) {
-          window.location.href = '/login';
-        }
-        return;
-      }
-
-      // Auto-refresh session if needed (e.g., 5 minutes before expiry)
-      const sessionTimeRemaining = getSessionTimeRemaining();
-      if (sessionTimeRemaining > 0 && sessionTimeRemaining < 5 * 60 * 1000) {
-        refreshSession().catch((error) => {
-          if (onError && error instanceof AuthError) {
-            onError(error);
-          }
-        });
-      }
-    };
-
-    // Check session every minute
-    const sessionInterval = setInterval(monitorSession, 60 * 1000);
-
-    return () => clearInterval(sessionInterval);
-  }, [isAuthenticated, autoRefresh, redirectOnExpiry, checkSessionExpiry, refreshSession, onError]);
-
-  // Auth change callback
-  useEffect(() => {
-    if (onAuthChange) {
-      onAuthChange(isAuthenticated);
-    }
-  }, [isAuthenticated, onAuthChange]);
-
-  // Login function
-  const login = useCallback(async (credentials: LoginForm): Promise<User> => {
-    try {
-      setLoading(true);
-      storeClearError();
-
-      const response /*: LoginResponse*/ = await authService.login(credentials) as any; // legacy shape { success, data }
-
-      if (!response?.data?.token_auth || !response?.data?.uuid) {
-        throw new AuthError('Réponse de connexion invalide', 500);
-      }
-
-      const user: User = {
-        id: response.data.uuid,
-        email: credentials.email,
-        pseudo: credentials.email.split('@')[0],
-        username: credentials.email.split('@')[0]
-      };
-
-      storeLogin(user, response.data.token_auth);
-      return user;
-
-    } catch (error) {
-      const authError = error instanceof AuthError ? error : new AuthError('Erreur de connexion');
-      setError(authError.getDisplayMessage());
-      if (onError) onError(authError);
-      throw authError;
-    } finally {
-      setLoading(false);
-    }
-  }, [storeLogin, setLoading, setError, storeClearError, onError]);
-
-  // Register function
-  const register = useCallback(async (credentials: RegisterForm): Promise<User> => {
-    try {
-      setLoading(true);
-      storeClearError();
-
-      const response /*: RegisterResponse*/ = await authService.register(credentials) as any;
-
-      if (!response?.data?.token_auth || !response?.data?.uuid) {
-        throw new AuthError('Réponse d\'inscription invalide', 500);
-      }
-
-      const user: User = {
-        id: response.data.uuid,
-        email: credentials.email,
-        pseudo: credentials.pseudo || credentials.email.split('@')[0],
-        username: credentials.pseudo || credentials.email.split('@')[0]
-      };
-
-      storeLogin(user, response.data.token_auth);
-      return user;
-
-    } catch (error) {
-      const authError = error instanceof AuthError ? error : new AuthError('Erreur d\'inscription');
-      setError(authError.getDisplayMessage());
-      if (onError) onError(authError);
-      throw authError;
-    } finally {
-      setLoading(false);
-    }
-  }, [storeLogin, setLoading, setError, storeClearError, onError]);
-
-  // Logout function
-  const logout = useCallback(async (): Promise<void> => {
-    try {
-      setLoading(true);
-      await authService.logout();
-    } catch (error) {
-      // Log error but don't throw - logout should always succeed locally
-      console.warn('Logout error:', error);
-    } finally {
-      storeLogout();
-      setLoading(false);
-    }
-  }, [storeLogout, setLoading]);
-
-  // Clear error function
-  const clearError = useCallback(() => {
-    storeClearError();
-  }, [storeClearError]);
-
-  // Get session time remaining
-  const getSessionTimeRemaining = useCallback((): number => {
-    const store = useAuthStore.getState();
-    if (!store.sessionExpiry) return 0;
-    return Math.max(0, store.sessionExpiry - Date.now());
-  }, []);
+  }, [redirectOnExpiry, auth.isAuthenticated, auth.isLoading, auth.initializationComplete]);
 
   return {
     // State
-    isAuthenticated,
-    user,
-    isLoading,
-    error,
+    isAuthenticated: auth.isAuthenticated,
+    user: auth.user,
+    isLoading: auth.isLoading,
+    error: auth.error,
 
     // Actions
-    login,
-    register,
-    logout,
-    refreshSession,
-    clearError,
+    login: auth.login,
+    register: auth.register,
+    logout: auth.logout,
+    refreshSession: auth.refreshSession,
+    clearError: auth.clearError,
 
     // Helpers
-    hasPermission,
-    hasRole,
-    getSessionTimeRemaining,
+    hasPermission: auth.hasPermission,
+    hasRole: auth.hasRole,
+    getSessionTimeRemaining: auth.getSessionTimeRemaining,
   };
 };
 

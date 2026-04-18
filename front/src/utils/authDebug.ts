@@ -27,12 +27,9 @@ export const debugAuth = () => {
   console.log('  - Error:', store.error);
   console.log('  - Is Loading:', store.isLoading);
 
-  // Check localStorage
-  console.log('💾 LocalStorage:');
-  const authToken = localStorage.getItem('auth_token');
-  const refreshToken = localStorage.getItem('refresh_token');
-  console.log('  - Auth Token:', !!authToken ? authToken.substring(0, 50) + '...' : 'None');
-  console.log('  - Refresh Token:', !!refreshToken ? refreshToken.substring(0, 50) + '...' : 'None');
+  console.log('🍪 Session Strategy:');
+  console.log('  - Access Token Storage:', currentToken ? 'memory-only' : 'none');
+  console.log('  - Refresh Token Storage:', 'httpOnly cookie (non lisible côté JS)');
 
   // Test API call with current setup
   console.log('🌐 Testing API Call...');
@@ -42,9 +39,9 @@ export const debugAuth = () => {
     isAuthenticated,
     timeUntilExpiry,
     storeState: store,
-    localStorage: {
-      authToken: !!authToken,
-      refreshToken: !!refreshToken
+    storageStrategy: {
+      accessToken: currentToken ? 'memory-only' : 'none',
+      refreshToken: 'httpOnly-cookie'
     }
   };
 };

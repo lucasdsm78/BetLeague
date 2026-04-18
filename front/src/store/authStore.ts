@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
 // Types minimaux locaux (évite les cycles/collisions avec src/types)
@@ -74,30 +73,12 @@ const SECURITY_CONFIG = {
   LOCKOUT_DURATION: 15 * 60 * 1000,     // 15 minutes
 };
 
-// Secure storage with encryption (simplified for demo)
-const secureStorage = {
-  getItem: (name: string): string | null => {
-    const item = localStorage.getItem(name);
-    if (!item) return null;
-
-    try {
-      // In production, decrypt here
-      return item;
-    } catch {
-      return null;
-    }
-  },
-  setItem: (name: string, value: string): void => {
-    try {
-      // In production, encrypt here
-      localStorage.setItem(name, value);
-    } catch {
-      // Handle storage errors
-    }
-  },
-  removeItem: (name: string): void => {
-    localStorage.removeItem(name);
+const generateSessionId = (): string => {
+  const cryptoApi = globalThis.crypto as Crypto | undefined;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
   }
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 };
 
 // Initial state
@@ -114,7 +95,6 @@ const initialState: AuthStore = {
 
 // Create auth store with middleware
 export const useAuthStore = create<AuthStoreWithActions>()(
-  persist(
     immer((set, get) => ({
       ...initialState,
 
@@ -135,7 +115,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
             securityContext: {
               permissions: ['user:read', 'league:read', 'bet:create'],
               roles: ['user'],
-              sessionId: crypto.randomUUID(),
+              sessionId: generateSessionId(),
               lastActivity: new Date().toISOString(),
               deviceFingerprint: navigator.userAgent,
             }
@@ -155,29 +135,6 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           sessionExpiry: null,
           twoFactorChallenge: null,
         }));
-
-        // Clear token from secure storage
-        secureStorage.removeItem('auth-token');
-
-        // IMPORTANT: Clear Zustand persist storage completely
-        secureStorage.removeItem('auth-store');
-
-        // Also clear all auth-related keys that might exist
-        const authKeys = [
-          'auth_access_token',
-          'auth_refresh_token',
-          'auth_token_expiry',
-          'auth_token',
-          'refresh_token',
-          'user_data',
-          'token_expiry'
-        ];
-
-        authKeys.forEach(key => {
-          localStorage.removeItem(key);
-          sessionStorage.removeItem(key);
-        });
-
       },
 
       updateUser: (updates: Partial<User>) => {
@@ -292,29 +249,7 @@ export const useAuthStore = create<AuthStoreWithActions>()(
         const state = get();
         return state.securityContext?.roles.includes(role) ?? false;
       },
-    })),
-    {
-      name: 'auth-store',
-      storage: createJSONStorage(() => secureStorage),
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        user: state.user,
-        token: state.token,
-        sessionExpiry: state.sessionExpiry,
-        securityContext: state.securityContext ? {
-          permissions: state.securityContext.permissions,
-          roles: state.securityContext.roles,
-          sessionId: state.securityContext.sessionId,
-        } : null,
-        // ne PAS persister twoFactorChallenge (contient password clair)
-      }),
-      onRehydrateStorage: () => (state) => {
-        // Check if session is expired on hydration
-        if (state && state.checkSessionExpiry()) {
-        }
-      },
-    }
-  )
+    }))
 );
 
 // Session management hooks

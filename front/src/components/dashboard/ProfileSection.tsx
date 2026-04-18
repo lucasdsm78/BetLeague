@@ -105,10 +105,11 @@ ProfileHeader.displayName = 'ProfileHeader';
 interface AccountInfoProps {
   pseudo: string;
   email: string;
+  isTwoFactorEnabled?: boolean;
   onRefresh: () => void;
 }
 
-const AccountInfo = memo<AccountInfoProps>(({ pseudo, email, onRefresh }) => {
+const AccountInfo = memo<AccountInfoProps>(({ pseudo, email, isTwoFactorEnabled, onRefresh }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleOpenModal = useCallback(() => {
@@ -148,6 +149,7 @@ const AccountInfo = memo<AccountInfoProps>(({ pseudo, email, onRefresh }) => {
         <EditAccountModal
           pseudo={pseudo}
           email={email}
+          isTwoFactorEnabled={isTwoFactorEnabled}
           onClose={handleCloseModal}
           onSuccess={handleSuccess}
         />
@@ -813,7 +815,12 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
         )}
 
         {activeTab === 'account' && (
-          <AccountInfo pseudo={profile.pseudo} email={profile.email} onRefresh={refetch} />
+          <AccountInfo
+            pseudo={profile.pseudo}
+            email={profile.email}
+            isTwoFactorEnabled={profile.is_two_factor_enabled}
+            onRefresh={refetch}
+          />
         )}
 
         {activeTab === 'preferences' && (

@@ -4,7 +4,6 @@
  */
 
 import enhancedAuthService, { AuthError } from './authService.enhanced';
-import { useAuthStore } from '../store/authStore';
 
 // Types for API client
 export interface ApiClientConfig {
@@ -223,11 +222,8 @@ class SecureApiClient {
     // Add authentication header
     if (!config.skipAuth) {
       const token = enhancedAuthService.getCurrentToken();
-      const isAuthenticated = enhancedAuthService.isAuthenticated();
 
       if (token) {
-        headers['X-Authentication'] = `Bearer ${token}`;
-        // Also keep Authorization header for compatibility
         headers['Authorization'] = `Bearer ${token}`;
       } else if (!config.skipAuth) {
         console.warn('⚠️ No token available for authenticated request');
@@ -586,7 +582,7 @@ class SecureApiClient {
 
 // Create and export singleton instance
 export const secureApiClient = new SecureApiClient({
-  enableRequestLogging: process.env.NODE_ENV === 'development',
+  enableRequestLogging: process.env.REACT_APP_DEBUG === 'true',
   enableResponseCaching: true,
 });
 

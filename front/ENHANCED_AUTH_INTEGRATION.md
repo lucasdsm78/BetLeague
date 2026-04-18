@@ -19,8 +19,9 @@ Ce système offre une authentification avancée avec refresh automatique des tok
 - Détection de la visibilité de la page
 
 ### ✅ Sécurité renforcée
-- Stockage sécurisé des tokens
-- Protection CSRF
+- Access token conservé uniquement en mémoire
+- Refresh token conservé uniquement dans un cookie HttpOnly
+- Surface CSRF réduite (le refresh token n'est plus accessible à JavaScript)
 - Validation côté client et serveur
 - Gestion des erreurs réseau
 
@@ -81,18 +82,18 @@ const result = await leagueApiService.createLeague(data);
 // ✅ Gestion des erreurs sécurisée
 ```
 
-### 4. Backend - Endpoint de refresh (optionnel)
+### 4. Backend - Endpoint de refresh
 
-Si vous voulez implémenter un vrai refresh token côté backend :
+Le backend utilise maintenant un refresh token stocké côté navigateur dans un cookie `HttpOnly`.
+Le frontend n'envoie plus de `refresh_token` dans le body JSON.
 
 ```python
-# Dans user_router.py - déjà ajouté
+# Dans user_router.py
 @router.post("/refresh")
-async def refresh_token(refresh_data: RefreshTokenModel):
-    # Logique de refresh token
+async def refresh_token(request: Request, response: Response):
+    # Lit le refresh token depuis le cookie HttpOnly
     return RefreshTokenResponse(
         token_auth="new_access_token",
-        refresh_token="new_refresh_token",
         token_expiration="2024-01-01T00:00:00Z"
     )
 ```
@@ -149,9 +150,17 @@ const monitor = useTokenMonitor({
 
 ### Variables d'environnement
 ```env
-# .env
+# Frontend
 REACT_APP_API_URL=http://localhost:8001/api
-NODE_ENV=development # Active les logs de debug
+
+# Backend (exemple prod)
+APP_FRONTEND_URL=https://app.betleague.app
+CORS_ALLOWED_ORIGINS=https://app.betleague.app
+AUTH_REFRESH_COOKIE_DOMAIN=.betleague.app
+AUTH_REFRESH_COOKIE_PATH=/api/auth
+AUTH_REFRESH_COOKIE_SAMESITE=lax
+AUTH_REFRESH_COOKIE_SECURE=true
+TRUSTED_PROXY_IPS=10.0.0.10,10.0.0.11
 ```
 
 ### Configuration du service
@@ -339,12 +348,16 @@ const auth = useEnhancedAuth({ debugMode: true });
 # Backend - vérifier la configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["https://app.betleague.app"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 ```
+
+Vérifiez aussi que `APP_FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, `AUTH_REFRESH_COOKIE_DOMAIN`,
+`AUTH_REFRESH_COOKIE_SAMESITE`, `AUTH_REFRESH_COOKIE_SECURE` et `TRUSTED_PROXY_IPS`
+sont cohérents avec votre topologie de prod.
 
 ### Debug avancé
 ```typescript
@@ -360,4 +373,6 @@ console.log('Expires in:', enhancedAuthService.getTimeUntilExpiry());
 
 ---
 
-🚀 **Votre système d'authentification est maintenant prêt pour la production !**
+✅ **La base technique est prête pour un déploiement**, sous réserve de renseigner correctement
+les variables d'environnement prod, de vérifier la topologie cookie/CORS/proxy, puis de rejouer
+la checklist de validation avant mise en ligne.

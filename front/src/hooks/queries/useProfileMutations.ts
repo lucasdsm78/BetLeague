@@ -12,7 +12,7 @@ import {
   type VerifyTwoFactorPayload,
 } from '../../services/twoFactor';
 import { profileKeys } from './profileKeys';
-import authService from '../../services/authService';
+import enhancedAuthService from '../../services/authService.enhanced';
 import { useAuthStore } from '../../store/authStore';
 
 export function useUpdateProfileMutation() {
@@ -21,6 +21,17 @@ export function useUpdateProfileMutation() {
   return useMutation<ApiResponse<ApiUpdateProfileResponse>, Error, ApiUpdateProfileData>({
     mutationFn: async (data) => {
       const dto = await updateProfile(data);
+
+      if (dto.token_auth) {
+        const userUpdates: Record<string, unknown> = {};
+        if (data.pseudo) userUpdates.pseudo = data.pseudo;
+        if (data.email) {
+          userUpdates.email = data.email;
+          userUpdates.username = data.email.split('@')[0];
+        }
+        enhancedAuthService.applySessionTokens(dto, userUpdates);
+      }
+
       return {
         success: true,
         data: dto,
@@ -62,7 +73,7 @@ export function useDisableTwoFactorMutation() {
       if (data.reauthRequired) {
         qc.clear();
         try {
-          await authService.logout();
+          await enhancedAuthService.logout();
         } finally {
           useAuthStore.getState().logout();
         }
@@ -81,7 +92,7 @@ export function useDeleteMyAccountMutation() {
     onSuccess: async () => {
       qc.clear();
       try {
-        await authService.logout();
+        await enhancedAuthService.logout();
       } finally {
         useAuthStore.getState().logout();
       }
@@ -99,7 +110,7 @@ export function useChangeMyPasswordMutation() {
       if (data.reauth_required) {
         qc.clear();
         try {
-          await authService.logout();
+          await enhancedAuthService.logout();
         } finally {
           useAuthStore.getState().logout();
         }
