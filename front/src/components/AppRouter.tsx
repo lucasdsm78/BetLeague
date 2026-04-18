@@ -6,6 +6,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
+import { useProfileMeQuery } from 'hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
 import App from 'App';
 import LoginForm from 'components/LoginForm';
@@ -66,6 +67,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const hasValidUser = user && user.id;
   if (!hasValidUser || sessionTimeRemaining <= 0) {
     return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const CommerceEnabledRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const profileQuery = useProfileMeQuery({ enabled: true });
+  const isShopEnabled = profileQuery.data?.commerce_availability?.shop_enabled !== false;
+
+  if (profileQuery.isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!isShopEnabled) {
+    return <Navigate to="/matches" replace />;
   }
 
   return <>{children}</>;
@@ -269,11 +285,13 @@ const AppRouter: React.FC = () => {
           path="/tournaments"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <TournamentsSection />
-                </Suspense>
-              </DashboardLayout>
+              <CommerceEnabledRoute>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <TournamentsSection />
+                  </Suspense>
+                </DashboardLayout>
+              </CommerceEnabledRoute>
             </ProtectedRoute>
           }
         />
@@ -308,11 +326,13 @@ const AppRouter: React.FC = () => {
           path="/shop"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <ShopSection />
-                </Suspense>
-              </DashboardLayout>
+              <CommerceEnabledRoute>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <ShopSection />
+                  </Suspense>
+                </DashboardLayout>
+              </CommerceEnabledRoute>
             </ProtectedRoute>
           }
         />

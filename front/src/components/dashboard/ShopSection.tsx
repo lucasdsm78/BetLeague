@@ -37,7 +37,12 @@ const ShopSection: React.FC = memo(() => {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const toast = useGlobalToast();
-  const subscriptionPlansQuery = useTournamentSubscriptionPlansQuery({ enabled: activeTab === 'subscription' });
+  const commerceAvailability = profile?.commerce_availability;
+  const isShopEnabled = commerceAvailability?.shop_enabled !== false;
+  const isBTLPurchaseEnabled = commerceAvailability?.btl_purchase_enabled !== false;
+  const isTournamentSubscriptionEnabled = commerceAvailability?.tournament_subscription_enabled !== false;
+  const canManageTournamentSubscription = Boolean(user?.isTournamentSubscriber);
+  const subscriptionPlansQuery = useTournamentSubscriptionPlansQuery({ enabled: activeTab === 'subscription' && isTournamentSubscriptionEnabled });
   const subscriptionPlans = useMemo(
     () => (subscriptionPlansQuery.data ? enrichSubscriptionPlans(subscriptionPlansQuery.data) : []),
     [subscriptionPlansQuery.data],
@@ -132,8 +137,12 @@ const ShopSection: React.FC = memo(() => {
   }, [searchParams, setSearchParams, refetch, queryClient]);
 
   const handleOpenBTLPurchase = useCallback(() => {
+    if (!isBTLPurchaseEnabled) {
+      toast.showInfo('Boutique indisponible', "L'achat de BTL est temporairement indisponible.");
+      return;
+    }
     setIsBTLPurchaseModalOpen(true);
-  }, []);
+  }, [isBTLPurchaseEnabled, toast]);
 
   const handleCloseBTLPurchase = useCallback(() => {
     setIsBTLPurchaseModalOpen(false);
@@ -144,8 +153,12 @@ const ShopSection: React.FC = memo(() => {
   }, []);
 
   const handleOpenTournamentSubscription = useCallback(() => {
+    if (!isTournamentSubscriptionEnabled && !canManageTournamentSubscription) {
+      toast.showInfo('Boutique indisponible', "L'abonnement tournoi est temporairement indisponible.");
+      return;
+    }
     setIsTournamentSubscriptionModalOpen(true);
-  }, []);
+  }, [canManageTournamentSubscription, isTournamentSubscriptionEnabled, toast]);
 
   const handleCloseTournamentSubscription = useCallback(() => {
     setIsTournamentSubscriptionModalOpen(false);
@@ -164,6 +177,48 @@ const ShopSection: React.FC = memo(() => {
       // best effort: l'état du store reste cohérent avec l'accès encore actif jusqu'à fin de période
     });
   }, [refetch, toast, updateUser]);
+
+  if (!isShopEnabled) {
+    return (
+      <div className="shop-section">
+        <div className="shop-header">
+          <div className="shop-title-section">
+            <h1 className="shop-title">Boutique BetLeague</h1>
+            <p className="shop-subtitle">La boutique est temporairement désactivée. Les achats de BTL et les nouvelles souscriptions tournoi sont momentanément indisponibles.</p>
+          </div>
+
+          {profile && (
+            <div className="shop-balance-card">
+              <div className="balance-label">Votre solde</div>
+              <div className="balance-value">{profile.nb_btl.toFixed(2)} BTL</div>
+            </div>
+          )}
+        </div>
+
+        <div className="subscription-status-banner">
+          <div className="status-inactive">
+            <span className="status-icon">🛠️</span>
+            <span className="status-text">La boutique est en maintenance temporaire. Revenez plus tard pour acheter des BTL ou souscrire à l’offre tournoi.</span>
+          </div>
+        </div>
+
+        {canManageTournamentSubscription && (
+          <div className="cta-section">
+            <button
+              className="btn btn-secondary btn-lg shop-cta"
+              onClick={handleOpenTournamentSubscription}
+            >
+              <span className="cta-icon">⚙️</span>
+              Gérer mon abonnement actuel
+            </button>
+            <p className="cta-description">
+              Votre abonnement tournoi actuel reste gérable pendant la désactivation temporaire de la boutique.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="shop-section">

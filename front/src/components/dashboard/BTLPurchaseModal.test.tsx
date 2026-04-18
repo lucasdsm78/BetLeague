@@ -5,15 +5,30 @@ import BTLPurchaseModal from './BTLPurchaseModal';
 
 const mockGetAllPacks = jest.fn();
 const mockCreatePurchaseIntent = jest.fn();
+const mockUseProfileMeQuery = jest.fn();
 
 jest.mock('../../services/api/packs', () => ({
   getAllPacks: () => mockGetAllPacks(),
   createPurchaseIntent: (...args: unknown[]) => mockCreatePurchaseIntent(...args),
 }));
 
+jest.mock('../../hooks/queries/useProfileQuery', () => ({
+  useProfileMeQuery: () => mockUseProfileMeQuery(),
+}));
+
 describe('BTLPurchaseModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseProfileMeQuery.mockReturnValue({
+      data: {
+        commerce_availability: {
+          shop_enabled: true,
+          btl_purchase_enabled: true,
+          tournament_subscription_enabled: true,
+        },
+      },
+      isLoading: false,
+    });
     mockGetAllPacks.mockResolvedValue([
       {
         id: 1,
@@ -57,6 +72,27 @@ describe('BTLPurchaseModal', () => {
     expect(screen.getByText('Meilleure valeur')).toBeInTheDocument();
     expect(screen.getByText(/Le meilleur choix pour jouer régulièrement/i)).toBeInTheDocument();
     expect(screen.getByText(/L’offre la plus rentable/i)).toBeInTheDocument();
+  });
+
+  it('affiche un état indisponible sans charger les packs si l’achat BTL est désactivé', async () => {
+    mockUseProfileMeQuery.mockReturnValue({
+      data: {
+        commerce_availability: {
+          shop_enabled: true,
+          btl_purchase_enabled: false,
+          tournament_subscription_enabled: true,
+        },
+      },
+      isLoading: false,
+    });
+
+    render(<BTLPurchaseModal onClose={() => {}} />);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("L'achat de BTL est temporairement indisponible."));
+
+    expect(mockGetAllPacks).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /acheter/i })).toBeDisabled();
+    expect(screen.getByText(/boutique BTL est temporairement indisponible/i)).toBeInTheDocument();
   });
 });
 

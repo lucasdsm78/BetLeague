@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from application.tournament_subscription.tournament_subscription_command_model import CheckoutSessionResponse, \
     CreateSubscriptionRequest
 from domain.services.stripe.stripe_service import StripeService
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.tournament_subscription.model.tournament_subscription_plan import TournamentSubscriptionPlan
 from domain.tournament_subscription.service.tournament_subscription_domain_service import SubscriptionDomainService
 from domain.tournament_subscription.service.tournament_subscription_pricing_service import \
@@ -31,17 +32,21 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
             stripe_service: StripeService,
             domain_service: SubscriptionDomainService,
             settings: Settings,
+            shop_availability_policy: ShopAvailabilityPolicy,
     ):
         self._session_factory = session_factory
         self._stripe_service = stripe_service
         self._domain_service = domain_service
         self._settings = settings
+        self._shop_availability_policy = shop_availability_policy
 
     def _build_frontend_url(self, status_value: str) -> str:
         base_url = self._settings.app_frontend_url.rstrip("/")
         return f"{base_url}/shop?subscription={status_value}"
 
     async def execute(self, email: str, request: CreateSubscriptionRequest) -> CheckoutSessionResponse:
+        self._shop_availability_policy.ensure_tournament_subscription_enabled()
+
         async with self._session_factory() as session:
             async with session.begin():
                 user_repository = UserRepositoryImpl(session=session)

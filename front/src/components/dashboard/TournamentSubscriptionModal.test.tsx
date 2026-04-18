@@ -8,6 +8,7 @@ const mockUseTournamentSubscriptionPlansQuery = jest.fn();
 const mockUseCurrentTournamentSubscriptionQuery = jest.fn();
 const mockCancelSubscriptionMutateAsync = jest.fn();
 const mockUseCancelTournamentSubscriptionMutation = jest.fn();
+const mockUseProfileMeQuery = jest.fn();
 const mockAssign = jest.fn();
 let consoleErrorSpy: jest.SpyInstance;
 
@@ -21,10 +22,24 @@ jest.mock('../../hooks/queries/useTournamentQueries', () => ({
   useCancelTournamentSubscriptionMutation: () => mockUseCancelTournamentSubscriptionMutation(),
 }));
 
+jest.mock('../../hooks/queries/useProfileQuery', () => ({
+  useProfileMeQuery: () => mockUseProfileMeQuery(),
+}));
+
 describe('TournamentSubscriptionModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockUseProfileMeQuery.mockReturnValue({
+      data: {
+        commerce_availability: {
+          shop_enabled: true,
+          btl_purchase_enabled: true,
+          tournament_subscription_enabled: true,
+        },
+      },
+      isLoading: false,
+    });
     mockUseTournamentSubscriptionPlansQuery.mockReturnValue({
       data: {
         plans: [
@@ -157,5 +172,26 @@ describe('TournamentSubscriptionModal', () => {
 
     expect(screen.getByRole('button', { name: /résiliation déjà planifiée/i })).toBeDisabled();
     expect(screen.getByText(/résiliation demandée le/i)).toBeInTheDocument();
+  });
+
+  it('affiche un état indisponible et ne déclenche pas le chargement des offres si la souscription est désactivée', async () => {
+    mockUseProfileMeQuery.mockReturnValue({
+      data: {
+        commerce_availability: {
+          shop_enabled: true,
+          btl_purchase_enabled: true,
+          tournament_subscription_enabled: false,
+        },
+      },
+      isLoading: false,
+    });
+
+    render(<TournamentSubscriptionModal onClose={() => {}} />);
+
+    expect(mockUseTournamentSubscriptionPlansQuery).toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent("L'abonnement tournoi est temporairement indisponible.");
+    expect(screen.getByText(/souscription à l’abonnement tournoi est actuellement suspendue/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /abonnement indisponible/i })).toBeDisabled();
+    expect(mockCreateSubscriptionIntent).not.toHaveBeenCalled();
   });
 });

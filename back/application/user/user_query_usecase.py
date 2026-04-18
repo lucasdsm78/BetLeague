@@ -4,6 +4,7 @@ from typing import Optional, List, Dict
 from pydantic import BaseModel
 
 from application.user.user_query_model import (
+    CommerceAvailabilityReadModel,
     UserReadModel,
     UserSearchQuery,
     UserSearchResponse,
@@ -11,6 +12,7 @@ from application.user.user_query_model import (
     TournamentCreationAccessReadModel,
 )
 from domain.tournament.repository.tournament_repository import TournamentRepository
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.tournament.service.tournament_creation_policy import TournamentCreationPolicy, current_month_window_ms
 from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.user.exception.user_exception import UserNotFoundError, UserNotOwnerError
@@ -40,6 +42,7 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
     user_repository: UserRepository
     tournament_repository: TournamentRepository
     tournament_subscription_repository: TournamentSubscriptionRepository
+    shop_availability_policy: ShopAvailabilityPolicy = ShopAvailabilityPolicy()
     tournament_creation_policy: TournamentCreationPolicy = TournamentCreationPolicy()
 
     class Config:
@@ -77,11 +80,13 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
             has_active_subscription=has_active_subscription,
             monthly_free_tournaments_used=monthly_used,
         )
+        commerce_status = self.shop_availability_policy.get_status()
 
         return UserReadModel.from_entity(
             user,
             tournament_creation_access=TournamentCreationAccessReadModel(**access.__dict__),
             is_tournament_subscriber=has_active_subscription,
+            commerce_availability=CommerceAvailabilityReadModel(**commerce_status.__dict__),
         )
 
     async def get_all_rank_users(self) -> List[Dict[str, any]]:
