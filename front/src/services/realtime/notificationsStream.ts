@@ -81,7 +81,7 @@ export class NotificationsStream {
         const res = await fetch(`${apiBase}/realtime/notifications/stream`, {
           method: 'GET',
           headers: {
-            'X-Authentication': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             Accept: 'text/event-stream',
           },
           signal: this.abortController?.signal,

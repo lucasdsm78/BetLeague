@@ -1,12 +1,12 @@
 import asyncio
 from typing import Any
+from urllib.parse import urlencode
 
 import stripe
 from domain.purchase.exception.purchase_exception import InvalidWebhookError
 from concurrent.futures import ThreadPoolExecutor
 from domain.purchase.model.purchase import Purchase
 from domain.services.stripe.stripe_service import StripeService
-from domain.tournament_subscription.model.tournament_subscription import TournamentSubscription
 from infrastructure.config import Settings
 
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -19,6 +19,12 @@ class StripeServiceImpl(StripeService):
     ):
         self.settings: Settings = settings
         stripe.api_key = settings.stripe_api_key
+
+    def _build_frontend_url(self, path: str, query_params: dict[str, str] | None = None) -> str:
+        base = self.settings.app_frontend_url.rstrip("/")
+        normalized_path = path if path.startswith("/") else f"/{path}"
+        query = f"?{urlencode(query_params)}" if query_params else ""
+        return f"{base}{normalized_path}{query}"
 
     async def create_payment_intent(self, purchase: Purchase) -> stripe.checkout.Session:
         def _create():
@@ -49,8 +55,8 @@ class StripeServiceImpl(StripeService):
                         "user_id": str(purchase.user.id),
                     }
                 },
-                success_url="http://localhost:3000/profile?payment=success",
-                cancel_url="http://localhost:3000/profile?payment=cancelled",
+                success_url=self._build_frontend_url("/profile", {"payment": "success"}),
+                cancel_url=self._build_frontend_url("/profile", {"payment": "cancelled"}),
                 idempotency_key=f"checkout_{purchase.uuid}",
                 expand=["payment_intent"]
             )
@@ -67,8 +73,8 @@ class StripeServiceImpl(StripeService):
             metadata: dict
     ) -> stripe.checkout.Session:
         try:
-
-            session = stripe.checkout.Session.create(
+            def _create():
+                return stripe.checkout.Session.create(
                     mode="subscription",
                     payment_method_types=['card'],
                     payment_method_options={
@@ -86,25 +92,27 @@ class StripeServiceImpl(StripeService):
                     idempotency_key=f"subscription_{uuid}",
                 )
 
+            session = await asyncio.get_running_loop().run_in_executor(_executor, _create)
+
             return session
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la création de la session Stripe: {e}")
 
     async def retrieve_checkout_session(self, session_id: str) -> dict[str, Any]:
         try:
-            return stripe.checkout.Session.retrieve(session_id)
+            return await asyncio.to_thread(stripe.checkout.Session.retrieve, session_id)
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la récupération de la session Stripe: {e}")
 
     async def retrieve_subscription(self, subscription_id: str) -> dict[str, Any]:
         try:
-            return stripe.Subscription.retrieve(subscription_id)
+            return await asyncio.to_thread(stripe.Subscription.retrieve, subscription_id)
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la récupération de l'abonnement Stripe: {e}")
 
     async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
         try:
-            return stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
+            return await asyncio.to_thread(stripe.Subscription.modify, subscription_id, cancel_at_period_end=True)
         except stripe.error.StripeError as e:
             raise ValueError(f"Erreur lors de la planification de l'annulation de l'abonnement: {e}")
 

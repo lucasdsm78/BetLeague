@@ -1,4 +1,5 @@
 import { secureApiClient, ApiClientError } from './secureApiClient';
+import enhancedAuthService from './authService.enhanced';
 
 function makeJsonResponse(body: any, init: { status: number; headers?: Record<string, string> }) {
   const headers = new Headers({ 'content-type': 'application/json', ...(init.headers ?? {}) });
@@ -10,15 +11,26 @@ function makeTextResponse(text: string, init: { status: number; headers?: Record
   return new Response(text, { status: init.status, headers });
 }
 
+function makeJwt(payload: Record<string, unknown>) {
+  return [
+    btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })),
+    btoa(JSON.stringify(payload)),
+    'signature',
+  ].join('.');
+}
+
 describe('secureApiClient strict mode', () => {
   beforeEach(() => {
     // @ts-ignore
     global.fetch = jest.fn();
+    window.localStorage.clear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.resetAllMocks();
     secureApiClient.clearCache();
+    await enhancedAuthService.logout({ server: false });
+    window.localStorage.clear();
   });
 
   it('retourne ApiResponse success=true pour une réponse 200 JSON', async () => {
@@ -77,5 +89,33 @@ describe('secureApiClient strict mode', () => {
       expect(err.message).toBe('Bad request');
       expect(err.details).toBe('Bad request');
     }
+  });
+
+  it('envoie uniquement Authorization pour les requêtes authentifiées', async () => {
+    const token = makeJwt({
+      sub: 'front@example.com',
+      username: 'front',
+      pseudo: 'front',
+      id: 'user-1',
+      exp: Math.floor((Date.now() + 60_000) / 1000),
+    });
+
+    enhancedAuthService.applySessionTokens({
+      token_auth: token,
+      token_expiration: new Date(Date.now() + 60_000).toISOString(),
+    }, {
+      email: 'front@example.com',
+      pseudo: 'front',
+      username: 'front',
+    });
+    (global.fetch as jest.Mock).mockResolvedValueOnce(makeJsonResponse({ ok: true }, { status: 200 }));
+
+    await secureApiClient.get('/secure', { skipCache: true });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(`Bearer ${token}`);
+    expect(headers['X-Authentication']).toBeUndefined();
   });
 });

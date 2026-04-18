@@ -4,14 +4,15 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { 
-  League, 
-  LeagueDetails, 
-  Invitation, 
+import enhancedAuthService from '../services/authService.enhanced';
+import type {
+  League,
+  LeagueDetails,
+  Invitation,
   LeaguesState,
   LeagueCreateForm,
   PaginationState,
-  FilterState 
+  FilterState
 } from '../types';
 
 interface LeagueActions {
@@ -21,23 +22,23 @@ interface LeagueActions {
   updateLeague: (id: number, updates: Partial<League>) => void;
   removeLeague: (id: number) => void;
   setCurrentLeague: (league: LeagueDetails | null) => void;
-  
+
   // Invitation actions
   setInvitations: (invitations: Invitation[]) => void;
   addInvitation: (invitation: Invitation) => void;
   updateInvitation: (id: number, updates: Partial<Invitation>) => void;
   removeInvitation: (id: number) => void;
-  
+
   // UI state actions
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
-  
+
   // Filter and pagination
   setFilters: (filters: Partial<FilterState>) => void;
   setPagination: (pagination: Partial<PaginationState>) => void;
   resetFilters: () => void;
-  
+
   // API actions
   fetchLeagues: () => Promise<void>;
   createLeague: (form: LeagueCreateForm) => Promise<boolean>;
@@ -45,7 +46,7 @@ interface LeagueActions {
   leaveLeague: (leagueId: number) => Promise<boolean>;
   fetchInvitations: () => Promise<void>;
   respondToInvitation: (invitationId: number, accept: boolean) => Promise<boolean>;
-  
+
   // Getters
   getLeagueById: (id: number) => League | undefined;
   getUserLeagues: (userId: number) => League[];
@@ -58,6 +59,14 @@ interface LeagueStore extends LeaguesState {
 }
 
 type LeagueStoreWithActions = LeagueStore & LeagueActions;
+
+const buildAuthHeaders = (): Record<string, string> => {
+  const token = enhancedAuthService.getCurrentToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 // Initial state
 const initialState: LeagueStore = {
@@ -84,7 +93,7 @@ const initialState: LeagueStore = {
 export const useLeagueStore = create<LeagueStoreWithActions>()(
   immer((set, get) => ({
     ...initialState,
-    
+
     // League actions
     setLeagues: (leagues: League[]) => {
       set((state) => {
@@ -92,59 +101,59 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         state.pagination.totalItems = leagues.length;
       });
     },
-    
+
     addLeague: (league: League) => {
       set((state) => {
         state.leagues.unshift(league);
         state.pagination.totalItems += 1;
       });
     },
-    
+
     updateLeague: (id: number, updates: Partial<League>) => {
       set((state) => {
         const index = state.leagues.findIndex(league => league.id === id);
         if (index !== -1) {
           state.leagues[index] = { ...state.leagues[index], ...updates };
         }
-        
+
         // Update current league if it's the same
         if (state.currentLeague && state.currentLeague.id === id) {
           state.currentLeague = { ...state.currentLeague, ...updates };
         }
       });
     },
-    
+
     removeLeague: (id: number) => {
       set((state) => {
         state.leagues = state.leagues.filter(league => league.id !== id);
         state.pagination.totalItems -= 1;
-        
+
         // Clear current league if it's the same
         if (state.currentLeague && state.currentLeague.id === id) {
           state.currentLeague = null;
         }
       });
     },
-    
+
     setCurrentLeague: (league: LeagueDetails | null) => {
       set((state) => {
         state.currentLeague = league;
       });
     },
-    
+
     // Invitation actions
     setInvitations: (invitations: Invitation[]) => {
       set((state) => {
         state.invitations = invitations;
       });
     },
-    
+
     addInvitation: (invitation: Invitation) => {
       set((state) => {
         state.invitations.unshift(invitation);
       });
     },
-    
+
     updateInvitation: (id: number, updates: Partial<Invitation>) => {
       set((state) => {
         const index = state.invitations.findIndex(inv => inv.id === id);
@@ -153,13 +162,13 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         }
       });
     },
-    
+
     removeInvitation: (id: number) => {
       set((state) => {
         state.invitations = state.invitations.filter(inv => inv.id !== id);
       });
     },
-    
+
     // UI state actions
     setLoading: (isLoading: boolean) => {
       set((state) => {
@@ -169,20 +178,20 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         }
       });
     },
-    
+
     setError: (error: string | null) => {
       set((state) => {
         state.error = error;
         state.isLoading = false;
       });
     },
-    
+
     clearError: () => {
       set((state) => {
         state.error = null;
       });
     },
-    
+
     // Filter and pagination
     setFilters: (filters: Partial<FilterState>) => {
       set((state) => {
@@ -191,13 +200,13 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         state.pagination.currentPage = 1;
       });
     },
-    
+
     setPagination: (pagination: Partial<PaginationState>) => {
       set((state) => {
         state.pagination = { ...state.pagination, ...pagination };
       });
     },
-    
+
     resetFilters: () => {
       set((state) => {
         state.filters = {
@@ -211,29 +220,24 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         state.pagination.currentPage = 1;
       });
     },
-    
+
     // API actions
     fetchLeagues: async () => {
       const { setLoading, setError, setLeagues } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const response = await fetch('/api/leagues', {
-          headers: {
-            'X-Authentication': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
+          headers: buildAuthHeaders(),
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setLeagues(data.leagues || []);
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch leagues';
         setError(message);
@@ -241,14 +245,12 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     createLeague: async (form: LeagueCreateForm): Promise<boolean> => {
       const { setLoading, setError, addLeague } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const payload = {
           name: form.name.trim(),
           max_players: form.maxMembers,
@@ -257,28 +259,25 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
           nb_btl: form.entryFee > 0 ? form.entryFee : null,
           description: form.description?.trim(),
         };
-        
+
         const response = await fetch('/api/league/create', {
           method: 'POST',
-          headers: {
-            'X-Authentication': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
+          headers: buildAuthHeaders(),
           body: JSON.stringify(payload),
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.detail || 'Failed to create league');
         }
-        
+
         const data = await response.json();
         if (data.league) {
           addLeague(data.league);
         }
-        
+
         return true;
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to create league';
         setError(message);
@@ -287,34 +286,29 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     joinLeague: async (leagueId: number): Promise<boolean> => {
       const { setLoading, setError, updateLeague } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`/api/league/${leagueId}/join`, {
           method: 'POST',
-          headers: {
-            'X-Authentication': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
+          headers: buildAuthHeaders(),
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.detail || 'Failed to join league');
         }
-        
+
         const data = await response.json();
         if (data.league) {
           updateLeague(leagueId, data.league);
         }
-        
+
         return true;
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to join league';
         setError(message);
@@ -323,34 +317,29 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     leaveLeague: async (leagueId: number): Promise<boolean> => {
       const { setLoading, setError, updateLeague } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const response = await fetch(`/api/league/${leagueId}/leave`, {
           method: 'POST',
-          headers: {
-            'X-Authentication': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
+          headers: buildAuthHeaders(),
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.detail || 'Failed to leave league');
         }
-        
+
         const data = await response.json();
         if (data.league) {
           updateLeague(leagueId, data.league);
         }
-        
+
         return true;
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to leave league';
         setError(message);
@@ -359,28 +348,23 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     fetchInvitations: async () => {
       const { setLoading, setError, setInvitations } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const response = await fetch('/api/invitations?is_received=true', {
-          headers: {
-            'X-Authentication': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
+          headers: buildAuthHeaders(),
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setInvitations(data.invitations || []);
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch invitations';
         setError(message);
@@ -388,38 +372,33 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     respondToInvitation: async (invitationId: number, accept: boolean): Promise<boolean> => {
       const { setLoading, setError, updateInvitation } = get();
-      
+
       try {
         setLoading(true);
-        
-        const token = localStorage.getItem('authToken');
         const response = await fetch(
-          `/api/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`, 
+          `/api/league/invitation/${accept ? 'true' : 'false'}?invitation_id=${invitationId}`,
           {
             method: 'PUT',
-            headers: {
-              'X-Authentication': token ? `Bearer ${token}` : '',
-              'Content-Type': 'application/json',
-            },
+            headers: buildAuthHeaders(),
           }
         );
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.detail || 'Failed to respond to invitation');
         }
-        
+
         // Update invitation status
         updateInvitation(invitationId, {
           status: accept ? 'accepted' : 'declined',
           respondedAt: new Date().toISOString(),
         });
-        
+
         return true;
-        
+
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to respond to invitation';
         setError(message);
@@ -428,25 +407,25 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         setLoading(false);
       }
     },
-    
+
     // Getters
     getLeagueById: (id: number) => {
       const state = get();
       return state.leagues.find(league => league.id === id);
     },
-    
+
     getUserLeagues: (userId: number) => {
       const state = get();
-      return state.leagues.filter(league => 
-        league.createdBy === userId || 
+      return state.leagues.filter(league =>
+        league.createdBy === userId ||
         league.currentPlayers > 0 // Simplified check - should check participants
       );
     },
-    
+
     getActiveInvitations: () => {
       const state = get();
-      return state.invitations.filter(inv => 
-        inv.status === 'pending' && 
+      return state.invitations.filter(inv =>
+        inv.status === 'pending' &&
         new Date(inv.expiresAt) > new Date()
       );
     },
@@ -463,13 +442,13 @@ export const useLeagueFilters = () => useLeagueStore((state) => state.filters);
 export const useLeaguePagination = () => useLeagueStore((state) => state.pagination);
 
 // Computed selectors
-export const useActiveInvitations = () => 
+export const useActiveInvitations = () =>
   useLeagueStore((state) => state.getActiveInvitations());
 
-export const useLeagueById = (id: number) => 
+export const useLeagueById = (id: number) =>
   useLeagueStore((state) => state.getLeagueById(id));
 
-export const useUserLeagues = (userId: number) => 
+export const useUserLeagues = (userId: number) =>
   useLeagueStore((state) => state.getUserLeagues(userId));
 
 export default useLeagueStore;
