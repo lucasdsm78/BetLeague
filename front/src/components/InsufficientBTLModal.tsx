@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import './InsufficientBTLModal.css';
 
 interface InsufficientBTLModalProps {
@@ -20,12 +21,17 @@ const InsufficientBTLModal: React.FC<InsufficientBTLModalProps> = ({
   onClose
 }) => {
   const navigate = useNavigate();
+  const { data: profile } = useProfileMeQuery();
   const missingAmount = Math.max(0, requiredAmount - currentBalance);
+  const isBTLPurchaseEnabled = profile?.commerce_availability?.btl_purchase_enabled !== false;
 
   const handleBuyBTL = useCallback(() => {
+    if (!isBTLPurchaseEnabled) {
+      return;
+    }
     onClose();
     navigate('/shop');
-  }, [navigate, onClose]);
+  }, [isBTLPurchaseEnabled, navigate, onClose]);
 
   const handleCancel = useCallback(() => {
     onClose();
@@ -65,16 +71,19 @@ const InsufficientBTLModal: React.FC<InsufficientBTLModalProps> = ({
           <div className="info-message">
             <div className="info-icon">ℹ️</div>
             <p>
-              Rechargez votre solde pour pouvoir {action}.
-              Vous serez redirigé vers la boutique pour sélectionner un pack BTL.
+              {isBTLPurchaseEnabled
+                ? `Rechargez votre solde pour pouvoir ${action}. Vous serez redirigé vers la boutique pour sélectionner un pack BTL.`
+                : `Vous n’avez pas assez de BTL pour ${action}, et l’achat de BTL est temporairement indisponible.`}
             </p>
           </div>
 
           <div className="cta-section">
             <div className="cta-icon">💳</div>
-            <h3>Achetez des BTL maintenant</h3>
+            <h3>{isBTLPurchaseEnabled ? 'Achetez des BTL maintenant' : 'Boutique BTL indisponible'}</h3>
             <p className="cta-description">
-              Sélectionnez un pack et rechargez votre compte instantanément
+              {isBTLPurchaseEnabled
+                ? 'Sélectionnez un pack et rechargez votre compte instantanément'
+                : 'La recharge de votre solde sera de nouveau accessible dès la réouverture de la boutique'}
             </p>
           </div>
         </div>
@@ -89,9 +98,10 @@ const InsufficientBTLModal: React.FC<InsufficientBTLModalProps> = ({
           <button
             className="btn btn-primary btn-lg"
             onClick={handleBuyBTL}
+            disabled={!isBTLPurchaseEnabled}
           >
             <span className="btn-icon">🛒</span>
-            Acheter des BTL
+            {isBTLPurchaseEnabled ? 'Acheter des BTL' : 'Indisponible temporairement'}
           </button>
         </div>
       </div>

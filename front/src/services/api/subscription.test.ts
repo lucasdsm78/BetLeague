@@ -1,4 +1,5 @@
 import http from '../http';
+import { ApiClientError } from '../secureApiClient';
 import {
   cancelSubscription,
   createSubscriptionIntent,
@@ -132,5 +133,23 @@ describe('subscription api service', () => {
     });
 
     expect(http.get).toHaveBeenCalledWith('/subscription/me');
+  });
+
+  it('remonte le message métier si la souscription tournoi est désactivée', async () => {
+    (http.get as jest.Mock).mockRejectedValueOnce(new ApiClientError("L'abonnement tournoi est temporairement indisponible.", {
+      status: 403,
+      code: 'TOURNAMENT_SUBSCRIPTION_DISABLED',
+    }));
+
+    await expect(getSubscriptionPlans()).rejects.toThrow("L'abonnement tournoi est temporairement indisponible.");
+  });
+
+  it('remonte le message métier si la boutique entière est désactivée pendant la création', async () => {
+    (http.post as jest.Mock).mockRejectedValueOnce(new ApiClientError('La boutique est temporairement indisponible.', {
+      status: 403,
+      code: 'SHOP_FEATURE_DISABLED',
+    }));
+
+    await expect(createSubscriptionIntent({ subscription_plan: 'yearly' })).rejects.toThrow('La boutique est temporairement indisponible.');
   });
 });

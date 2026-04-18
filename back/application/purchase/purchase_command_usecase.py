@@ -13,6 +13,7 @@ from domain.purchase.model.purchase import Purchase
 from domain.purchase.model.purchase_status import PurchaseStatus
 from domain.purchase.repository.pack_repository import PackRepository
 from domain.purchase.repository.purchase_repository import PurchaseRepository
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.services.stripe.stripe_service import StripeService
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
@@ -40,16 +41,20 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
             session_factory: Callable[[], AsyncSession],
             stripe_service: StripeService,
             purchase_repository: PurchaseRepository,
+            shop_availability_policy: ShopAvailabilityPolicy,
     ):
         self.user_repository: UserRepository = user_repository
         self.pack_repository: PackRepository = pack_repository
         self._session_factory = session_factory
         self.stripe_service: StripeService = stripe_service
         self.purchase_repository: PurchaseRepository = purchase_repository
+        self.shop_availability_policy = shop_availability_policy
         self._lock = asyncio.Lock()
 
 
     async def create_intent(self, email: str, data: PurchaseCreateModel):
+        self.shop_availability_policy.ensure_btl_purchase_enabled()
+
         user = await self.user_repository.find_by_email(email)
         if not user:
             raise UserNotFoundError

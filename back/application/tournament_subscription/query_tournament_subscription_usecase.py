@@ -6,6 +6,7 @@ from application.tournament_subscription.tournament_subscription_query_model imp
     TournamentSubscriptionPlanReadModel,
     TournamentSubscriptionPlansResponse,
 )
+from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 from domain.tournament_subscription.model.tournament_subscription_plan import TournamentSubscriptionPlan
 from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.tournament_subscription.service.tournament_subscription_pricing_service import (
@@ -32,9 +33,11 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
             self,
             user_repository: UserRepository | None = None,
             tournament_subscription_repository: TournamentSubscriptionRepository | None = None,
+            shop_availability_policy: ShopAvailabilityPolicy | None = None,
     ):
         self._user_repository = user_repository
         self._tournament_subscription_repository = tournament_subscription_repository
+        self._shop_availability_policy = shop_availability_policy
 
     @staticmethod
     def _to_cents(amount: Decimal) -> int:
@@ -55,6 +58,9 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
         return "month" if plan is TournamentSubscriptionPlan.MONTHLY else "year"
 
     async def get_available_plans(self) -> TournamentSubscriptionPlansResponse:
+        if self._shop_availability_policy is not None:
+            self._shop_availability_policy.ensure_tournament_subscription_enabled()
+
         plans = [
             TournamentSubscriptionPlanReadModel(
                 id=plan.value,

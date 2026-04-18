@@ -34,6 +34,7 @@ from domain.tournament.exception.tournament_exception import TournamentAlreadySt
     TournamentMonthlyFreeCreationLimitReachedError, TournamentMaxPlayersError, TournamentSelfInvitationError, \
     UserNotInvitationTournamentError, TournamentNotEnoughPlayersError, TournamentFullError, UserAlreadyInTournamentError, \
     TournamentOwnerCannotLeaveError, TournamentPlayerNotFoundError, TournamentNotThePlayerError
+from domain.shop.exception.shop_exception import ShopFeatureDisabledError
 from domain.user.exception.user_exception import UserNotFoundError
 
 from application.tournament.tournament_query_model import TournamentCreatedResponse, TournamentCreationAccessResponse
@@ -415,7 +416,16 @@ async def run_tournament_scheduler(
 async def get_tournament_subscription_plans(
         use_case: TournamentSubscriptionQueryUseCase = Depends(tournament_subscription_query_use_case),
 ):
-    return await use_case.get_available_plans()
+    try:
+        return await use_case.get_available_plans()
+    except ShopFeatureDisabledError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": e.message,
+                "code": e.code,
+            },
+        )
 
 
 @router.get(
@@ -456,6 +466,14 @@ async def create_tournament_subscription_checkout(
 
         return result
 
+    except ShopFeatureDisabledError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": e.message,
+                "code": e.code,
+            },
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:

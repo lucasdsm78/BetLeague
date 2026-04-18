@@ -8,12 +8,23 @@ from application.purchase.purchase_query_usecase import PurchaseQueryUseCase
 from dependency_injections import purchase_command_usecase, purchase_query_usecase, current_user
 from domain.purchase.exception.pack_exception import PackNotFoundError
 from domain.purchase.exception.purchase_exception import PurchaseNotFoundError, InvalidWebhookError
+from domain.shop.exception.shop_exception import ShopFeatureDisabledError
 from domain.user.exception.user_exception import UserNotFoundError
 
 router = APIRouter(
     prefix="/api",
     tags=['purchase']
 )
+
+
+def _raise_shop_feature_disabled(error: ShopFeatureDisabledError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "message": error.message,
+            "code": error.code,
+        },
+    )
 
 @router.get(
     "/packs",
@@ -44,6 +55,8 @@ async def get_all_packs(
                 for pack in packs
             ]
         )
+    except ShopFeatureDisabledError as e:
+        _raise_shop_feature_disabled(e)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -115,6 +128,8 @@ async def verify_purchase_google(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=e.message
         )
+    except ShopFeatureDisabledError as e:
+        _raise_shop_feature_disabled(e)
 
     return session_id
 
