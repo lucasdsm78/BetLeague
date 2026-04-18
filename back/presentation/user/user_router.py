@@ -1,10 +1,11 @@
 import io
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, status, Request, Response
 
 from application.user.user_command_model import (
-    UserCreateModel, UserLoginResponse, UserLoginModel, UserDeleteResponse,
+    UserCreateModel, UserCreateResponse, UserLoginResponse, UserLoginModel, UserDeleteResponse,
     UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
     InvalidPasswordError, DeleteMyAccountModel,
     ChangeMyPasswordModel, ChangeMyPasswordResponse,
@@ -37,31 +38,64 @@ from presentation.user.user_error_message import (
     ErrorMessageUserEmailAlreadyExists, ErrorMessageUsersNotFound, ErrorMessageUserNotFound
 )
 from dependency_injections import (
+    get_settings,
     current_user, user_command_usecase, user_query_usecase, password_reset_usecase,
     rate_limit_delete_my_account,
     rate_limit_change_my_password,
     rate_limit_verify_2fa_activation,
     rate_limit_disable_2fa,
     rate_limit_login_with_2fa_code,
+    get_request_client_ip,
     Verify2FARateLimitContext,
 )
+from infrastructure.config import Settings
 
 router = APIRouter(
     prefix="/api/auth",
     tags=['auth']
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _set_refresh_token_cookie(response: Response, refresh_token: str, settings: Settings) -> None:
+    response.set_cookie(
+        key=settings.auth_refresh_cookie_name,
+        value=refresh_token,
+        max_age=int(settings.refresh_token_expire_minutes * 60),
+        httponly=True,
+        secure=settings.auth_refresh_cookie_secure_value,
+        samesite=settings.auth_refresh_cookie_samesite_value,
+        path=settings.auth_refresh_cookie_path or "/api/auth",
+        domain=(settings.auth_refresh_cookie_domain or None),
+    )
+
+
+def _clear_refresh_token_cookie(response: Response, settings: Settings) -> None:
+    response.delete_cookie(
+        key=settings.auth_refresh_cookie_name,
+        path=settings.auth_refresh_cookie_path or "/api/auth",
+        domain=(settings.auth_refresh_cookie_domain or None),
+        secure=settings.auth_refresh_cookie_secure_value,
+        samesite=settings.auth_refresh_cookie_samesite_value,
+        httponly=True,
+    )
+
+
+def _extract_refresh_token(request: Request, refresh_data: RefreshTokenModel | None, settings: Settings) -> str | None:
+    body_token = (refresh_data.refresh_token or "").strip() if refresh_data else ""
+    if body_token:
+        return body_token
+    cookie_token = (request.cookies.get(settings.auth_refresh_cookie_name) or "").strip()
+    return cookie_token or None
+
 
 @router.post(
     "/register",
-    response_model=UserLoginResponse,
+    response_model=UserCreateResponse,
+    response_model_exclude_none=True,
     summary="Register a new user",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_409_CONFLICT: {
-            "model": ErrorMessageUserEmailAlreadyExists,
-        },
-    },
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def create_user(
         data: UserCreateModel,
@@ -70,14 +104,8 @@ async def create_user(
     try:
         user = await user_command_usecase.create(data)
 
-    except UserEmailAlreadyExistsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=e.message,
-        )
-
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.exception("Échec inattendu lors de l'inscription")
         raise
 
     return user
@@ -89,20 +117,23 @@ async def create_user(
     status_code=status.HTTP_200_OK,
 )
 async def logout_current_device(
+        response: Response,
         current_user: dict = Depends(current_user),
-        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase)
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        settings: Settings = Depends(get_settings),
 ):
     try:
         user_id = current_user.get("id") or current_user.get("uuid", "")
         token = current_user.get("token", "")  # We'll need to pass the token in the dependency
 
         result = await user_command_usecase.logout(user_id, token)
+        _clear_refresh_token_cookie(response, settings)
         return result
 
     except HTTPException as e:
         raise e
-    except Exception as e:
-        print(f"❌ Logout error: {e}")
+    except Exception:
+        logger.exception("Erreur inattendue lors de la déconnexion")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la déconnexion"
@@ -112,17 +143,22 @@ async def logout_current_device(
 @router.post(
     "/login",
     response_model=UserLoginResponse,
+    response_model_exclude_none=True,
     summary="User Login",
 )
 async def login(
+        response: Response,
         request: Request,
         user_login_model: UserLoginModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        settings: Settings = Depends(get_settings),
 ):
     try:
         await rate_limit_login_with_2fa_code(request, user_login_model)
         user = await user_command_usecase.login(user_login_model)
-        return user.for_login()
+        if user.refresh_token:
+            _set_refresh_token_cookie(response, user.refresh_token, settings)
+        return user.for_login(include_refresh_token=False)
     except (UserLoginNotFoundError, InvalidPasswordError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -151,8 +187,8 @@ async def login(
         )
     except HTTPException as e:
         raise e
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.exception("Échec inattendu du login")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed."
@@ -177,8 +213,8 @@ async def validate_token(
         }
     except HTTPException as e:
         raise e
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.exception("Validation de token invalide")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
@@ -188,27 +224,38 @@ async def validate_token(
 @router.post(
     "/refresh",
     response_model=RefreshTokenResponse,
+    response_model_exclude_none=True,
     summary="Refresh JWT token",
     status_code=status.HTTP_200_OK,
 )
 async def refresh_token(
-        refresh_data: RefreshTokenModel,
-        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase)
+        request: Request,
+        response: Response,
+        refresh_data: RefreshTokenModel | None = Body(default=None),
+        user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        settings: Settings = Depends(get_settings),
 ):
     try:
-        print(f"🔄 Refresh token request: {refresh_data.refresh_token[:20]}...")
+        refresh_token_value = _extract_refresh_token(request, refresh_data, settings)
+        if not refresh_token_value:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token missing",
+            )
 
-        # Call use case to refresh token
-        result = await user_command_usecase.refresh_token(refresh_data.refresh_token)
-
-        print(f"✅ Token refreshed successfully")
-        return result
+        result = await user_command_usecase.refresh_token(refresh_token_value)
+        if result.refresh_token:
+            _set_refresh_token_cookie(response, result.refresh_token, settings)
+        return RefreshTokenResponse(
+            token_auth=result.token_auth,
+            token_expiration=result.token_expiration,
+            message=result.message,
+        )
 
     except HTTPException as e:
-        print(f"❌ Token refresh failed: {e.detail}")
         raise e
-    except Exception as e:
-        print(f"❌ Unexpected error during token refresh: {e}")
+    except Exception:
+        logger.exception("Erreur inattendue pendant le refresh token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token refresh failed"
@@ -293,8 +340,8 @@ async def enable_2fa(
         return await user_command_usecase.enable_2fa(current_user.get('email', ''))
     except HTTPException as e:
         raise e
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.exception("Échec inattendu lors de l'activation de la 2FA")
         raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to enable 2FA."
@@ -330,7 +377,8 @@ async def verify_2fa(
         )
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
+        logger.exception("Échec inattendu lors de la vérification 2FA")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify 2FA."
@@ -367,7 +415,8 @@ async def disable_2fa(
         )
     except HTTPException as e:
         raise e
-    except Exception as e:
+    except Exception:
+        logger.exception("Échec inattendu lors de la désactivation de la 2FA")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to disable 2FA."
@@ -396,16 +445,21 @@ async def get_general_ranking(
 @router.put(
     "/user",
     response_model=UserUpdateResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Update user",
 )
 async def update_user(
+        response: Response,
         update_user_model: UserUpdateModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
     try:
         update_user_result = await user_command_usecase.update_user_profile(current_user.get('email'), update_user_model)
+        if update_user_result.refresh_token:
+            _set_refresh_token_cookie(response, update_user_result.refresh_token, settings)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -431,14 +485,17 @@ async def update_user(
             status_code=status.HTTP_409_CONFLICT,
             detail=e.message
         )
-    except Exception as e:
-        print(e)
+    except Exception:
+        logger.exception("Échec inattendu lors de la mise à jour du profil")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification du user"
         )
 
-    return update_user_result
+    return UserUpdateResponse(
+        token_auth=update_user_result.token_auth,
+        token_expiration=update_user_result.token_expiration,
+    )
 
 
 @router.get(
@@ -469,8 +526,8 @@ async def search_users(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(ve)
         )
-    except Exception as e:
-        print(f"❌ User search router error: {e}")
+    except Exception:
+        logger.exception("Échec inattendu lors de la recherche d'utilisateurs")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la recherche d'utilisateurs"
@@ -521,7 +578,7 @@ async def forgot_password(
     data: PasswordForgotRequest,
     password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
 ):
-    client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown"))
+    client_ip = get_request_client_ip(request)
     client_key = f"ip:{client_ip}"
     # réponse neutre anti-enumération
     try:
@@ -542,7 +599,7 @@ async def forgot_password_verify(
     data: PasswordResetVerifyRequest,
     password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
 ):
-    client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown"))
+    client_ip = get_request_client_ip(request)
     client_key = f"ip:{client_ip}"
     try:
         token, ttl = await password_reset_uc.verify_code(

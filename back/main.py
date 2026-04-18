@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 import logging
 from contextlib import asynccontextmanager
 
@@ -41,39 +42,31 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Enhanced CORS Middleware for OPTIONS requests
-class CORSOptionsMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Handle OPTIONS requests immediately
-        if request.method == "OPTIONS":
-            response = Response(
-                content="OK",
-                status_code=200,
-                headers={
-                    "Access-Control-Allow-Origin": "http://localhost:3000",
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-Authentication",
-                    "Access-Control-Allow-Credentials": "true",
-                    "Access-Control-Max-Age": "3600",
-                }
-            )
-            return response
-
-        # For all other requests, proceed normally
         response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+
+        if getattr(settings, "environment", "dev") == "prod":
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+
         return response
 
-# Add the custom CORS middleware BEFORE the standard CORS middleware
-app.add_middleware(CORSOptionsMiddleware)
+
+trusted_hosts = getattr(settings, "trusted_hosts_list", [])
+if trusted_hosts:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Configure CORS avec options complètes pour la sécurité
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",  # Dev server backup
-    ],
+    allow_origins=getattr(settings, "cors_allowed_origins_list", []),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
     allow_headers=[
@@ -86,11 +79,12 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
-        "X-Authentication",  # Custom auth header
+        "X-Authentication",  # Legacy auth header (compat)
         "Cache-Control",
         "Pragma",
+        "X-CSRF-Token",
     ],
-    expose_headers=["*"],
+    expose_headers=["Content-Type", "Cache-Control", "Retry-After", "X-Request-Id"],
     max_age=3600,  # Cache preflight for 1 hour
 )
 
@@ -99,7 +93,7 @@ app.add_middleware(
 async def health_check():
     return {"status": "ok", "message": "BetLeague API is running"}
 
-# CORS preflight is now handled by CORSOptionsMiddleware
+# CORS preflight est géré directement par CORSMiddleware.
 
 # Add all routers
 app.include_router(user_router)

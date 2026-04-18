@@ -15,6 +15,7 @@ from domain.user.model.user import User
 from infrastructure.config import Settings
 
 ALGORITHM = "RS256"
+logger = logging.getLogger(__name__)
 
 
 class JwtManagerTokenImpl(ManagerToken, BaseModel):
@@ -67,7 +68,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
         try:
             blacklist = self.blacklist
             if await blacklist.is_token_blacklisted(token):
-                logging.warning("🚫 Attempted use of blacklisted token")
+                logger.warning("Tentative d'utilisation d'un token blacklisté")
                 return None
 
             decoded = await self._decode_token(token, self.settings.public_key)
@@ -78,7 +79,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             issued_at = decoded.get("iat")
             # fail-closed: on exige ces champs, sinon bypass possible de la révocation globale
             if user_id is None or issued_at is None:
-                logging.warning("🚫 Token missing required claims (id/iat)")
+                logger.warning("Token rejeté: claims obligatoires manquants (id/iat)")
                 return None
 
             issued_at_dt = datetime.fromtimestamp(int(issued_at), tz=UTC)
@@ -87,13 +88,13 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
                 user_id=str(user_id),
                 token_issued_at=issued_at_dt,
             ):
-                logging.warning("🚫 Token globally invalidated for user")
+                logger.warning("Token rejeté: invalidation globale active pour l'utilisateur")
                 return None
 
             return decoded
 
-        except Exception as e:
-            logging.error(f"🚨 Token verification error: {e}")
+        except Exception:
+            logger.exception("Erreur lors de la vérification du token")
             return None
 
     async def invalidate_token(self, token: str, user_id: str) -> bool:
@@ -109,12 +110,12 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             success = await blacklist.blacklist_token(token, user_id, expires_at)
 
             if success:
-                logging.info(f"🔒 Token invalidated for user {user_id}")
+                logger.info("Token invalidé pour l'utilisateur %s", user_id)
 
             return success
 
-        except Exception as e:
-            logging.error(f"🚨 Failed to invalidate token: {e}")
+        except Exception:
+            logger.exception("Échec de l'invalidation du token pour l'utilisateur %s", user_id)
             return False
 
     async def invalidate_all_user_tokens(self, user_id: str) -> bool:
@@ -124,8 +125,8 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
                 user_id=str(user_id),
                 invalid_before=datetime.now(UTC),
             )
-        except Exception as e:
-            logging.error(f"🚨 Failed to globally invalidate tokens: {e}")
+        except Exception:
+            logger.exception("Échec de l'invalidation globale des tokens pour l'utilisateur %s", user_id)
             return False
 
     @staticmethod
@@ -134,9 +135,9 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             decoded = await asyncio.to_thread(jwt.decode, token, rsa_pub_key, [ALGORITHM])
             return decoded
         except jwt.ExpiredSignatureError:
-            logging.warning("Expired token.")
+            logger.warning("Token expiré")
         except jwt.InvalidAudienceError:
-            logging.warning("Invalid audience.")
+            logger.warning("Audience de token invalide")
         except jwt.InvalidTokenError:
-            logging.warning("Invalid token.")
+            logger.warning("Token invalide")
         return None

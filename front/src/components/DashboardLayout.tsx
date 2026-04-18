@@ -122,7 +122,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   // Hooks with error boundaries
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: true });
+  const { user, logout, isLoading, isAuthenticated } = useEnhancedAuth({ debugMode: process.env.NODE_ENV === 'development' });
   const { updateUser, hasPermission } = useAuthStore();
   const { showError } = useGlobalToast();
   const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });

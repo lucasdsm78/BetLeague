@@ -49,7 +49,7 @@ curl_json() {
   local -a headers
   headers=(-H "Content-Type: application/json")
   if [[ -n "$token" ]]; then
-    headers+=(-H "X-Authentication: Bearer $token")
+    headers+=(-H "Authorization: Bearer $token")
   fi
 
   if [[ -n "$body" ]]; then
@@ -69,7 +69,7 @@ curl_scheduler_json() {
   if [[ -n "$SCHEDULER_INTERNAL_TOKEN" ]]; then
     headers+=(-H "X-Internal-Token: $SCHEDULER_INTERNAL_TOKEN")
   elif [[ -n "$SCHEDULER_ADMIN_JWT" ]]; then
-    headers+=(-H "X-Authentication: Bearer $SCHEDULER_ADMIN_JWT")
+    headers+=(-H "Authorization: Bearer $SCHEDULER_ADMIN_JWT")
   else
     echo "❌ Scheduler protégé: définis SCHEDULER_INTERNAL_TOKEN (recommandé) ou SCHEDULER_ADMIN_JWT"
     echo "   - variable d'environnement shell"

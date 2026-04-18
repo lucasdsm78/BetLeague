@@ -6,21 +6,24 @@ import { useGlobalToast } from '../../toast/ToastProvider';
 interface EditAccountModalProps {
   pseudo: string;
   email: string;
+  isTwoFactorEnabled?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, onSuccess }) => {
+const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, isTwoFactorEnabled = false, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     pseudo: pseudo,
     email: email,
+    current_password: '',
+    two_fa_code: '',
   });
 
   const [originalData] = useState({ pseudo, email });
-  const [errors, setErrors] = useState<{ pseudo?: string; email?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ pseudo?: string; email?: string; current_password?: string; two_fa_code?: string; general?: string }>({});
   const [success, setSuccess] = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
-  const [touched, setTouched] = useState({ pseudo: false, email: false });
+  const [touched, setTouched] = useState({ pseudo: false, email: false, current_password: false, two_fa_code: false });
 
   // Validation en temps réel
   const validateField = useCallback((field: 'pseudo' | 'email', value: string): string | undefined => {
@@ -66,23 +69,47 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
            formData.email.trim().toLowerCase() !== originalData.email.toLowerCase();
   }, [formData, originalData]);
 
+  const requiresCurrentPassword = formData.email.trim().toLowerCase() !== originalData.email.toLowerCase();
+  const requiresTwoFactorCode = Boolean(isTwoFactorEnabled && hasChanges());
+
+  const validateCurrentPassword = useCallback((value: string): string | undefined => {
+    if (!requiresCurrentPassword) return undefined;
+    if (value.trim().length < 8) return 'Le mot de passe actuel est requis pour changer l\'email';
+    return undefined;
+  }, [requiresCurrentPassword]);
+
+  const validateTwoFactorCode = useCallback((value: string): string | undefined => {
+    if (!requiresTwoFactorCode) return undefined;
+    if (!/^\d{6}$/.test(value.trim())) return 'Le code 2FA à 6 chiffres est requis';
+    return undefined;
+  }, [requiresTwoFactorCode]);
+
   const updateProfileMutation = useUpdateProfileMutation();
   const toast = useGlobalToast();
 
   const isSubmitting = updateProfileMutation.isPending;
+  const hasRequiredCurrentPassword = !requiresCurrentPassword || formData.current_password.trim().length >= 8;
+  const hasRequiredTwoFactorCode = !requiresTwoFactorCode || /^\d{6}$/.test(formData.two_fa_code.trim());
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Marquer tous les champs comme touchés
-    setTouched({ pseudo: true, email: true });
+    setTouched({ pseudo: true, email: true, current_password: true, two_fa_code: true });
 
     // Valider tous les champs
     const pseudoError = validateField('pseudo', formData.pseudo);
     const emailError = validateField('email', formData.email);
+    const currentPasswordError = validateCurrentPassword(formData.current_password);
+    const twoFactorCodeError = validateTwoFactorCode(formData.two_fa_code);
 
-    if (pseudoError || emailError) {
-      setErrors({ pseudo: pseudoError, email: emailError });
+    if (pseudoError || emailError || currentPasswordError || twoFactorCodeError) {
+      setErrors({
+        pseudo: pseudoError,
+        email: emailError,
+        current_password: currentPasswordError,
+        two_fa_code: twoFactorCodeError,
+      });
       return;
     }
 
@@ -95,7 +122,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
     setErrors({});
 
     try {
-      const updateData: { pseudo?: string; email?: string } = {};
+      const updateData: { pseudo?: string; email?: string; current_password?: string; two_fa_code?: string } = {};
       const hasEmailChanged = formData.email.trim().toLowerCase() !== originalData.email.toLowerCase();
 
       if (formData.pseudo.trim() !== originalData.pseudo) {
@@ -104,9 +131,14 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
       if (hasEmailChanged) {
         updateData.email = formData.email.trim().toLowerCase();
+        updateData.current_password = formData.current_password.trim();
       }
 
-      const response = await updateProfileMutation.mutateAsync(updateData);
+      if (requiresTwoFactorCode) {
+        updateData.two_fa_code = formData.two_fa_code.trim();
+      }
+
+      await updateProfileMutation.mutateAsync(updateData);
 
       setSuccess(true);
 
@@ -117,7 +149,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
 
       toast.showSuccess(
         'Profil mis à jour',
-        hasEmailChanged ? 'Email mis à jour. Votre session peut être rafraîchie.' : 'Modifications enregistrées.'
+        hasEmailChanged ? 'Email mis à jour. Votre session sécurisée a été renouvelée.' : 'Modifications enregistrées.'
       );
 
       // Délai pour lire le message (plus long si email changé)
@@ -128,14 +160,19 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
         onClose();
       }, delay);
     } catch (error: any) {
-      console.error('Erreur lors de la mise à jour du profil:', error);
-
       // Gérer les erreurs spécifiques
       if (error.message) {
-        if (error.message.toLowerCase().includes('pseudo')) {
+        const lowerMessage = error.message.toLowerCase();
+        if (lowerMessage.includes('mot de passe actuel') || lowerMessage.includes('current_password')) {
+          setErrors({ current_password: error.message });
+          toast.showError('Mot de passe requis', error.message);
+        } else if (lowerMessage.includes('2fa')) {
+          setErrors({ two_fa_code: error.message });
+          toast.showError('Code 2FA invalide', error.message);
+        } else if (lowerMessage.includes('pseudo')) {
           setErrors({ pseudo: error.message });
           toast.showError('Pseudo invalide', error.message);
-        } else if (error.message.toLowerCase().includes('email')) {
+        } else if (lowerMessage.includes('email')) {
           setErrors({ email: error.message });
           toast.showError('Email invalide', error.message);
         } else {
@@ -147,7 +184,7 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
         toast.showError('Erreur', 'Une erreur est survenue lors de la mise à jour');
       }
     }
-  }, [formData, originalData, validateField, hasChanges, onSuccess, onClose, updateProfileMutation, toast]);
+  }, [formData, originalData, validateField, validateCurrentPassword, validateTwoFactorCode, hasChanges, onSuccess, onClose, updateProfileMutation, toast, requiresTwoFactorCode]);
 
   // Fermer avec Escape
   useEffect(() => {
@@ -169,7 +206,14 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
     };
   }, []);
 
-  const isFormValid = !errors.pseudo && !errors.email && hasChanges();
+  const isFormValid =
+    !errors.pseudo &&
+    !errors.email &&
+    !errors.current_password &&
+    !errors.two_fa_code &&
+    hasChanges() &&
+    hasRequiredCurrentPassword &&
+    hasRequiredTwoFactorCode;
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && !isSubmitting && onClose()}>
@@ -258,6 +302,79 @@ const EditAccountModal = memo<EditAccountModalProps>(({ pseudo, email, onClose, 
               </span>
             )}
           </div>
+
+          {requiresCurrentPassword && (
+            <div className="form-group">
+              <label htmlFor="edit-current-password" className="form-label">
+                Mot de passe actuel
+              </label>
+              <input
+                id="edit-current-password"
+                type="password"
+                className={`form-input ${errors.current_password ? 'input-error' : ''}`}
+                value={formData.current_password}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, current_password: value }));
+                  if (touched.current_password) {
+                    setErrors(prev => ({ ...prev, current_password: validateCurrentPassword(value) }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched(prev => ({ ...prev, current_password: true }));
+                  setErrors(prev => ({ ...prev, current_password: validateCurrentPassword(formData.current_password) }));
+                }}
+                disabled={isSubmitting || success}
+                placeholder="Confirmez avec votre mot de passe actuel"
+                autoComplete="current-password"
+                aria-invalid={!!errors.current_password}
+                aria-describedby={errors.current_password ? 'current-password-error' : undefined}
+              />
+              {errors.current_password && (
+                <span id="current-password-error" className="error-message" role="alert">
+                  {errors.current_password}
+                </span>
+              )}
+            </div>
+          )}
+
+          {requiresTwoFactorCode && (
+            <div className="form-group">
+              <label htmlFor="edit-two-fa-code" className="form-label">
+                Code 2FA
+              </label>
+              <input
+                id="edit-two-fa-code"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className={`form-input ${errors.two_fa_code ? 'input-error' : ''}`}
+                value={formData.two_fa_code}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setFormData(prev => ({ ...prev, two_fa_code: value }));
+                  if (touched.two_fa_code) {
+                    setErrors(prev => ({ ...prev, two_fa_code: validateTwoFactorCode(value) }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched(prev => ({ ...prev, two_fa_code: true }));
+                  setErrors(prev => ({ ...prev, two_fa_code: validateTwoFactorCode(formData.two_fa_code) }));
+                }}
+                disabled={isSubmitting || success}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                maxLength={6}
+                aria-invalid={!!errors.two_fa_code}
+                aria-describedby={errors.two_fa_code ? 'two-fa-code-error' : undefined}
+              />
+              {errors.two_fa_code && (
+                <span id="two-fa-code-error" className="error-message" role="alert">
+                  {errors.two_fa_code}
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="modal-footer">
             <button

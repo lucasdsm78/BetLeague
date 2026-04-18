@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import re
 from pydantic import field_validator
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-class PasswordForgotRequest(BaseModel):
-    email: str
+class _StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class PasswordForgotRequest(_StrictModel):
+    email: str = Field(min_length=5, max_length=320)
 
     @field_validator("email")
     @classmethod
@@ -25,10 +29,10 @@ class PasswordForgotResponse(BaseModel):
     message: str = "If the account exists and 2FA is enabled, you can verify using your authenticator code."
 
 
-class PasswordResetVerifyRequest(BaseModel):
-    email: str
+class PasswordResetVerifyRequest(_StrictModel):
+    email: str = Field(min_length=5, max_length=320)
     challenge_id: str = Field(min_length=10, max_length=128)
-    code: str = Field(min_length=6, max_length=12)
+    code: str = Field(min_length=6, max_length=12, pattern=r"^[A-Za-z0-9]{6,12}$")
 
     @field_validator("email")
     @classmethod
@@ -44,8 +48,8 @@ class PasswordResetVerifyResponse(BaseModel):
     expires_in_seconds: int
 
 
-class PasswordResetConfirmRequest(BaseModel):
-    email: str
+class PasswordResetConfirmRequest(_StrictModel):
+    email: str = Field(min_length=5, max_length=320)
     challenge_id: str = Field(min_length=10, max_length=128)
     reset_token: str = Field(min_length=20, max_length=512)
     new_password: str = Field(min_length=8, max_length=256)
