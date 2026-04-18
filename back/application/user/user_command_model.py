@@ -130,10 +130,6 @@ class UserLoginResponse(BaseModel):
         return payload
 
 
-class RefreshTokenModel(_StrictModel):
-    refresh_token: Optional[str] = Field(default=None, min_length=20, max_length=4096)
-
-
 class RefreshTokenResponse(BaseModel):
     token_auth: str
     refresh_token: Optional[str] = None

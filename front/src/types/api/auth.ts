@@ -19,7 +19,6 @@ export interface ApiRegisterResponseData {
 export interface ApiRefreshTokenResponseData {
   readonly token_auth: string;
   readonly token_expiration: string;
-  readonly refresh_token?: string;
   readonly message?: string;
 }
 

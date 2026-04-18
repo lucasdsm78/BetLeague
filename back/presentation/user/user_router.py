@@ -2,11 +2,11 @@ import io
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 
 from application.user.user_command_model import (
     UserCreateModel, UserCreateResponse, UserLoginResponse, UserLoginModel, UserDeleteResponse,
-    UserUpdateResponse, UserUpdateModel, RefreshTokenResponse, RefreshTokenModel,
+    UserUpdateResponse, UserUpdateModel, RefreshTokenResponse,
     InvalidPasswordError, DeleteMyAccountModel,
     ChangeMyPasswordModel, ChangeMyPasswordResponse,
     TwoFactorSetupResponse, TwoFactorStatusResponse,
@@ -82,10 +82,7 @@ def _clear_refresh_token_cookie(response: Response, settings: Settings) -> None:
     )
 
 
-def _extract_refresh_token(request: Request, refresh_data: RefreshTokenModel | None, settings: Settings) -> str | None:
-    body_token = (refresh_data.refresh_token or "").strip() if refresh_data else ""
-    if body_token:
-        return body_token
+def _extract_refresh_token(request: Request, settings: Settings) -> str | None:
     cookie_token = (request.cookies.get(settings.auth_refresh_cookie_name) or "").strip()
     return cookie_token or None
 
@@ -231,12 +228,11 @@ async def validate_token(
 async def refresh_token(
         request: Request,
         response: Response,
-        refresh_data: RefreshTokenModel | None = Body(default=None),
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
         settings: Settings = Depends(get_settings),
 ):
     try:
-        refresh_token_value = _extract_refresh_token(request, refresh_data, settings)
+        refresh_token_value = _extract_refresh_token(request, settings)
         if not refresh_token_value:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

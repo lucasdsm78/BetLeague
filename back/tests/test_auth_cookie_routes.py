@@ -151,19 +151,15 @@ def test_refresh_uses_cookie_rotates_cookie_and_omits_refresh_token_from_body(mo
     assert "HttpOnly" in set_cookie
 
 
-def test_refresh_accepts_body_token_but_cookie_takes_no_precedence_over_body(monkeypatch):
+def test_refresh_requires_cookie_when_no_refresh_cookie_is_present(monkeypatch):
     fake_uc = FakeUserCommandUseCase()
     client = _make_client(fake_uc, monkeypatch)
-    client.cookies.set("betleague_refresh_token", "cookie-refresh-token")
-    body_refresh_token = "body-refresh-token-value-123"
 
-    response = client.post(
-        "/api/auth/refresh",
-        json={"refresh_token": body_refresh_token},
-    )
+    response = client.post("/api/auth/refresh")
 
-    assert response.status_code == 200
-    assert fake_uc.refresh_token_input == body_refresh_token
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Refresh token missing"}
+    assert fake_uc.refresh_token_input is None
 
 
 def test_logout_clears_refresh_cookie(monkeypatch):
@@ -202,6 +198,7 @@ def test_update_user_rotates_cookie_and_omits_refresh_token_from_body(monkeypatc
     set_cookie = response.headers["set-cookie"]
     assert "betleague_refresh_token=refresh-token-3" in set_cookie
     assert "HttpOnly" in set_cookie
+
 
 
 

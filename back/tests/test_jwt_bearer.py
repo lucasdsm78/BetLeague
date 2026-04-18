@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from starlette.requests import Request
+from fastapi import HTTPException
 
 from infrastructure.services.authentication.jwt_bearer import JwtBearer
 
@@ -35,18 +37,20 @@ def test_jwt_bearer_accepts_standard_authorization_header():
     assert token == "auth-token-123"
 
 
-def test_jwt_bearer_falls_back_to_legacy_x_authentication_header():
+def test_jwt_bearer_rejects_legacy_x_authentication_header():
     bearer = JwtBearer()
     request = _make_request([
         (b"x-authentication", b"Bearer legacy-token-456"),
     ])
 
-    token = asyncio.run(bearer(request))
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(bearer(request))
 
-    assert token == "legacy-token-456"
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "Not authenticated"
 
 
-def test_jwt_bearer_prefers_authorization_when_both_headers_are_present():
+def test_jwt_bearer_uses_authorization_even_if_legacy_header_is_also_present():
     bearer = JwtBearer()
     request = _make_request([
         (b"authorization", b"Bearer preferred-token"),
@@ -56,5 +60,6 @@ def test_jwt_bearer_prefers_authorization_when_both_headers_are_present():
     token = asyncio.run(bearer(request))
 
     assert token == "preferred-token"
+
 
 
