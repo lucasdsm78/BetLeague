@@ -582,7 +582,7 @@ class SecureApiClient {
 
 // Create and export singleton instance
 export const secureApiClient = new SecureApiClient({
-  enableRequestLogging: process.env.NODE_ENV === 'development',
+  enableRequestLogging: process.env.REACT_APP_DEBUG === 'true',
   enableResponseCaching: true,
 });
 

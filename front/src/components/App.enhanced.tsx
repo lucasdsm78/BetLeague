@@ -22,7 +22,7 @@ const EnhancedApp: React.FC = () => {
   const { isLoading, error } = useEnhancedAuth({
     autoRefresh: true,
     activityTracking: true,
-    debugMode: process.env.NODE_ENV === 'development',
+    debugMode: process.env.REACT_APP_DEBUG === 'true',
     onAuthChange: (isAuthenticated) => {
     },
     onError: (error) => {
