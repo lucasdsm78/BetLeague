@@ -70,7 +70,6 @@ export type ApiUpdateProfileData = ApiUpdateUserPayload;
 export interface ApiUpdateProfileResponse {
   message: string;
   token_auth?: string;
-  refresh_token?: string;
   user?: ApiUserProfile;
 }
 

@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import type { User, LoginForm, RegisterForm } from '../types';
 
 export interface TokenPair { accessToken: string; expiresAt: number; }
-export interface RefreshResponse { token_auth: string; refresh_token?: string; token_expiration: string; message: string; }
+export interface RefreshResponse { token_auth: string; token_expiration: string; message: string; }
 export interface RegisterResponse { message?: string; }
 export interface AuthServiceConfig { baseURL: string; tokenRefreshBuffer: number; maxRefreshRetries: number; refreshCooldown: number; requestTimeout: number; }
 

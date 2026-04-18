@@ -79,7 +79,6 @@ app.add_middleware(
         "Origin",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers",
-        "X-Authentication",  # Legacy auth header (compat)
         "Cache-Control",
         "Pragma",
         "X-CSRF-Token",

@@ -5,7 +5,6 @@ import EditAccountModal from './EditAccountModal';
 
 const mockMutateAsync = jest.fn(async () => ({
   token_auth: 'new-token',
-  refresh_token: 'new-refresh',
   token_expiration: '2026-01-01T00:00:00Z',
 }));
 
@@ -121,6 +120,7 @@ describe('EditAccountModal', () => {
     });
   });
 });
+
 
 
 
