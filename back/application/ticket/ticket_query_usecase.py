@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import List, Optional, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from application.logging_utils import hash_identifier
 from application.league.league_summary import LeagueSummary
 from application.match.match_summary import MatchSummary
 from application.ticket.match_choice_summary import MatchChoiceSummary
@@ -25,6 +27,9 @@ from infrastructure.postgresql.tournament.tournament_match_repository import Tou
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 from application.match.match_odd_summary import MatchOddSummary
 from domain.ticket.model.ticket_status import TicketStatus
+
+
+logger = logging.getLogger(__name__)
 
 
 def _odd_to_summary(odd) -> MatchOddSummary:
@@ -207,20 +212,25 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 user = await user_repo.find_by_email(email)
                 if not user:
+                    logger.warning("ticket.query.detail_rejected", extra={"ticket_id": ticket_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 ticket = await ticket_repo.find_by_id(ticket_id)
                 if not ticket:
+                    logger.warning("ticket.query.detail_rejected", extra={"ticket_id": ticket_id, "user_id": user.id, "reason": "ticket_missing"})
                     raise TicketNotFoundError
 
                 if ticket.user.id != user.id:
+                    logger.warning("ticket.query.detail_rejected", extra={"ticket_id": ticket_id, "user_id": user.id, "owner_user_id": ticket.user.id, "reason": "forbidden"})
                     raise TicketAccessDeniedError
 
-                return await self._build_ticket_read_model_from_ticket(
+                result = await self._build_ticket_read_model_from_ticket(
                     session,
                     ticket,
                     include_internal_id=True,
                 )
+                logger.info("ticket.query.detail_loaded", extra={"ticket_id": ticket.id, "user_id": user.id, "match_choices_count": len(result.match_choice_summaries)})
+                return result
 
     async def get_shared_ticket_details(self, ticket_uuid: str) -> SharedTicketReadModel:
         async with self._session_factory() as session:
@@ -229,17 +239,21 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 ticket = await ticket_repo.find_by_uuid(ticket_uuid)
                 if not ticket:
+                    logger.warning("ticket.query.shared_rejected", extra={"ticket_uuid": ticket_uuid, "reason": "ticket_missing"})
                     raise TicketNotFoundError
 
                 status_value = ticket.status.value if hasattr(ticket.status, 'value') else ticket.status
                 if status_value != TicketStatus.correct.value:
+                    logger.warning("ticket.query.shared_rejected", extra={"ticket_uuid": ticket_uuid, "ticket_id": ticket.id, "reason": "not_shareable", "status": status_value})
                     raise TicketNotShareableError
 
-                return await self._build_ticket_read_model_from_ticket(
+                result = await self._build_ticket_read_model_from_ticket(
                     session,
                     ticket,
                     include_internal_id=False,
                 )
+                logger.info("ticket.query.shared_loaded", extra={"ticket_uuid": ticket_uuid, "ticket_id": ticket.id, "match_choices_count": len(result.match_choice_summaries)})
+                return result
 
     async def get_tickets_in_progress(
             self,
@@ -257,6 +271,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 user = await user_repo.find_by_email(email)
                 if not user:
+                    logger.warning("ticket.query.in_progress_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 total = await ticket_repo.count_in_progress_by_user_id(user.id, league_id=league_id, is_tournament=is_tournament)
@@ -270,6 +285,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 result = TicketsInProgressResponse(total=total, page=page, page_size=page_size)
                 if not db_tickets:
+                    logger.info("ticket.query.in_progress_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": 0, "league_id": league_id, "is_tournament": is_tournament})
                     return result
 
                 all_odd_ids: set[int] = set()
@@ -331,6 +347,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     )
                     result.tickets.append(ticket_read_model)
 
+                logger.info("ticket.query.in_progress_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(result.tickets), "league_id": league_id, "is_tournament": is_tournament})
                 return result
 
     async def get_tickets_finished(
@@ -349,6 +366,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                 user = await user_repo.find_by_email(email)
                 if not user:
+                    logger.warning("ticket.query.finished_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 total = await ticket_repo.count_finished_by_user_id(user.id, league_id=league_id, is_tournament=is_tournament)
@@ -362,6 +380,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     is_tournament=is_tournament,
                 )
                 if not db_tickets:
+                    logger.info("ticket.query.finished_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": 0, "league_id": league_id, "is_tournament": is_tournament})
                     return result
 
                 all_odd_ids: set[int] = set()
@@ -424,5 +443,6 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                     result.tickets.append(ticket_read_model)
 
+        logger.info("ticket.query.finished_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(result.tickets), "league_id": league_id, "is_tournament": is_tournament})
         return result
 

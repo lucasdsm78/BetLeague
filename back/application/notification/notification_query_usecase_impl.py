@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.notification.notification_query_usecase import NotificationQueryUseCase
 from domain.notification.model.notification import Notification
 from domain.notification.repository.notification_repository import NotificationRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationQueryUseCaseImpl(NotificationQueryUseCase):
@@ -30,10 +34,12 @@ class NotificationQueryUseCaseImpl(NotificationQueryUseCase):
             )
             # read-only
             await session.rollback()
+        logger.info("notification.query.list_loaded", extra={"user_id": user_id, "limit": limit, "results_count": len(items), "has_next_cursor": bool(next_cursor)})
         return items, next_cursor
 
     async def unread_count(self, *, user_id: int) -> int:
         async with self._session_factory() as session:
             count = await self._notification_repository.unread_count(user_id=user_id)
             await session.rollback()
+        logger.info("notification.query.unread_count_loaded", extra={"user_id": user_id, "count": count})
         return count

@@ -4,6 +4,7 @@ from typing import Optional, List, Dict
 
 from pydantic import BaseModel
 
+from application.logging_utils import hash_identifier
 from application.user.user_query_model import (
     CommerceAvailabilityReadModel,
     UserReadModel,
@@ -55,21 +56,30 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
     async def fetch_users(self) -> dict:
         try:
             users = await self.user_repository.find_users()
+            logger.info("user.query.listed", extra={"users_count": len(users)})
             return dict(
                 users=list(map(lambda user: UserReadModel.from_entity(
                     user=user), users))
             )
 
-        except Exception as e:
+        except Exception:
+            logger.exception("user.query.list_failed")
             raise
 
     async def fetch_user_by_id(self, user_id: int, email: str) -> Optional[UserReadModel]:
         try:
             user_connected = await self.user_repository.find_by_email(email)
+            if not user_connected:
+                logger.warning("user.query.by_id_rejected", extra={"target_user_id": user_id, "email_hash": hash_identifier(email), "reason": "requester_missing"})
+                raise UserNotFoundError
             user = await self.user_repository.find_by_id(user_id)
+            if not user:
+                logger.warning("user.query.by_id_rejected", extra={"target_user_id": user_id, "email_hash": hash_identifier(email), "requester_user_id": user_connected.id, "reason": "target_missing"})
+                raise UserNotFoundError
             if user_connected.id != user.id:
+                logger.warning("user.query.by_id_rejected", extra={"target_user_id": user_id, "requester_user_id": user_connected.id, "email_hash": hash_identifier(email), "reason": "forbidden"})
                 raise UserNotOwnerError
-        except:
+        except Exception:
             raise
 
         month_start_ms, next_month_start_ms = current_month_window_ms()
@@ -86,6 +96,17 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
         )
         commerce_status = self.shop_availability_policy.get_status()
 
+        logger.info(
+            "user.query.by_id_loaded",
+            extra={
+                "target_user_id": user.id,
+                "requester_user_id": user_connected.id,
+                "email_hash": hash_identifier(email),
+                "monthly_free_tournaments_used": monthly_used,
+                "has_active_subscription": has_active_subscription,
+            },
+        )
+
         return UserReadModel.from_entity(
             user,
             tournament_creation_access=TournamentCreationAccessReadModel(**access.__dict__),
@@ -95,9 +116,12 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
 
     async def get_all_rank_users(self) -> List[Dict[str, any]]:
         try:
-            return await self.user_repository.get_all_rank_users()
+            ranking = await self.user_repository.get_all_rank_users()
+            logger.info("user.query.rank_loaded", extra={"users_count": len(ranking)})
+            return ranking
 
-        except Exception as e:
+        except Exception:
+            logger.exception("user.query.rank_failed")
             raise
 
     async def search_users(self, search_query: UserSearchQuery) -> UserSearchResponse:
@@ -127,6 +151,15 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
 
             limited_results = filtered_users[:search_query.limit]
 
+            logger.info(
+                "user.query.search_completed",
+                extra={
+                    "query_length": len(query_lower),
+                    "limit": search_query.limit,
+                    "results_count": len(limited_results),
+                },
+            )
+
             return UserSearchResponse(
                 users=limited_results,
                 total=len(limited_results),
@@ -134,7 +167,15 @@ class UserQueryUseCaseImpl(UserQueryUseCase, BaseModel):
             )
 
         except ValueError as ve:
+            logger.warning(
+                "user.query.search_rejected",
+                extra={
+                    "query_length": len((search_query.query or "").strip()),
+                    "limit": getattr(search_query, "limit", None),
+                    "reason": str(ve),
+                },
+            )
             raise ve
         except Exception:
-            logger.exception("Erreur inattendue lors de la recherche utilisateur")
+            logger.exception("user.query.search_failed")
             raise
