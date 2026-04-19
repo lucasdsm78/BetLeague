@@ -58,11 +58,21 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+def _safe_user_agent(request: Request | None) -> str | None:
+    if request is None:
+        return None
+    user_agent = (request.headers.get("User-Agent") or "").strip()
+    if not user_agent:
+        return None
+    return user_agent[:255]
+
+
 def _auth_log_extra(*, request: Request | None = None, settings: Settings | None = None, **extra) -> dict:
     payload = {key: value for key, value in extra.items() if value is not None}
     if request is not None:
         payload["method"] = request.method
         payload["path"] = request.url.path
+        payload["user_agent"] = _safe_user_agent(request)
         if settings is not None:
             payload["client_ip"] = get_request_client_ip(request, settings)
     return payload
@@ -109,11 +119,19 @@ def _extract_refresh_token(request: Request, settings: Settings) -> str | None:
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def create_user(
+        request: Request,
         data: UserCreateModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
+        settings: Settings = Depends(get_settings),
 ):
     try:
         user = await user_command_usecase.create(data)
+        _log_auth_event(
+            logging.INFO,
+            "auth.register.accepted",
+            request=request,
+            settings=settings,
+        )
 
     except Exception:
         logger.exception("Échec inattendu lors de l'inscription")
@@ -592,6 +610,7 @@ async def get_general_ranking(
     summary="Update user",
 )
 async def update_user(
+        request: Request,
         response: Response,
         update_user_model: UserUpdateModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
@@ -602,6 +621,24 @@ async def update_user(
         update_user_result = await user_command_usecase.update_user_profile(current_user.get('email'), update_user_model)
         if update_user_result.refresh_token:
             _set_refresh_token_cookie(response, update_user_result.refresh_token, settings)
+        user_id = current_user.get("id") or current_user.get("uuid")
+        _log_auth_event(
+            logging.INFO,
+            "auth.profile.updated",
+            request=request,
+            settings=settings,
+            user_id=user_id,
+            email_changed=bool(update_user_model.email and update_user_model.email != current_user.get("email")),
+            pseudo_changed=bool(update_user_model.pseudo),
+        )
+        if update_user_model.email and update_user_model.email != current_user.get("email"):
+            _log_auth_event(
+                logging.INFO,
+                "auth.email.changed",
+                request=request,
+                settings=settings,
+                user_id=user_id,
+            )
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

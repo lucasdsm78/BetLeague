@@ -1,5 +1,7 @@
 import asyncio
 import base64
+import hashlib
+import logging
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 
@@ -31,9 +33,16 @@ from domain.user.repository.user_repository import UserRepository
 from infrastructure.config import Settings
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
 
+logger = logging.getLogger(__name__)
+
 # Helper pour formater un datetime UTC avec suffixe 'Z'
 def _utc_iso_z(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 class UserCommandUseCase(ABC):
 
@@ -103,6 +112,10 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 repo = UserRepositoryImpl(session)
                 if await repo.find_by_email(data.email):
                     await self.hasher.bcrypt(data.password)
+                    logger.info(
+                        "auth.register.duplicate_neutral",
+                        extra={"email_hash": _hash_identifier(data.email)},
+                    )
                     return UserCreateResponse()
                 hashed = await self.hasher.bcrypt(data.password)
                 user = User(
@@ -112,6 +125,13 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     password=Password(hashed)
                 )
                 await repo.create(user)
+                logger.info(
+                    "auth.register.succeeded",
+                    extra={
+                        "user_uuid": user.uuid,
+                        "email_hash": _hash_identifier(data.email),
+                    },
+                )
         return UserCreateResponse()
 
     async def login(self, model: UserLoginModel) -> UserLoginResponse:

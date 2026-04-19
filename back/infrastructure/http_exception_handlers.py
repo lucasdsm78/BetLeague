@@ -21,6 +21,7 @@ def _request_log_extra(request: Request, settings: Settings, **extra: Any) -> di
         "method": request.method,
         "path": request.url.path,
         "client_ip": get_request_client_ip(request, settings),
+        "user_id": getattr(request.state, "user_id", None),
     }
     for key, value in extra.items():
         if value is not None:
@@ -80,3 +81,4 @@ def register_exception_handlers(app: FastAPI, *, settings: Settings) -> None:
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             {"detail": "Internal server error"},
         )
+

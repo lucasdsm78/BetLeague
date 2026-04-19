@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Callable
 
@@ -20,6 +21,9 @@ from domain.user.model.user_summary import UserSummary
 from domain.user.repository.user_repository import UserRepository
 from infrastructure.postgresql.purchase.purchase_repository import PurchaseRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+
+
+logger = logging.getLogger(__name__)
 
 
 class PurchaseCommandUseCase(ABC):
@@ -84,21 +88,57 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
                 purchase
             )
 
+            logger.info(
+                "purchase.intent.stripe_session_created",
+                extra={
+                    "purchase_uuid": uuid,
+                    "user_id": user.id,
+                    "pack_id": pack.id,
+                    "stripe_session_id": session.id,
+                },
+            )
+
             new_purchase = await self.purchase_repository.find_by_uuid(uuid)
 
             new_purchase.stripe_session_id = session.id
             await self.purchase_repository.update(new_purchase)
             await self.purchase_repository.commit()
 
-        except:
+            logger.info(
+                "purchase.intent.created",
+                extra={
+                    "purchase_uuid": uuid,
+                    "user_id": user.id,
+                    "pack_id": pack.id,
+                    "stripe_session_id": session.id,
+                },
+            )
+
+        except Exception:
             await self.purchase_repository.rollback()
+            logger.exception(
+                "purchase.intent.failed",
+                extra={
+                    "user_id": getattr(user, "id", None),
+                    "pack_id": getattr(data, "pack_id", None),
+                },
+            )
             raise
 
         return PurchaseCreateResponse(url=session.url, session_id=session.id)
 
     async def handle_webhook(self, payload: bytes, sig_header: str) -> None:
         event = self.stripe_service.verify_webhook(payload, sig_header)
+        event_id = event.get("id")
         event_type = event["type"]
+
+        logger.info(
+            "purchase.webhook.verified",
+            extra={
+                "stripe_event_id": event_id,
+                "stripe_event_type": event_type,
+            },
+        )
 
         # Stripe Checkout (mode=payment): événement recommandé.
         if event_type == "checkout.session.completed":
@@ -128,12 +168,37 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
             amount_total = payment_intent.get("amount_received") or payment_intent.get("amount")
 
         else:
+            logger.info(
+                "purchase.webhook.ignored",
+                extra={
+                    "stripe_event_id": event_id,
+                    "stripe_event_type": event_type,
+                    "reason": "unsupported_event",
+                },
+            )
             return
 
         if not uuid:
+            logger.warning(
+                "purchase.webhook.rejected",
+                extra={
+                    "stripe_event_id": event_id,
+                    "stripe_event_type": event_type,
+                    "reason": "missing_purchase_uuid",
+                },
+            )
             raise ValueError("No purchase UUID found in webhook event")
 
         if not is_payment_successful:
+            logger.info(
+                "purchase.webhook.ignored",
+                extra={
+                    "stripe_event_id": event_id,
+                    "stripe_event_type": event_type,
+                    "purchase_uuid": uuid,
+                    "reason": "payment_not_successful",
+                },
+            )
             return
 
         async with self._session_factory() as session:
@@ -144,10 +209,28 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
                 purchase = await purchase_repo.find_by_uuid(uuid)
 
                 if not purchase:
+                    logger.warning(
+                        "purchase.webhook.rejected",
+                        extra={
+                            "stripe_event_id": event_id,
+                            "stripe_event_type": event_type,
+                            "purchase_uuid": uuid,
+                            "reason": "purchase_not_found",
+                        },
+                    )
                     raise PurchaseNotFoundError
 
                 # Idempotence: si déjà success, on sort sans créditer.
                 if purchase.status.value == PurchaseStatus.succeeded.value:
+                    logger.info(
+                        "purchase.webhook.idempotent",
+                        extra={
+                            "stripe_event_id": event_id,
+                            "stripe_event_type": event_type,
+                            "purchase_uuid": uuid,
+                            "user_id": purchase.user.id,
+                        },
+                    )
                     return
 
                 purchase.status = PurchaseStatus.succeeded
@@ -168,3 +251,16 @@ class PurchaseCommandUseCaseImpl(PurchaseCommandUseCase):
                 user.nb_btl += purchase.pack.total_btl
                 user.nb_btl_paid += purchase.pack.total_btl
                 await user_repo.update(user)
+
+                logger.info(
+                    "purchase.webhook.processed",
+                    extra={
+                        "stripe_event_id": event_id,
+                        "stripe_event_type": event_type,
+                        "purchase_uuid": uuid,
+                        "user_id": user.id,
+                        "pack_id": purchase.pack.id,
+                        "credited_btl": purchase.pack.total_btl,
+                    },
+                )
+

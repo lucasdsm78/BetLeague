@@ -38,6 +38,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     def _slow_request_threshold_ms(self) -> int:
         return int(getattr(self.settings, "http_slow_request_threshold_ms", 1000))
 
+    @staticmethod
+    def _request_user_id(request: Request):
+        return getattr(getattr(request, "state", None), "user_id", None)
+
     async def dispatch(self, request: Request, call_next):
         if not self._is_enabled() or request.url.path in self._excluded_paths():
             return await call_next(request)
@@ -66,6 +70,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "http.request.failed",
                 extra={
                     **base_extra,
+                    "user_id": self._request_user_id(request),
                     "duration_ms": duration_ms,
                 },
             )
@@ -86,8 +91,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             "http.request.completed",
             extra={
                 **base_extra,
+                "user_id": self._request_user_id(request),
                 "status_code": response.status_code,
                 "duration_ms": duration_ms,
             },
         )
         return response
+
