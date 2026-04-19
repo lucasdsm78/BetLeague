@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from types import SimpleNamespace
 
 from cryptography.fernet import Fernet
@@ -138,7 +139,7 @@ def make_usecase(user: User, monkeypatch: pytest.MonkeyPatch, totp_service: Fake
     return usecase, session, manager
 
 
-def test_enable_2fa_returns_setup_and_keeps_user_pending(monkeypatch: pytest.MonkeyPatch):
+def test_enable_2fa_returns_setup_and_keeps_user_pending(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
     user = User(
         id=11,
         email=Email("player@example.com"),
@@ -150,7 +151,8 @@ def test_enable_2fa_returns_setup_and_keeps_user_pending(monkeypatch: pytest.Mon
     )
     usecase, session, _ = make_usecase(user, monkeypatch)
 
-    response = asyncio.run(usecase.enable_2fa("player@example.com"))
+    with caplog.at_level(logging.INFO, logger=user_command_usecase_module.logger.name):
+        response = asyncio.run(usecase.enable_2fa("player@example.com"))
 
     assert response.secret == "BASE32SECRET"
     assert response.otpauth_url.startswith("otpauth://totp/BetLeague:player@example.com")
@@ -159,6 +161,10 @@ def test_enable_2fa_returns_setup_and_keeps_user_pending(monkeypatch: pytest.Mon
     assert user.two_factor_secret == "encrypted-secret"
     assert user.is_two_factor_enabled is False
     assert user.is_two_factor_verified is False
+    setup_logs = [record for record in caplog.records if record.getMessage() == "auth.2fa.setup_started"]
+    assert setup_logs
+    assert setup_logs[-1].layer == "use_case"
+    assert setup_logs[-1].user_id == 11
 
 
 def test_verify_2fa_confirms_pending_setup(monkeypatch: pytest.MonkeyPatch):
@@ -204,7 +210,7 @@ def test_verify_2fa_rejects_invalid_code(monkeypatch: pytest.MonkeyPatch):
     assert user.is_two_factor_verified is False
 
 
-def test_disable_2fa_clears_secret_and_flags(monkeypatch: pytest.MonkeyPatch):
+def test_disable_2fa_clears_secret_and_flags(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
     user = User(
         id=14,
         email=Email("disable@example.com"),
@@ -217,13 +223,14 @@ def test_disable_2fa_clears_secret_and_flags(monkeypatch: pytest.MonkeyPatch):
     )
     usecase, session, manager = make_usecase(user, monkeypatch)
 
-    response = asyncio.run(
-        usecase.disable_2fa(
-            "disable@example.com",
-            "access-token",
-            DisableTwoFactorModel(current_password="supersafepassword", code="123456"),
+    with caplog.at_level(logging.INFO, logger=user_command_usecase_module.logger.name):
+        response = asyncio.run(
+            usecase.disable_2fa(
+                "disable@example.com",
+                "access-token",
+                DisableTwoFactorModel(current_password="supersafepassword", code="123456"),
+            )
         )
-    )
 
     assert response.enabled is False
     assert response.sessions_revoked is True
@@ -234,6 +241,11 @@ def test_disable_2fa_clears_secret_and_flags(monkeypatch: pytest.MonkeyPatch):
     assert user.is_two_factor_verified is False
     assert manager.invalidations == [("access-token", "14")]
     assert manager.global_invalidations == ["14"]
+    disable_logs = [record for record in caplog.records if record.getMessage() == "auth.2fa.disabled"]
+    assert disable_logs
+    assert disable_logs[-1].layer == "use_case"
+    assert disable_logs[-1].user_id == 14
+    assert disable_logs[-1].reauth_required is True
 
 
 def test_two_factor_verify_rate_limiter_blocks_after_limit():
