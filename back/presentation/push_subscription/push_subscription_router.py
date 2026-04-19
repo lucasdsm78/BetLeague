@@ -24,6 +24,7 @@ async def get_vapid_public_key(
     uc: PushSubscriptionUseCase = Depends(push_subscription_usecase),
 ):
     public_key = await uc.get_vapid_public_key()
+    logger.info("push.http.vapid_public_key_succeeded")
     return VapidPublicKeyResponse(public_key=public_key)
 
 
@@ -72,6 +73,7 @@ async def subscribe(
         auth_key=body.keys.auth,
         user_agent=user_agent,
     )
+    logger.info("push.http.subscribe_succeeded", extra={"user_id": user_id, "client_ip": ip})
 
 
 @router.post("/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
@@ -82,6 +84,7 @@ async def unsubscribe(
 ):
     user_id = int(user["id"])
     await uc.unsubscribe(user_id=user_id, endpoint=body.endpoint)
+    logger.info("push.http.unsubscribe_succeeded", extra={"user_id": user_id})
 
 
 @router.delete("/unsubscribe-all", status_code=status.HTTP_204_NO_CONTENT)
@@ -91,6 +94,7 @@ async def unsubscribe_all(
 ):
     user_id = int(user["id"])
     await uc.unsubscribe_all(user_id=user_id)
+    logger.info("push.http.unsubscribe_all_succeeded", extra={"user_id": user_id})
 
 
 @router.get("/status", response_model=PushSubscriptionStatusResponse, status_code=status.HTTP_200_OK)
@@ -100,4 +104,5 @@ async def get_status(
 ):
     user_id = int(user["id"])
     subscribed, count = await uc.get_status(user_id=user_id)
+    logger.info("push.http.status_succeeded", extra={"user_id": user_id, "subscribed": subscribed, "subscription_count": count})
     return PushSubscriptionStatusResponse(subscribed=subscribed, subscription_count=count)

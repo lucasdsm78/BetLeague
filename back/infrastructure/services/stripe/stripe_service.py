@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Any
 from urllib.parse import urlencode
 
@@ -10,6 +11,7 @@ from domain.services.stripe.stripe_service import StripeService
 from infrastructure.config import Settings
 
 _executor = ThreadPoolExecutor(max_workers=4)
+logger = logging.getLogger(__name__)
 
 class StripeServiceImpl(StripeService):
 
@@ -61,6 +63,15 @@ class StripeServiceImpl(StripeService):
                 expand=["payment_intent"]
             )
         session = await asyncio.get_running_loop().run_in_executor(_executor, _create)
+        logger.info(
+            "stripe.checkout_session.created",
+            extra={
+                "purchase_uuid": purchase.uuid,
+                "user_id": purchase.user.id,
+                "pack_id": purchase.pack.id,
+                "stripe_session_id": getattr(session, "id", None),
+            },
+        )
         return session
 
     async def create_subscription_session(
@@ -94,32 +105,53 @@ class StripeServiceImpl(StripeService):
 
             session = await asyncio.get_running_loop().run_in_executor(_executor, _create)
 
+            logger.info(
+                "stripe.subscription_session.created",
+                extra={
+                    "subscription_uuid": uuid,
+                    "stripe_session_id": getattr(session, "id", None),
+                    "stripe_subscription_id": getattr(session, "subscription", None),
+                },
+            )
             return session
         except stripe.error.StripeError as e:
+            logger.warning("stripe.subscription_session.failed", extra={"subscription_uuid": uuid, "error": str(e)})
             raise ValueError(f"Erreur lors de la création de la session Stripe: {e}")
 
     async def retrieve_checkout_session(self, session_id: str) -> dict[str, Any]:
         try:
-            return await asyncio.to_thread(stripe.checkout.Session.retrieve, session_id)
+            session = await asyncio.to_thread(stripe.checkout.Session.retrieve, session_id)
+            logger.info("stripe.checkout_session.retrieved", extra={"stripe_session_id": session_id})
+            return session
         except stripe.error.StripeError as e:
+            logger.warning("stripe.checkout_session.retrieve_failed", extra={"stripe_session_id": session_id, "error": str(e)})
             raise ValueError(f"Erreur lors de la récupération de la session Stripe: {e}")
 
     async def retrieve_subscription(self, subscription_id: str) -> dict[str, Any]:
         try:
-            return await asyncio.to_thread(stripe.Subscription.retrieve, subscription_id)
+            subscription = await asyncio.to_thread(stripe.Subscription.retrieve, subscription_id)
+            logger.info("stripe.subscription.retrieved", extra={"stripe_subscription_id": subscription_id})
+            return subscription
         except stripe.error.StripeError as e:
+            logger.warning("stripe.subscription.retrieve_failed", extra={"stripe_subscription_id": subscription_id, "error": str(e)})
             raise ValueError(f"Erreur lors de la récupération de l'abonnement Stripe: {e}")
 
     async def schedule_tournament_subscription_cancellation_at_period_end(self, subscription_id: str) -> dict:
         try:
-            return await asyncio.to_thread(stripe.Subscription.modify, subscription_id, cancel_at_period_end=True)
+            subscription = await asyncio.to_thread(stripe.Subscription.modify, subscription_id, cancel_at_period_end=True)
+            logger.info("stripe.subscription.cancellation_scheduled", extra={"stripe_subscription_id": subscription_id})
+            return subscription
         except stripe.error.StripeError as e:
+            logger.warning("stripe.subscription.cancellation_failed", extra={"stripe_subscription_id": subscription_id, "error": str(e)})
             raise ValueError(f"Erreur lors de la planification de l'annulation de l'abonnement: {e}")
 
     def verify_webhook(self, payload: bytes, sig_header: str) -> dict:
         try:
-            return stripe.Webhook.construct_event(
+            event = stripe.Webhook.construct_event(
                 payload, sig_header, self.settings.stripe_webhook_secret
             )
+            logger.info("stripe.webhook.verified", extra={"payload_size": len(payload), "stripe_event_type": event.get("type")})
+            return event
         except stripe.error.SignatureVerificationError:
+            logger.warning("stripe.webhook.rejected", extra={"payload_size": len(payload), "reason": "invalid_signature"})
             raise InvalidWebhookError

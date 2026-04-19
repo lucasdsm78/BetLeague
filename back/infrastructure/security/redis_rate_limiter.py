@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 
 from redis.asyncio import Redis
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +62,7 @@ class RedisSlidingWindowRateLimiter:
     async def _ensure_script_loaded(self) -> str:
         if self._script_sha is None:
             self._script_sha = await self._redis.script_load(_LUA_SLIDING_WINDOW)
+            logger.info("ratelimiter.redis.script_loaded")
         return self._script_sha
 
     async def allow(self, *, key: str, limit: int, window_s: int) -> RateLimitResult:
@@ -81,6 +86,7 @@ class RedisSlidingWindowRateLimiter:
                 )
             except Exception as e:
                 if "NOSCRIPT" in str(e):
+                    logger.warning("ratelimiter.redis.script_missing", extra={"reason": "noscript"})
                     self._script_sha = None
                     sha = await self._ensure_script_loaded()
                     res = await self._redis.evalsha(
@@ -98,7 +104,25 @@ class RedisSlidingWindowRateLimiter:
             allowed = bool(int(res[0]))
             retry_after = int(res[1])
             remaining_attempts = int(res[2]) if len(res) > 2 else 0
+            if not allowed:
+                logger.warning(
+                    "ratelimiter.redis.blocked",
+                    extra={
+                        "key": redis_key,
+                        "limit": int(limit),
+                        "window_s": int(window_s),
+                        "retry_after_s": retry_after,
+                    },
+                )
             return RateLimitResult(allowed=allowed, retry_after_s=retry_after, remaining_attempts=remaining_attempts)
         except Exception:
             # fail-closed: si Redis est down, on bloque
+            logger.exception(
+                "ratelimiter.redis.failed_closed",
+                extra={
+                    "key": redis_key,
+                    "limit": int(limit),
+                    "window_s": int(window_s),
+                },
+            )
             return RateLimitResult(allowed=False, retry_after_s=max(int(window_s), 1), remaining_attempts=0)
