@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +10,7 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
 import application.user.user_command_usecase as user_command_usecase_module
-from application.user.user_command_model import UserCreateModel, UserUpdateModel
+from application.user.user_command_model import InvalidPasswordError, UserCreateModel, UserLoginModel, UserUpdateModel
 from application.user.user_command_usecase import UserCommandUseCaseImpl
 from domain.user.model.email import Email
 from domain.user.model.password import Password
@@ -257,5 +258,70 @@ def test_update_user_profile_allows_pseudo_change_without_current_password(monke
     assert manager.global_invalidations == []
     assert response.token_auth == "access-for-4-1"
     assert response.refresh_token == "refresh-for-4-1"
+
+
+def test_login_emits_use_case_success_log(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
+    user = User(
+        id=5,
+        email=Email("login@example.com"),
+        pseudo="login-user",
+        uuid="uuid-5",
+        password=Password("hashed::password123"),
+        is_two_factor_enabled=False,
+    )
+    usecase, _, _ = make_usecase(user, monkeypatch)
+
+    with caplog.at_level(logging.INFO, logger=user_command_usecase_module.logger.name):
+        response = asyncio.run(usecase.login(UserLoginModel(email="login@example.com", password="password123")))
+
+    assert response.uuid == "uuid-5"
+    success_logs = [record for record in caplog.records if record.getMessage() == "auth.login.succeeded"]
+    assert success_logs
+    assert success_logs[-1].layer == "use_case"
+    assert success_logs[-1].user_id == 5
+    assert success_logs[-1].email_hash
+
+
+def test_login_emits_use_case_failure_log_on_invalid_password(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
+    user = User(
+        id=6,
+        email=Email("loginfail@example.com"),
+        pseudo="login-fail-user",
+        uuid="uuid-6",
+        password=Password("hashed::correct-password"),
+        is_two_factor_enabled=False,
+    )
+    usecase, _, _ = make_usecase(user, monkeypatch)
+
+    with caplog.at_level(logging.WARNING, logger=user_command_usecase_module.logger.name):
+        with pytest.raises(InvalidPasswordError):
+            asyncio.run(usecase.login(UserLoginModel(email="loginfail@example.com", password="wrong-password")))
+
+    failure_logs = [record for record in caplog.records if record.getMessage() == "auth.login.failed"]
+    assert failure_logs
+    assert failure_logs[-1].layer == "use_case"
+    assert failure_logs[-1].reason == "invalid_credentials"
+    assert failure_logs[-1].user_id == 6
+
+
+def test_logout_emits_use_case_success_log(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture):
+    user = User(
+        id=7,
+        email=Email("logout@example.com"),
+        pseudo="logout-user",
+        uuid="uuid-7",
+        password=Password("hashed::password123"),
+    )
+    usecase, _, manager = make_usecase(user, monkeypatch)
+
+    with caplog.at_level(logging.INFO, logger=user_command_usecase_module.logger.name):
+        response = asyncio.run(usecase.logout("7", "access-token"))
+
+    assert response["user_id"] == "7"
+    assert manager.invalidations == [("access-token", "7")]
+    logout_logs = [record for record in caplog.records if record.getMessage() == "auth.logout.succeeded"]
+    assert logout_logs
+    assert logout_logs[-1].layer == "use_case"
+    assert logout_logs[-1].user_id == "7"
 
 
