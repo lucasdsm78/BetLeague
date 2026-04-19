@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 import logging
 from types import SimpleNamespace
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from infrastructure.http_exception_handlers import register_exception_handlers
+from infrastructure.logging_config import JsonFormatter, SensitiveDataRedactionFilter
 from infrastructure.logging_context import RequestContextFilter, reset_request_id, set_request_id
 from infrastructure.logging_middleware import RequestLoggingMiddleware
 
@@ -68,6 +70,34 @@ def test_request_logging_middleware_echoes_and_logs_request_id():
     assert completed, "Expected http.request.completed log"
     assert completed[-1].request_id == "front-req-123"
     assert completed[-1].status_code == 200
+
+
+def test_request_logging_middleware_adds_user_id_when_present_in_request_state():
+    app = FastAPI()
+    app.add_middleware(RequestLoggingMiddleware, settings=_settings())
+
+    @app.get("/me")
+    async def me(request: Request):
+        request.state.user_id = 42
+        return {"ok": True}
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.logging_middleware")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app)
+        response = client.get("/me", headers={"X-Request-Id": "req-user-42"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+
+    completed = [record for record in handler.records if record.getMessage() == "http.request.completed"]
+    assert completed, "Expected http.request.completed log"
+    assert completed[-1].user_id == 42
 
 
 def test_validation_handler_logs_and_returns_request_id():
@@ -164,5 +194,35 @@ def test_unhandled_exception_handler_returns_500_and_request_id():
     assert unhandled_logs, "Expected http.exception.unhandled log"
     assert unhandled_logs[-1].request_id == "req-500"
     assert unhandled_logs[-1].status_code == 500
+
+
+def test_sensitive_data_redaction_filter_masks_nested_sensitive_fields():
+    record = logging.makeLogRecord(
+        {
+            "msg": "auth.login.failed",
+            "token": "secret-token",
+            "email": "user@example.com",
+            "email_hash": "safe-hash",
+            "context": {
+                "authorization": "Bearer abc",
+                "nested": {"refresh_token": "refresh-secret", "ok": True},
+            },
+        }
+    )
+
+    filter_ = SensitiveDataRedactionFilter()
+    assert filter_.filter(record) is True
+
+    formatter = JsonFormatter(service_name="betleague-back", environment="test", component="api")
+    payload = json.loads(formatter.format(record))
+
+    assert payload["context"]["token"] == "[REDACTED]"
+    assert payload["context"]["email"] == "[REDACTED]"
+    assert payload["context"]["email_hash"] == "safe-hash"
+    assert payload["context"]["context"]["authorization"] == "[REDACTED]"
+    assert payload["context"]["context"]["nested"]["refresh_token"] == "[REDACTED]"
+    assert payload["context"]["context"]["nested"]["ok"] is True
+
+
 
 

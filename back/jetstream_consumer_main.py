@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 
@@ -10,11 +11,13 @@ from nats.js.errors import NotFoundError
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
+from infrastructure.logging_config import setup_logging
 from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
-from infrastructure.services.nats_json import nats_dumps, nats_loads, nats_encode
+from infrastructure.services.nats_json import nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
 
 _MAX_INBOUND_BYTES = int(os.getenv("NATS_MAX_INBOUND_PAYLOAD_BYTES", str(2 * 1024 * 1024)))
+logger = logging.getLogger(__name__)
 
 
 def _load_consumer_subjects(*, subject_prefix: str, dlq_subject_prefix: str) -> list[str]:
@@ -47,16 +50,14 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
     last_error: str | None = None
     attempt = 0
 
-    print(
-        nats_dumps(
-            {
-                "event": "jetstream.consumer.wait_for_streams.start",
-                "stream": stream,
-                "dlq_stream": dlq_stream,
-                "timeout_s": timeout_s,
-                "poll_s": poll_s,
-            }
-        )
+    logger.info(
+        "jetstream.consumer.wait_for_streams.start",
+        extra={
+            "stream": stream,
+            "dlq_stream": dlq_stream,
+            "timeout_s": timeout_s,
+            "poll_s": poll_s,
+        },
     )
 
     while True:
@@ -64,16 +65,14 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
         try:
             await js.stream_info(stream)
             await js.stream_info(dlq_stream)
-            print(
-                nats_dumps(
-                    {
-                        "event": "jetstream.consumer.wait_for_streams.ready",
-                        "stream": stream,
-                        "dlq_stream": dlq_stream,
-                        "attempt": attempt,
-                        "duration_ms": int((time.time() - started) * 1000),
-                    }
-                )
+            logger.info(
+                "jetstream.consumer.wait_for_streams.ready",
+                extra={
+                    "stream": stream,
+                    "dlq_stream": dlq_stream,
+                    "attempt": attempt,
+                    "duration_ms": int((time.time() - started) * 1000),
+                },
             )
             return
 
@@ -81,20 +80,18 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             last_state = "stream_missing"
             last_error = str(e)
             if time.time() - started >= timeout_s:
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.consumer.wait_for_streams.timeout",
-                            "stream": stream,
-                            "dlq_stream": dlq_stream,
-                            "timeout_s": timeout_s,
-                            "poll_s": poll_s,
-                            "attempt": attempt,
-                            "last_state": last_state,
-                            "last_error": last_error,
-                            "duration_ms": int((time.time() - started) * 1000),
-                        }
-                    )
+                logger.warning(
+                    "jetstream.consumer.wait_for_streams.timeout",
+                    extra={
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "poll_s": poll_s,
+                        "attempt": attempt,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    },
                 )
                 raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
             await asyncio.sleep(poll_s)
@@ -103,20 +100,18 @@ async def _wait_for_streams(*, js, stream: str, dlq_stream: str) -> None:
             last_state = "unknown_error"
             last_error = str(e)
             if time.time() - started >= timeout_s:
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.consumer.wait_for_streams.timeout",
-                            "stream": stream,
-                            "dlq_stream": dlq_stream,
-                            "timeout_s": timeout_s,
-                            "poll_s": poll_s,
-                            "attempt": attempt,
-                            "last_state": last_state,
-                            "last_error": last_error,
-                            "duration_ms": int((time.time() - started) * 1000),
-                        }
-                    )
+                logger.warning(
+                    "jetstream.consumer.wait_for_streams.timeout",
+                    extra={
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "timeout_s": timeout_s,
+                        "poll_s": poll_s,
+                        "attempt": attempt,
+                        "last_state": last_state,
+                        "last_error": last_error,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    },
                 )
                 raise
             await asyncio.sleep(poll_s)
@@ -138,19 +133,17 @@ async def main() -> None:
         dlq_subject_prefix=dlq_subject_prefix,
     )
 
-    print(
-        nats_dumps(
-            {
-                "event": "jetstream.consumer.start",
-                "nats_url": url,
-                "stream": stream,
-                "subjects": consumer_subjects,
-                "durable": durable,
-                "max_deliver": max_deliver,
-                "dlq_stream": dlq_stream,
-                "dlq_subject_prefix": dlq_subject_prefix,
-            }
-        )
+    logger.info(
+        "jetstream.consumer.start",
+        extra={
+            "nats_url": url,
+            "stream": stream,
+            "subjects": consumer_subjects,
+            "durable": durable,
+            "max_deliver": max_deliver,
+            "dlq_stream": dlq_stream,
+            "dlq_subject_prefix": dlq_subject_prefix,
+        },
     )
 
     connect_kwargs = build_nats_connect_kwargs(url=url)
@@ -159,14 +152,9 @@ async def main() -> None:
     try:
         await nc.connect(**connect_kwargs)
     except Exception as e:
-        print(
-            nats_dumps(
-                {
-                    "event": "jetstream.consumer.connect_error",
-                    "error": str(e),
-                    "nats_url": url,
-                }
-            )
+        logger.exception(
+            "jetstream.consumer.connect_error",
+            extra={"nats_url": url},
         )
         raise
 
@@ -203,15 +191,13 @@ async def main() -> None:
                 error=f"payload too large: {len(msg.data)} > {_MAX_INBOUND_BYTES}",
                 num_delivered=num_delivered,
             )
-            print(
-                nats_dumps(
-                    {
-                        "event": "jetstream.consumer.dlq.payload_too_large",
-                        "subject": msg.subject,
-                        "size": len(msg.data),
-                        "limit": _MAX_INBOUND_BYTES,
-                    }
-                )
+            logger.warning(
+                "jetstream.consumer.dlq.payload_too_large",
+                extra={
+                    "subject": msg.subject,
+                    "size": len(msg.data),
+                    "limit": _MAX_INBOUND_BYTES,
+                },
             )
             await msg.ack()
             return
@@ -223,15 +209,13 @@ async def main() -> None:
 
             await bus.publish(decoded.event)
 
-            print(
-                nats_dumps(
-                    {
-                        "event": "jetstream.consumer.processed",
-                        "subject": msg.subject,
-                        "event_name": decoded.event_name,
-                        "num_delivered": num_delivered,
-                    }
-                )
+            logger.info(
+                "jetstream.consumer.processed",
+                extra={
+                    "subject": msg.subject,
+                    "event_name": decoded.event_name,
+                    "num_delivered": num_delivered,
+                },
             )
             await msg.ack()
 
@@ -243,15 +227,13 @@ async def main() -> None:
                 error=err,
                 num_delivered=num_delivered,
             )
-            print(
-                nats_dumps(
-                    {
-                        "event": "jetstream.consumer.dlq.decode_error",
-                        "subject": msg.subject,
-                        "error": err,
-                        "num_delivered": num_delivered,
-                    }
-                )
+            logger.warning(
+                "jetstream.consumer.dlq.decode_error",
+                extra={
+                    "subject": msg.subject,
+                    "error": err,
+                    "num_delivered": num_delivered,
+                },
             )
             await msg.ack()
 
@@ -264,27 +246,23 @@ async def main() -> None:
                     error=err,
                     num_delivered=num_delivered,
                 )
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.consumer.dlq.max_deliver",
-                            "subject": msg.subject,
-                            "error": err,
-                            "num_delivered": num_delivered,
-                        }
-                    )
+                logger.warning(
+                    "jetstream.consumer.dlq.max_deliver",
+                    extra={
+                        "subject": msg.subject,
+                        "error": err,
+                        "num_delivered": num_delivered,
+                    },
                 )
                 await msg.ack()
             else:
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.consumer.nak",
-                            "subject": msg.subject,
-                            "error": err,
-                            "num_delivered": num_delivered,
-                        }
-                    )
+                logger.warning(
+                    "jetstream.consumer.nak",
+                    extra={
+                        "subject": msg.subject,
+                        "error": err,
+                        "num_delivered": num_delivered,
+                    },
                 )
                 await msg.nak()
 
@@ -308,14 +286,12 @@ async def main() -> None:
             cb=handler,
         )
 
-    print(
-        nats_dumps(
-            {
-                "event": "jetstream.consumer.subscribed",
-                "subjects": consumer_subjects,
-                "durable": durable,
-            }
-        )
+    logger.info(
+        "jetstream.consumer.subscribed",
+        extra={
+            "subjects": consumer_subjects,
+            "durable": durable,
+        },
     )
 
     stop = asyncio.Event()
@@ -335,4 +311,9 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    setup_logging(
+        environment=os.getenv("ENVIRONMENT", "dev"),
+        json_logs=None,
+        component="jetstream_consumer",
+    )
     asyncio.run(main())
