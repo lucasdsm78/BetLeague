@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi import Path
 from fastapi import Query
@@ -23,6 +25,8 @@ router = APIRouter(
     prefix="/api",
     tags=['league']
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _raise_league_finished(e: LeagueFinishedError) -> None:
@@ -192,6 +196,19 @@ async def get_leagues_balances_bulk(
         key = f"leagues_balances_bulk:{email or client_host}"
         rl = rate_limiter.check(key=key, limit=30, window_seconds=60)
         if not rl.allowed:
+            logger.warning(
+                "ratelimit.hit",
+                extra={
+                    "endpoint": "league.balances_bulk",
+                    "client_key": key,
+                    "retry_after_s": int(rl.retry_after_seconds),
+                    "user_id": current_user.get("id"),
+                    "method": request.method,
+                    "path": request.url.path,
+                    "client_ip": client_host,
+                    "limiter_backend": "memory",
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Trop de requêtes. Réessayez plus tard.",
