@@ -200,3 +200,5 @@ export async function createTournamentBet(
   const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/tournament/${tournamentId}/match/${matchId}/bet`, payload);
   return res.data as ApiTicketCreateResponse;
 }
+
+

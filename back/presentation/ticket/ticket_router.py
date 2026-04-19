@@ -6,7 +6,8 @@ from application.ticket.ticket_command_model import TicketCreateResponse, Ticket
 from application.ticket.ticket_command_usecase import TicketCommandUseCase
 from application.ticket.ticket_query_model import TicketReadModel, TicketsInProgressResponse, TicketsFinishedResponse, SharedTicketReadModel
 from application.ticket.ticket_query_usecase import TicketQueryUseCase
-from dependency_injections import current_user, ticket_command_usecase, ticket_query_usecase
+from dependency_injections import current_user, get_settings, ticket_command_usecase, ticket_query_usecase
+from infrastructure.config import Settings
 from domain.league.exception.league_exception import LeagueNotFoundError, \
     LeagueParticipantNotFoundError, NbBTLHasReached0, LeagueNotStartedError
 from domain.match.exception.match_exception import MatchNotFoundError
@@ -357,8 +358,15 @@ async def create_tournament_ticket(
         match_id: int,
         ticket_model: TicketCreateModel,
         ticket_usecase: TicketCommandUseCase = Depends(ticket_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
+    if not settings.tournament_subscription_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="La création de tickets tournoi est désactivée.",
+        )
+
     try:
         return await ticket_usecase.create_tournament_ticket(tournament_id, match_id, ticket_model, current_user.get('email', ''))
     except UserNotFoundError as e:

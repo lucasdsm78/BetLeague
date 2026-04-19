@@ -6,8 +6,9 @@ import { createTicket, createTournamentBet } from '../../services/api/tickets';
 import type { TournamentMatchOption } from '../../types/api/tournament';
 import { useTicketsRefreshStore } from 'store/ticketsStore';
 import { useMyLeaguesQuery, useLeagueBalanceQuery } from '../../hooks/queries/useLeaguesLiteQueries';
-import { useTournamentPlayerBalanceQuery } from '../../hooks/queries/useTournamentBettingQueries';
+import { useTournamentPlayerBalanceQuery, useUserTournamentMatchesQuery } from '../../hooks/queries/useTournamentBettingQueries';
 import { useMatchesInfiniteQuery } from '../../hooks/queries/useMatchesInfiniteQuery';
+import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useGlobalToast } from '../../toast/ToastProvider';
 
 import FilterBar from './matches/FilterBar';
@@ -103,16 +104,19 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
     const [desktopError, setDesktopError] = useState<string | null>(null);
     const [isSubmittingDesktop, setIsSubmittingDesktop] = useState<boolean>(false);
 
-    // Desktop (tournoi)
     const [desktopSelectedTournamentMatchId, setDesktopSelectedTournamentMatchId] = useState<string>('');
-
-    // Tournois: options (placeholder)
-    const [drawerTournamentMatches] = useState<TournamentMatchOption[]>([]);
-    const [desktopTournamentMatches] = useState<TournamentMatchOption[]>([]);
 
     // React Query: ligues + balance ligue
     const myLeaguesQuery = useMyLeaguesQuery();
     const myLeagues = myLeaguesQuery.data ?? [];
+
+    const profileQuery = useProfileMeQuery({ enabled: true });
+    const tournamentTicketCreationEnabled = profileQuery.data?.commerce_availability?.tournament_subscription_enabled !== false;
+
+    const tournamentMatchesQuery = useUserTournamentMatchesQuery({ enabled: tournamentTicketCreationEnabled });
+    const tournamentMatches = tournamentMatchesQuery.data ?? [];
+    const drawerTournamentMatches: TournamentMatchOption[] = tournamentTicketCreationEnabled ? tournamentMatches : [];
+    const desktopTournamentMatches: TournamentMatchOption[] = tournamentTicketCreationEnabled ? tournamentMatches : [];
 
     const desktopBalanceQuery = useLeagueBalanceQuery(desktopSelectedLeagueId, { enabled: !!desktopSelectedLeagueId });
     const desktopBalance = desktopSelectedLeagueId ? (desktopBalanceQuery.data ?? null) : null;
@@ -134,10 +138,10 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         return Number.isFinite(tid) && tid > 0 ? tid : null;
     }, [desktopSelectedTournamentMatchId]);
 
-    const drawerTournamentBalanceQuery = useTournamentPlayerBalanceQuery(drawerTournamentId, { enabled: isTicketDrawerOpen && !!drawerTournamentId });
+    const drawerTournamentBalanceQuery = useTournamentPlayerBalanceQuery(drawerTournamentId, { enabled: tournamentTicketCreationEnabled && isTicketDrawerOpen && !!drawerTournamentId });
     const drawerTournamentBalance = drawerTournamentId ? (drawerTournamentBalanceQuery.data ?? null) : null;
 
-    const desktopTournamentBalanceQuery = useTournamentPlayerBalanceQuery(desktopTournamentId, { enabled: !!desktopTournamentId });
+    const desktopTournamentBalanceQuery = useTournamentPlayerBalanceQuery(desktopTournamentId, { enabled: tournamentTicketCreationEnabled && !!desktopTournamentId });
     const desktopTournamentBalance = desktopTournamentId ? (desktopTournamentBalanceQuery.data ?? null) : null;
 
     // Matches query (infinite)
@@ -231,19 +235,25 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         return true;
     }, [drawerStakeNumber, drawerBalance]);
 
+    useEffect(() => {
+        if (!tournamentTicketCreationEnabled) {
+            setDesktopSelectedTournamentMatchId('');
+            setDrawerSelectedTournamentMatchId('');
+        }
+    }, [tournamentTicketCreationEnabled]);
+
     const canSubmitDesktop = useMemo(() => {
-        const hasLeagueOrTournament = !!desktopSelectedLeagueId || desktopSelectedTournamentMatchId !== '';
+        const hasLeagueOrTournament = !!desktopSelectedLeagueId || (tournamentTicketCreationEnabled && desktopSelectedTournamentMatchId !== '');
         return !isSubmittingDesktop && desktopError == null && isValidDesktopStake && hasLeagueOrTournament && selectedBets.length > 0;
-    }, [isSubmittingDesktop, desktopError, isValidDesktopStake, desktopSelectedLeagueId, desktopSelectedTournamentMatchId, selectedBets]);
+    }, [isSubmittingDesktop, desktopError, isValidDesktopStake, desktopSelectedLeagueId, desktopSelectedTournamentMatchId, selectedBets, tournamentTicketCreationEnabled]);
 
     const canSubmitDrawer = useMemo(() => {
-        const hasLeagueOrTournament = !!drawerSelectedLeagueId || drawerSelectedTournamentMatchId !== '';
+        const hasLeagueOrTournament = !!drawerSelectedLeagueId || (tournamentTicketCreationEnabled && drawerSelectedTournamentMatchId !== '');
         return isTicketDrawerOpen && !isSubmittingDrawer && drawerError == null && isValidDrawerStake && hasLeagueOrTournament && selectedBets.length > 0;
-    }, [isTicketDrawerOpen, isSubmittingDrawer, drawerError, isValidDrawerStake, drawerSelectedLeagueId, drawerSelectedTournamentMatchId, selectedBets]);
+    }, [isTicketDrawerOpen, isSubmittingDrawer, drawerError, isValidDrawerStake, drawerSelectedLeagueId, drawerSelectedTournamentMatchId, selectedBets, tournamentTicketCreationEnabled]);
 
     const handleDesktopCreateTicket = useCallback(async () => {
-        const isTournamentMode = desktopSelectedTournamentMatchId !== '';
-
+        const isTournamentMode = tournamentTicketCreationEnabled && desktopSelectedTournamentMatchId !== '';
         if (selectedBets.length === 0 || desktopStakeNumber <= 0) return;
         if (!isTournamentMode && !desktopSelectedLeagueId) return;
         if (isTournamentMode && !desktopSelectedTournamentMatchId) return;
@@ -251,8 +261,6 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         try {
             setIsSubmittingDesktop(true);
             setDesktopError(null);
-
-            const formatBetType = (b: BetSelection['betType']): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
 
             if (isTournamentMode) {
                 if (selectedBets.length !== 1) {
@@ -346,11 +354,10 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         } finally {
             setIsSubmittingDesktop(false);
         }
-    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess]);
+    }, [desktopSelectedLeagueId, selectedBets, desktopStakeNumber, desktopSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, tournamentTicketCreationEnabled]);
 
     const handleDrawerCreateTicket = useCallback(async () => {
-        const isTournamentMode = drawerSelectedTournamentMatchId !== '';
-
+        const isTournamentMode = tournamentTicketCreationEnabled && drawerSelectedTournamentMatchId !== '';
         if (selectedBets.length === 0 || drawerStakeNumber <= 0) return;
         if (!isTournamentMode && !drawerSelectedLeagueId) return;
         if (isTournamentMode && !drawerSelectedTournamentMatchId) return;
@@ -359,7 +366,6 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
             setIsSubmittingDrawer(true);
             setDrawerError(null);
 
-            const formatBetType = (b: BetSelection['betType']): '1' | 'N' | '2' => (b === 'home' ? '1' : b === 'draw' ? 'N' : '2');
 
             if (isTournamentMode) {
                 if (selectedBets.length !== 1) {
@@ -455,7 +461,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         } finally {
             setIsSubmittingDrawer(false);
         }
-    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess]);
+    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, tournamentTicketCreationEnabled]);
 
     // Infinite scroll observer (reprend l'existant)
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -534,6 +540,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
                     selectedBets={selectedBets}
                     onRemoveBet={handleRemoveBet}
                     onClearAll={handleClearAll}
+                    tournamentTicketCreationEnabled={tournamentTicketCreationEnabled}
                     leagues={myLeagues}
                     selectedLeagueId={desktopSelectedLeagueId}
                     onLeagueChange={setDesktopSelectedLeagueId}
@@ -557,6 +564,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
                     onClose={() => setIsTicketDrawerOpen(false)}
                     selectedBets={selectedBets}
                     onRemoveBet={handleRemoveBet}
+                    tournamentTicketCreationEnabled={tournamentTicketCreationEnabled}
                     leagues={myLeagues}
                     selectedLeagueId={drawerSelectedLeagueId}
                     onLeagueChange={setDrawerSelectedLeagueId}

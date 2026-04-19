@@ -6,6 +6,7 @@ export interface BetSidebarDesktopProps {
   selectedBets: BetSelection[];
   onRemoveBet: (index: number) => void;
   onClearAll: () => void;
+  tournamentTicketCreationEnabled: boolean;
   leagues: any[];
   selectedLeagueId: number | null;
   onLeagueChange: (leagueId: number | null) => void;
@@ -29,6 +30,7 @@ const BetSidebarDesktop = memo<BetSidebarDesktopProps>(function BetSidebarDeskto
     selectedBets,
     onRemoveBet,
     onClearAll,
+    tournamentTicketCreationEnabled,
     leagues,
     selectedLeagueId,
     onLeagueChange,
@@ -108,7 +110,7 @@ const BetSidebarDesktop = memo<BetSidebarDesktopProps>(function BetSidebarDeskto
             className="select-field"
             value={selectedLeagueId ?? ''}
             onChange={(e) => onLeagueChange(e.target.value ? Number(e.target.value) : null)}
-            disabled={isSubmitting || selectedTournamentMatchId !== ''}
+            disabled={isSubmitting || (tournamentTicketCreationEnabled && selectedTournamentMatchId !== '')}
           >
             <option value="">Choisir une ligue</option>
             {leagues.map((l: any) => (
@@ -122,25 +124,27 @@ const BetSidebarDesktop = memo<BetSidebarDesktopProps>(function BetSidebarDeskto
           )}
         </div>
 
-        <div className="select-group">
-          <label className="select-label">Tournoi</label>
-          <select
-            className="select-field"
-            value={selectedTournamentMatchId}
-            onChange={(e) => onTournamentChange(e.target.value)}
-            disabled={isSubmitting || selectedBets.length === 0}
-          >
-            <option value="">Choisir un match de tournoi</option>
-            {tournamentMatches.map((m: any) => (
-              <option key={`${m.tournament_id}-${m.match_id}`} value={`${m.tournament_id}-${m.match_id}`}>
-                {m.label ?? `Tournoi ${m.tournament_id} - Match ${m.match_id}`}
-              </option>
-            ))}
-          </select>
-          {selectedTournamentMatchId && tournamentBalance != null && (
-            <div className="balance-indicator">Solde tournoi : {tournamentBalance} BTL</div>
-          )}
-        </div>
+        {tournamentTicketCreationEnabled && (
+          <div className="select-group">
+            <label className="select-label">Tournoi</label>
+            <select
+              className="select-field"
+              value={selectedTournamentMatchId}
+              onChange={(e) => onTournamentChange(e.target.value)}
+              disabled={isSubmitting || selectedBets.length === 0}
+            >
+              <option value="">Choisir un match de tournoi</option>
+              {tournamentMatches.map((m: any) => (
+                <option key={`${m.tournament_id}-${m.id ?? m.match_id}`} value={`${m.tournament_id}-${m.id ?? m.match_id}`}>
+                  {m.display_label ?? m.label ?? `Tournoi ${m.tournament_id} - Match ${m.id ?? m.match_id}`}
+                </option>
+              ))}
+            </select>
+            {selectedTournamentMatchId && tournamentBalance != null && (
+              <div className="balance-indicator">Solde tournoi : {tournamentBalance} BTL</div>
+            )}
+          </div>
+        )}
 
         <div className="stake-group">
           <label className="stake-label">Mise</label>
