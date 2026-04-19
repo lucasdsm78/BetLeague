@@ -13,6 +13,9 @@ from domain.services.authentication.token_blacklist import TokenBlacklistService
 from infrastructure.config import Settings
 
 
+logger = logging.getLogger(__name__)
+
+
 class InMemoryTokenBlacklistImpl(TokenBlacklistService):
 
     def __init__(self):
@@ -52,14 +55,14 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logging.error(f"🚨 Token cleanup error: {e}")
+                logger.error("auth.blacklist.cleanup_failed", extra={"error": str(e)})
 
     async def _extract_token_info(self, token: str) -> Optional[dict]:
         try:
             decoded = jwt.decode(token, options={"verify_signature": False})
             return decoded
         except Exception as e:
-            logging.warning(f"Failed to extract token info: {e}")
+            logger.warning("auth.blacklist.extract_token_info_failed", extra={"error": str(e)})
             return None
 
     async def blacklist_token(self, token: str, user_id: str, expires_at: datetime) -> bool:
@@ -84,11 +87,11 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 self._stats['total_blacklisted'] += 1
                 self._stats['active_tokens'] = len(self._blacklisted_tokens)
 
-                logging.info(f"🔒 Token blacklisted for user {user_id}: {token_id}")
+                logger.info("auth.blacklist.token_added", extra={"user_id": str(user_id), "token_id": token_id})
                 return True
 
             except Exception as e:
-                logging.error(f"🚨 Failed to blacklist token: {e}")
+                logger.error("auth.blacklist.token_add_failed", extra={"user_id": str(user_id), "error": str(e)})
                 return False
 
     async def is_token_blacklisted(self, token: str) -> bool:
@@ -101,12 +104,12 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 is_blacklisted = token_id in self._blacklisted_tokens
 
             if is_blacklisted:
-                logging.warning(f"🚫 Blacklisted token access attempt: {token_id}")
+                logger.warning("auth.blacklist.token_access_attempt", extra={"token_id": token_id})
 
             return is_blacklisted
 
         except Exception as e:
-            logging.error(f"🚨 Error checking token blacklist: {e}")
+            logger.error("auth.blacklist.lookup_failed", extra={"error": str(e)})
             return True
 
     async def cleanup_expired_tokens(self) -> int:
@@ -132,12 +135,12 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 self._stats['active_tokens'] = len(self._blacklisted_tokens)
 
                 if expired_tokens:
-                    logging.info(f"🧹 Cleaned up {len(expired_tokens)} expired tokens")
+                    logger.info("auth.blacklist.cleanup_completed", extra={"expired_tokens_count": len(expired_tokens)})
 
                 return len(expired_tokens)
 
             except Exception as e:
-                logging.error(f"🚨 Failed to cleanup expired tokens: {e}")
+                logger.error("auth.blacklist.cleanup_failed", extra={"error": str(e)})
                 return 0
 
     async def get_blacklist_stats(self) -> dict:
@@ -171,7 +174,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 pass
         self._cleanup_task = None
 
-        logging.info("🔒 Token blacklist service shutdown complete")
+        logger.info("auth.blacklist.shutdown_completed")
 
     def __del__(self):
         """Cleanup on destruction"""
@@ -194,7 +197,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 })
                 return True
             except Exception as e:
-                logging.error(f"🚨 Failed to set user invalid_before: {e}")
+                logger.error("auth.blacklist.user_cutoff_set_failed", extra={"user_id": str(user_id), "error": str(e)})
                 return False
 
     async def is_token_globally_invalidated(self, *, user_id: str, token_issued_at: datetime) -> bool:
@@ -206,7 +209,7 @@ class InMemoryTokenBlacklistImpl(TokenBlacklistService):
                 return False
             return token_issued_at < cutoff
         except Exception as e:
-            logging.error(f"🚨 Error checking global invalidation: {e}")
+            logger.error("auth.blacklist.user_cutoff_lookup_failed", extra={"user_id": str(user_id), "error": str(e)})
             return True
 
 
@@ -263,7 +266,7 @@ class RedisBackedTokenBlacklist(TokenBlacklistService):
         try:
             await self._redis.setex(self._key_blacklisted_jti(token_id), ttl, b"1")
         except Exception as e:
-            logging.error(f"🚨 Redis error blacklisting jti: {e}")
+            logger.error("auth.blacklist.redis_token_add_failed", extra={"user_id": str(user_id), "token_id": token_id, "error": str(e)})
             # fallback local quand même
             await self._local.blacklist_token(token, user_id, expires_at)
             return False
@@ -282,7 +285,7 @@ class RedisBackedTokenBlacklist(TokenBlacklistService):
                 return False
             return True
         except Exception as e:
-            logging.error(f"🚨 Redis error checking blacklisted jti: {e}")
+            logger.error("auth.blacklist.redis_lookup_failed", extra={"token_id": token_id, "error": str(e)})
             # fallback local si possible
             try:
                 return await self._local.is_token_blacklisted(token)
@@ -315,7 +318,7 @@ return 1
                 str(int(getattr(self._settings, "auth_tokens_invalid_before_ttl_s", 60 * 60 * 24 * 90))),
             )
         except Exception as e:
-            logging.error(f"🚨 Redis error setting invalid_before: {e}")
+            logger.error("auth.blacklist.redis_user_cutoff_set_failed", extra={"user_id": str(user_id), "error": str(e)})
             # fallback local
             return await self._local.blacklist_user_tokens_before(user_id, invalid_before)
 
@@ -330,7 +333,7 @@ return 1
             cutoff_ts = int(raw)
             return int(token_issued_at.timestamp()) < cutoff_ts
         except Exception as e:
-            logging.error(f"🚨 Redis error reading invalid_before: {e}")
+            logger.error("auth.blacklist.redis_user_cutoff_lookup_failed", extra={"user_id": str(user_id), "error": str(e)})
             # fallback local si possible
             try:
                 return await self._local.is_token_globally_invalidated(user_id=user_id, token_issued_at=token_issued_at)

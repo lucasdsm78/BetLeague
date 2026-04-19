@@ -1,0 +1,168 @@
+from __future__ import annotations
+
+import logging
+from types import SimpleNamespace
+
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+
+from infrastructure.http_exception_handlers import register_exception_handlers
+from infrastructure.logging_context import RequestContextFilter, reset_request_id, set_request_id
+from infrastructure.logging_middleware import RequestLoggingMiddleware
+
+
+class _ListHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _settings() -> SimpleNamespace:
+    return SimpleNamespace(
+        http_request_logging_enabled=True,
+        http_request_logging_excluded_paths_list=["/health"],
+        http_slow_request_threshold_ms=1000,
+        trusted_proxy_ips_list=[],
+    )
+
+
+def test_request_context_filter_preserves_explicit_request_id():
+    filter_ = RequestContextFilter()
+    token = set_request_id("ctx-request-id")
+    try:
+        record = logging.makeLogRecord({"msg": "hello", "request_id": "explicit-request-id"})
+        assert filter_.filter(record) is True
+        assert record.request_id == "explicit-request-id"
+    finally:
+        reset_request_id(token)
+
+
+
+def test_request_logging_middleware_echoes_and_logs_request_id():
+    app = FastAPI()
+    app.add_middleware(RequestLoggingMiddleware, settings=_settings())
+
+    @app.get("/ping")
+    async def ping():
+        return {"ok": True}
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.logging_middleware")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app)
+        response = client.get("/ping", headers={"X-Request-Id": "front-req-123"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] == "front-req-123"
+
+    completed = [record for record in handler.records if record.getMessage() == "http.request.completed"]
+    assert completed, "Expected http.request.completed log"
+    assert completed[-1].request_id == "front-req-123"
+    assert completed[-1].status_code == 200
+
+
+def test_validation_handler_logs_and_returns_request_id():
+    app = FastAPI()
+    settings = _settings()
+    register_exception_handlers(app, settings=settings)
+    app.add_middleware(RequestLoggingMiddleware, settings=settings)
+
+    @app.get("/validate")
+    async def validate(count: int):
+        return {"count": count}
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.http_exception_handlers")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app)
+        response = client.get("/validate?count=nope", headers={"X-Request-Id": "req-422"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 422
+    assert response.headers["x-request-id"] == "req-422"
+    assert response.json()["detail"]
+
+    validation_logs = [record for record in handler.records if record.getMessage() == "http.validation.failed"]
+    assert validation_logs, "Expected http.validation.failed log"
+    assert validation_logs[-1].request_id == "req-422"
+    assert validation_logs[-1].status_code == 422
+
+
+def test_http_exception_handler_logs_and_preserves_request_id():
+    app = FastAPI()
+    settings = _settings()
+    register_exception_handlers(app, settings=settings)
+    app.add_middleware(RequestLoggingMiddleware, settings=settings)
+
+    @app.get("/missing")
+    async def missing():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.http_exception_handlers")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app)
+        response = client.get("/missing", headers={"X-Request-Id": "req-404"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 404
+    assert response.headers["x-request-id"] == "req-404"
+    assert response.json() == {"detail": "Not found"}
+
+    handled_logs = [record for record in handler.records if record.getMessage() == "http.exception.handled"]
+    assert handled_logs, "Expected http.exception.handled log"
+    assert handled_logs[-1].request_id == "req-404"
+    assert handled_logs[-1].status_code == 404
+
+
+def test_unhandled_exception_handler_returns_500_and_request_id():
+    app = FastAPI()
+    settings = _settings()
+    register_exception_handlers(app, settings=settings)
+    app.add_middleware(RequestLoggingMiddleware, settings=settings)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("boom")
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.http_exception_handlers")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/boom", headers={"X-Request-Id": "req-500"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 500
+    assert response.headers["x-request-id"] == "req-500"
+    assert response.json() == {"detail": "Internal server error"}
+
+    unhandled_logs = [record for record in handler.records if record.getMessage() == "http.exception.unhandled"]
+    assert unhandled_logs, "Expected http.exception.unhandled log"
+    assert unhandled_logs[-1].request_id == "req-500"
+    assert unhandled_logs[-1].status_code == 500
+
+

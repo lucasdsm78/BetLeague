@@ -6,7 +6,9 @@ import logging
 from contextlib import asynccontextmanager
 
 from dependency_injections import get_settings, token_blacklist_singleton
+from infrastructure.http_exception_handlers import register_exception_handlers
 from infrastructure.logging_config import setup_logging
+from infrastructure.logging_middleware import RequestLoggingMiddleware
 from infrastructure.services.authentication.token_blacklist_impl import shutdown_token_blacklist_service, start_token_blacklist_service
 
 from presentation.user.user_router import router as user_router
@@ -21,7 +23,11 @@ from presentation.push_subscription.push_subscription_router import router as pu
 from infrastructure.postgresql.init_models import init_models
 
 settings = get_settings()
-setup_logging(environment=getattr(settings, 'environment', 'dev'), json_logs=bool(getattr(settings, 'json_logs', False)))
+setup_logging(
+    environment=getattr(settings, 'environment', 'dev'),
+    json_logs=getattr(settings, 'json_logs', None),
+    component='api',
+)
 
 logger = logging.getLogger(__name__)
 _uvicorn_logger = logging.getLogger("uvicorn.error")
@@ -32,15 +38,31 @@ async def lifespan(app: FastAPI):
     # Charge les modèles SQLAlchemy (nécessaire pour Alembic autogenerate).
     init_models()
 
+    logger.info(
+        "app.lifecycle.starting",
+        extra={
+            "environment": getattr(settings, "environment", "dev"),
+            "request_logging_enabled": bool(getattr(settings, "http_request_logging_enabled", True)),
+            "slow_request_threshold_ms": int(getattr(settings, "http_slow_request_threshold_ms", 1000)),
+            "trusted_hosts_count": len(getattr(settings, "trusted_hosts_list", [])),
+            "cors_allowed_origins_count": len(getattr(settings, "cors_allowed_origins_list", [])),
+        },
+    )
+
     blacklist_service = token_blacklist_singleton()
     await start_token_blacklist_service(blacklist_service)
 
+    logger.info("app.lifecycle.started")
+
     yield
 
+    logger.info("app.lifecycle.stopping")
     await shutdown_token_blacklist_service(blacklist_service)
+    logger.info("app.lifecycle.stopped")
 
 
 app = FastAPI(lifespan=lifespan)
+register_exception_handlers(app, settings=settings)
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -82,10 +104,13 @@ app.add_middleware(
         "Cache-Control",
         "Pragma",
         "X-CSRF-Token",
+        "X-Request-Id",
     ],
     expose_headers=["Content-Type", "Cache-Control", "Retry-After", "X-Request-Id"],
     max_age=3600,  # Cache preflight for 1 hour
 )
+
+app.add_middleware(RequestLoggingMiddleware, settings=settings)
 
 # Health check endpoint
 @app.get("/health")

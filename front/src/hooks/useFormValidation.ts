@@ -4,6 +4,9 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('useFormValidation');
 import type { ValidationSchema, ValidationResult, ValidationRule } from '../types';
 
 export interface FormState<T> {
@@ -95,7 +98,7 @@ export const ValidationRules = {
   password: (message: string = 'Mot de passe trop faible'): ValidationRule<string> => ({
     custom: (value: string) => {
       if (!value) return null;
-      
+
       const requirements = [
         { test: /.{8,}/, message: 'Au moins 8 caractères' },
         { test: /[a-z]/, message: 'Au moins une minuscule' },
@@ -145,7 +148,7 @@ export const ValidationRules = {
   noXSS: (message: string = 'Contenu non autorisé détecté'): ValidationRule<string> => ({
     custom: (value: string) => {
       if (!value) return null;
-      
+
       // Basic XSS patterns
       const xssPatterns = [
         /<script/i,
@@ -170,19 +173,19 @@ export const ValidationRules = {
 // Input sanitization utilities
 export const SanitizationUtils = {
   trim: (value: string): string => value.trim(),
-  
+
   email: (value: string): string => value.toLowerCase().trim(),
-  
-  noSpecialChars: (value: string): string => 
+
+  noSpecialChars: (value: string): string =>
     value.replace(/[<>\/\\&"'`]/g, ''),
-  
-  alphanumeric: (value: string): string => 
+
+  alphanumeric: (value: string): string =>
     value.replace(/[^a-zA-Z0-9\s]/g, ''),
-  
-  numeric: (value: string): string => 
+
+  numeric: (value: string): string =>
     value.replace(/[^0-9]/g, ''),
-  
-  removeHTML: (value: string): string => 
+
+  removeHTML: (value: string): string =>
     value.replace(/<[^>]*>/g, ''),
 };
 
@@ -211,7 +214,7 @@ export function useFormValidation<T extends Record<string, any>>(
   const validateField = useCallback((field: keyof T): boolean => {
     const value = formState.values[field];
     const rule = validationSchema[field];
-    
+
     if (!rule) return true;
 
     let error: string | null = null;
@@ -357,7 +360,7 @@ export function useFormValidation<T extends Record<string, any>>(
   // Mark field as touched (for onBlur)
   const setFieldTouched = useCallback((field: keyof T) => {
     setTouched(field, true);
-    
+
     if (validateOnBlur) {
       validateField(field);
     }
@@ -366,7 +369,7 @@ export function useFormValidation<T extends Record<string, any>>(
   // Handle form submission
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Mark all fields as touched
     const allFields = Object.keys(validationSchema) as Array<keyof T>;
     allFields.forEach(field => setTouched(field, true));
@@ -396,7 +399,7 @@ export function useFormValidation<T extends Record<string, any>>(
         await onSubmit(values);
       }
     } catch (error) {
-      console.error('Form submission error:', error);
+      logger.error('form submission error', { error });
     } finally {
       setFormState(prev => ({ ...prev, isSubmitting: false }));
     }

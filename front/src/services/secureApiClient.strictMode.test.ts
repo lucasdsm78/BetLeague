@@ -117,5 +117,24 @@ describe('secureApiClient strict mode', () => {
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe(`Bearer ${token}`);
     expect(headers['X-Authentication']).toBeUndefined();
+    expect(typeof headers['X-Request-Id']).toBe('string');
+    expect(headers['X-Request-Id']).not.toHaveLength(0);
+  });
+
+  it('propage le X-Request-Id du backend dans ApiClientError', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(
+      makeJsonResponse(
+        { detail: { message: 'Internal error', code: 'INTERNAL_ERROR' } },
+        { status: 500, headers: { 'x-request-id': 'api-req-500' } }
+      )
+    );
+
+    await expect(
+      secureApiClient.get('/boom', { skipAuth: true, skipCache: true })
+    ).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 500,
+      requestId: 'api-req-500',
+    });
   });
 });

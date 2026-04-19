@@ -7,6 +7,9 @@
  */
 
 import http from '../http';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('push');
 
 // Types
 export interface PushSubscriptionStatus {
@@ -92,7 +95,7 @@ export async function requestPermission(): Promise<NotificationPermission> {
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
-    console.warn('[Push] Service workers not supported');
+    logger.warn('service workers not supported');
     return null;
   }
 
@@ -105,10 +108,10 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     await navigator.serviceWorker.ready;
 
     swRegistration = registration;
-    console.log('[Push] Service worker registered');
+    logger.info('service worker registered');
     return registration;
   } catch (error) {
-    console.error('[Push] Service worker registration failed:', error);
+    logger.error('service worker registration failed', { error });
     return null;
   }
 }
@@ -130,7 +133,7 @@ export async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegis
     swRegistration = registration || null;
     return swRegistration;
   } catch (error) {
-    console.error('[Push] Failed to get service worker registration:', error);
+    logger.error('failed to get service worker registration', { error });
     return null;
   }
 }
@@ -142,12 +145,12 @@ export async function getVapidPublicKey(): Promise<string | null> {
   try {
     const response = await http.get<VapidKeyResponse>('/push/vapid-public-key');
     if (!response.data) {
-      console.error('[Push] Failed to fetch VAPID public key');
+      logger.error('failed to fetch vapid public key');
       return null;
     }
     return response.data.public_key;
   } catch (error) {
-    console.error('[Push] Error fetching VAPID public key:', error);
+    logger.error('error fetching vapid public key', { error });
     return null;
   }
 }
@@ -160,7 +163,7 @@ export async function getPushStatus(): Promise<PushSubscriptionStatus | null> {
     const response = await http.get<PushSubscriptionStatus>('/push/status');
     return response.data ?? null;
   } catch (error) {
-    console.error('[Push] Error fetching push status:', error);
+    logger.error('error fetching push status', { error });
     return null;
   }
 }
@@ -177,7 +180,7 @@ export async function getLocalSubscription(): Promise<PushSubscription | null> {
   try {
     return await registration.pushManager.getSubscription();
   } catch (error) {
-    console.error('[Push] Error getting local subscription:', error);
+    logger.error('error getting local subscription', { error });
     return null;
   }
 }
@@ -188,14 +191,14 @@ export async function getLocalSubscription(): Promise<PushSubscription | null> {
 export async function subscribeToPush(): Promise<boolean> {
   // Check support
   if (!isPushSupported()) {
-    console.warn('[Push] Push notifications not supported');
+    logger.warn('push notifications not supported');
     return false;
   }
 
   // Request permission
   const permission = await requestPermission();
   if (permission !== 'granted') {
-    console.warn('[Push] Notification permission denied');
+    logger.warn('notification permission denied', { permission });
     return false;
   }
 
@@ -211,7 +214,7 @@ export async function subscribeToPush(): Promise<boolean> {
   // Get VAPID public key
   const vapidPublicKey = await getVapidPublicKey();
   if (!vapidPublicKey) {
-    console.error('[Push] Could not get VAPID public key');
+    logger.error('could not get vapid public key');
     return false;
   }
 
@@ -226,7 +229,7 @@ export async function subscribeToPush(): Promise<boolean> {
     const rawAuth = subscription.getKey('auth');
 
     if (!rawKey || !rawAuth) {
-      console.error('[Push] Could not get subscription keys');
+      logger.error('could not get subscription keys');
       return false;
     }
 
@@ -239,10 +242,10 @@ export async function subscribeToPush(): Promise<boolean> {
     });
 
 
-    console.log('[Push] Successfully subscribed to push notifications');
+    logger.info('successfully subscribed to push notifications');
     return true;
   } catch (error) {
-    console.error('[Push] Subscription error:', error);
+    logger.error('subscription error', { error });
     return false;
   }
 }
@@ -254,7 +257,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
   const subscription = await getLocalSubscription();
 
   if (!subscription) {
-    console.log('[Push] No local subscription to unsubscribe');
+    logger.info('no local subscription to unsubscribe');
     return true;
   }
 
@@ -267,10 +270,10 @@ export async function unsubscribeFromPush(): Promise<boolean> {
       endpoint: subscription.endpoint,
     });
 
-    console.log('[Push] Successfully unsubscribed from push notifications');
+    logger.info('successfully unsubscribed from push notifications');
     return true;
   } catch (error) {
-    console.error('[Push] Unsubscribe error:', error);
+    logger.error('unsubscribe error', { error });
     return false;
   }
 }
@@ -289,10 +292,10 @@ export async function unsubscribeAll(): Promise<boolean> {
     // Notify backend to remove all
     await http.delete('/push/unsubscribe-all');
 
-    console.log('[Push] Successfully unsubscribed from all push notifications');
+    logger.info('successfully unsubscribed from all push notifications');
     return true;
   } catch (error) {
-    console.error('[Push] Unsubscribe all error:', error);
+    logger.error('unsubscribe all error', { error });
     return false;
   }
 }
@@ -306,7 +309,7 @@ let _swMessageListenerAttached = false;
  */
 export async function initPushService(): Promise<void> {
   if (!isPushSupported()) {
-    console.log('[Push] Push notifications not supported');
+    logger.info('push notifications not supported');
     return;
   }
 

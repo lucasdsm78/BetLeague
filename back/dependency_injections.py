@@ -980,17 +980,12 @@ def password_reset_usecase(
 
 from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
 from infrastructure.security.redis_rate_limiter import RedisSlidingWindowRateLimiter
+from infrastructure.security.request_ip import get_request_client_ip as resolve_request_client_ip
 
 
 def get_request_client_ip(request: Request, settings: Settings | None = None) -> str:
     settings = settings or get_settings()
-    direct_ip = request.client.host if request.client else "unknown"
-    trusted_proxy_ips = set(getattr(settings, "trusted_proxy_ips_list", []))
-    if direct_ip in trusted_proxy_ips:
-        forwarded = (request.headers.get("x-forwarded-for", "").split(",")[0].strip())
-        if forwarded:
-            return forwarded
-    return direct_ip
+    return resolve_request_client_ip(request, settings)
 
 
 @lru_cache()

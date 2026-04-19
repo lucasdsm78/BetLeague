@@ -15,6 +15,9 @@ import type {
   SharedTicketReadModel,
   TournamentMatchSummary,
 } from '../../types/entities/ticket';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('ticketMapper');
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -168,8 +171,7 @@ export function tryMapApiTicketToUi(api: unknown): TicketReadModel | null {
     if (process.env.NODE_ENV === 'development') {
       // Log sans payload complet (évite PII). On log uniquement le message d'erreur et l'id si accessible.
       const maybeId = (api as any)?.id;
-      // eslint-disable-next-line no-console
-      console.log('[tickets][map][drop]', { id: typeof maybeId === 'number' ? maybeId : undefined, error: e?.message ?? String(e) });
+      logger.debug('map drop', { id: typeof maybeId === 'number' ? maybeId : undefined, error: e?.message ?? String(e) });
     }
     return null;
   }

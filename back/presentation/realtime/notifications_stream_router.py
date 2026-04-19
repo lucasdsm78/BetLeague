@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from dependency_injections import current_user, get_settings, notifications_hub
+from infrastructure.security.request_ip import get_request_client_ip
 from infrastructure.services.notification.threaded_redis_pubsub import ThreadedRedisPubSubSubscriber
 
 router = APIRouter(prefix="/api/realtime", tags=["realtime"])
@@ -30,19 +31,38 @@ async def notifications_stream(
 ):
     user_id = int(user["id"])
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_request_client_ip(request, settings)
     max_conn = int(getattr(settings, "sse_max_connections_per_user", 2))
     # hub peut être un NotificationsHub (in-memory) ou juste pour compter; on garde le même check
     if hasattr(hub, "connection_count") and hub.connection_count(user_id) >= max_conn:
+        logger.warning(
+            "realtime.notifications_stream.rejected",
+            extra={
+                "user_id": user_id,
+                "client_ip": client_ip,
+                "reason": "max_connections_reached",
+                "max_connections": max_conn,
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Trop de connexions temps-r9el ouvertes",
         )
 
+    logger.info(
+        "realtime.notifications_stream.opened",
+        extra={
+            "user_id": user_id,
+            "client_ip": client_ip,
+            "driver": getattr(settings, "notifications_realtime_driver", "memory"),
+        },
+    )
+
     async def event_generator() -> AsyncIterator[bytes]:
         if hasattr(hub, "register_connection"):
             hub.register_connection(user_id)
         started = time.time()
+        close_reason = "completed"
 
         yield _sse("connected", "{}").encode("utf-8")
         try:
@@ -61,15 +81,18 @@ async def notifications_stream(
                 it = threaded.subscribe()
                 while True:
                     if await request.is_disconnected():
+                        close_reason = "client_disconnected"
                         break
                     now = time.time()
                     if idle_timeout_s > 0 and (now - started) > idle_timeout_s:
+                        close_reason = "idle_timeout"
                         break
                     try:
                         payload = await asyncio.wait_for(it.__anext__(), timeout=max(1, heartbeat_s))
                         yield _sse("message", payload).encode("utf-8")
                         last_emit = time.time()
                     except StopAsyncIteration:
+                        close_reason = "publisher_completed"
                         break
                     except asyncio.TimeoutError:
                         if heartbeat_s > 0 and (time.time() - last_emit) >= heartbeat_s:
@@ -82,9 +105,11 @@ async def notifications_stream(
                 try:
                     while True:
                         if await request.is_disconnected():
+                            close_reason = "client_disconnected"
                             break
                         now = time.time()
                         if idle_timeout_s > 0 and (now - started) > idle_timeout_s:
+                            close_reason = "idle_timeout"
                             break
                         try:
                             payload = await asyncio.wait_for(q.get(), timeout=max(1, heartbeat_s))
@@ -99,6 +124,15 @@ async def notifications_stream(
         finally:
             if hasattr(hub, "unregister_connection"):
                 hub.unregister_connection(user_id)
+            logger.info(
+                "realtime.notifications_stream.closed",
+                extra={
+                    "user_id": user_id,
+                    "client_ip": client_ip,
+                    "reason": close_reason,
+                    "duration_ms": round((time.time() - started) * 1000, 2),
+                },
+            )
 
     return StreamingResponse(
         event_generator(),
