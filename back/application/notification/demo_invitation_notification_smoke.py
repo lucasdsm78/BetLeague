@@ -13,6 +13,7 @@ Pré-requis:
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 
@@ -24,6 +25,7 @@ if BACK_DIR not in sys.path:
 from sqlalchemy import text
 
 from dependency_injections import get_session_factory, domain_event_bus_dependency, outbox_handler_bus_dependency
+from infrastructure.logging_config import setup_logging
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
@@ -32,6 +34,9 @@ from infrastructure.postgresql.invitation.invitation_repository import Invitatio
 from application.league.league_command_usecase import LeagueCommandUseCaseImpl
 from application.events.outbox_processor import OutboxProcessor
 from domain.notification.model.notification import NotificationType
+
+
+logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
@@ -114,8 +119,22 @@ async def main() -> None:
     if not has:
         raise SystemExit('❌ Notification LEAGUE_INVITATION introuvable pour user invité')
 
-    print('✅ OK: invitation crée une notification. Unread=', unread)
+    logger.info(
+        "notification.demo.invitation_smoke_succeeded",
+        extra={
+            "league_id": league_id,
+            "owner_user_id": owner_user_id,
+            "invited_user_id": invited_user_id,
+            "processed_outbox_messages": processed,
+            "unread_count": unread,
+        },
+    )
 
 
 if __name__ == '__main__':
+    setup_logging(
+        environment=os.getenv("ENVIRONMENT", "dev"),
+        json_logs=None,
+        component="notification_demo",
+    )
     asyncio.run(main())
