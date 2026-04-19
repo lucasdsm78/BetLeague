@@ -58,6 +58,20 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+def _auth_log_extra(*, request: Request | None = None, settings: Settings | None = None, **extra) -> dict:
+    payload = {key: value for key, value in extra.items() if value is not None}
+    if request is not None:
+        payload["method"] = request.method
+        payload["path"] = request.url.path
+        if settings is not None:
+            payload["client_ip"] = get_request_client_ip(request, settings)
+    return payload
+
+
+def _log_auth_event(level: int, event: str, *, request: Request | None = None, settings: Settings | None = None, **extra) -> None:
+    logger.log(level, event, extra=_auth_log_extra(request=request, settings=settings, **extra))
+
+
 def _set_refresh_token_cookie(response: Response, refresh_token: str, settings: Settings) -> None:
     response.set_cookie(
         key=settings.auth_refresh_cookie_name,
@@ -114,6 +128,7 @@ async def create_user(
     status_code=status.HTTP_200_OK,
 )
 async def logout_current_device(
+        request: Request,
         response: Response,
         current_user: dict = Depends(current_user),
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
@@ -125,6 +140,13 @@ async def logout_current_device(
 
         result = await user_command_usecase.logout(user_id, token)
         _clear_refresh_token_cookie(response, settings)
+        _log_auth_event(
+            logging.INFO,
+            "auth.logout.succeeded",
+            request=request,
+            settings=settings,
+            user_id=user_id or None,
+        )
         return result
 
     except HTTPException as e:
@@ -155,8 +177,23 @@ async def login(
         user = await user_command_usecase.login(user_login_model)
         if user.refresh_token:
             _set_refresh_token_cookie(response, user.refresh_token, settings)
+        _log_auth_event(
+            logging.INFO,
+            "auth.login.succeeded",
+            request=request,
+            settings=settings,
+            user_id=getattr(user, "uuid", None),
+            two_factor_enabled=bool(getattr(user, "two_factor_enabled", False)),
+        )
         return user.for_login(include_refresh_token=False)
     except (UserLoginNotFoundError, InvalidPasswordError):
+        _log_auth_event(
+            logging.WARNING,
+            "auth.login.failed",
+            request=request,
+            settings=settings,
+            reason="invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -165,6 +202,13 @@ async def login(
             }
         )
     except FARequiredError:
+        _log_auth_event(
+            logging.INFO,
+            "auth.login.challenge_required",
+            request=request,
+            settings=settings,
+            reason="two_factor_required",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -174,6 +218,13 @@ async def login(
             }
         )
     except Invalid2FACodeError:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.login.failed",
+            request=request,
+            settings=settings,
+            reason="invalid_2fa_code",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -234,6 +285,13 @@ async def refresh_token(
     try:
         refresh_token_value = _extract_refresh_token(request, settings)
         if not refresh_token_value:
+            _log_auth_event(
+                logging.WARNING,
+                "auth.refresh.rejected",
+                request=request,
+                settings=settings,
+                reason="missing_cookie",
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token missing",
@@ -242,6 +300,12 @@ async def refresh_token(
         result = await user_command_usecase.refresh_token(refresh_token_value)
         if result.refresh_token:
             _set_refresh_token_cookie(response, result.refresh_token, settings)
+        _log_auth_event(
+            logging.INFO,
+            "auth.refresh.succeeded",
+            request=request,
+            settings=settings,
+        )
         return RefreshTokenResponse(
             token_auth=result.token_auth,
             token_expiration=result.token_expiration,
@@ -277,20 +341,39 @@ async def refresh_token(
     },
 )
 async def delete_my_account(
+        request: Request,
         data: DeleteMyAccountModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
     try:
         user_email = current_user.get("email")
         token = current_user.get("token")
+        user_id = current_user.get("id") or current_user.get("uuid")
         if not user_email or not token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Utilisateur non authentifié"
             )
-        return await user_command_usecase.delete_current_user(user_email, token, data)
+        result = await user_command_usecase.delete_current_user(user_email, token, data)
+        _log_auth_event(
+            logging.INFO,
+            "auth.account.deleted",
+            request=request,
+            settings=settings,
+            user_id=user_id,
+        )
+        return result
     except InvalidPasswordError:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.account.delete_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -309,6 +392,14 @@ async def delete_my_account(
             detail=e.message
         )
     except Invalid2FACodeError as e:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.account.delete_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_2fa_code",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message
@@ -329,11 +420,21 @@ async def delete_my_account(
     response_model=TwoFactorSetupResponse,
 )
 async def enable_2fa(
+        request: Request,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
     try:
-        return await user_command_usecase.enable_2fa(current_user.get('email', ''))
+        result = await user_command_usecase.enable_2fa(current_user.get('email', ''))
+        _log_auth_event(
+            logging.INFO,
+            "auth.2fa.setup_started",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+        )
+        return result
     except HTTPException as e:
         raise e
     except Exception:
@@ -351,18 +452,37 @@ async def enable_2fa(
     response_model=TwoFactorStatusResponse,
 )
 async def verify_2fa(
+        request: Request,
         data: VerifyTwoFactorModel,
         rate_limit_ctx: Verify2FARateLimitContext = Depends(rate_limit_verify_2fa_activation),
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
     try:
-        return await user_command_usecase.verify_2fa(
+        result = await user_command_usecase.verify_2fa(
             current_user.get('email', ''),
             data,
             attempts_remaining=rate_limit_ctx.attempts_remaining,
         )
+        _log_auth_event(
+            logging.INFO,
+            "auth.2fa.verified",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+        )
+        return result
     except Invalid2FACodeError as e:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.2fa.verify_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_2fa_code",
+            attempts_remaining=rate_limit_ctx.attempts_remaining,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -389,22 +509,48 @@ async def verify_2fa(
     dependencies=[Depends(rate_limit_disable_2fa)],
 )
 async def disable_2fa(
+        request: Request,
         data: DisableTwoFactorModel,
         user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
-        current_user: dict = Depends(current_user)
+        current_user: dict = Depends(current_user),
+        settings: Settings = Depends(get_settings),
 ):
     try:
-        return await user_command_usecase.disable_2fa(
+        result = await user_command_usecase.disable_2fa(
             current_user.get('email', ''),
             current_user.get('token', ''),
             data,
         )
+        _log_auth_event(
+            logging.INFO,
+            "auth.2fa.disabled",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+        )
+        return result
     except InvalidPasswordError:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.2fa.disable_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"message": "Email ou mot de passe incorrect.", "code": "INVALID_CREDENTIALS"}
         )
     except Invalid2FACodeError as e:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.2fa.disable_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_2fa_code",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"message": e.message, "code": "INVALID_2FA_CODE"}
@@ -573,14 +719,28 @@ async def forgot_password(
     request: Request,
     data: PasswordForgotRequest,
     password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
+    settings: Settings = Depends(get_settings),
 ):
     client_ip = get_request_client_ip(request)
     client_key = f"ip:{client_ip}"
     # réponse neutre anti-enumération
     try:
         challenge_id, ttl = await password_reset_uc.request_reset(email=str(data.email), client_key=client_key)
+        _log_auth_event(
+            logging.INFO,
+            "auth.password_reset.requested",
+            request=request,
+            settings=settings,
+        )
         return PasswordForgotResponse(challenge_id=challenge_id, expires_in_seconds=ttl)
     except PasswordResetRateLimitedError as e:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.password_reset.request_rejected",
+            request=request,
+            settings=settings,
+            reason="rate_limited",
+        )
         raise HTTPException(status_code=429, detail={"message": e.message, "code": "RATE_LIMITED"})
 
 
@@ -594,6 +754,7 @@ async def forgot_password_verify(
     request: Request,
     data: PasswordResetVerifyRequest,
     password_reset_uc: PasswordResetUseCase = Depends(password_reset_usecase),
+    settings: Settings = Depends(get_settings),
 ):
     client_ip = get_request_client_ip(request)
     client_key = f"ip:{client_ip}"
@@ -604,10 +765,30 @@ async def forgot_password_verify(
             code=data.code,
             client_key=client_key,
         )
+        _log_auth_event(
+            logging.INFO,
+            "auth.password_reset.challenge_verified",
+            request=request,
+            settings=settings,
+        )
         return PasswordResetVerifyResponse(reset_token=token, expires_in_seconds=ttl)
     except PasswordResetRateLimitedError as e:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.password_reset.verify_rejected",
+            request=request,
+            settings=settings,
+            reason="rate_limited",
+        )
         raise HTTPException(status_code=429, detail={"message": e.message, "code": "RATE_LIMITED"})
     except (PasswordResetInvalidCodeError, Invalid2FACodeError):
+        _log_auth_event(
+            logging.WARNING,
+            "auth.password_reset.verify_rejected",
+            request=request,
+            settings=settings,
+            reason="invalid_code",
+        )
         raise HTTPException(status_code=400, detail={"message": "Invalid code", "code": "INVALID_CODE"})
 
 
@@ -628,8 +809,10 @@ async def forgot_password_confirm(
             reset_token=data.reset_token,
             new_password=data.new_password,
         )
+        logger.info("auth.password_reset.completed")
         return PasswordResetConfirmResponse()
     except PasswordResetInvalidTokenError as e:
+        logger.warning("auth.password_reset.confirm_rejected", extra={"reason": "invalid_token"})
         raise HTTPException(status_code=400, detail={"message": e.message, "code": "INVALID_TOKEN"})
 
 
@@ -645,22 +828,41 @@ async def forgot_password_confirm(
     },
 )
 async def change_my_password(
+    request: Request,
     data: ChangeMyPasswordModel,
     user_command_usecase: UserCommandUseCase = Depends(user_command_usecase),
     current_user: dict = Depends(current_user),
+    settings: Settings = Depends(get_settings),
 ):
     try:
         user_email = current_user.get("email")
         token = current_user.get("token")
+        user_id = current_user.get("id") or current_user.get("uuid")
         if not user_email or not token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Utilisateur non authentifié",
             )
 
-        return await user_command_usecase.change_my_password(user_email, token, data)
+        result = await user_command_usecase.change_my_password(user_email, token, data)
+        _log_auth_event(
+            logging.INFO,
+            "auth.password_changed",
+            request=request,
+            settings=settings,
+            user_id=user_id,
+        )
+        return result
 
     except InvalidPasswordError:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.password_change_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_credentials",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -669,6 +871,13 @@ async def change_my_password(
             },
         )
     except FARequiredError:
+        _log_auth_event(
+            logging.INFO,
+            "auth.password_change_challenge_required",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -678,6 +887,14 @@ async def change_my_password(
             },
         )
     except Invalid2FACodeError:
+        _log_auth_event(
+            logging.WARNING,
+            "auth.password_change_rejected",
+            request=request,
+            settings=settings,
+            user_id=current_user.get("id") or current_user.get("uuid"),
+            reason="invalid_2fa_code",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

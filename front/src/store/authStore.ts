@@ -6,6 +6,9 @@
 import React from 'react';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('authStore');
 
 // Types minimaux locaux (évite les cycles/collisions avec src/types)
 export interface SecurityContext {
@@ -207,7 +210,10 @@ export const useAuthStore = create<AuthStoreWithActions>()(
           if (status === 401 || status === 403) {
             get().logout();
           } else {
-            console.warn('Session refresh failed (non-fatal):', error);
+            logger.warn('session refresh failed (non-fatal)', {
+              error,
+              status,
+            });
           }
         }
       },

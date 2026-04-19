@@ -9,6 +9,9 @@ import { useEnhancedAuth } from './useAuth.enhanced';
 import { useGlobalToast } from '../toast/ToastProvider';
 import secureApiClient from '../services/secureApiClient';
 import enhancedAuthService from '../services/authService.enhanced';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('useLogout');
 
 export type LogoutOption = 'current' | 'all_devices' | 'except_current';
 export type LogoutTrigger = 'manual' | 'inactivity' | 'security' | 'session_expired';
@@ -150,13 +153,13 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
   ): Promise<boolean> => {
     // Prevent concurrent logout operations
     if (isLoggingOut && !force) {
-      console.warn('🔐 Logout already in progress, skipping...');
+      logger.warn('logout already in progress, skipping', { option, trigger });
       return false;
     }
 
     // Validate option
     if (!(option in LOGOUT_OPTIONS)) {
-      console.error('🔐 Invalid logout option:', option);
+      logger.error('invalid logout option', { option, trigger });
       setLastLogoutError('Option de déconnexion invalide');
       return false;
     }
@@ -180,7 +183,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
         forced: force,
       });
     } catch (error) {
-      console.warn('🔐 Logout start callback error:', error);
+      logger.warn('logout start callback error', { error, option, trigger });
     }
 
     let success = false;
@@ -227,7 +230,11 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
 
       } catch (serverError: any) {
         // Server logout failed, but continue with client logout for security
-        console.warn(`⚠️ Server logout failed for ${option}, continuing with client logout:`, serverError);
+        logger.warn('server logout failed, continuing with client logout', {
+          option,
+          trigger,
+          error: serverError,
+        });
 
         logAnalyticsEvent('server_logout_failed', option, trigger, {
           error: serverError.message,
@@ -282,11 +289,11 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
       try {
         onLogoutComplete?.(option, trigger);
       } catch (error) {
-        console.warn('🔐 Logout complete callback error:', error);
+        logger.warn('logout complete callback error', { error, option, trigger });
       }
 
     } catch (error: any) {
-      console.error(`❌ Logout failed for ${option}:`, error);
+      logger.error('logout failed', { option, trigger, error });
 
       const errorMessage = error.message || `Erreur lors de la déconnexion (${optionConfig.label.toLowerCase()})`;
       setLastLogoutError(errorMessage);
@@ -301,12 +308,12 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
       try {
         onLogoutError?.(error, option, trigger);
       } catch (callbackError) {
-        console.warn('🔐 Logout error callback error:', callbackError);
+        logger.warn('logout error callback error', { error: callbackError, option, trigger });
       }
 
       // Emergency fallback for security-critical scenarios
       if (trigger === 'security' || force) {
-        console.warn('🔐 Attempting emergency logout fallback...');
+        logger.warn('attempting emergency logout fallback', { option, trigger, force });
 
         try {
           await enhancedAuthService.logout({ server: false });
@@ -315,7 +322,7 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
           }
           success = true;
         } catch (fallbackError) {
-          console.error('🔐 Emergency logout fallback failed:', fallbackError);
+          logger.error('emergency logout fallback failed', { option, trigger, error: fallbackError });
           showError('Erreur critique', 'Déconnexion d\'urgence requise. Veuillez fermer votre navigateur.');
 
           // Last resort: force page reload

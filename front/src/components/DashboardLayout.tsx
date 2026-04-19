@@ -9,6 +9,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { useAuthStore } from '../store/authStore';
 import { useGlobalToast } from '../toast/ToastProvider';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('DashboardLayout');
 import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import LogoutModal from './auth/LogoutModal';
 import { NotificationsHeaderButton } from './notifications/NotificationsHeaderButton';
@@ -215,7 +218,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
     // Security: Validate path format
     if (!currentPath || !/^\/[a-zA-Z0-9/_-]*$/.test(currentPath)) {
-      console.warn('🔒 Invalid path format detected:', currentPath);
+      logger.warn('invalid path format detected', { currentPath });
       return 'matches';
     }
 
@@ -263,7 +266,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const handleTabClick = useCallback((tabId: string) => {
     // Security: Validate tab ID
     if (!(tabId in TABS)) {
-      console.warn('🔒 Invalid tab access attempted:', tabId);
+      logger.warn('invalid tab access attempted', { tabId });
       showError('Accès non autorisé', 'Navigation invalide détectée');
       return;
     }
@@ -277,7 +280,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
     // Security: Check permissions if required (source de vérité: securityContext)
     if (tab.requiresPermission && !hasPermission(tab.requiresPermission)) {
-      console.warn('🔒 Insufficient permissions for tab:', tabId);
+      logger.warn('insufficient permissions for tab', { tabId, requiredPermission: tab.requiresPermission });
       showError('Accès refusé', 'Permissions insuffisantes');
       return;
     }
@@ -299,7 +302,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         lastActivity: now
       }));
     } catch (error) {
-      console.error('🔒 Navigation error:', error);
+      logger.error('navigation error', { error, tabId });
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
   }, [navigate, hasPermission, isShopEnabled, securityState.lastActivity, showError]);
@@ -311,13 +314,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       setLogoutTriggerReason('manual');
       setIsLogoutModalOpen(true);
     } catch (error) {
-      console.error('🔒 Logout modal error:', error);
+      logger.error('logout modal error', { error });
       // Fallback to direct logout
       try {
         await logout();
         navigate('/', { replace: true });
       } catch (logoutError) {
-        console.error('🔒 Fallback logout error:', logoutError);
+        logger.error('fallback logout error', { error: logoutError });
         window.location.href = '/';
       }
     }
@@ -402,7 +405,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   // Security: Validate user session - but wait for auth initialization
 
   if (!isValidUser && !isLoading && !isAuthenticated) {
-    console.warn('🔒 Dashboard accessed without valid user session');
+    logger.warn('dashboard accessed without valid user session');
     navigate('/', { replace: true });
     return null;
   }

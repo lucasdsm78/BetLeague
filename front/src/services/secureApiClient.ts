@@ -4,6 +4,9 @@
  */
 
 import enhancedAuthService, { AuthError } from './authService.enhanced';
+import { createLogger, serializeError } from '../utils/logger';
+
+const logger = createLogger('apiClient');
 
 // Types for API client
 export interface ApiClientConfig {
@@ -45,14 +48,16 @@ export class ApiClientError extends Error {
   public readonly code?: string;
   public readonly details?: unknown;
   public readonly headers: Record<string, string>;
+  public readonly requestId?: string;
 
-  constructor(message: string, opts: { status: number; code?: string; details?: unknown; headers?: Record<string, string> }) {
+  constructor(message: string, opts: { status: number; code?: string; details?: unknown; headers?: Record<string, string>; requestId?: string }) {
     super(message);
     this.name = 'ApiClientError';
     this.status = opts.status;
     this.code = opts.code;
     this.details = opts.details;
     this.headers = opts.headers ?? {};
+    this.requestId = opts.requestId;
   }
 }
 
@@ -139,7 +144,7 @@ class SecureApiClient {
         }
       }
 
-      const response = await this.executeRequest(url, config);
+      const response = await this.executeRequest(url, config, requestId);
       const result = await this.handleResponse<T>(response, requestId);
 
       // Cache GET responses
@@ -162,16 +167,18 @@ class SecureApiClient {
 
       if (error instanceof Response) {
         const headers = this.extractHeaders(error);
+        const responseRequestId = this.getResponseRequestId(headers, requestId);
         const parsed = await this.parseErrorResponse(error);
         throw new ApiClientError(parsed.message, {
           status: error.status,
           code: parsed.code,
           details: parsed.details,
           headers,
+          requestId: responseRequestId,
         });
       }
 
-      throw this.handleError(error);
+      throw this.handleError(error, requestId);
     }
   }
 
@@ -181,9 +188,10 @@ class SecureApiClient {
 
   private async executeRequest(
     url: string,
-    config: RequestConfig
+    config: RequestConfig,
+    requestId: string
   ): Promise<Response> {
-    const requestConfig = await this.prepareRequest(config);
+    const requestConfig = await this.prepareRequest(config, requestId);
 
     // Handle concurrent requests during token refresh
     if (this.isRefreshing && this.config.enableTokenRefresh && !config.skipAuth) {
@@ -211,11 +219,12 @@ class SecureApiClient {
     return response;
   }
 
-  private async prepareRequest(config: RequestConfig): Promise<RequestInit> {
+  private async prepareRequest(config: RequestConfig, requestId: string): Promise<RequestInit> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
+      'X-Request-Id': requestId,
       ...(config.headers as Record<string, string> || {}),
     };
 
@@ -226,7 +235,10 @@ class SecureApiClient {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       } else if (!config.skipAuth) {
-        console.warn('⚠️ No token available for authenticated request');
+        logger.warn('authenticated request without access token', {
+          requestId,
+          method: config.method || 'GET',
+        });
       }
     }
 
@@ -352,8 +364,9 @@ class SecureApiClient {
   ): Promise<ApiResponse<T>> {
     const status = response.status;
     const headers = this.extractHeaders(response);
+    const responseRequestId = this.getResponseRequestId(headers, requestId);
 
-    this.logResponse(requestId, status, headers);
+    this.logResponse(requestId, status, responseRequestId);
 
     // Handle No Content explicitly to avoid parsing errors
     if (status === 204) {
@@ -372,6 +385,7 @@ class SecureApiClient {
         code: parsed.code,
         details: parsed.details,
         headers,
+        requestId: responseRequestId,
       });
     }
 
@@ -414,6 +428,7 @@ class SecureApiClient {
         code: 'PARSE_ERROR',
         details: error,
         headers,
+        requestId: responseRequestId,
       });
     }
   }
@@ -460,7 +475,15 @@ class SecureApiClient {
   // ==========================================
 
   private generateRequestId(): string {
-    return Math.random().toString(36).substr(2, 9);
+    const cryptoApi = globalThis.crypto as Crypto | undefined;
+    if (cryptoApi?.randomUUID) {
+      return cryptoApi.randomUUID();
+    }
+    return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private getResponseRequestId(headers: Record<string, string>, fallback: string): string {
+    return headers['x-request-id'] || headers['X-Request-Id'] || fallback;
   }
 
   private extractHeaders(response: Response): Record<string, string> {
@@ -477,7 +500,7 @@ class SecureApiClient {
     return metaTag?.getAttribute('content') || null;
   }
 
-  private handleError(error: any): ApiClientError {
+  private handleError(error: any, requestId?: string): ApiClientError {
     // Erreur déjà normalisée
     if (error instanceof ApiClientError) return error;
 
@@ -488,16 +511,17 @@ class SecureApiClient {
         code: (error as any).code,
         details: (error as any).data ?? (error as any).details,
         headers: {},
+        requestId,
       });
     }
 
     // fetch network error
     if (error?.name === 'TypeError' && String(error?.message || '').includes('Failed to fetch')) {
-      return new ApiClientError('Network error', { status: 0, code: 'NETWORK_ERROR', details: error, headers: {} });
+      return new ApiClientError('Network error', { status: 0, code: 'NETWORK_ERROR', details: error, headers: {}, requestId });
     }
 
     // Fallback
-    return new ApiClientError(error?.message || 'Unknown error', { status: 0, code: 'UNKNOWN_ERROR', details: error, headers: {} });
+    return new ApiClientError(error?.message || 'Unknown error', { status: 0, code: 'UNKNOWN_ERROR', details: error, headers: {}, requestId });
   }
 
   // ==========================================
@@ -536,27 +560,40 @@ class SecureApiClient {
   ): void {
     if (!this.config.enableRequestLogging) return;
 
-    // Ne jamais logger les headers (tokens). On log uniquement method+url.
-    console.group(`🔄 API Request [${id}] ${method} ${url}`);
-    console.groupEnd();
+    logger.debug('request.started', {
+      requestId: id,
+      method,
+      url,
+      skipAuth: Boolean(config?.skipAuth),
+      skipCache: Boolean(config?.skipCache),
+      fromCache: Boolean(config?.fromCache),
+    });
   }
 
   private logResponse(
     id: string,
     status: number,
-    headers: Record<string, string>
+    responseRequestId: string
   ): void {
     if (!this.config.enableRequestLogging) return;
 
-    const statusIcon = status < 400 ? '✅' : '❌';
-    // eslint-disable-next-line no-console
-    console.log(`${statusIcon} API Response [${id}] status=${status}`);
+    logger.debug('request.completed', {
+      requestId: id,
+      responseRequestId,
+      status,
+    });
   }
 
   private logError(id: string, error: any): void {
-    if (!this.config.enableRequestLogging) return;
-
-    console.error(`❌ API Error [${id}]:`, error);
+    const normalized = error instanceof ApiClientError
+      ? serializeError(error)
+      : serializeError(this.handleError(error, id));
+    const status = Number(normalized.status || 0);
+    const level = status >= 500 || status === 0 ? 'error' : 'warn';
+    logger[level]('request.failed', {
+      requestId: id,
+      ...normalized,
+    });
   }
 
   // ==========================================
