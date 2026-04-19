@@ -100,8 +100,8 @@ def _read_last_finished_epoch() -> int | None:
         if not raw:
             return None
         return int(float(raw))
-    except Exception as e:
-        logger.warning("[CeleryBeatCatchup] Impossible de lire last_finished_at: %s", e)
+    except Exception:
+        logger.exception("celery.beat.catchup.read_last_finished_failed")
         return None
 
 
@@ -113,20 +113,20 @@ def _acquire_catchup_lock() -> bool:
             return bool(r.set(_CATCHUP_LOCK_KEY, "1", nx=True, ex=_CATCHUP_LOCK_SECONDS))
         finally:
             r.close()
-    except Exception as e:
+    except Exception:
         # If we can't lock, be conservative: do NOT catch-up to avoid double-run storms.
-        logger.warning("[CeleryBeatCatchup] lock error (catch-up skipped): %s", e)
+        logger.exception("celery.beat.catchup.lock_failed", extra={"lock_ttl_s": _CATCHUP_LOCK_SECONDS})
         return False
 
 
 @beat_init.connect
 def _beat_catchup_on_start(*_args, **_kwargs) -> None:
     if not _ENABLE_CATCHUP:
-        logger.info("[CeleryBeatCatchup] desactive")
+        logger.info("celery.beat.catchup.disabled")
         return
 
     if not _acquire_catchup_lock():
-        logger.info("[CeleryBeatCatchup] lock non acquis, skip")
+        logger.info("celery.beat.catchup.lock_skipped")
         return
 
     now = int(time.time())
@@ -134,23 +134,27 @@ def _beat_catchup_on_start(*_args, **_kwargs) -> None:
 
     # Premier demarrage (pas de last_finished): on force un run immediat.
     if last is None:
-        logger.info("[CeleryBeatCatchup] pas de last_finished, envoi immediat check_match_scores")
+        logger.info("celery.beat.catchup.first_run_dispatched")
         celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
         return
 
     age = now - last
     if age >= _CATCHUP_THRESHOLD_SECONDS:
         logger.warning(
-            "[CeleryBeatCatchup] last_finished trop ancien (%ss >= %ss), envoi immediat check_match_scores",
-            age,
-            _CATCHUP_THRESHOLD_SECONDS,
+            "celery.beat.catchup.dispatched",
+            extra={
+                "age_s": age,
+                "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+            },
         )
         celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
     else:
         logger.info(
-            "[CeleryBeatCatchup] last_finished recent (%ss < %ss), pas de catch-up",
-            age,
-            _CATCHUP_THRESHOLD_SECONDS,
+            "celery.beat.catchup.skipped_recent",
+            extra={
+                "age_s": age,
+                "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+            },
         )
 
 
