@@ -1,4 +1,6 @@
 import time
+import hashlib
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
@@ -34,6 +36,14 @@ from infrastructure.postgresql.invitation.invitation_repository import Invitatio
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class _NoOpDomainEventBus(DomainEventBus):
@@ -165,6 +175,19 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     LeaguePlayers(user_id=user.id, league_id=league.id)
                 )
 
+                logger.info(
+                    "league.created",
+                    extra={
+                        "league_id": league.id,
+                        "league_uuid": league.uuid,
+                        "owner_user_id": user.id,
+                        "owner_email_hash": _hash_identifier(email),
+                        "is_private": league.is_private,
+                        "is_free": league.is_free,
+                        "max_players": league.max_players,
+                    },
+                )
+
         return LeagueFreeCreateResponse()
 
     async def join_league(self, league_id: int, email: str) -> LeagueJoinResponse:
@@ -228,6 +251,17 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 # Persiste le flag is_started si modifié
                 await league_repository.update(league)
 
+                logger.info(
+                    "league.joined",
+                    extra={
+                        "league_id": league.id,
+                        "user_id": user.id,
+                        "user_email_hash": _hash_identifier(email),
+                        "is_started": league.is_started,
+                        "players_remaining": league.nb_players_remaining,
+                    },
+                )
+
         return LeagueJoinResponse()
 
     async def delete_league_player(
@@ -275,6 +309,17 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 await league_repo.update(league)
                 await players_repo.delete_player(league_player.id)
+
+                logger.info(
+                    "league.player_left",
+                    extra={
+                        "league_id": league.id,
+                        "user_id": user.id,
+                        "user_email_hash": _hash_identifier(email),
+                        "refunded_btl": float(league.nb_btl or 0) if league.is_free is False and league.nb_btl is not None and league.nb_btl > 0 else 0.0,
+                        "players_remaining": league.nb_players_remaining,
+                    },
+                )
 
         return LeaguePlayerDeletedResponse()
 
@@ -355,6 +400,17 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 await league_repo.update(league)
 
+                logger.info(
+                    "league.invitation_created",
+                    extra={
+                        "league_id": league.id,
+                        "owner_user_id": user_owner.id,
+                        "invited_user_id": user.id,
+                        "players_remaining": league.nb_players_remaining,
+                        "is_started": league.is_started,
+                    },
+                )
+
         return LeagueInviteResponse()
 
     async def update_invitation(
@@ -431,6 +487,17 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 await invitation_repo.delete(invitation.id)
 
+                logger.info(
+                    "league.invitation_updated",
+                    extra={
+                        "league_id": league.id,
+                        "user_id": user.id,
+                        "user_email_hash": _hash_identifier(email),
+                        "invitation_action": "accepted" if action else "refused",
+                        "players_remaining": league.nb_players_remaining,
+                    },
+                )
+
         return InvitationUpdateResponse()
 
     async def delete_invitation(self, invitation_id: int, user_email: str):
@@ -469,6 +536,16 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 await league_repo.update(league)
 
                 await invitation_repo.delete(invitation.id)
+
+                logger.info(
+                    "league.invitation_deleted",
+                    extra={
+                        "league_id": league.id,
+                        "owner_user_id": user.id,
+                        "owner_email_hash": _hash_identifier(user_email),
+                        "players_remaining": league.nb_players_remaining,
+                    },
+                )
 
         return InvitationDeleteResponse()
 
@@ -519,6 +596,18 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 await league_repo.update(league)
 
+                logger.info(
+                    "league.updated",
+                    extra={
+                        "league_id": league.id,
+                        "owner_user_id": user.id,
+                        "owner_email_hash": _hash_identifier(email),
+                        "max_players": league.max_players,
+                        "start_date": league.start_date,
+                        "name": league.name,
+                    },
+                )
+
         return LeagueUpdateResponse()
 
     async def inject_btl(
@@ -565,5 +654,16 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
                 user.nb_btl_paid -= amount
                 await user_repo.update(user)
+
+                logger.info(
+                    "league.btl_injected",
+                    extra={
+                        "league_id": league.id,
+                        "user_id": user.id,
+                        "user_email_hash": _hash_identifier(email),
+                        "amount": amount,
+                        "league_player_btl": league_player.nb_btl,
+                    },
+                )
 
         return LeagueInjectBtlResponse()

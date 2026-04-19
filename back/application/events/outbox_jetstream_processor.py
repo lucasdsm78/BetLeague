@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 from typing import Callable
@@ -9,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 from infrastructure.services.nats_jetstream import JetStreamPublisher, load_jetstream_settings
-from infrastructure.services.nats_json import nats_dumps
+
+
+logger = logging.getLogger(__name__)
 
 
 class JetStreamOutboxProcessor:
@@ -39,17 +42,15 @@ class JetStreamOutboxProcessor:
         now_ms = int(time.time() * 1000)
 
         if not self._boot_logged:
-            print(
-                nats_dumps(
-                    {
-                        "event": "outbox.jetstream.worker.ready",
-                        "worker_id": worker_id,
-                        "batch_size": self._batch_size,
-                        "nats_url": self._publisher.settings.url,
-                        "stream": self._publisher.settings.stream,
-                        "subject_prefix": self._publisher.settings.subject_prefix,
-                    }
-                )
+            logger.info(
+                "outbox.jetstream.worker.ready",
+                extra={
+                    "worker_id": worker_id,
+                    "batch_size": self._batch_size,
+                    "nats_url": self._publisher.settings.url,
+                    "stream": self._publisher.settings.stream,
+                    "subject_prefix": self._publisher.settings.subject_prefix,
+                },
             )
             self._boot_logged = True
 
@@ -111,17 +112,15 @@ class JetStreamOutboxProcessor:
                     )
 
         duration_ms = int(time.time() * 1000) - started_ms
-        print(
-            nats_dumps(
-                {
-                    "event": "outbox.jetstream.run_once",
-                    "worker_id": worker_id,
-                    "batch_size": self._batch_size,
-                    "processed": processed,
-                    "failed": len(failed_ids),
-                    "duration_ms": duration_ms,
-                }
-            )
+        logger.info(
+            "outbox.jetstream.run_once",
+            extra={
+                "worker_id": worker_id,
+                "batch_size": self._batch_size,
+                "processed": processed,
+                "failed": len(failed_ids),
+                "duration_ms": duration_ms,
+            },
         )
 
         return processed

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
+import hashlib
+import logging
 from typing import Callable
 
 import shortuuid
@@ -48,6 +50,14 @@ from domain.tournament.service.tournament_progression_service import TournamentP
 from domain.tournament.unit_of_work import TournamentUnitOfWork
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.model.user_summary import UserSummary
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 
@@ -177,6 +187,18 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 has_active_subscription=access.has_active_subscription,
                 monthly_free_tournaments_used=access.monthly_free_tournaments_used + 1,
             )
+            logger.info(
+                "tournament.created",
+                extra={
+                    "tournament_id": created_tournament.id,
+                    "tournament_uuid": created_tournament.uuid,
+                    "owner_user_id": user.id,
+                    "owner_email_hash": _hash_identifier(email),
+                    "max_players": created_tournament.max_players,
+                    "is_private": created_tournament.is_private,
+                    "requires_tournament_subscription": created_access.requires_tournament_subscription,
+                },
+            )
 
         return TournamentCreateResponse(
             tournament_id=created_tournament.id,
@@ -225,6 +247,16 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             tournament_full = tournament.is_full
             owner_email = tournament.user.email.value
             await uow.commit()
+            logger.info(
+                "tournament.joined",
+                extra={
+                    "tournament_id": tournament.id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "current_players": tournament.current_players,
+                    "is_full": tournament_full,
+                },
+            )
 
         if tournament_full:
             await self.start_tournament(tournament_id, owner_email)
@@ -279,6 +311,17 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                 await uow.tournament_match_repo.add_match(match)
 
             await uow.commit()
+            logger.info(
+                "tournament.started",
+                extra={
+                    "tournament_id": tournament.id,
+                    "owner_user_id": user.id,
+                    "owner_email_hash": _hash_identifier(email),
+                    "stages_count": len(stages),
+                    "matches_count": len(matches),
+                    "max_players": tournament.max_players,
+                },
+            )
 
         return TournamentStartResponse()
 
@@ -310,6 +353,17 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 player.nb_btl += int(ticket.gain or 0)
                 await uow.tournament_players_repo.update(player)
+                logger.info(
+                    "tournament.player_btl_updated_from_ticket",
+                    extra={
+                        "tournament_id": tournament.id,
+                        "ticket_id": ticket.id,
+                        "user_id": ticket.user_id,
+                        "stage_type": active_stage.type,
+                        "credited_btl": int(ticket.gain or 0),
+                        "player_btl": player.nb_btl,
+                    },
+                )
 
             await uow.commit()
 
@@ -349,6 +403,18 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
                 await uow.tournament_repo.update(tournament)
                 await uow.commit()
+                logger.info(
+                    "tournament.updated",
+                    extra={
+                        "tournament_id": tournament.id,
+                        "owner_user_id": user.id,
+                        "owner_email_hash": _hash_identifier(email),
+                        "name": tournament.name,
+                        "is_private": tournament.is_private,
+                        "start_date": tournament.start_date,
+                        "end_date": tournament.end_date,
+                    },
+                )
 
                 return TournamentUpdateResponse()
 
@@ -374,6 +440,14 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             await uow.tournament_players_repo.unregister_tournament(tournament_player.id)
             await uow.tournament_repo.update(tournament)
             await uow.commit()
+            logger.info(
+                "tournament.player_left",
+                extra={
+                    "tournament_id": tournament.id,
+                    "user_id": user_id,
+                    "current_players": tournament.current_players,
+                },
+            )
 
         return TournamentPlayerDeletedResponse()
 
@@ -419,6 +493,15 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             )
             await uow.invitation_repo.add(invitation)
             await uow.commit()
+            logger.info(
+                "tournament.invitation_created",
+                extra={
+                    "tournament_id": tournament.id,
+                    "owner_user_id": user_owner.id,
+                    "owner_email_hash": _hash_identifier(user_owner_email),
+                    "invited_user_id": user.id,
+                },
+            )
 
         return TournamentInviteResponse()
 
@@ -469,6 +552,17 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
             await uow.invitation_repo.delete(invitation.id)
             await uow.commit()
+            logger.info(
+                "tournament.invitation_updated",
+                extra={
+                    "tournament_id": tournament.id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "invitation_action": "accepted" if action else "refused",
+                    "current_players": tournament.current_players,
+                    "is_full": tournament_full,
+                },
+            )
 
         if action and tournament_full and owner_email:
             await self.start_tournament(invitation.tournament_id, owner_email)
@@ -502,5 +596,13 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
 
             await uow.invitation_repo.delete(invitation.id)
             await uow.commit()
+            logger.info(
+                "tournament.invitation_deleted",
+                extra={
+                    "tournament_id": tournament.id,
+                    "owner_user_id": owner.id,
+                    "owner_email_hash": _hash_identifier(owner_email),
+                },
+            )
 
         return InvitationDeleteResponse()

@@ -1,4 +1,6 @@
 import hmac
+import hashlib
+import logging
 from abc import abstractmethod, ABC
 from decimal import Decimal
 from typing import List, Callable
@@ -32,6 +34,14 @@ from domain.user.model.user_summary import UserSummary
 from infrastructure.config import Settings
 
 from domain.league.exception.league_exception import LeagueParticipantFoundError
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class TicketCommandUseCase(ABC):
@@ -187,6 +197,19 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             )
 
             await uow.commit()
+            logger.info(
+                "ticket.created",
+                extra={
+                    "ticket_id": ticket_id,
+                    "ticket_uuid": ticket.uuid,
+                    "league_id": league.id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "mise": ticket_create_model.mise,
+                    "gain": str(gain),
+                    "choices_count": len(ticket_create_model.match_choices),
+                },
+            )
 
         return TicketCreateResponse(ticket_id=ticket_id)
 
@@ -247,6 +270,17 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             await uow.match_choice_repo.delete_by_ticket_id(ticket.id)
             await uow.ticket_repo.delete(ticket.id)
             await uow.commit()
+            logger.info(
+                "ticket.removed",
+                extra={
+                    "ticket_id": ticket.id,
+                    "league_id": ticket.league_id,
+                    "tournament_match_id": ticket.tournament_match_id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "refund_btl": mise_to_refund,
+                },
+            )
 
         return TicketRemoveResponse()
 
@@ -317,6 +351,19 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 )
 
             await uow.commit()
+            logger.info(
+                "ticket.updated",
+                extra={
+                    "ticket_id": ticket.id,
+                    "league_id": ticket.league_id,
+                    "tournament_match_id": ticket.tournament_match_id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "mise": ticket.mise,
+                    "gain": str(ticket.gain),
+                    "choices_updated": bool(ticket_update_model.match_choices),
+                },
+            )
 
         return TicketUpdateResponse()
 
@@ -381,6 +428,20 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             )
 
             await uow.commit()
+            logger.info(
+                "ticket.tournament.created",
+                extra={
+                    "ticket_id": ticket_id,
+                    "ticket_uuid": ticket.uuid,
+                    "tournament_id": tournament_id,
+                    "tournament_match_id": match.id,
+                    "user_id": user.id,
+                    "user_email_hash": _hash_identifier(email),
+                    "mise": ticket_create_model.mise,
+                    "gain": str(gain),
+                    "choices_count": len(ticket_create_model.match_choices),
+                },
+            )
 
         return TicketCreateResponse(ticket_id=ticket_id)
 
@@ -428,6 +489,14 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 )
 
             await uow.commit()
+            logger.info(
+                "ticket.match_choices.resolved",
+                extra={
+                    "match_id": match_id,
+                    "updated_ticket_ids": sorted(updated_ticket_ids),
+                    "updated_choices_count": len(status_updates),
+                },
+            )
             return MatchChoiceUpdatedResponse()
 
     async def check_ticket_status(self, token: str, ticket_id: int):
@@ -465,6 +534,24 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                         )
 
             await uow.commit()
+            if resolved:
+                logger.info(
+                    "ticket.status.resolved",
+                    extra={
+                        "ticket_id": ticket.id,
+                        "user_id": ticket.user.id,
+                        "league_id": ticket.league_id,
+                        "is_win": is_win,
+                        "wrong_count": wrong,
+                        "pending_count": pend,
+                        "gain": str(ticket.gain),
+                    },
+                )
+            else:
+                logger.debug(
+                    "ticket.status.noop",
+                    extra={"ticket_id": ticket.id, "wrong_count": wrong, "pending_count": pend},
+                )
 
             if resolved:
                 return TicketUpdatedResponse()

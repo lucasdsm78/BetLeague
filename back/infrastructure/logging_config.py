@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+from collections.abc import Mapping
 from datetime import datetime, timezone
 
 from infrastructure.logging_context import RequestContextFilter
@@ -10,6 +12,54 @@ from infrastructure.logging_context import RequestContextFilter
 
 _RESERVED_LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys())
 _TOP_LEVEL_LOG_FIELDS = {"request_id"}
+_REDACTED = "[REDACTED]"
+
+
+def _normalize_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+
+def _is_sensitive_key(key: str | None) -> bool:
+    normalized = _normalize_key(key or "")
+    if not normalized:
+        return False
+    if normalized.endswith("email") and not normalized.endswith("emailhash"):
+        return True
+    sensitive_parts = (
+        "password",
+        "passwd",
+        "token",
+        "authorization",
+        "cookie",
+        "secret",
+    )
+    return any(part in normalized for part in sensitive_parts)
+
+
+def _sanitize_log_value(value, *, key: str | None = None):
+    if _is_sensitive_key(key):
+        return _REDACTED
+    if isinstance(value, Mapping):
+        return {
+            item_key: _sanitize_log_value(item_value, key=str(item_key))
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_sanitize_log_value(item, key=key) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_sanitize_log_value(item, key=key) for item in value)
+    if isinstance(value, set):
+        return {_sanitize_log_value(item, key=key) for item in value}
+    return value
+
+
+class SensitiveDataRedactionFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        for key, value in list(record.__dict__.items()):
+            if key in _RESERVED_LOG_RECORD_FIELDS or key.startswith("_"):
+                continue
+            record.__dict__[key] = _sanitize_log_value(value, key=key)
+        return True
 
 
 class JsonFormatter(logging.Formatter):
@@ -71,6 +121,7 @@ def setup_logging(
 
     handler = logging.StreamHandler()
     handler.addFilter(RequestContextFilter())
+    handler.addFilter(SensitiveDataRedactionFilter())
     if json_logs:
         handler.setFormatter(
             JsonFormatter(
