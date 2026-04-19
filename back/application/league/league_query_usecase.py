@@ -1,8 +1,10 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 
 from pydantic import BaseModel
 
+from application.logging_utils import hash_identifier
 from application.league.league_query_model import LeagueReadModel, InvitationReceivedReadModel, LeaguesListResponse, \
     LeagueInvitationReceivedSummary, UserSummaryLeagueDetail, LeagueBalancesBulkResponse, InvitationsReceivedResponse, \
     TournamentInvitationReceivedSummary, LeagueInvitationsSentResponse, LeagueInvitationSentReadModel, \
@@ -15,6 +17,9 @@ from domain.league.repository.league_players_repository import LeaguePlayersRepo
 from domain.league.repository.league_repository import LeagueRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class LeagueQueryUseCase(ABC):
@@ -90,6 +95,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     ) -> List[Dict[str, any]]:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.rank_rejected", extra={"league_id": league_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         participated = await self.league_players_repository.find_participation(
@@ -97,9 +103,11 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             user_id=user.id
         )
         if not participated:
+            logger.warning("league.query.rank_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "not_participant"})
             raise LeagueParticipantNotFoundError
 
         ranking = await self.league_players_repository.get_league_rank(league_id=league_id)
+        logger.info("league.query.rank_loaded", extra={"league_id": league_id, "user_id": user.id, "users_count": len(ranking)})
         return ranking
 
     async def get_league_by_id(
@@ -109,10 +117,12 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     ) -> Optional[LeagueReadModel]:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.by_id_rejected", extra={"league_id": league_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         league = await self.league_repository.find_by_id(league_id)
         if not league:
+            logger.warning("league.query.by_id_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "league_missing"})
             raise LeagueNotFoundError
 
         if league.is_private:
@@ -121,14 +131,17 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                 user_id=user.id
             )
             if not participated:
+                logger.warning("league.query.by_id_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "private_forbidden"})
                 raise LeagueParticipantNotFoundError
 
+        logger.info("league.query.by_id_loaded", extra={"league_id": league_id, "user_id": user.id, "is_private": league.is_private})
         return LeagueReadModel.from_entity_get_by_id(league)
 
 
     async def get_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.list_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         if page < 1:
@@ -145,6 +158,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
         leagues = await self.league_repository.find_leagues(user_id=user.id, page=page, limit=page_size)
 
+        logger.info("league.query.list_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(leagues)})
+
         return LeaguesListResponse(
             leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in leagues],
             page=page,
@@ -156,6 +171,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     async def get_created_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.created_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         if page < 1:
@@ -172,6 +188,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
         created_leagues = await self.league_repository.find_created_leagues(user_id=user.id, page=page, limit=page_size)
 
+        logger.info("league.query.created_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(created_leagues)})
+
         return LeaguesListResponse(
             leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in created_leagues],
             page=page,
@@ -183,6 +201,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     async def get_participated_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.participated_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         if page < 1:
@@ -198,6 +217,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page = max(total_pages, 1)
 
         participated_leagues = await self.league_repository.find_participated_leagues(user_id=user.id, page=page, limit=page_size)
+
+        logger.info("league.query.participated_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(participated_leagues)})
 
         return LeaguesListResponse(
             leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in participated_leagues],
@@ -218,6 +239,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         try:
             user = await self.user_repository.find_by_email(email)
             if not user:
+                logger.warning("league.query.invitations_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                 raise UserNotFoundError
 
             total = await self.invitation_repository.count_received_invitations(
@@ -237,6 +259,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             )
 
             if not db_invitations:
+                logger.info("league.query.invitations_loaded", extra={"user_id": user.id, "is_received": is_received, "status": getattr(status, 'value', status), "total": total, "results_count": 0})
                 return result
 
             for db_inv in db_invitations:
@@ -287,25 +310,32 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                         status=db_inv.status,
                     ))
 
+            logger.info("league.query.invitations_loaded", extra={"user_id": user.id, "is_received": is_received, "status": getattr(status, 'value', status), "total": total, "results_count": len(result.invitations)})
             return result
 
-        except Exception as e:
-            raise e
+        except Exception:
+            logger.exception("league.query.invitations_failed")
+            raise
 
     async def get_invitation_counts(self, email: str, is_received: bool) -> dict:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.invitation_counts_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
-        return await self.invitation_repository.count_by_status(user.id, is_received)
+        counts = await self.invitation_repository.count_by_status(user.id, is_received)
+        logger.info("league.query.invitation_counts_loaded", extra={"user_id": user.id, "is_received": is_received})
+        return counts
 
     async def get_leagues_balances(self, email: str, league_ids: List[int]) -> LeagueBalancesBulkResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.balances_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         ids = [int(i) for i in league_ids if isinstance(i, int) and i > 0]
         ids = list(dict.fromkeys(ids))
         if not ids:
+            logger.info("league.query.balances_loaded", extra={"user_id": user.id, "requested_count": 0, "results_count": 0})
             return LeagueBalancesBulkResponse(balances={}, not_found=[], forbidden=[])
 
         leagues = await self.league_repository.find_all_by_ids(ids)
@@ -316,6 +346,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         participated_ids = set(balances.keys())
         forbidden = [i for i in ids if (i in existing_ids and i not in participated_ids)]
 
+        logger.info("league.query.balances_loaded", extra={"user_id": user.id, "requested_count": len(ids), "results_count": len(balances), "not_found_count": len(not_found), "forbidden_count": len(forbidden)})
+
         return LeagueBalancesBulkResponse(
             balances=balances,
             not_found=not_found,
@@ -325,6 +357,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     async def get_my_leagues(self, email: str, page: int = 1, page_size: int = 10) -> LeaguesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.mine_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         if page < 1:
@@ -341,6 +374,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
         leagues = await self.league_repository.find_my_leagues(user_id=user.id, page=page, limit=page_size)
 
+        logger.info("league.query.mine_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(leagues)})
+
         return LeaguesListResponse(
             leagues=[LeagueReadModel.from_entity_get_all(league=l) for l in leagues],
             page=page,
@@ -352,19 +387,24 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     async def get_league_invitations(self, league_id: int, email: str) -> LeagueInvitationsSentResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.sent_for_league_rejected", extra={"league_id": league_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         league = await self.league_repository.find_by_id(league_id)
         if not league:
+            logger.warning("league.query.sent_for_league_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "league_missing"})
             raise LeagueNotFoundError
 
         if league.user.id != user.id:
+            logger.warning("league.query.sent_for_league_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "forbidden"})
             raise UserNotOwnerLeaguedError
 
         invitations = await self.invitation_repository.find_league_invitations_sent_by_owner(
             league_id=league_id,
             owner_user_id=user.id,
         )
+
+        logger.info("league.query.sent_for_league_loaded", extra={"league_id": league_id, "user_id": user.id, "results_count": len(invitations)})
 
         return LeagueInvitationsSentResponse(
             league_id=league_id,
@@ -392,6 +432,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     ) -> InvitationsSentResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("league.query.sent_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
         total = await self.invitation_repository.count_sent_invitations(
@@ -413,6 +454,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
         )
 
         if not db_invitations:
+            logger.info("league.query.sent_loaded", extra={"user_id": user.id, "status": getattr(status, 'value', status), "total": total, "results_count": 0})
             return result
 
         for db_inv in db_invitations:
@@ -470,5 +512,6 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                     **common_payload,
                 ))
 
+        logger.info("league.query.sent_loaded", extra={"user_id": user.id, "status": getattr(status, 'value', status), "total": total, "results_count": len(result.invitations)})
         return result
 

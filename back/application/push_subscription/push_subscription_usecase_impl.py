@@ -45,8 +45,10 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
         if existing is not None:
             if existing.user_id == user_id:
                 await self._repo.update_last_used(existing.id, _now_ms())
+                logger.info("push.subscription.refreshed", extra={"user_id": user_id, "subscription_id": existing.id})
                 return
             await self._repo.delete_by_endpoint(endpoint)
+            logger.info("push.subscription.reassigned", extra={"user_id": user_id, "previous_user_id": existing.user_id, "subscription_id": existing.id})
 
         subscription = PushSubscription(
             id=None,
@@ -59,21 +61,27 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
             last_used_at=None,
         )
         await self._repo.create(subscription)
+        logger.info("push.subscription.created", extra={"user_id": user_id, "has_user_agent": bool(user_agent)})
 
     async def unsubscribe(self, *, user_id: int, endpoint: str) -> None:
         existing = await self._repo.find_by_endpoint(endpoint)
         if existing is not None and existing.user_id == user_id:
             await self._repo.delete_by_endpoint(endpoint)
+            logger.info("push.subscription.deleted", extra={"user_id": user_id, "subscription_id": existing.id})
 
     async def unsubscribe_all(self, *, user_id: int) -> int:
-        return await self._repo.delete_by_user_id(user_id)
+        deleted = await self._repo.delete_by_user_id(user_id)
+        logger.info("push.subscription.deleted_all", extra={"user_id": user_id, "deleted_count": deleted})
+        return deleted
 
     async def get_vapid_public_key(self) -> str:
         return self._push_service.get_vapid_public_key()
 
     async def get_status(self, *, user_id: int) -> tuple[bool, int]:
         subs = await self._repo.find_by_user_id(user_id)
-        return (len(subs) > 0, len(subs))
+        status = (len(subs) > 0, len(subs))
+        logger.info("push.subscription.status_loaded", extra={"user_id": user_id, "has_subscription": status[0], "subscriptions_count": status[1]})
+        return status
 
     async def send_to_user(
         self,
@@ -89,6 +97,7 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
     ) -> int:
         subscriptions = await self._repo.find_by_user_id(user_id)
         if not subscriptions:
+            logger.info("push.send_noop", extra={"user_id": user_id, "reason": "no_subscriptions"})
             return 0
 
         payload: dict[str, Any] = {
@@ -131,7 +140,17 @@ class PushSubscriptionUseCaseImpl(PushSubscriptionUseCase):
         for sub_id in expired_sub_ids:
             try:
                 await self._repo.delete_by_id(sub_id)
+                logger.info("push.subscription.expired_deleted", extra={"subscription_id": sub_id, "user_id": user_id})
             except Exception:
                 logger.warning("push.delete_expired_failed", extra={"subscription_id": sub_id})
 
+        logger.info(
+            "push.send_completed",
+            extra={
+                "user_id": user_id,
+                "subscriptions_count": len(subscriptions),
+                "success_count": success_count,
+                "expired_count": len(expired_sub_ids),
+            },
+        )
         return success_count
