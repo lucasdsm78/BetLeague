@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from application.logging_utils import hash_identifier
 from domain.services.notification.password_reset_notifier import PasswordResetNotifier
 
 logger = logging.getLogger(__name__)
@@ -21,4 +22,4 @@ class LogOnlyPasswordResetNotifier(PasswordResetNotifier):
         if not self._enabled:
             return
         # Ne jamais logger le code/tokens (PII + secret). En dev, on log uniquement l'action.
-        logger.info("[PasswordReset] Reset code requested for email=%s", email)
+        logger.info("notification.password_reset.requested", extra={"email_hash": hash_identifier(email)})

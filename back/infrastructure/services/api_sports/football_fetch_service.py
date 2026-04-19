@@ -73,7 +73,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                     if match and match.league_id in self._league_ids:
                         day_matches.append(match)
                 except Exception as e:
-                    logger.warning(f"Failed to parse fixture: {e}")
+                    logger.warning("api_sports.football.fixture_parse_failed", extra={"error": str(e), "date": current.isoformat()})
 
             # 2. Fetch odds sequentially (respect 10 req/min rate limit)
             day_kept = 0
@@ -86,13 +86,24 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                     await asyncio.sleep(_REQUEST_DELAY)
 
             logger.info(
-                f"Day {current}: {len(day_matches)} top-league fixtures, "
-                f"{day_kept} with odds, "
-                f"{len(results)} kept total"
+                "api_sports.football.day_fetched",
+                extra={
+                    "date": current.isoformat(),
+                    "fixtures_count": len(day_matches),
+                    "fixtures_with_odds_count": day_kept,
+                    "kept_total_count": len(results),
+                },
             )
             current = current + timedelta(days=1)
 
-        logger.info(f"Fetched {len(results)} football fixtures with odds from {date_from} to {date_to}")
+        logger.info(
+            "api_sports.football.fetch_completed",
+            extra={
+                "date_from": date_from.isoformat(),
+                "date_to": date_to.isoformat(),
+                "fixtures_count": len(results),
+            },
+        )
         return results
 
     async def _fetch_odds_for_fixture(self, fixture_id: int) -> List[MatchOdd]:
@@ -134,6 +145,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                         odd=odd_value,
                     ))
 
+        logger.info("api_sports.football.fixture_odds_loaded", extra={"fixture_id": fixture_id, "odds_count": len(all_odds)})
         return all_odds
 
     @staticmethod

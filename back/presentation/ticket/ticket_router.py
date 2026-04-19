@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, status
+import logging
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse
 from application.ticket.ticket_command_model import TicketCreateResponse, TicketCreateModel, TicketRemoveResponse, \
@@ -24,6 +25,8 @@ router = APIRouter(
     tags=['ticket']
 )
 
+logger = logging.getLogger(__name__)
+
 
 @router.post(
     "/ticket/create",
@@ -39,6 +42,7 @@ async def create_ticket(
 ):
     try:
         ticket = await ticket_command_usecase.create_ticket(league_id, ticket_create_model, current_user.get('email', ''))
+        logger.info("ticket.http.create_succeeded", extra={"user_id": current_user.get('id'), "league_id": league_id, "ticket_id": getattr(ticket, 'ticket_id', None)})
 
     except LeagueNotFoundError as e:
         raise HTTPException(
@@ -89,12 +93,14 @@ async def create_ticket(
         )
 
     except DuplicateMatchChoiceError as e:
+        logger.warning("ticket.http.create_rejected", extra={"user_id": current_user.get('id'), "league_id": league_id, "reason": "duplicate_match_choice"})
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=e.message,
         )
 
     except Exception:
+        logger.exception("ticket.http.create_failed", extra={"user_id": current_user.get('id'), "league_id": league_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
@@ -115,6 +121,7 @@ async def remove_ticket(
 ):
     try:
         remove_ticket_result = await ticket_command_usecase.remove_ticket(current_user.get('email'), ticket_id)
+        logger.info("ticket.http.remove_succeeded", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,6 +138,7 @@ async def remove_ticket(
             detail=e.message
         )
     except Exception:
+        logger.exception("ticket.http.remove_failed", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la suppression du ticket."
@@ -152,6 +160,7 @@ async def get_details_ticket(
 ):
     try:
         ticket = await ticket_query_usecase.get_ticket_details(ticket_id, current_user.get('email'))
+        logger.info("ticket.http.detail_succeeded", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -173,6 +182,7 @@ async def get_details_ticket(
             detail=e.message
         )
     except Exception:
+        logger.exception("ticket.http.detail_failed", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération du ticket."
@@ -192,7 +202,9 @@ async def get_shared_ticket(
         ticket_query_usecase: TicketQueryUseCase = Depends(ticket_query_usecase),
 ):
     try:
-        return await ticket_query_usecase.get_shared_ticket_details(ticket_uuid)
+        ticket = await ticket_query_usecase.get_shared_ticket_details(ticket_uuid)
+        logger.info("ticket.http.shared_succeeded", extra={"ticket_uuid": ticket_uuid})
+        return ticket
     except TicketNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except TicketNotShareableError as e:
@@ -200,6 +212,7 @@ async def get_shared_ticket(
     except LeagueNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("ticket.http.shared_failed", extra={"ticket_uuid": ticket_uuid})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération du ticket partagé."
@@ -220,6 +233,7 @@ async def update_ticket(
 ):
     try:
         remove_ticket_result = await ticket_command_usecase.update_ticket(current_user.get('email'), ticket_id, ticket_create_model)
+        logger.info("ticket.http.update_succeeded", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
     except TicketNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -251,6 +265,7 @@ async def update_ticket(
             detail=e.message,
         )
     except Exception:
+        logger.exception("ticket.http.update_failed", extra={"user_id": current_user.get('id'), "ticket_id": ticket_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification du ticket."
@@ -287,6 +302,7 @@ async def get_tickets_in_progress(
             league_id=league_id,
             is_tournament=is_tournament,
         )
+        logger.info("ticket.http.in_progress_succeeded", extra={"user_id": current_user.get('id'), "page": page, "page_size": page_size, "league_id": league_id, "is_tournament": is_tournament, "results_count": len(tickets.tickets)})
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -295,6 +311,7 @@ async def get_tickets_in_progress(
     except HTTPException:
         raise
     except Exception:
+        logger.exception("ticket.http.in_progress_failed", extra={"user_id": current_user.get('id')})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des tickets en cours."
@@ -331,6 +348,7 @@ async def get_tickets_finished(
             league_id=league_id,
             is_tournament=is_tournament,
         )
+        logger.info("ticket.http.finished_succeeded", extra={"user_id": current_user.get('id'), "page": page, "page_size": page_size, "league_id": league_id, "is_tournament": is_tournament, "results_count": len(tickets.tickets)})
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -339,6 +357,7 @@ async def get_tickets_finished(
     except HTTPException:
         raise
     except Exception:
+        logger.exception("ticket.http.finished_failed", extra={"user_id": current_user.get('id')})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des tickets terminés."
@@ -368,7 +387,9 @@ async def create_tournament_ticket(
         )
 
     try:
-        return await ticket_usecase.create_tournament_ticket(tournament_id, match_id, ticket_model, current_user.get('email', ''))
+        ticket = await ticket_usecase.create_tournament_ticket(tournament_id, match_id, ticket_model, current_user.get('email', ''))
+        logger.info("ticket.http.tournament_create_succeeded", extra={"user_id": current_user.get('id'), "tournament_id": tournament_id, "match_id": match_id, "ticket_id": getattr(ticket, 'ticket_id', None)})
+        return ticket
     except UserNotFoundError as e:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except TournamentNotFoundError as e:
@@ -384,6 +405,7 @@ async def create_tournament_ticket(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception:
+        logger.exception("ticket.http.tournament_create_failed", extra={"user_id": current_user.get('id'), "tournament_id": tournament_id, "match_id": match_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la création du pari de tournoi."
@@ -402,7 +424,9 @@ async def check_match_choices_by_match_id(
 ):
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        return await ticket_command_usecase.check_match_choices_by_match_id(token=token, match_id=match_id)
+        result = await ticket_command_usecase.check_match_choices_by_match_id(token=token, match_id=match_id)
+        logger.info("ticket.http.check_match_choices_succeeded", extra={"match_id": match_id})
+        return result
 
     except TokenInvalidError as e:
         raise HTTPException(
@@ -411,6 +435,7 @@ async def check_match_choices_by_match_id(
         )
 
     except Exception:
+        logger.exception("ticket.http.check_match_choices_failed", extra={"match_id": match_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

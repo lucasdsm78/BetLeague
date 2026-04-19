@@ -44,9 +44,17 @@ class RedisNotificationRealtimePublisher(NotificationRealtimePublisher):
         msg = json.dumps(payload, separators=(",", ":"))
         try:
             await self._redis.publish(self._channel(user_id), msg)
+            logger.info(
+                "redis.notifications.publish_succeeded",
+                extra={
+                    "user_id": user_id,
+                    "notification_id": notification.id,
+                    "notification_type": str(notification.type),
+                },
+            )
         except Exception:
             # best-effort: ne pas casser la création de notif si redis est down
-            logger.exception("redis.publish_failed")
+            logger.exception("redis.notifications.publish_failed", extra={"user_id": user_id, "notification_id": notification.id})
 
 
 class RedisNotificationSubscriber:
@@ -76,6 +84,7 @@ class RedisNotificationSubscriber:
     async def subscribe(self, *, user_id: int) -> AsyncIterator[str]:
         channel = self._channel(user_id)
         reconnect_delay_s = 1.0
+        logger.info("redis.notifications.subscribe_opened", extra={"user_id": user_id})
 
         while True:
             redis: Redis | None = None
@@ -88,6 +97,7 @@ class RedisNotificationSubscriber:
                 # Attendre l'ACK subscribe
                 async for message in pubsub.listen():
                     if message and message.get("type") == "subscribe":
+                        logger.info("redis.notifications.subscribed", extra={"user_id": user_id})
                         break
 
                 pubsub.ignore_subscribe_messages = True
@@ -103,11 +113,12 @@ class RedisNotificationSubscriber:
                     else:
                         yield str(data)
             except asyncio.CancelledError:
+                logger.info("redis.notifications.subscribe_cancelled", extra={"user_id": user_id})
                 raise
             except RedisError:
                 logger.warning(
-                    "redis.async_pubsub_reconnecting",
-                    extra={"channel": channel, "delay_s": reconnect_delay_s},
+                    "redis.notifications.reconnecting",
+                    extra={"user_id": user_id, "delay_s": reconnect_delay_s},
                     exc_info=True,
                 )
                 await asyncio.sleep(reconnect_delay_s)
@@ -127,3 +138,4 @@ class RedisNotificationSubscriber:
                         await redis.close()
                 except Exception:
                     pass
+                logger.info("redis.notifications.subscribe_closed", extra={"user_id": user_id})

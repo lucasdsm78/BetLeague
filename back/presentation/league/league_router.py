@@ -29,6 +29,13 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+def _log_league_event(level: int, event: str, *, current_user: dict | None = None, **extra) -> None:
+    payload = {key: value for key, value in extra.items() if value is not None}
+    if current_user:
+        payload.setdefault("user_id", current_user.get("id"))
+    logger.log(level, event, extra=payload)
+
+
 def _raise_league_finished(e: LeagueFinishedError) -> None:
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
@@ -84,11 +91,13 @@ async def create_league(
         _raise_league_finished(e)
 
     except Exception as e:
+        logger.exception("league.http.create_failed", extra={"user_id": current_user.get("id")})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la création de la ligue."
         )
 
+    _log_league_event(logging.INFO, "league.http.create_succeeded", current_user=current_user)
     return league
 
 
@@ -140,11 +149,13 @@ async def join_league(
         _raise_league_finished(e)
 
     except Exception as e:
+        logger.exception("league.http.join_failed", extra={"user_id": current_user.get("id"), "league_id": id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de l'inscription à la ligue.",
         )
 
+    _log_league_event(logging.INFO, "league.http.join_succeeded", current_user=current_user, league_id=id)
     return league_players
 
 
@@ -159,7 +170,9 @@ async def get_league_ranking(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return await league_query_usecase.get_rank_by_league_id( current_user.get('email', ''), league_id)
+        ranking = await league_query_usecase.get_rank_by_league_id(current_user.get('email', ''), league_id)
+        _log_league_event(logging.INFO, "league.http.rank_succeeded", current_user=current_user, league_id=league_id, results_count=len(ranking))
+        return ranking
 
     except LeagueNotFoundError as e:
         raise HTTPException(
@@ -172,11 +185,11 @@ async def get_league_ranking(
             detail=e.message
         )
     except Exception as e:
+        logger.exception("league.http.rank_failed", extra={"user_id": current_user.get("id"), "league_id": league_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred."
         )
-
 
 @router.post(
     "/leagues/balances",
@@ -215,13 +228,16 @@ async def get_leagues_balances_bulk(
                 headers={"Retry-After": str(rl.retry_after_seconds)},
             )
 
-        return await league_query_usecase.get_leagues_balances(
+        result = await league_query_usecase.get_leagues_balances(
             current_user.get('email', ''),
             payload.league_ids,
         )
+        _log_league_event(logging.INFO, "league.http.balances_bulk_succeeded", current_user=current_user, requested_count=len(payload.league_ids), results_count=len(result.balances))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("league.http.balances_bulk_failed", extra={"user_id": current_user.get("id")})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
 
 
@@ -263,10 +279,12 @@ async def delete_league_player(
         _raise_league_finished(e)
 
     except Exception as e:
+        logger.exception("league.http.delete_player_failed", extra={"user_id": current_user.get("id"), "league_id": id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    _log_league_event(logging.INFO, "league.http.delete_player_succeeded", current_user=current_user, league_id=id)
     return delete_league_player
 
 
@@ -293,11 +311,13 @@ async def get_league(
             detail=str(e)
         )
     except Exception as e:
+        logger.exception("league.http.detail_failed", extra={"user_id": current_user.get("id"), "league_id": id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
 
+    _log_league_event(logging.INFO, "league.http.detail_succeeded", current_user=current_user, league_id=id)
     return league
 
 
@@ -313,10 +333,13 @@ async def get_leagues(
         page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        return await league_query_usecase.get_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        result = await league_query_usecase.get_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        _log_league_event(logging.INFO, "league.http.list_succeeded", current_user=current_user, page=page, page_size=page_size, results_count=len(result.leagues))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("league.http.list_failed", extra={"user_id": current_user.get("id"), "page": page, "page_size": page_size})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues")
 
 
@@ -332,10 +355,13 @@ async def get_created_leagues(
         page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        return await league_query_usecase.get_created_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        result = await league_query_usecase.get_created_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        _log_league_event(logging.INFO, "league.http.created_list_succeeded", current_user=current_user, page=page, page_size=page_size, results_count=len(result.leagues))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("league.http.created_list_failed", extra={"user_id": current_user.get("id"), "page": page, "page_size": page_size})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues créées")
 
 
@@ -352,10 +378,13 @@ async def get_participated_leagues(
         page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        return await league_query_usecase.get_participated_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        result = await league_query_usecase.get_participated_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        _log_league_event(logging.INFO, "league.http.participated_list_succeeded", current_user=current_user, page=page, page_size=page_size, results_count=len(result.leagues))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("league.http.participated_list_failed", extra={"user_id": current_user.get("id"), "page": page, "page_size": page_size})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des ligues rejointes")
 
 
@@ -372,10 +401,13 @@ async def get_my_leagues(
         page_size: int = Query(10, ge=1, le=50),
 ):
     try:
-        return await league_query_usecase.get_my_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        result = await league_query_usecase.get_my_leagues(current_user.get('email', ''), page=page, page_size=page_size)
+        _log_league_event(logging.INFO, "league.http.mine_list_succeeded", current_user=current_user, page=page, page_size=page_size, results_count=len(result.leagues))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("league.http.mine_list_failed", extra={"user_id": current_user.get("id"), "page": page, "page_size": page_size})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération de mes ligues")
 
 
@@ -434,10 +466,12 @@ async def invite_user_to_league(
         )
 
     except Exception as e:
+        logger.exception("league.http.invite_failed", extra={"user_id": current_user.get("id"), "league_id": league_id, "invited_user_id": user_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    _log_league_event(logging.INFO, "league.http.invite_succeeded", current_user=current_user, league_id=league_id, invited_user_id=user_id)
     return invitation
 
 
@@ -453,10 +487,12 @@ async def get_league_invitations(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return await league_query_usecase.get_league_invitations(
+        result = await league_query_usecase.get_league_invitations(
             league_id=league_id,
             email=current_user.get('email', ''),
         )
+        _log_league_event(logging.INFO, "league.http.invitations_for_league_succeeded", current_user=current_user, league_id=league_id, results_count=len(result.invitations))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except LeagueNotFoundError as e:
@@ -464,6 +500,7 @@ async def get_league_invitations(
     except UserNotOwnerLeaguedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
     except Exception:
+        logger.exception("league.http.invitations_for_league_failed", extra={"user_id": current_user.get("id"), "league_id": league_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des invitations de la ligue"
@@ -485,10 +522,12 @@ async def get_invitation_counts(
         counts = await league_query_usecase.get_invitation_counts(
             current_user.get('email', ''), is_received
         )
+        _log_league_event(logging.INFO, "league.http.invitation_counts_succeeded", current_user=current_user, is_received=is_received)
         return InvitationCountsResponse(**counts)
     except HTTPException:
         raise
     except Exception:
+        logger.exception("league.http.invitation_counts_failed", extra={"user_id": current_user.get("id"), "is_received": is_received})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des compteurs d'invitations."
@@ -516,15 +555,18 @@ async def get_invitations(
             try:
                 status_enum = InvitationStatus.from_str(invitation_status.upper())
             except Exception:
+                _log_league_event(logging.WARNING, "league.http.invitations_rejected", current_user=current_user, reason="invalid_status", invitation_status=invitation_status)
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Statut invalide: {invitation_status}. Valeurs acceptées: PENDING, ACCEPTED, REFUSED"
                 )
 
-        return await league_query_usecase.get_invitations(
+        result = await league_query_usecase.get_invitations(
             current_user.get('email', ''), is_received,
             status=status_enum, page=page, page_size=page_size,
         )
+        _log_league_event(logging.INFO, "league.http.invitations_succeeded", current_user=current_user, is_received=is_received, page=page, page_size=page_size, results_count=len(result.invitations))
+        return result
 
     except UserNotFoundError as e:
         raise HTTPException(
@@ -534,6 +576,7 @@ async def get_invitations(
     except HTTPException:
         raise
     except Exception:
+        logger.exception("league.http.invitations_failed", extra={"user_id": current_user.get("id"), "is_received": is_received, "page": page, "page_size": page_size})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des invitations."
@@ -559,22 +602,26 @@ async def get_sent_invitations(
             try:
                 status_enum = InvitationStatus.from_str(invitation_status.upper())
             except Exception:
+                _log_league_event(logging.WARNING, "league.http.sent_invitations_rejected", current_user=current_user, reason="invalid_status", invitation_status=invitation_status)
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Statut invalide: {invitation_status}. Valeurs acceptées: PENDING, ACCEPTED, REFUSED"
                 )
 
-        return await league_query_usecase.get_sent_invitations(
+        result = await league_query_usecase.get_sent_invitations(
             current_user.get('email', ''),
             status=status_enum,
             page=page,
             page_size=page_size,
         )
+        _log_league_event(logging.INFO, "league.http.sent_invitations_succeeded", current_user=current_user, page=page, page_size=page_size, results_count=len(result.invitations))
+        return result
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except HTTPException:
         raise
     except Exception:
+        logger.exception("league.http.sent_invitations_failed", extra={"user_id": current_user.get("id"), "page": page, "page_size": page_size})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la récupération des invitations envoyées."
@@ -614,11 +661,13 @@ async def update_invitation(
     except LeagueFinishedError as e:
         _raise_league_finished(e)
     except Exception as e:
+        logger.exception("league.http.invitation_update_failed", extra={"user_id": current_user.get("id"), "invitation_id": invitation_id, "action": action})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification du status de l'invitation."
         )
 
+    _log_league_event(logging.INFO, "league.http.invitation_update_succeeded", current_user=current_user, invitation_id=invitation_id, action=action)
     return update_invitation_result
 
 
@@ -653,11 +702,13 @@ async def delete_invitation(
     except LeagueFinishedError as e:
         _raise_league_finished(e)
     except Exception as e:
+        logger.exception("league.http.invitation_delete_failed", extra={"user_id": current_user.get("id"), "invitation_id": invitation_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la suppression d'une l'invitation à une league"
         )
 
+    _log_league_event(logging.INFO, "league.http.invitation_delete_succeeded", current_user=current_user, invitation_id=invitation_id)
     return delete_invitation_result
 
 @router.put(
@@ -707,11 +758,13 @@ async def update_league(
     except LeagueFinishedError as e:
         _raise_league_finished(e)
     except Exception as e:
+        logger.exception("league.http.update_failed", extra={"user_id": current_user.get("id"), "league_id": id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur interne lors de la modification de la ligue"
         )
 
+    _log_league_event(logging.INFO, "league.http.update_succeeded", current_user=current_user, league_id=id)
     return update_league_result
 
 
@@ -728,7 +781,9 @@ async def inject_btl(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return await league_command_usecase.inject_btl(league_id, inject_model.amount, current_user.get('email', ''))
+        result = await league_command_usecase.inject_btl(league_id, inject_model.amount, current_user.get('email', ''))
+        _log_league_event(logging.INFO, "league.http.inject_btl_succeeded", current_user=current_user, league_id=league_id, amount=inject_model.amount)
+        return result
     except LeagueNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except LeagueParticipantNotFoundError as e:
@@ -740,4 +795,6 @@ async def inject_btl(
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception as e:
+        logger.exception("league.http.inject_btl_failed", extra={"user_id": current_user.get("id"), "league_id": league_id})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
+
