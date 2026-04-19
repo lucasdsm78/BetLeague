@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from application.notification.notification_command_usecase import NotificationCommandUseCase
 from domain.notification.model.notification import NotificationType
+
+
+logger = logging.getLogger(__name__)
 
 
 async def notify_league_invitation_accepted(
@@ -15,6 +20,15 @@ async def notify_league_invitation_accepted(
 
     But: illustrer comment on peut appeler le système de notifications "à n'importe quel moment".
     """
+
+    logger.info(
+        "notification.demo.league_invitation_accepted_requested",
+        extra={
+            "receiver_user_id": receiver_user_id,
+            "sender_user_id": sender_user_id,
+            "league_id": league_id,
+        },
+    )
 
     await notification_uc.create(
         user_id=receiver_user_id,
