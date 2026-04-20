@@ -66,10 +66,17 @@ def test_request_logging_middleware_echoes_and_logs_request_id():
     assert response.status_code == 200
     assert response.headers["x-request-id"] == "front-req-123"
 
+    started = [record for record in handler.records if record.getMessage() == "http.request.started"]
     completed = [record for record in handler.records if record.getMessage() == "http.request.completed"]
+    assert started, "Expected http.request.started log"
     assert completed, "Expected http.request.completed log"
+    assert started[-1].request_id == "front-req-123"
+    assert started[-1].method == "GET"
+    assert started[-1].path == "/ping"
+    assert started[-1].route_path == "/ping"
     assert completed[-1].request_id == "front-req-123"
     assert completed[-1].status_code == 200
+    assert completed[-1].route_path == "/ping"
 
 
 def test_request_logging_middleware_adds_user_id_when_present_in_request_state():
@@ -98,6 +105,30 @@ def test_request_logging_middleware_adds_user_id_when_present_in_request_state()
     completed = [record for record in handler.records if record.getMessage() == "http.request.completed"]
     assert completed, "Expected http.request.completed log"
     assert completed[-1].user_id == 42
+
+
+def test_request_logging_middleware_skips_excluded_paths():
+    app = FastAPI()
+    app.add_middleware(RequestLoggingMiddleware, settings=_settings())
+
+    @app.get("/health")
+    async def health():
+        return {"ok": True}
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.logging_middleware")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app)
+        response = client.get("/health")
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert [record for record in handler.records if record.getMessage().startswith("http.request.")] == []
 
 
 def test_validation_handler_logs_and_returns_request_id():
@@ -196,6 +227,39 @@ def test_unhandled_exception_handler_returns_500_and_request_id():
     assert unhandled_logs[-1].status_code == 500
 
 
+def test_request_logging_middleware_logs_failed_for_5xx_responses():
+    app = FastAPI()
+    settings = _settings()
+    register_exception_handlers(app, settings=settings)
+    app.add_middleware(RequestLoggingMiddleware, settings=settings)
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("boom")
+
+    handler = _ListHandler()
+    handler.addFilter(RequestContextFilter())
+    logger = logging.getLogger("infrastructure.logging_middleware")
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    try:
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/boom", headers={"X-Request-Id": "req-failed-500"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 500
+    failed = [record for record in handler.records if record.getMessage() == "http.request.failed"]
+    completed = [record for record in handler.records if record.getMessage() == "http.request.completed"]
+    assert failed, "Expected http.request.failed log"
+    assert completed == []
+    assert failed[-1].request_id == "req-failed-500"
+    assert failed[-1].status_code == 500
+    assert failed[-1].path == "/boom"
+    assert failed[-1].route_path == "/boom"
+
+
 def test_sensitive_data_redaction_filter_masks_nested_sensitive_fields():
     record = logging.makeLogRecord(
         {
@@ -222,6 +286,7 @@ def test_sensitive_data_redaction_filter_masks_nested_sensitive_fields():
     assert payload["context"]["context"]["authorization"] == "[REDACTED]"
     assert payload["context"]["context"]["nested"]["refresh_token"] == "[REDACTED]"
     assert payload["context"]["context"]["nested"]["ok"] is True
+
 
 
 

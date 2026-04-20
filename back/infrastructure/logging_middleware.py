@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 from uuid import uuid4
 
 from fastapi import Request
@@ -24,6 +25,11 @@ def _normalize_request_id(raw_value: str | None) -> str:
     return uuid4().hex
 
 
+def _route_path(request: Request) -> str | None:
+    route = request.scope.get("route")
+    return getattr(route, "path", None) or request.url.path
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, *, settings: Settings):
         super().__init__(app)
@@ -42,6 +48,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     def _request_user_id(request: Request):
         return getattr(getattr(request, "state", None), "user_id", None)
 
+    def _request_log_extra(self, request: Request, *, request_id: str, client_ip: str, **extra: Any) -> dict[str, Any]:
+        payload = {
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "route_path": _route_path(request),
+            "client_ip": client_ip,
+        }
+        for key, value in extra.items():
+            if value is not None:
+                payload[key] = value
+        return payload
+
     async def dispatch(self, request: Request, call_next):
         if not self._is_enabled() or request.url.path in self._excluded_paths():
             return await call_next(request)
@@ -53,26 +72,30 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         started_at = time.perf_counter()
         client_ip = get_request_client_ip(request, self.settings)
 
-        base_extra = {
-            "request_id": request_id,
-            "method": request.method,
-            "path": request.url.path,
-            "client_ip": client_ip,
-        }
-
-        logger.debug("http.request.started", extra=base_extra)
+        logger.info(
+            "http.request.started",
+            extra=self._request_log_extra(
+                request,
+                request_id=request_id,
+                client_ip=client_ip,
+            ),
+        )
 
         try:
             response = await call_next(request)
-        except Exception:
+        except Exception as exc:
             duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
             logger.exception(
                 "http.request.failed",
-                extra={
-                    **base_extra,
-                    "user_id": self._request_user_id(request),
-                    "duration_ms": duration_ms,
-                },
+                extra=self._request_log_extra(
+                    request,
+                    request_id=request_id,
+                    client_ip=client_ip,
+                    user_id=self._request_user_id(request),
+                    status_code=500,
+                    duration_ms=duration_ms,
+                    exception_type=type(exc).__name__,
+                ),
             )
             raise
         finally:
@@ -82,19 +105,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
         threshold_ms = self._slow_request_threshold_ms()
-        level = logging.INFO
-        if response.status_code >= 500 or duration_ms >= threshold_ms:
-            level = logging.WARNING
-
-        logger.log(
-            level,
-            "http.request.completed",
-            extra={
-                **base_extra,
-                "user_id": self._request_user_id(request),
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-            },
+        response_extra = self._request_log_extra(
+            request,
+            request_id=request_id,
+            client_ip=client_ip,
+            user_id=self._request_user_id(request),
+            status_code=response.status_code,
+            duration_ms=duration_ms,
         )
+        if response.status_code >= 500:
+            logger.error("http.request.failed", extra=response_extra)
+            return response
+
+        level = logging.WARNING if duration_ms >= threshold_ms else logging.INFO
+        logger.log(level, "http.request.completed", extra=response_extra)
         return response
+
+
 
