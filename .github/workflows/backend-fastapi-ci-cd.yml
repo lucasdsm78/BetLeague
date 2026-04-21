@@ -135,9 +135,7 @@ jobs:
           push: false
           load: false
           secrets: |
-            private_key=${{ secrets.BACKEND_CI_PRIVATE_KEY }}
-            public_key=${{ secrets.BACKEND_CI_PUBLIC_KEY }}
-            encryption_key=${{ secrets.BACKEND_CI_ENCRYPTION_KEY }}
+            pip_config=${{ secrets.BACKEND_BUILD_PIP_CONFIG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -187,13 +185,12 @@ jobs:
           file: ./back/Dockerfile
           push: true
           secrets: |
-            private_key=${{ secrets.BACKEND_CI_PRIVATE_KEY }}
-            public_key=${{ secrets.BACKEND_CI_PUBLIC_KEY }}
-            encryption_key=${{ secrets.BACKEND_CI_ENCRYPTION_KEY }}
+            pip_config=${{ secrets.BACKEND_BUILD_PIP_CONFIG }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
 
 
