@@ -73,10 +73,7 @@ class ApiSportsScoreService(MatchScoreApi):
         # API-Sports v3 expects a single integer for `id`, so we query multiple IDs with bounded concurrency.
         results_by_id: dict[int, dict] = {}
 
-        logger.info(
-            "[ApiSports] get_live_scores by_ids fixture_ids_count=%s",
-            len(fixture_id_set),
-        )
+        logger.info("api_sports.score.by_ids_started", extra={"fixture_ids_count": len(fixture_id_set)})
 
         import asyncio
 
@@ -142,10 +139,12 @@ class ApiSportsScoreService(MatchScoreApi):
         if not results:
             today = date.today().isoformat()
             logger.info(
-                "[ApiSports] get_live_scores fallback date=%s status=%s fixture_ids_count=%s",
-                today,
-                _LIVE_AND_FINISHED,
-                len(fixture_id_set),
+                "api_sports.score.fallback_started",
+                extra={
+                    "date": today,
+                    "status": _LIVE_AND_FINISHED,
+                    "fixture_ids_count": len(fixture_id_set),
+                },
             )
             data = await self._client.get(
                 "/fixtures",
@@ -194,9 +193,5 @@ class ApiSportsScoreService(MatchScoreApi):
                     "winner": winner,
                 })
 
-        logger.info(
-            "Fetched live scores for %s fixtures (requested=%s)",
-            len(results),
-            len(fixture_id_set),
-        )
+        logger.info("api_sports.score.loaded", extra={"results_count": len(results), "requested_count": len(fixture_id_set)})
         return results

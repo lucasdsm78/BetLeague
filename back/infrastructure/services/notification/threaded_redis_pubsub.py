@@ -12,6 +12,10 @@ import redis  # sync redis client
 logger = logging.getLogger(__name__)
 
 
+def _channel_hint(channel: str) -> str:
+    return (channel or "").split(":")[-1][:64] or "unknown"
+
+
 class ThreadedRedisPubSubSubscriber:
     """Subscriber Redis Pub/Sub robuste (sync dans un thread).
 
@@ -41,6 +45,7 @@ class ThreadedRedisPubSubSubscriber:
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[str] = asyncio.Queue(maxsize=200)
         stop = ThreadEvent()
+        logger.info("redis.threaded_pubsub.opened", extra={"channel_hint": _channel_hint(self._channel)})
 
         def _run() -> None:
             reconnect_delay_s = 1.0
@@ -58,6 +63,7 @@ class ThreadedRedisPubSubSubscriber:
                         if stop.is_set():
                             return
                         if msg and msg.get("type") == "subscribe":
+                            logger.info("redis.threaded_pubsub.subscribed", extra={"channel_hint": _channel_hint(self._channel)})
                             break
 
                     # Maintenant on peut ignorer les subscribe messages
@@ -82,15 +88,15 @@ class ThreadedRedisPubSubSubscriber:
                     if stop.is_set():
                         return
                     logger.warning(
-                        "redis.threaded_pubsub_reconnecting",
-                        extra={"channel": self._channel, "delay_s": reconnect_delay_s},
+                        "redis.threaded_pubsub.reconnecting",
+                        extra={"channel_hint": _channel_hint(self._channel), "delay_s": reconnect_delay_s},
                         exc_info=True,
                     )
                     time.sleep(reconnect_delay_s)
                 except Exception:
                     if stop.is_set():
                         return
-                    logger.exception("redis.threaded_pubsub_failed", extra={"channel": self._channel})
+                    logger.exception("redis.threaded_pubsub.failed", extra={"channel_hint": _channel_hint(self._channel)})
                     time.sleep(reconnect_delay_s)
                 finally:
                     try:
@@ -119,3 +125,4 @@ class ThreadedRedisPubSubSubscriber:
             except Exception:
                 pass
             executor.shutdown(wait=False)
+            logger.info("redis.threaded_pubsub.closed", extra={"channel_hint": _channel_hint(self._channel)})

@@ -8,7 +8,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import AuthMonitor from './auth/AuthMonitor';
 import AppRouter from './AppRouter';
+import { createLogger } from '../utils/logger';
 import '../utils/authDebug'; // Load debug utilities
+
+const logger = createLogger('EnhancedApp');
 // LoadingSpinner component
 const LoadingSpinner = () => (
   <div className="loading-spinner" role="status" aria-label="Chargement en cours">
@@ -26,7 +29,7 @@ const EnhancedApp: React.FC = () => {
     onAuthChange: (isAuthenticated) => {
     },
     onError: (error) => {
-      console.error('🔐 Auth error:', error.message);
+      logger.error('auth error', { error });
     },
   });
 

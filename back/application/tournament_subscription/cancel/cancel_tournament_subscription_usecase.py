@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import hashlib
+import logging
 from typing import Callable
 
 from application.tournament_subscription.tournament_subscription_command_model import CancelSubscriptionResponse
@@ -6,6 +8,14 @@ from domain.services.stripe.stripe_service import StripeService
 from domain.tournament_subscription.exception.tournament_subscription_exception import TournamentSubscriptionInactiveError
 from domain.tournament_subscription.unit_of_work import TournamentSubscriptionUnitOfWork
 from domain.user.exception.user_exception import UserNotFoundError
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class CancelTournamentSubscriptionUseCase(ABC):
@@ -29,13 +39,30 @@ class CancelTournamentSubscriptionUseCaseImpl(CancelTournamentSubscriptionUseCas
         async with self._uow_factory() as uow:
             user = await uow.user_repo.find_by_email(email)
             if not user:
+                logger.warning(
+                    "tournament.subscription.cancel.rejected",
+                    extra={"email_hash": _hash_identifier(email), "reason": "user_missing"},
+                )
                 raise UserNotFoundError
 
             subscription = await uow.tournament_subscription_repo.find_active_by_user_id(user.id)
             if not subscription or not subscription.stripe_subscription_id:
+                logger.warning(
+                    "tournament.subscription.cancel.rejected",
+                    extra={"user_id": user.id, "email_hash": _hash_identifier(email), "reason": "inactive_subscription"},
+                )
                 raise TournamentSubscriptionInactiveError
 
             if subscription.cancel_at_period_end:
+                logger.info(
+                    "tournament.subscription.cancel.already_scheduled",
+                    extra={
+                        "user_id": user.id,
+                        "subscription_uuid": subscription.uuid,
+                        "stripe_subscription_id": subscription.stripe_subscription_id,
+                        "current_period_end": subscription.current_period_end,
+                    },
+                )
                 return CancelSubscriptionResponse(
                     success=True,
                     message="La résiliation de votre abonnement tournoi est déjà planifiée pour la fin de période.",
@@ -51,6 +78,15 @@ class CancelTournamentSubscriptionUseCaseImpl(CancelTournamentSubscriptionUseCas
             subscription.schedule_cancellation_at_period_end()
             await uow.tournament_subscription_repo.update(subscription)
             await uow.commit()
+            logger.info(
+                "tournament.subscription.cancel.scheduled",
+                extra={
+                    "user_id": user.id,
+                    "subscription_uuid": subscription.uuid,
+                    "stripe_subscription_id": subscription.stripe_subscription_id,
+                    "current_period_end": subscription.current_period_end,
+                },
+            )
 
             return CancelSubscriptionResponse(
                 success=True,

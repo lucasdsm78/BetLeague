@@ -84,6 +84,29 @@ curl_scheduler_json() {
   fi
 }
 
+register_and_get_token() {
+  local pseudo="$1"
+  local email="$2"
+  local password="$3"
+
+  local register_response
+  register_response="$(curl_json POST "${API_URL}/auth/register" "{\"pseudo\":\"${pseudo}\",\"email\":\"${email}\",\"password\":\"${password}\"}")"
+
+  if printf '%s' "$register_response" | "$PYTHON3" - <<'PY' >/dev/null 2>&1
+import json, sys
+data = json.load(sys.stdin)
+sys.exit(0 if isinstance(data, dict) and data.get("token_auth") else 1)
+PY
+  then
+    printf '%s' "$register_response" | json_get token_auth
+    return 0
+  fi
+
+  local login_response
+  login_response="$(curl_json POST "${API_URL}/auth/login" "{\"email\":\"${email}\",\"password\":\"${password}\"}")"
+  printf '%s' "$login_response" | json_get token_auth
+}
+
 psqlq() {
   docker compose exec -T db psql -U postgres -d betleague -Atqc "$1"
 }
@@ -278,15 +301,10 @@ P4_EMAIL="tournoi.player4.${SUFFIX}@test.local"
 
 echo ""
 echo "👤 Création des 4 utilisateurs de test"
-OWNER_REGISTER="$(curl_json POST "${API_URL}/auth/register" "{\"pseudo\":\"owner_${SUFFIX}\",\"email\":\"${OWNER_EMAIL}\",\"password\":\"${PASSWORD}\"}")"
-P2_REGISTER="$(curl_json POST "${API_URL}/auth/register" "{\"pseudo\":\"player2_${SUFFIX}\",\"email\":\"${P2_EMAIL}\",\"password\":\"${PASSWORD}\"}")"
-P3_REGISTER="$(curl_json POST "${API_URL}/auth/register" "{\"pseudo\":\"player3_${SUFFIX}\",\"email\":\"${P3_EMAIL}\",\"password\":\"${PASSWORD}\"}")"
-P4_REGISTER="$(curl_json POST "${API_URL}/auth/register" "{\"pseudo\":\"player4_${SUFFIX}\",\"email\":\"${P4_EMAIL}\",\"password\":\"${PASSWORD}\"}")"
-
-OWNER_TOKEN="$(printf '%s' "$OWNER_REGISTER" | json_get token_auth)"
-P2_TOKEN="$(printf '%s' "$P2_REGISTER" | json_get token_auth)"
-P3_TOKEN="$(printf '%s' "$P3_REGISTER" | json_get token_auth)"
-P4_TOKEN="$(printf '%s' "$P4_REGISTER" | json_get token_auth)"
+OWNER_TOKEN="$(register_and_get_token "owner_${SUFFIX}" "$OWNER_EMAIL" "$PASSWORD")"
+P2_TOKEN="$(register_and_get_token "player2_${SUFFIX}" "$P2_EMAIL" "$PASSWORD")"
+P3_TOKEN="$(register_and_get_token "player3_${SUFFIX}" "$P3_EMAIL" "$PASSWORD")"
+P4_TOKEN="$(register_and_get_token "player4_${SUFFIX}" "$P4_EMAIL" "$PASSWORD")"
 
 echo "✅ Utilisateurs créés"
 

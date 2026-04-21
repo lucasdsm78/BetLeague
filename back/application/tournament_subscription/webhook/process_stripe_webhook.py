@@ -1,10 +1,14 @@
 from abc import abstractmethod, ABC
+import logging
 from typing import Any, Callable, Mapping
 
 from domain.services.stripe.stripe_service import StripeService
 from domain.tournament_subscription.exception.tournament_subscription_exception import TournamentSubscriptionNotFoundError
 from domain.tournament_subscription.model.tournament_subscription_status import TournamentSubscriptionStatus
 from domain.tournament_subscription.unit_of_work import TournamentSubscriptionUnitOfWork
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessStripeWebhookTournamentSubscriptionUseCase(ABC):
@@ -104,7 +108,21 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
 
         return None, None
 
+    @classmethod
+    def _event_extra(cls, event_type: str, payload: Any, **extra: Any) -> dict[str, Any]:
+        payload_mapping = cls._as_mapping(payload)
+        metadata = cls._safe_get(payload_mapping, "metadata", {})
+        base = {
+            "stripe_event_type": event_type,
+            "stripe_object_id": cls._safe_get(payload_mapping, "id"),
+            "subscription_uuid": cls._safe_get(metadata, "uuid"),
+            "stripe_subscription_id": cls._safe_get(payload_mapping, "subscription") or cls._safe_get(payload_mapping, "id"),
+        }
+        base.update(extra)
+        return {key: value for key, value in base.items() if value is not None}
+
     async def execute(self, event_type: str, event_data: dict) -> None:
+        logger.info("tournament.subscription.webhook.received", extra=self._event_extra(event_type, event_data))
         async with self._uow_factory() as uow:
             if event_type == "checkout.session.completed":
                 await self._handle_checkout_session_completed(uow, event_data)
@@ -119,13 +137,19 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             elif event_type == "invoice.payment_failed":
                 await self._handle_payment_failed(uow, event_data)
             else:
+                logger.info("tournament.subscription.webhook.ignored", extra=self._event_extra(event_type, event_data, reason="unsupported_event_type"))
                 return
 
             await uow.commit()
+            logger.info("tournament.subscription.webhook.processed", extra=self._event_extra(event_type, event_data))
 
     async def _handle_checkout_session_completed(self, uow: TournamentSubscriptionUnitOfWork, session_data: dict) -> None:
         session_payload = await self._load_checkout_session_if_needed(session_data)
         if self._safe_get(session_payload, "mode") != "subscription":
+            logger.info(
+                "tournament.subscription.webhook.ignored",
+                extra=self._event_extra("checkout.session.completed", session_payload, reason="non_subscription_mode"),
+            )
             return
 
         uuid = self._safe_get(session_payload, "client_reference_id")
@@ -133,20 +157,42 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             metadata = self._safe_get(session_payload, "metadata", {})
             uuid = self._safe_get(metadata, "uuid")
         if not uuid:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("checkout.session.completed", session_payload, reason="missing_uuid"),
+            )
             return
 
         try:
             subscription = await uow.tournament_subscription_repo.find_by_uuid(uuid)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("checkout.session.completed", session_payload, subscription_uuid=uuid, reason="subscription_not_found"),
+            )
             return
 
         if not subscription:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("checkout.session.completed", session_payload, subscription_uuid=uuid, reason="subscription_missing"),
+            )
             return
 
         stripe_subscription_id = self._safe_get(session_payload, "subscription")
         if stripe_subscription_id:
             subscription.update_stripe_subscription_id_from_stripe(stripe_subscription_id)
             await uow.tournament_subscription_repo.update(subscription)
+            logger.info(
+                "tournament.subscription.checkout.completed",
+                extra=self._event_extra(
+                    "checkout.session.completed",
+                    session_payload,
+                    subscription_uuid=subscription.uuid,
+                    user_id=subscription.user.id,
+                    stripe_subscription_id=stripe_subscription_id,
+                ),
+            )
 
     async def _handle_subscription_created(self, uow: TournamentSubscriptionUnitOfWork, subscription_data: dict) -> None:
         subscription_payload = await self._load_subscription_if_needed(subscription_data)
@@ -154,18 +200,34 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
         stripe_subscription_id = self._safe_get(subscription_payload, "id")
 
         if not stripe_subscription_id:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.created", subscription_payload, reason="missing_subscription_id"),
+            )
             return
 
         uuid = self._safe_get(metadata, "uuid")
         if not uuid:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.created", subscription_payload, reason="missing_uuid"),
+            )
             return
 
         try:
             subscription = await uow.tournament_subscription_repo.find_by_uuid(uuid)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.created", subscription_payload, subscription_uuid=uuid, reason="subscription_not_found"),
+            )
             return
 
         if not subscription:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.created", subscription_payload, subscription_uuid=uuid, reason="subscription_missing"),
+            )
             return
 
         user = await uow.user_repo.find_by_id(subscription.user.id)
@@ -182,18 +244,42 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
         )
         subscription.update_stripe_subscription_id_from_stripe(stripe_subscription_id)
         await uow.tournament_subscription_repo.update(subscription)
+        logger.info(
+            "tournament.subscription.activated",
+            extra=self._event_extra(
+                "customer.subscription.created",
+                subscription_payload,
+                subscription_uuid=subscription.uuid,
+                user_id=subscription.user.id,
+                status=subscription.status.value,
+                current_period_start=subscription.current_period_start,
+                current_period_end=subscription.current_period_end,
+            ),
+        )
 
     async def _handle_subscription_updated(self, uow: TournamentSubscriptionUnitOfWork, subscription_data: dict) -> None:
         stripe_subscription_id = self._safe_get(subscription_data, "id")
         if not stripe_subscription_id:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.updated", subscription_data, reason="missing_subscription_id"),
+            )
             return
 
         try:
             subscription = await uow.tournament_subscription_repo.find_by_stripe_subscription_id(stripe_subscription_id)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.updated", subscription_data, stripe_subscription_id=stripe_subscription_id, reason="subscription_not_found"),
+            )
             return
 
         if not subscription:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.updated", subscription_data, stripe_subscription_id=stripe_subscription_id, reason="subscription_missing"),
+            )
             return
 
         period_start, period_end = self._extract_subscription_period_bounds(subscription_data)
@@ -204,18 +290,43 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             cancel_at_period_end=self._safe_get(subscription_data, "cancel_at_period_end"),
         )
         await uow.tournament_subscription_repo.update(subscription)
+        logger.info(
+            "tournament.subscription.updated",
+            extra=self._event_extra(
+                "customer.subscription.updated",
+                subscription_data,
+                subscription_uuid=subscription.uuid,
+                user_id=subscription.user.id,
+                status=subscription.status.value,
+                cancel_at_period_end=subscription.cancel_at_period_end,
+                current_period_start=subscription.current_period_start,
+                current_period_end=subscription.current_period_end,
+            ),
+        )
 
     async def _handle_subscription_deleted(self, uow: TournamentSubscriptionUnitOfWork, subscription_data: dict) -> None:
         stripe_subscription_id = self._safe_get(subscription_data, "id")
         if not stripe_subscription_id:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.deleted", subscription_data, reason="missing_subscription_id"),
+            )
             return
 
         try:
             subscription = await uow.tournament_subscription_repo.find_by_stripe_subscription_id(stripe_subscription_id)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.deleted", subscription_data, stripe_subscription_id=stripe_subscription_id, reason="subscription_not_found"),
+            )
             return
 
         if not subscription:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("customer.subscription.deleted", subscription_data, stripe_subscription_id=stripe_subscription_id, reason="subscription_missing"),
+            )
             return
 
         user = await uow.user_repo.find_by_id(subscription.user.id)
@@ -225,6 +336,16 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
 
         subscription.cancel()
         await uow.tournament_subscription_repo.update(subscription)
+        logger.info(
+            "tournament.subscription.deleted",
+            extra=self._event_extra(
+                "customer.subscription.deleted",
+                subscription_data,
+                subscription_uuid=subscription.uuid,
+                user_id=subscription.user.id,
+                status=subscription.status.value,
+            ),
+        )
 
     async def _handle_payment_succeeded(self, uow: TournamentSubscriptionUnitOfWork, invoice_data: dict) -> None:
         subscription_id = self._safe_get(invoice_data, "subscription")
@@ -246,6 +367,10 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                     subscription_id = self._safe_get(sub_item_details, "subscription")
 
         if not subscription_id:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_succeeded", invoice_data, reason="missing_subscription_id"),
+            )
             return
 
         period_start = None
@@ -261,9 +386,17 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
         try:
             subscription = await uow.tournament_subscription_repo.find_by_stripe_subscription_id(subscription_id)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_succeeded", invoice_data, stripe_subscription_id=subscription_id, reason="subscription_not_found"),
+            )
             return
 
         if not subscription:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_succeeded", invoice_data, stripe_subscription_id=subscription_id, reason="subscription_missing"),
+            )
             return
 
         user = await uow.user_repo.find_by_id(subscription.user.id)
@@ -287,15 +420,36 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
             period_end=period_end_ms,
         )
         await uow.tournament_subscription_repo.update(subscription)
+        logger.info(
+            "tournament.subscription.payment_succeeded",
+            extra=self._event_extra(
+                "invoice.payment_succeeded",
+                invoice_data,
+                subscription_uuid=subscription.uuid,
+                user_id=subscription.user.id,
+                stripe_subscription_id=subscription_id,
+                status=subscription.status.value,
+                current_period_start=subscription.current_period_start,
+                current_period_end=subscription.current_period_end,
+            ),
+        )
 
     async def _handle_payment_failed(self, uow: TournamentSubscriptionUnitOfWork, invoice_data: dict) -> None:
         subscription_id = self._safe_get(invoice_data, "subscription")
         if not subscription_id:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_failed", invoice_data, reason="missing_subscription_id"),
+            )
             return
 
         try:
             subscription = await uow.tournament_subscription_repo.find_by_stripe_subscription_id(subscription_id)
         except TournamentSubscriptionNotFoundError:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_failed", invoice_data, stripe_subscription_id=subscription_id, reason="subscription_not_found"),
+            )
             return
 
         if subscription:
@@ -305,4 +459,20 @@ class ProcessStripeWebhookTournamentSubscriptionUseCaseImpl(ProcessStripeWebhook
                 period_end=subscription.current_period_end,
             )
             await uow.tournament_subscription_repo.update(subscription)
+            logger.warning(
+                "tournament.subscription.payment_failed",
+                extra=self._event_extra(
+                    "invoice.payment_failed",
+                    invoice_data,
+                    subscription_uuid=subscription.uuid,
+                    user_id=subscription.user.id,
+                    stripe_subscription_id=subscription_id,
+                    status=subscription.status.value,
+                ),
+            )
+        else:
+            logger.warning(
+                "tournament.subscription.webhook.rejected",
+                extra=self._event_extra("invoice.payment_failed", invoice_data, stripe_subscription_id=subscription_id, reason="subscription_missing"),
+            )
 

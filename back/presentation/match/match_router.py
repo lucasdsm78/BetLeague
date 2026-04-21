@@ -1,4 +1,5 @@
 import hmac
+import logging
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from datetime import date, datetime, timedelta
@@ -28,6 +29,8 @@ router = APIRouter(
     tags=['match']
 )
 
+logger = logging.getLogger(__name__)
+
 
 @router.get(
     "/matches",
@@ -47,10 +50,14 @@ async def get_matches(
         current_user: dict = Depends(current_user),
 ):
     try:
-        return await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
+        matches = await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
+        logger.info("match.http.list_succeeded", extra={"user_id": current_user.get('id'), "page": page, "page_size": page_size, "results_count": len(matches.matches)})
+        return matches
     except UserNotFoundError as e:
+        logger.warning("match.http.list_rejected", extra={"user_id": current_user.get('id'), "reason": "user_missing"})
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
+        logger.exception("match.http.list_failed", extra={"user_id": current_user.get('id')})
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erreur interne lors de la récupération des matchs")
 
 
@@ -67,14 +74,18 @@ async def check_scores(
 ):
     try:
         if not hmac.compare_digest(token, settings.secret_key_token):
+            logger.warning("match.http.score_check_rejected", extra={"reason": "invalid_token"})
             raise TokenInvalidError()
-        return await match_command_usecase.check_scores_v2()
+        result = await match_command_usecase.check_scores_v2()
+        logger.info("match.http.score_check_succeeded")
+        return result
     except TokenInvalidError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message,
         )
     except Exception as e:
+        logger.exception("match.http.score_check_failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la vérification des scores",
@@ -94,11 +105,13 @@ async def fetch_matches(
         settings: Settings = Depends(get_settings),
 ):
     if not hmac.compare_digest(token, settings.secret_key_token):
+        logger.warning("match.http.fetch_rejected", extra={"reason": "invalid_token", "sport": sport, "days_ahead": days_ahead})
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token invalide")
 
     try:
         sport_enum = Sport.from_str(sport)
     except Exception:
+        logger.warning("match.http.fetch_rejected", extra={"reason": "invalid_sport", "sport": sport, "days_ahead": days_ahead})
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Sport invalide: {sport}")
 
     count = await match_fetch_usecase.fetch_and_store_matches(
@@ -106,4 +119,5 @@ async def fetch_matches(
         date_from=date.today(),
         date_to=date.today() + timedelta(days=days_ahead),
     )
+    logger.info("match.http.fetch_succeeded", extra={"sport": sport, "days_ahead": days_ahead, "fetched_count": count})
     return {"fetched": count, "sport": sport, "days_ahead": days_ahead}

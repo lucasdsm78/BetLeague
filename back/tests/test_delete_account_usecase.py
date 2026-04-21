@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from types import SimpleNamespace
 
 from cryptography.fernet import Fernet
@@ -105,7 +106,7 @@ def make_usecase(user: User, totp_service: FakeTOTPService | None = None):
     return usecase, repo, manager, totp
 
 
-def test_delete_current_user_marks_account_deleted_and_revokes_token():
+def test_delete_current_user_marks_account_deleted_and_revokes_token(caplog: pytest.LogCaptureFixture):
     user = User(
         id=42,
         email=Email("player@example.com"),
@@ -118,13 +119,14 @@ def test_delete_current_user_marks_account_deleted_and_revokes_token():
     )
     usecase, repo, manager, _ = make_usecase(user)
 
-    response = asyncio.run(
-        usecase.delete_current_user(
-            "player@example.com",
-            "access-token",
-            DeleteMyAccountModel(current_password="supersafepassword", two_fa_code="123456"),
+    with caplog.at_level(logging.INFO, logger="application.user.user_command_usecase"):
+        response = asyncio.run(
+            usecase.delete_current_user(
+                "player@example.com",
+                "access-token",
+                DeleteMyAccountModel(current_password="supersafepassword", two_fa_code="123456"),
+            )
         )
-    )
 
     assert response.message == "Compte supprimé avec succès."
     assert repo.commit_called is True
@@ -141,6 +143,10 @@ def test_delete_current_user_marks_account_deleted_and_revokes_token():
     assert repo.updated_user.is_tournament_subscriber is False
     assert manager.invalidations == [("access-token", "42")]
     assert manager.global_invalidations == ["42"]
+    delete_logs = [record for record in caplog.records if record.getMessage() == "auth.account.deleted"]
+    assert delete_logs
+    assert delete_logs[-1].layer == "use_case"
+    assert delete_logs[-1].user_id == 42
 
 
 def test_delete_current_user_requires_two_factor_code_when_enabled():

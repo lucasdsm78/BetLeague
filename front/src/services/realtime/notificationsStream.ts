@@ -1,4 +1,7 @@
 import enhancedAuthService from '../authService.enhanced';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('notificationsStream');
 
 
 type StreamMessage =
@@ -66,17 +69,13 @@ export class NotificationsStream {
       try {
         const token = enhancedAuthService.getCurrentToken();
         if (!token) {
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('[notifications-stream] no token, skip start');
-          }
+          logger.debug('no token, skip start');
           return;
         }
 
         const apiBase = normalizeApiBase(process.env.REACT_APP_API_URL || 'http://localhost:8001');
 
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[notifications-stream] connecting', { url: `${apiBase}/realtime/notifications/stream` });
-        }
+        logger.debug('connecting', { url: `${apiBase}/realtime/notifications/stream` });
 
         const res = await fetch(`${apiBase}/realtime/notifications/stream`, {
           method: 'GET',
@@ -87,9 +86,7 @@ export class NotificationsStream {
           signal: this.abortController?.signal,
         });
 
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[notifications-stream] http', res.status);
-        }
+        logger.debug('http response', { status: res.status });
 
         if (res.status === 401 || res.status === 403) {
           // Auth invalide: stop net, pas de retry agressif (le refresh token flow doit reprendre)
@@ -155,9 +152,7 @@ export class NotificationsStream {
           }
         }
       } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[notifications-stream] error', err);
-        }
+        logger.debug('stream error', { error: err });
         handlers.onError?.(err);
       } finally {
         // auto-reconnect (best effort)

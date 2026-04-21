@@ -10,6 +10,9 @@ import pushNotificationService, {
   isPushSupported,
   getPermissionStatus,
 } from '../services/push/pushNotificationService';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('usePushNotifications');
 
 export interface PushNotificationState {
   /** Whether push notifications are supported by the browser */
@@ -71,7 +74,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       // Update permission
       setPermission(getPermissionStatus());
     } catch (err) {
-      console.error('[usePushNotifications] Refresh error:', err);
+      logger.error('refresh error', { error: err });
       setError('Erreur lors de la vérification du statut');
     } finally {
       setIsLoading(false);
@@ -136,7 +139,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false;
       }
     } catch (err) {
-      console.error('[usePushNotifications] Subscribe error:', err);
+      logger.error('subscribe error', { error: err });
       setError("Erreur lors de l'inscription aux notifications");
       return false;
     } finally {
@@ -160,7 +163,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false;
       }
     } catch (err) {
-      console.error('[usePushNotifications] Unsubscribe error:', err);
+      logger.error('unsubscribe error', { error: err });
       setError('Erreur lors de la désinscription aux notifications');
       return false;
     } finally {

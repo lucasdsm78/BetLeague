@@ -36,7 +36,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
             finished_scores: Dict[int, tuple] = {}
 
             finished_no_winner = await uow.match_repo.find_finished_without_winner()
-            logger.info("[ScoreCheck] finished_no_winner_count=%s", len(finished_no_winner))
+            logger.info("match.score_check.finished_without_winner_loaded", extra={"matches_count": len(finished_no_winner)})
             for match in finished_no_winner:
                 new_winner = match.determine_winner()
                 if new_winner:
@@ -52,15 +52,15 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                         events.append(MatchResultResolvedEvent(match_id=match.id))
 
             fixture_ids = await uow.match_repo.find_active_fixture_ids()
-            logger.info("[ScoreCheck] fixture_ids_count=%s", len(fixture_ids))
+            logger.info("match.score_check.active_fixture_ids_loaded", extra={"fixture_ids_count": len(fixture_ids)})
 
             api_results = []
             if fixture_ids:
                 api_results = await self.match_score_api.get_live_scores(fixture_ids)
-                logger.info("[ScoreCheck] api_results_count=%s", len(api_results))
+                logger.info("match.score_check.api_results_loaded", extra={"fixture_ids_count": len(fixture_ids), "api_results_count": len(api_results)})
                 if not api_results:
                     sample = fixture_ids[:20]
-                    logger.info("[ScoreCheck] fixture_ids_sample=%s", sample)
+                    logger.info("match.score_check.api_results_empty", extra={"fixture_ids_sample": sample})
 
                 api_fixture_ids = [r["api_fixture_id"] for r in api_results]
                 matches_by_fixture = await uow.match_repo.find_all_by_api_fixture_ids(api_fixture_ids)
@@ -93,9 +93,9 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                         if match.winner != new_winner:
                             events.append(MatchResultResolvedEvent(match_id=match.id))
             else:
-                logger.info("[ScoreCheck] api_results_count=0")
+                logger.info("match.score_check.api_results_loaded", extra={"fixture_ids_count": 0, "api_results_count": 0})
 
-            logger.info("[ScoreCheck] to_update_count=%s", len(to_update))
+            logger.info("match.score_check.updates_prepared", extra={"to_update_count": len(to_update), "resolved_events_count": len(events), "finished_scores_count": len(finished_scores)})
 
             if to_update:
                 await uow.match_repo.bulk_update_scores(to_update)
@@ -112,7 +112,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                         odd_updates.append({"id": odd.id, "result": result_val})
                     if odd_updates:
                         await uow.match_odd_repo.bulk_update_results(odd_updates)
-                        logger.info(f"Resolved {len(odd_updates)} pending odds results")
+                        logger.info("match.score_check.odds_resolved", extra={"odd_updates_count": len(odd_updates)})
 
             for ev in events:
                 await uow.outbox_bus.publish(ev)
@@ -120,6 +120,8 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
             await uow.commit()
 
             if to_update or finished_scores:
+                logger.info("match.score_check.completed", extra={"updated_matches_count": len(to_update), "finished_scores_count": len(finished_scores), "published_events_count": len(events)})
                 return MatchScoreUpdatedResponse()
 
+            logger.info("match.score_check.noop")
             return NoMatchScoreUpdatedResponse()

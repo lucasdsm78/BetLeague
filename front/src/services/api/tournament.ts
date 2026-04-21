@@ -2,6 +2,9 @@
 // API module: tournament (network + DTO typing)
 
 import http, { type ApiResponse } from '../http';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('tournamentApi');
 import { ApiClientError } from '../secureApiClient';
 import type {
   TournamentCreateRequest,
@@ -218,6 +221,6 @@ export async function getUserTournamentMatches(): Promise<TournamentMatchOption[
 
 /** Legacy helper: en attendant un vrai endpoint back, on renvoie un placeholder. */
 export async function getTournamentPlayerBalance(tournamentId: number): Promise<number> {
-  console.warn(`getTournamentPlayerBalance(${tournamentId}): Temporary implementation. Backend endpoint needed.`);
+  logger.warn('temporary tournament player balance implementation used', { tournamentId });
   return 1000;
 }

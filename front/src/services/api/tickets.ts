@@ -14,6 +14,9 @@ import type {
 } from '../../types/api/tickets';
 import type { TicketsInProgressResponse, TicketsFinishedResponse, TicketReadModel, SharedTicketReadModel } from '../../types/entities/ticket';
 import { mapApiSharedTicketToUi, mapApiTicketToUi, tryMapApiTicketToUi } from '../mappers/ticketMapper';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('ticketsApi');
 
 export type TicketsListParams = {
   page?: number;
@@ -96,14 +99,12 @@ export async function getInProgressTickets(params?: TicketsListParams): Promise<
           : Array.isArray(raw)
             ? raw
             : [];
-        // eslint-disable-next-line no-console
-        console.log('[tickets][in-progress]', { endpoint, status: res.status, rawCount: rawTickets.length, query });
+        logger.debug('in-progress raw payload', { endpoint, status: res.status, rawCount: rawTickets.length, query });
       }
 
       const normalized = normalizeInProgress(res.data);
       if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.log('[tickets][in-progress][mapped]', { endpoint, mappedCount: normalized.tickets.length, total: normalized.total });
+        logger.debug('in-progress mapped payload', { endpoint, mappedCount: normalized.tickets.length, total: normalized.total });
       }
       return normalized;
     } catch (e) {
@@ -200,5 +201,6 @@ export async function createTournamentBet(
   const res: ApiResponse<ApiTicketCreateResponse> = await http.post(`/tournament/${tournamentId}/match/${matchId}/bet`, payload);
   return res.data as ApiTicketCreateResponse;
 }
+
 
 

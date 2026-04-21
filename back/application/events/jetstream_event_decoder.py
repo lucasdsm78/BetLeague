@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any, Callable
 
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
@@ -11,6 +12,9 @@ from domain.match.event.match_result_resolved_event import MatchResultResolvedEv
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
 from domain.ticket.event.tickets_resolved_event import TicketsResolvedEvent
 from domain.utils.domain_event import DomainEvent
+
+
+logger = logging.getLogger(__name__)
 
 
 class JetStreamEventDecodeError(ValueError):
@@ -67,17 +71,22 @@ _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
 def decode_domain_event(payload: dict[str, Any]) -> JetStreamDecodedEvent:
     event_name = str(payload.get("event_name") or "").strip()
     if not event_name:
+        logger.warning("jetstream.decoder.rejected", extra={"reason": "missing_event_name"})
         raise JetStreamEventDecodeError("missing event_name")
 
     builder = _EVENT_BUILDERS.get(event_name)
     if builder is None:
+        logger.warning("jetstream.decoder.rejected", extra={"event_name": event_name, "reason": "unsupported_event_name"})
         raise JetStreamEventDecodeError(f"unsupported event_name={event_name}")
 
     try:
         event = builder(payload)
     except KeyError as e:
+        logger.warning("jetstream.decoder.rejected", extra={"event_name": event_name, "reason": "missing_field", "field": str(e)})
         raise JetStreamEventDecodeError(f"missing field: {e}") from e
     except Exception as e:
+        logger.warning("jetstream.decoder.rejected", extra={"event_name": event_name, "reason": "invalid_payload", "error": str(e)})
         raise JetStreamEventDecodeError(f"invalid payload for {event_name}: {e}") from e
 
+    logger.info("jetstream.decoder.decoded", extra={"event_name": event_name})
     return JetStreamDecodedEvent(event_name=event_name, payload=payload, event=event)

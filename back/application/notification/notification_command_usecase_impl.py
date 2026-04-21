@@ -58,10 +58,20 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
         )
 
         created = await self._notification_repository.create(notification)
+        logger.info(
+            "notification.created",
+            extra={
+                "notification_id": created.id,
+                "user_id": user_id,
+                "type": str(type),
+            },
+        )
 
         try:
             await self._realtime_publisher.publish_to_user(user_id, created)
+            logger.info("notification.realtime_published", extra={"notification_id": created.id, "user_id": user_id})
         except Exception:
+            logger.exception("notification.realtime_publish_failed", extra={"notification_id": created.id, "user_id": user_id})
             pass
 
         if self._push_uc is not None:
@@ -80,8 +90,9 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
                     },
                     url="/notifications",
                 )
+                logger.info("notification.push_dispatched", extra={"notification_id": created.id, "user_id": user_id})
             except Exception as e:
-                logger.warning("Push notification failed", extra={"error": str(e), "user_id": user_id})
+                logger.warning("notification.push_failed", extra={"error": str(e), "user_id": user_id, "notification_id": created.id})
 
         return created
 
@@ -92,11 +103,14 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             notification_id=notification_id,
             read_at=read_at,
         )
+        logger.info("notification.mark_read", extra={"user_id": user_id, "notification_id": notification_id, "read_at": read_at})
 
     async def mark_all_read(self, *, user_id: int) -> int:
         read_at = _now_ms()
         updated = await self._notification_repository.mark_all_read(user_id=user_id, read_at=read_at)
+        logger.info("notification.mark_all_read", extra={"user_id": user_id, "updated_count": updated, "read_at": read_at})
         return updated
 
     async def delete(self, *, user_id: int, notification_id: int) -> None:
         await self._notification_repository.delete(user_id=user_id, notification_id=notification_id)
+        logger.info("notification.deleted", extra={"user_id": user_id, "notification_id": notification_id})

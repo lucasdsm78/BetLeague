@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from threading import Lock
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,6 +33,10 @@ class SlidingWindowRateLimiter:
                 oldest = min(timestamps) if timestamps else now
                 retry_after = int(max(1.0, (oldest + window_seconds) - now))
                 self._events[key] = timestamps
+                logger.warning(
+                    "ratelimiter.check_blocked",
+                    extra={"key": key, "limit": limit, "window_seconds": window_seconds, "retry_after_seconds": retry_after},
+                )
                 return RateLimitResult(allowed=False, retry_after_seconds=retry_after)
 
             timestamps.append(now)

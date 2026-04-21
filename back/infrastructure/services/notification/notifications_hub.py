@@ -62,6 +62,15 @@ class NotificationsHub(NotificationRealtimePublisher):
     def open_queue(self, user_id: int) -> "asyncio.Queue[str]":
         q: asyncio.Queue[str] = asyncio.Queue()
         self._user_queues[user_id].append(q)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "notifications.queue.opened",
+                extra={
+                    "user_id": user_id,
+                    "queues": len(self._user_queues[user_id]),
+                    "connections": self.connection_count(user_id),
+                },
+            )
         return q
 
     def close_queue(self, user_id: int, q: "asyncio.Queue[str]") -> None:
@@ -71,6 +80,15 @@ class NotificationsHub(NotificationRealtimePublisher):
             pass
         if not self._user_queues.get(user_id):
             self._user_queues.pop(user_id, None)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "notifications.queue.closed",
+                extra={
+                    "user_id": user_id,
+                    "queues": len(self._user_queues.get(user_id, [])),
+                    "connections": self.connection_count(user_id),
+                },
+            )
 
     async def subscribe(self, user_id: int) -> AsyncIterator[str]:
         q = self.open_queue(user_id)
@@ -85,9 +103,13 @@ class NotificationsHub(NotificationRealtimePublisher):
 
     def register_connection(self, user_id: int) -> None:
         self._connections[user_id] += 1
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("notifications.connection.registered", extra={"user_id": user_id, "connections": self.connection_count(user_id)})
 
     def unregister_connection(self, user_id: int) -> None:
         if self._connections.get(user_id, 0) <= 1:
             self._connections.pop(user_id, None)
         else:
             self._connections[user_id] -= 1
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("notifications.connection.unregistered", extra={"user_id": user_id, "connections": self.connection_count(user_id)})

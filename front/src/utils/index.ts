@@ -93,12 +93,12 @@ export const CommonUtils = {
   get: (obj: any, path: string, defaultValue: any = undefined): any => {
     const keys = path.split('.');
     let result = obj;
-    
+
     for (const key of keys) {
       if (result == null) return defaultValue;
       result = result[key];
     }
-    
+
     return result !== undefined ? result : defaultValue;
   }
 };
@@ -118,7 +118,7 @@ export const ValidationUtils = {
     const hasLower = /[a-z]/.test(password);
     const hasNumber = /\d/.test(password);
     const hasSpecial = /[!@#$%^&*]/.test(password);
-    
+
     return password.length >= minLength && hasUpper && hasLower && hasNumber && hasSpecial;
   },
 
@@ -165,12 +165,12 @@ export const StorageUtils = {
     try {
       const item = JSON.parse(itemStr);
       const now = new Date();
-      
+
       if (now.getTime() > item.expiry) {
         localStorage.removeItem(key);
         return null;
       }
-      
+
       return item.value;
     } catch {
       localStorage.removeItem(key);
@@ -181,15 +181,15 @@ export const StorageUtils = {
   // Clear expired items
   clearExpired: (): void => {
     const now = new Date().getTime();
-    
+
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
       if (!key) continue;
-      
+
       try {
         const itemStr = localStorage.getItem(key);
         if (!itemStr) continue;
-        
+
         const item = JSON.parse(itemStr);
         if (item.expiry && now > item.expiry) {
           localStorage.removeItem(key);
@@ -202,24 +202,27 @@ export const StorageUtils = {
   }
 };
 
+import { createLogger } from './logger';
+
+const logger = createLogger('utils');
+
 // Error handling utilities
 export const ErrorUtils = {
   // Log error with context
   logError: (error: Error, context?: any): void => {
-    console.error('Application Error:', {
-      message: error.message,
-      stack: error.stack,
+    logger.error('application error', {
+      error,
       context,
       timestamp: new Date().toISOString(),
       url: window.location.href,
-      userAgent: navigator.userAgent
+      userAgent: navigator.userAgent,
     });
   },
 
   // Create user-friendly error message
   getUserFriendlyMessage: (error: any): string => {
     if (typeof error === 'string') return error;
-    
+
     if (error?.message) {
       // Common error patterns
       if (error.message.includes('fetch')) {
@@ -231,10 +234,10 @@ export const ErrorUtils = {
       if (error.message.includes('unauthorized')) {
         return 'Session expirée, veuillez vous reconnecter';
       }
-      
+
       return error.message;
     }
-    
+
     return 'Une erreur inattendue s\'est produite';
   },
 

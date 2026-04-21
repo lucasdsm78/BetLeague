@@ -8,6 +8,9 @@ import type {
   InvitationReceivedReadModel,
   InvitationTournamentSummary,
 } from '../../types/entities/invitation';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('invitationMapper');
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -107,8 +110,7 @@ export function tryMapApiInvitationToUi(api: unknown): InvitationReceivedReadMod
   } catch (e: any) {
     if (process.env.NODE_ENV === 'development') {
       const maybeId = (api as any)?.id;
-      // eslint-disable-next-line no-console
-      console.log('[invitations][map][drop]', { id: typeof maybeId === 'number' ? maybeId : undefined, error: e?.message ?? String(e) });
+      logger.debug('map drop', { id: typeof maybeId === 'number' ? maybeId : undefined, error: e?.message ?? String(e) });
     }
     return null;
   }
