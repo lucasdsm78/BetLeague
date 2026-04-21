@@ -9,6 +9,9 @@ import { useAuthStore } from 'store/authStore';
 import useTokenMonitor from 'hooks/useTokenMonitor';
 import type { LoginForm, RegisterForm } from '../types';
 import type { User } from '../store/authStore';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('useEnhancedAuth');
 
 export interface UseAuthReturn {
   // State
@@ -147,13 +150,13 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Effet de diagnostic: log à chaque changement d'état principal
   useEffect(() => {
     if (debugMode) {
-      console.log('[AuthDebug] State changed:', {
+      logger.debug('state changed', {
         isAuthenticated,
         hasUser: !!user,
         userId: user?.id,
         isLoading,
         initializationComplete,
-          token: enhancedAuthService.getCurrentToken() ? '[memory-token]' : null
+        token: enhancedAuthService.getCurrentToken() ? '[memory-token]' : null,
       });
     }
   }, [isAuthenticated, user, isLoading, initializationComplete, debugMode]);
@@ -214,11 +217,11 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
     if (!isAuthenticated) return;
 
     try {
-      console.log('🔄 Enhanced Auth - Refreshing session...');
+      logger.debug('refreshing session');
       await enhancedAuthService.forceRefresh();
-      console.log('✅ Enhanced Auth - Session refreshed');
+      logger.debug('session refreshed');
     } catch (error) {
-      console.error('❌ Enhanced Auth - Session refresh failed:', error);
+      logger.error('session refresh failed', { error });
 
       const authError = error instanceof AuthError ? error : new AuthError('Erreur de rafraîchissement');
       setError(authError.message);
@@ -238,7 +241,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
       }
       return true;
     } catch (error) {
-      console.error('❌ Enhanced Auth - Force refresh failed:', error);
+      logger.error('force refresh failed', { error });
       return false;
     }
   }, []);

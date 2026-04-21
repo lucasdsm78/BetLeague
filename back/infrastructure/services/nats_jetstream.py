@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import ssl
 from dataclasses import dataclass
 
 from nats.aio.client import Client as NATS
 
-from infrastructure.services.nats_json import nats_dumps, nats_encode
+from infrastructure.services.nats_json import nats_encode
 
 
 _MAX_PAYLOAD_BYTES = int(os.getenv("NATS_MAX_PAYLOAD_BYTES", str(1024 * 1024)))
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,15 +134,13 @@ class JetStreamPublisher:
     async def connect(self) -> None:
         async with self._lock:
             if not self._boot_logged:
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.publisher.start",
-                            "nats_url": self._settings.url,
-                            "stream": self._settings.stream,
-                            "subject_prefix": self._settings.subject_prefix,
-                        }
-                    )
+                logger.info(
+                    "jetstream.publisher.start",
+                    extra={
+                        "nats_url": self._settings.url,
+                        "stream": self._settings.stream,
+                        "subject_prefix": self._settings.subject_prefix,
+                    },
                 )
                 self._boot_logged = True
 
@@ -160,14 +160,9 @@ class JetStreamPublisher:
             try:
                 await self._nc.connect(**connect_kwargs)
             except Exception as e:
-                print(
-                    nats_dumps(
-                        {
-                            "event": "jetstream.publisher.connect_error",
-                            "nats_url": self._settings.url,
-                            "error": str(e),
-                        }
-                    )
+                logger.exception(
+                    "jetstream.publisher.connect_error",
+                    extra={"nats_url": self._settings.url},
                 )
                 raise
 
@@ -193,15 +188,12 @@ class JetStreamPublisher:
         try:
             await self._js.publish(subject, data, headers=headers)
         except Exception as e:
-            print(
-                nats_dumps(
-                    {
-                        "event": "jetstream.publisher.publish_error",
-                        "subject": subject,
-                        "stream": self._settings.stream,
-                        "error": str(e),
-                    }
-                )
+            logger.exception(
+                "jetstream.publisher.publish_error",
+                extra={
+                    "subject": subject,
+                    "stream": self._settings.stream,
+                },
             )
             raise
 

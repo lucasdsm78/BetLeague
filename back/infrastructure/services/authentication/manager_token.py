@@ -68,7 +68,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
         try:
             blacklist = self.blacklist
             if await blacklist.is_token_blacklisted(token):
-                logger.warning("Tentative d'utilisation d'un token blacklisté")
+                logger.warning("auth.token.rejected_blacklisted")
                 return None
 
             decoded = await self._decode_token(token, self.settings.public_key)
@@ -79,7 +79,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             issued_at = decoded.get("iat")
             # fail-closed: on exige ces champs, sinon bypass possible de la révocation globale
             if user_id is None or issued_at is None:
-                logger.warning("Token rejeté: claims obligatoires manquants (id/iat)")
+                logger.warning("auth.token.rejected_missing_claims", extra={"missing_claims": "id,iat"})
                 return None
 
             issued_at_dt = datetime.fromtimestamp(int(issued_at), tz=UTC)
@@ -88,7 +88,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
                 user_id=str(user_id),
                 token_issued_at=issued_at_dt,
             ):
-                logger.warning("Token rejeté: invalidation globale active pour l'utilisateur")
+                logger.warning("auth.token.rejected_globally_invalidated", extra={"user_id": str(user_id)})
                 return None
 
             return decoded
@@ -110,7 +110,7 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             success = await blacklist.blacklist_token(token, user_id, expires_at)
 
             if success:
-                logger.info("Token invalidé pour l'utilisateur %s", user_id)
+                logger.info("auth.token.invalidated", extra={"user_id": str(user_id)})
 
             return success
 
@@ -121,10 +121,13 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
     async def invalidate_all_user_tokens(self, user_id: str) -> bool:
         try:
             blacklist = self.blacklist
-            return await blacklist.blacklist_user_tokens_before(
+            success = await blacklist.blacklist_user_tokens_before(
                 user_id=str(user_id),
                 invalid_before=datetime.now(UTC),
             )
+            if success:
+                logger.info("auth.token.invalidated_all", extra={"user_id": str(user_id)})
+            return success
         except Exception:
             logger.exception("Échec de l'invalidation globale des tokens pour l'utilisateur %s", user_id)
             return False
@@ -135,9 +138,9 @@ class JwtManagerTokenImpl(ManagerToken, BaseModel):
             decoded = await asyncio.to_thread(jwt.decode, token, rsa_pub_key, [ALGORITHM])
             return decoded
         except jwt.ExpiredSignatureError:
-            logger.warning("Token expiré")
+            logger.info("auth.token.decode_expired")
         except jwt.InvalidAudienceError:
-            logger.warning("Audience de token invalide")
+            logger.warning("auth.token.decode_invalid_audience")
         except jwt.InvalidTokenError:
-            logger.warning("Token invalide")
+            logger.warning("auth.token.decode_invalid")
         return None

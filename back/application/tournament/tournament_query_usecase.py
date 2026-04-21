@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import Callable
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
+from application.logging_utils import hash_identifier
 from application.tournament.tournament_query_model import TournamentReadModel, TournamentStageReadModel, \
     TournamentMatchReadModel, TournamentsRegisteredResponse, TournamentAvailablePublicReadModel, \
     TournamentsAvailablePublicResponse, TournamentFinishedResponse, TournamentFinishedReadModel, \
@@ -21,6 +23,9 @@ from domain.tournament.service.tournament_creation_policy import TournamentCreat
 from domain.tournament_subscription.repository.tournament_subscription_repository import TournamentSubscriptionRepository
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class TournamentQueryUseCase(ABC):
@@ -127,10 +132,12 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.stages_rejected", extra={"tournament_id": tournament_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 tournament = await self.tournament_repository.find_by_id(tournament_id)
                 if not tournament:
+                    logger.warning("tournament.query.stages_rejected", extra={"tournament_id": tournament_id, "user_id": user.id, "reason": "tournament_missing"})
                     raise TournamentNotFoundError
 
                 stages = await self.stage_repository.find_all_by_tournament(tournament_id)
@@ -153,6 +160,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     )
                     result["stages"].append(stage_model.dict())
 
+        logger.info("tournament.query.stages_loaded", extra={"tournament_id": tournament_id, "results_count": len(result["stages"])})
+
         return result
 
     async def get_stage_matches(self, tournament_id: int, stage: str, email: str):
@@ -162,14 +171,17 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.stage_matches_rejected", extra={"tournament_id": tournament_id, "stage": stage, "email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 tournament = await self.tournament_repository.find_by_id(tournament_id)
                 if not tournament:
+                    logger.warning("tournament.query.stage_matches_rejected", extra={"tournament_id": tournament_id, "stage": stage, "user_id": user.id, "reason": "tournament_missing"})
                     raise TournamentNotFoundError
 
                 tournament_stage = await self.stage_repository.find_by_id(tournament.id, stage)
                 if not tournament_stage:
+                    logger.warning("tournament.query.stage_matches_rejected", extra={"tournament_id": tournament_id, "stage": stage, "user_id": user.id, "reason": "stage_missing"})
                     raise TournamentStageNotFoundError
 
                 matches = await self.tournament_match_repository.find_matches_by_tournament_stages(tournament.id, stage)
@@ -200,6 +212,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     )
                     result["matches"].append(match_model.dict())
 
+        logger.info("tournament.query.stage_matches_loaded", extra={"tournament_id": tournament_id, "stage": stage, "results_count": len(result["matches"])})
+
         return result
 
     async def get_user_tournaments_in_progress(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsRegisteredResponse:
@@ -211,6 +225,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.in_progress_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 offset = (page - 1) * page_size
@@ -226,6 +241,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     tournaments=[TournamentReadModel.from_entity(t) for t in tournaments]
                 )
 
+                logger.info("tournament.query.in_progress_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total_count": total_count, "results_count": len(response.tournaments)})
+
                 return response
 
     async def get_available_tournaments_public(self, email: str, page: int = 1, page_size: int = 10) -> TournamentsAvailablePublicResponse:
@@ -237,6 +254,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.available_public_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 offset = (page - 1) * page_size
@@ -252,6 +270,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     tournaments=[TournamentAvailablePublicReadModel.from_entity(t) for t in tournaments]
                 )
 
+                logger.info("tournament.query.available_public_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total_count": total_count, "results_count": len(response.tournaments)})
+
                 return response
 
     async def get_tournaments_finished(self, email: str, page: int = 1, page_size: int = 10) -> TournamentFinishedResponse:
@@ -263,6 +283,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
 
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.finished_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 offset = (page - 1) * page_size
@@ -277,6 +298,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     page=page,
                     tournaments=[TournamentFinishedReadModel.from_entity(t) for t in tournaments]
                 )
+
+                logger.info("tournament.query.finished_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total_count": total_count, "results_count": len(response.tournaments)})
 
                 return response
 
@@ -299,6 +322,8 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     tournaments=[TournamentCreatedReadModel.from_entity(t) for t in tournaments]
                 )
 
+                logger.info("tournament.query.created_loaded", extra={"user_id": user_id, "page": page, "page_size": page_size, "total_count": total_count, "results_count": len(response.tournaments)})
+
                 return response
 
     async def get_tournament_creation_access(self, email: str) -> TournamentCreationAccessResponse:
@@ -306,6 +331,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             async with session.begin():
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.creation_access_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 month_start_ms, next_month_start_ms = current_month_window_ms()
@@ -319,6 +345,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     has_active_subscription=bool(subscription and subscription.is_active()),
                     monthly_free_tournaments_used=monthly_used,
                 )
+                logger.info("tournament.query.creation_access_loaded", extra={"user_id": user.id, "monthly_free_tournaments_used": monthly_used, "has_active_subscription": bool(subscription and subscription.is_active())})
                 return TournamentCreationAccessResponse(**access.__dict__)
 
     async def get_tournament_invitations(self, tournament_id: int, email: str) -> TournamentInvitationsResponse:
@@ -326,13 +353,16 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
             async with session.begin():
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.invitations_rejected", extra={"tournament_id": tournament_id, "email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 tournament = await self.tournament_repository.find_by_id(tournament_id)
                 if not tournament:
+                    logger.warning("tournament.query.invitations_rejected", extra={"tournament_id": tournament_id, "user_id": user.id, "reason": "tournament_missing"})
                     raise TournamentNotFoundError
 
                 if tournament.user.id != user.id:
+                    logger.warning("tournament.query.invitations_rejected", extra={"tournament_id": tournament_id, "user_id": user.id, "reason": "forbidden"})
                     raise TournamentNotOwnerLeaguedError
 
                 invitations = await self.invitation_repository.find_tournament_invitations_sent_by_owner(
@@ -340,7 +370,7 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                     owner_user_id=user.id,
                 )
 
-                return TournamentInvitationsResponse(
+                response = TournamentInvitationsResponse(
                     tournament_id=tournament_id,
                     invitations=[
                         TournamentInvitationReadModel(
@@ -356,12 +386,15 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                         for invitation in invitations
                     ],
                 )
+                logger.info("tournament.query.invitations_loaded", extra={"tournament_id": tournament_id, "user_id": user.id, "results_count": len(response.invitations)})
+                return response
 
     async def get_user_tournament_match_options(self, email: str) -> TournamentMatchOptionsResponse:
         async with self._session_factory() as session:
             async with session.begin():
                 user = await self.user_repository.find_by_email(email)
                 if not user:
+                    logger.warning("tournament.query.match_options_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
                     raise UserNotFoundError
 
                 tournaments = await self.tournament_repository.find_in_progress_for_user(user.id)
@@ -402,5 +435,6 @@ class TournamentQueryUseCaseImpl(TournamentQueryUseCase):
                         )
 
                 match_options.sort(key=lambda item: (item.start_date, item.id))
+                logger.info("tournament.query.match_options_loaded", extra={"user_id": user.id, "results_count": len(match_options), "tournaments_count": len(tournaments)})
                 return TournamentMatchOptionsResponse(matches=match_options)
 

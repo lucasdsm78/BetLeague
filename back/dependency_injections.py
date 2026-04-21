@@ -1,4 +1,6 @@
 from __future__ import annotations
+import hashlib
+import logging
 import secrets
 from infrastructure.postgresql.match.match_score_unit_of_work import MatchScoreUnitOfWorkImpl
 from application.league.league_command_usecase import LeagueCommandUseCase, LeagueCommandUseCaseImpl
@@ -701,6 +703,7 @@ async def authentication(
 
 
 async def current_user(
+        request: Request,
         token: str = Depends(authentication),
         manager_token: ManagerToken = Depends(manager_token_dependency),
         user_repository: UserRepository = Depends(user_repository_dependency),
@@ -726,7 +729,9 @@ async def current_user(
             detail="Utilisateur non trouvé ou supprimé",
         )
 
+    request.state.user_id = user.id
     decoded['token'] = token  # Add original token for logout operations
+    decoded['id'] = decoded.get('id') or user.id
     return decoded
 
 
@@ -980,17 +985,45 @@ def password_reset_usecase(
 
 from infrastructure.security.sse_rate_limiter import SlidingWindowRateLimiter
 from infrastructure.security.redis_rate_limiter import RedisSlidingWindowRateLimiter
+from infrastructure.security.request_ip import get_request_client_ip as resolve_request_client_ip
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_request_client_ip(request: Request, settings: Settings | None = None) -> str:
     settings = settings or get_settings()
-    direct_ip = request.client.host if request.client else "unknown"
-    trusted_proxy_ips = set(getattr(settings, "trusted_proxy_ips_list", []))
-    if direct_ip in trusted_proxy_ips:
-        forwarded = (request.headers.get("x-forwarded-for", "").split(",")[0].strip())
-        if forwarded:
-            return forwarded
-    return direct_ip
+    return resolve_request_client_ip(request, settings)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _log_rate_limit_hit(
+    *,
+    endpoint: str,
+    client_key: str,
+    retry_after_s: int,
+    request: Request | None = None,
+    user_id: int | str | None = None,
+    limiter_backend: str | None = None,
+    email_hash: str | None = None,
+) -> None:
+    extra = {
+        "endpoint": endpoint,
+        "client_key": client_key,
+        "retry_after_s": int(retry_after_s),
+        "user_id": user_id,
+        "limiter_backend": limiter_backend,
+        "email_hash": email_hash,
+    }
+    if request is not None:
+        extra["method"] = request.method
+        extra["path"] = request.url.path
+        extra["client_ip"] = get_request_client_ip(request)
+    logger.warning("ratelimit.hit", extra={k: v for k, v in extra.items() if v is not None})
 
 
 @lru_cache()
@@ -1032,10 +1065,20 @@ async def rate_limit_delete_my_account(
             limit=limit,
             window_s=window_s,
         )
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.delete_account",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            user_id=user_id,
+            limiter_backend=limiter_backend,
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
@@ -1083,10 +1126,20 @@ async def rate_limit_change_my_password(
             limit=limit,
             window_s=window_s,
         )
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.change_password",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            user_id=user_id,
+            limiter_backend=limiter_backend,
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Rate limit dépassé", "code": "RATE_LIMITED"},
@@ -1140,10 +1193,20 @@ async def rate_limit_verify_2fa_activation(
             limit=limit,
             window_s=window_s,
         )
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.verify_2fa_activation",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            user_id=user_id,
+            limiter_backend=limiter_backend,
+        )
         raise HTTPException(
             status_code=429,
             detail={
@@ -1195,10 +1258,20 @@ async def rate_limit_disable_2fa(
     redis_limiter = redis_disable_2fa_rate_limiter_singleton()
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.disable_2fa",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            user_id=user_id,
+            limiter_backend=limiter_backend,
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Trop de tentatives de désactivation 2FA. Réessayez plus tard.", "code": "RATE_LIMITED"},
@@ -1282,10 +1355,20 @@ async def rate_limit_tournament_mutation(
     redis_limiter = redis_tournament_mutation_rate_limiter_singleton()
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="tournament.mutation",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            user_id=user_id,
+            limiter_backend=limiter_backend,
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Trop d'actions tournoi. Réessayez plus tard.", "code": "RATE_LIMITED"},
@@ -1314,10 +1397,20 @@ async def rate_limit_login_with_2fa_code(
     redis_login_limiter = redis_login_rate_limiter_singleton()
     if redis_login_limiter is not None:
         login_result = await redis_login_limiter.allow(key=login_key, limit=login_limit, window_s=login_window_s)
+        login_backend = "redis"
     else:
         login_result = limiter.allow(login_key)
+        login_backend = "memory"
 
     if not login_result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.login",
+            client_key=login_key,
+            retry_after_s=login_result.retry_after_s,
+            request=request,
+            limiter_backend=login_backend,
+            email_hash=_hash_identifier(email),
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Trop de tentatives de connexion. Réessayez plus tard.", "code": "RATE_LIMITED"},
@@ -1335,10 +1428,20 @@ async def rate_limit_login_with_2fa_code(
     redis_limiter = redis_login_2fa_rate_limiter_singleton()
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
+        limiter_backend = "redis"
     else:
         result = limiter.allow(key)
+        limiter_backend = "memory"
 
     if not result.allowed:
+        _log_rate_limit_hit(
+            endpoint="auth.login_2fa",
+            client_key=key,
+            retry_after_s=result.retry_after_s,
+            request=request,
+            limiter_backend=limiter_backend,
+            email_hash=_hash_identifier(email),
+        )
         raise HTTPException(
             status_code=429,
             detail={"message": "Trop de tentatives de code 2FA. Réessayez plus tard.", "code": "RATE_LIMITED"},

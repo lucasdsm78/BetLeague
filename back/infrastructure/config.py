@@ -7,7 +7,11 @@ class Settings(BaseSettings):
     sqlalchemy_database_url: str
     environment: str = "dev"  # dev|prod
     sqlalchemy_echo: bool = False
-    json_logs: bool = False
+    json_logs: bool | None = Field(default=None, validation_alias="JSON_LOGS")
+    queue_logs_enabled: bool | None = Field(default=None, validation_alias="QUEUE_LOGGING_ENABLED")
+    http_request_logging_enabled: bool = Field(default=True, validation_alias="HTTP_REQUEST_LOGGING_ENABLED")
+    http_request_logging_excluded_paths: str = Field(default="/health", validation_alias="HTTP_REQUEST_LOGGING_EXCLUDED_PATHS")
+    http_slow_request_threshold_ms: int = Field(default=1000, validation_alias="HTTP_SLOW_REQUEST_THRESHOLD_MS")
     redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
     redis_socket_connect_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_CONNECT_TIMEOUT_S")
     redis_socket_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_TIMEOUT_S")
@@ -125,6 +129,10 @@ class Settings(BaseSettings):
         return self._split_csv(self.trusted_proxy_ips)
 
     @property
+    def http_request_logging_excluded_paths_list(self) -> list[str]:
+        return self._split_csv(self.http_request_logging_excluded_paths)
+
+    @property
     def auth_refresh_cookie_secure_value(self) -> bool:
         if self.auth_refresh_cookie_secure is not None:
             return bool(self.auth_refresh_cookie_secure)
@@ -136,6 +144,12 @@ class Settings(BaseSettings):
         if value not in {"lax", "strict", "none"}:
             return "lax"
         return value
+
+    @property
+    def queue_logs_enabled_value(self) -> bool:
+        if self.queue_logs_enabled is not None:
+            return bool(self.queue_logs_enabled)
+        return self.environment == "prod"
 
     class Config:
         env_file = ".env"

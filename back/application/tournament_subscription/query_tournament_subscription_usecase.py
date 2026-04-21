@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
+import hashlib
+import logging
 
 from application.tournament_subscription.tournament_subscription_query_model import (
     TournamentCurrentSubscriptionReadModel,
@@ -14,6 +16,14 @@ from domain.tournament_subscription.service.tournament_subscription_pricing_serv
 )
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class TournamentSubscriptionQueryUseCase(ABC):
@@ -76,11 +86,13 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
         yearly_savings = TournamentSubscriptionPricingService.calculate_yearly_savings()
         monthly_annual_cost = TournamentSubscriptionPricingService.get_price(TournamentSubscriptionPlan.MONTHLY).amount * 12
 
-        return TournamentSubscriptionPlansResponse(
+        response = TournamentSubscriptionPlansResponse(
             plans=plans,
             yearly_savings_cents=self._to_cents(yearly_savings),
             yearly_discount_percent=self._to_discount_percent(yearly_savings, monthly_annual_cost),
         )
+        logger.info("tournament.subscription.plans.listed", extra={"plans_count": len(plans)})
+        return response
 
     async def get_current_subscription(self, email: str) -> TournamentCurrentSubscriptionReadModel:
         if self._user_repository is None or self._tournament_subscription_repository is None:
@@ -88,13 +100,21 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
 
         user = await self._user_repository.find_by_email(email)
         if not user:
+            logger.warning(
+                "tournament.subscription.current.rejected",
+                extra={"email_hash": _hash_identifier(email), "reason": "user_missing"},
+            )
             raise UserNotFoundError
 
         subscription = await self._tournament_subscription_repository.find_active_by_user_id(user.id)
         if subscription is None:
+            logger.info(
+                "tournament.subscription.current.missing",
+                extra={"user_id": user.id, "email_hash": _hash_identifier(email)},
+            )
             raise ValueError("Aucun abonnement tournoi actif trouvé")
 
-        return TournamentCurrentSubscriptionReadModel(
+        result = TournamentCurrentSubscriptionReadModel(
             plan_id=subscription.plan.value,
             plan_name=self._plan_name(subscription.plan),
             price_cents=int(Decimal(str(subscription.price.amount)) * 100),
@@ -107,4 +127,15 @@ class TournamentSubscriptionQueryUseCaseImpl(TournamentSubscriptionQueryUseCase)
             cancellation_requested_at=subscription.cancellation_requested_at,
             has_tournament_access=subscription.is_active(),
         )
+        logger.info(
+            "tournament.subscription.current.loaded",
+            extra={
+                "user_id": user.id,
+                "subscription_uuid": subscription.uuid,
+                "plan_id": subscription.plan.value,
+                "status": subscription.status.value,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+            },
+        )
+        return result
 

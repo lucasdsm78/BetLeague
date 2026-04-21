@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from redis.asyncio import Redis
 from redis.exceptions import NoPermissionError
 
+from application.logging_utils import hash_identifier
 from domain.user.repository.password_reset_repository import PasswordResetRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class RedisPasswordResetRepository(PasswordResetRepository):
@@ -27,16 +32,40 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         }
         k = self._challenge_key(challenge_id)
         await self._redis.set(k, json.dumps(payload).encode(), ex=expires_in_seconds)
+        logger.info(
+            "redis.password_reset.challenge_created",
+            extra={
+                "challenge_id_hash": hash_identifier(challenge_id),
+                "email_hash": hash_identifier(email),
+                "expires_in_seconds": int(expires_in_seconds),
+            },
+        )
 
     async def get_challenge(self, *, challenge_id: str) -> dict | None:
         k = self._challenge_key(challenge_id)
         raw = await self._redis.get(k)
         if not raw:
+            logger.debug(
+                "redis.password_reset.challenge_missing",
+                extra={"challenge_id_hash": hash_identifier(challenge_id)},
+            )
             return None
-        return json.loads(raw)
+        data = json.loads(raw)
+        logger.debug(
+            "redis.password_reset.challenge_loaded",
+            extra={
+                "challenge_id_hash": hash_identifier(challenge_id),
+                "verified": bool(data.get("verified")),
+            },
+        )
+        return data
 
     async def delete_challenge(self, *, challenge_id: str) -> None:
         await self._redis.delete(self._challenge_key(challenge_id))
+        logger.info(
+            "redis.password_reset.challenge_deleted",
+            extra={"challenge_id_hash": hash_identifier(challenge_id)},
+        )
 
     async def mark_challenge_verified(
         self,
@@ -48,11 +77,22 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         k = self._challenge_key(challenge_id)
         raw = await self._redis.get(k)
         if not raw:
+            logger.warning(
+                "redis.password_reset.challenge_verify_skipped",
+                extra={"challenge_id_hash": hash_identifier(challenge_id), "reason": "missing"},
+            )
             return
         data = json.loads(raw)
         data["verified"] = True
         data["reset_token_hash"] = reset_token_hash
         await self._redis.set(k, json.dumps(data).encode(), ex=reset_expires_in_seconds)
+        logger.info(
+            "redis.password_reset.challenge_verified",
+            extra={
+                "challenge_id_hash": hash_identifier(challenge_id),
+                "reset_expires_in_seconds": int(reset_expires_in_seconds),
+            },
+        )
 
     async def consume_reset_token(self, *, challenge_id: str, reset_token_hash: str) -> dict | None:
         k = self._challenge_key(challenge_id)
@@ -69,8 +109,20 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         """
         res = await self._redis.eval(lua, 1, k, reset_token_hash)
         if not res:
+            logger.warning(
+                "redis.password_reset.reset_token_consume_rejected",
+                extra={"challenge_id_hash": hash_identifier(challenge_id), "reason": "missing_or_invalid"},
+            )
             return None
-        return json.loads(res)
+        data = json.loads(res)
+        logger.info(
+            "redis.password_reset.reset_token_consumed",
+            extra={
+                "challenge_id_hash": hash_identifier(challenge_id),
+                "email_hash": hash_identifier(data.get("email")),
+            },
+        )
+        return data
 
     async def incr_rate_limit(self, *, key: str, window_seconds: int, limit: int) -> bool:
         k = self._rate_key(key)
@@ -84,5 +136,25 @@ class RedisPasswordResetRepository(PasswordResetRepository):
         try:
             count = await self._redis.eval(lua, 1, k, int(window_seconds))
         except NoPermissionError:
+            logger.warning(
+                "redis.password_reset.rate_limit_failed_closed",
+                extra={
+                    "key_hash": hash_identifier(key),
+                    "window_seconds": int(window_seconds),
+                    "limit": int(limit),
+                    "reason": "no_permission",
+                },
+            )
             return False
-        return int(count) <= int(limit)
+        allowed = int(count) <= int(limit)
+        if not allowed:
+            logger.warning(
+                "redis.password_reset.rate_limit_blocked",
+                extra={
+                    "key_hash": hash_identifier(key),
+                    "window_seconds": int(window_seconds),
+                    "limit": int(limit),
+                    "count": int(count),
+                },
+            )
+        return allowed

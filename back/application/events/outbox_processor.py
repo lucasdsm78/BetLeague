@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from typing import Callable
@@ -10,6 +11,9 @@ from application.events.event_bus import InProcessDomainEventBus
 from application.events.jetstream_event_decoder import decode_domain_event
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
 from infrastructure.services.nats_json import nats_dumps
+
+
+logger = logging.getLogger(__name__)
 
 
 class OutboxProcessor:
@@ -86,16 +90,14 @@ class OutboxProcessor:
                     )
 
         duration_ms = int(time.time() * 1000) - started_ms
-        print(
-            nats_dumps(
-                {
-                    "event": "outbox.run_once",
-                    "worker_id": worker_id,
-                    "batch_size": self._batch_size,
-                    "processed": processed,
-                    "failed": len(failed),
-                    "duration_ms": duration_ms,
-                }
-            )
+        logger.info(
+            "outbox.run_once",
+            extra={
+                "worker_id": worker_id,
+                "batch_size": self._batch_size,
+                "processed": processed,
+                "failed": len(failed),
+                "duration_ms": duration_ms,
+            },
         )
         return processed

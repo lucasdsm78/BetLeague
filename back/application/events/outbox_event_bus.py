@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import logging
 from dataclasses import asdict, is_dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.events.event_bus import DomainEventBus
 from domain.utils.domain_event import DomainEvent
 from infrastructure.postgresql.outbox.outbox_repository import OutboxRepositoryImpl
+
+
+logger = logging.getLogger(__name__)
 
 
 def _event_to_payload(event: DomainEvent) -> dict:
@@ -37,5 +41,14 @@ class OutboxDomainEventBus(DomainEventBus):
             aggregate_id=aggregate_id,
             payload=payload,
             created_at=created_at,
+        )
+        logger.info(
+            "outbox.event_persisted",
+            extra={
+                "event_name": getattr(event, "event_name", type(event).__name__),
+                "aggregate_type": str(aggregate_type),
+                "aggregate_id": aggregate_id,
+                "created_at": created_at,
+            },
         )
 

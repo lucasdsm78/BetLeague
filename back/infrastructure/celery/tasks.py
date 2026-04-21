@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 _redis_state_client_singleton = None
 
 
+def _task_extra(task=None, **extra):
+    payload = {key: value for key, value in extra.items() if value is not None}
+    if task is not None:
+        payload.setdefault("task_name", getattr(task, "name", None))
+        payload.setdefault("task_id", getattr(getattr(task, "request", None), "id", None))
+    return payload
+
+
 def _redis_state_url() -> str:
     # Dedicated state url (future-proof), fallback to broker.
     return os.getenv("CELERY_STATE_REDIS_URL") or os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
@@ -46,8 +54,8 @@ def _state_prefix_and_ttl() -> tuple[str, int]:
 def _safe_set(key: str, value: str, *, ex: int) -> None:
     try:
         _redis_state().set(key, value, ex=ex)
-    except Exception as e:
-        logger.warning(f"[Celery] Unable to persist {key}: {e}")
+    except Exception:
+        logger.exception("celery.task.state_persist_failed", extra={"state_key": key, "ttl_s": ex})
 
 
 def _touch_score_check_started(*, now_epoch: int) -> None:
@@ -112,11 +120,13 @@ def _make_session_factory():
     retry_backoff_max=900,
 )
 def fetch_daily_matches(self):
-    logger.info("[Celery] Starting fetch_daily_matches task")
-    _run_async(_fetch_daily_matches_async())
+    logger.info("celery.task.fetch_daily_matches.started", extra=_task_extra(self))
+    started = time.time()
+    _run_async(_fetch_daily_matches_async(task=self))
+    logger.info("celery.task.fetch_daily_matches.finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
-async def _fetch_daily_matches_async():
+async def _fetch_daily_matches_async(*, task=None):
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.config import Settings
     from domain.match.model.sport import Sport
@@ -143,6 +153,7 @@ async def _fetch_daily_matches_async():
     date_to = date.today() + timedelta(days=7)
 
     sports_to_fetch = [Sport.FOOTBALL]
+    total_fetched = 0
 
     for sport in sports_to_fetch:
         try:
@@ -151,12 +162,23 @@ async def _fetch_daily_matches_async():
                 date_from=date_from,
                 date_to=date_to,
             )
-            logger.info(f"[Celery] Fetched {count} {sport.value} matches")
-        except Exception as e:
-            logger.error(f"[Celery] Error fetching {sport.value} matches: {e}")
+            total_fetched += int(count)
+            logger.info(
+                "celery.task.fetch_daily_matches.sport_finished",
+                extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
+            )
+        except Exception:
+            logger.exception(
+                "celery.task.fetch_daily_matches.sport_failed",
+                extra=_task_extra(task, sport=sport.value),
+            )
 
     await client.close()
     await engine.dispose()
+    logger.info(
+        "celery.task.fetch_daily_matches.completed",
+        extra=_task_extra(task, sports_count=len(sports_to_fetch), total_fetched_count=total_fetched),
+    )
 
 
 @celery_app.task(
@@ -169,18 +191,20 @@ async def _fetch_daily_matches_async():
     retry_backoff_max=300,
 )
 def check_match_scores(self):
-    logger.info("[Celery] Starting check_match_scores task")
+    logger.info("celery.task.check_match_scores.started", extra=_task_extra(self))
 
     started = int(time.time())
     _touch_score_check_started(now_epoch=started)
 
     try:
-        _run_async(_check_match_scores_async())
+        _run_async(_check_match_scores_async(task=self))
     except Exception as e:
         _touch_score_check_failed(now_epoch=int(time.time()), error=str(e))
+        logger.exception("celery.task.check_match_scores.failed", extra=_task_extra(self))
         raise
     finally:
         _touch_score_check_finished(now_epoch=int(time.time()))
+        logger.info("celery.task.check_match_scores.finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
 @celery_app.task(
@@ -195,13 +219,11 @@ def check_match_scores(self):
 def process_weekly_league_payouts(self):
     logger.info(
         "league_payout.task_started",
-        extra={
-            "event": "league_payout.task_started",
-            "task_name": self.name,
-            "task_id": getattr(getattr(self, "request", None), "id", None),
-        },
+        extra=_task_extra(self),
     )
-    _run_async(_process_weekly_league_payouts_async())
+    started = time.time()
+    _run_async(_process_weekly_league_payouts_async(task=self))
+    logger.info("league_payout.task_finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
 @celery_app.task(
@@ -216,16 +238,14 @@ def process_weekly_league_payouts(self):
 def process_tournaments_scheduler(self):
     logger.info(
         "tournament_scheduler.task_started",
-        extra={
-            "event": "tournament_scheduler.task_started",
-            "task_name": self.name,
-            "task_id": getattr(getattr(self, "request", None), "id", None),
-        },
+        extra=_task_extra(self),
     )
-    _run_async(_process_tournaments_scheduler_async())
+    started = time.time()
+    _run_async(_process_tournaments_scheduler_async(task=self))
+    logger.info("tournament_scheduler.task_finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
-async def _check_match_scores_async():
+async def _check_match_scores_async(*, task=None):
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.config import Settings
     from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
@@ -250,16 +270,19 @@ async def _check_match_scores_async():
 
     try:
         result = await usecase.check_scores_v2()
-        logger.info(f"[Celery] Score check result: {result}")
-    except Exception as e:
-        logger.error(f"[Celery] Error checking scores: {e}")
+        logger.info(
+            "celery.task.check_match_scores.completed",
+            extra=_task_extra(task, result_type=type(result).__name__),
+        )
+    except Exception:
+        logger.exception("celery.task.check_match_scores.async_failed", extra=_task_extra(task))
         raise
     finally:
         await client.close()
         await engine.dispose()
 
 
-async def _process_weekly_league_payouts_async():
+async def _process_weekly_league_payouts_async(*, task=None):
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
 
@@ -270,33 +293,24 @@ async def _process_weekly_league_payouts_async():
     try:
         logger.info(
             "league_payout.task_dispatching",
-            extra={
-                "event": "league_payout.task_dispatching",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
         await scheduler.process_due_payouts(as_of=run_at)
         logger.info(
             "league_payout.task_finished",
-            extra={
-                "event": "league_payout.task_finished",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
     except Exception:
         logger.exception(
             "league_payout.task_failed",
-            extra={
-                "event": "league_payout.task_failed",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
         raise
     finally:
         await engine.dispose()
 
 
-async def _process_tournaments_scheduler_async():
+async def _process_tournaments_scheduler_async(*, task=None):
     import infrastructure.postgresql.models  # noqa: F401 — resolve ORM relationships
     from infrastructure.scheduler.tournament_scheduler import TournamentSchedulerImpl
 
@@ -307,26 +321,17 @@ async def _process_tournaments_scheduler_async():
     try:
         logger.info(
             "tournament_scheduler.task_dispatching",
-            extra={
-                "event": "tournament_scheduler.task_dispatching",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
         await scheduler.process_tournaments(as_of=run_at)
         logger.info(
             "tournament_scheduler.task_finished",
-            extra={
-                "event": "tournament_scheduler.task_finished",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
     except Exception:
         logger.exception(
             "tournament_scheduler.task_failed",
-            extra={
-                "event": "tournament_scheduler.task_failed",
-                "as_of": run_at.isoformat(),
-            },
+            extra=_task_extra(task, as_of=run_at.isoformat()),
         )
         raise
     finally:

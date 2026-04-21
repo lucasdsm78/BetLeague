@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import random
 import signal
 import time
 from dataclasses import dataclass
 
-from infrastructure.logging_config import setup_logging
-from infrastructure.services.nats_json import nats_dumps
+from infrastructure.logging_config import resolve_queue_logs_enabled, setup_logging, shutdown_logging
 
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
@@ -16,6 +16,9 @@ from application.events.outbox_jetstream_processor import build_jetstream_outbox
 from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
 from nats.aio.client import Client as NATS
 from nats.js.errors import NotFoundError
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,17 +57,15 @@ async def _wait_for_streams() -> None:
     poll_s = float(os.getenv("NATS_PROVISION_WAIT_POLL_SECONDS", "0.25"))
 
     started = time.time()
-    print(
-        nats_dumps(
-            {
-                "event": "outbox.jetstream.wait_for_streams.start",
-                "nats_url": url,
-                "stream": stream,
-                "dlq_stream": dlq_stream,
-                "timeout_s": timeout_s,
-                "poll_s": poll_s,
-            }
-        )
+    logger.info(
+        "outbox.jetstream.wait_for_streams.start",
+        extra={
+            "nats_url": url,
+            "stream": stream,
+            "dlq_stream": dlq_stream,
+            "timeout_s": timeout_s,
+            "poll_s": poll_s,
+        },
     )
 
     last_state: str | None = None
@@ -80,14 +81,12 @@ async def _wait_for_streams() -> None:
         except Exception as e:
             last_state = "nats_unreachable"
             last_error = str(e)
-            print(
-                nats_dumps(
-                    {
-                        "event": "outbox.jetstream.wait_for_streams.connect_error",
-                        "nats_url": url,
-                        "error": last_error,
-                    }
-                )
+            logger.exception(
+                "outbox.jetstream.wait_for_streams.connect_error",
+                extra={
+                    "nats_url": url,
+                    "error": last_error,
+                },
             )
             raise
 
@@ -100,16 +99,14 @@ async def _wait_for_streams() -> None:
                 if dlq_stream:
                     await js.stream_info(dlq_stream)
 
-                print(
-                    nats_dumps(
-                        {
-                            "event": "outbox.jetstream.wait_for_streams.ready",
-                            "stream": stream,
-                            "dlq_stream": dlq_stream,
-                            "attempt": attempt,
-                            "duration_ms": int((time.time() - started) * 1000),
-                        }
-                    )
+                logger.info(
+                    "outbox.jetstream.wait_for_streams.ready",
+                    extra={
+                        "stream": stream,
+                        "dlq_stream": dlq_stream,
+                        "attempt": attempt,
+                        "duration_ms": int((time.time() - started) * 1000),
+                    },
                 )
                 return
 
@@ -117,8 +114,9 @@ async def _wait_for_streams() -> None:
                 last_state = "stream_missing"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    timeout = {
-                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                    logger.error(
+                        "outbox.jetstream.wait_for_streams.timeout",
+                        extra={
                         "nats_url": url,
                         "stream": stream,
                         "dlq_stream": dlq_stream,
@@ -128,8 +126,8 @@ async def _wait_for_streams() -> None:
                         "last_state": last_state,
                         "last_error": last_error,
                         "duration_ms": int((time.time() - started) * 1000),
-                    }
-                    print(nats_dumps(timeout))
+                        },
+                    )
                     raise TimeoutError(f"JetStream streams not found after {timeout_s}s: {stream} / {dlq_stream}")
                 await asyncio.sleep(poll_s)
 
@@ -137,8 +135,9 @@ async def _wait_for_streams() -> None:
                 last_state = "unknown_error"
                 last_error = str(e)
                 if time.time() - started >= timeout_s:
-                    timeout = {
-                        "event": "outbox.jetstream.wait_for_streams.timeout",
+                    logger.error(
+                        "outbox.jetstream.wait_for_streams.timeout",
+                        extra={
                         "nats_url": url,
                         "stream": stream,
                         "dlq_stream": dlq_stream,
@@ -148,8 +147,8 @@ async def _wait_for_streams() -> None:
                         "last_state": last_state,
                         "last_error": last_error,
                         "duration_ms": int((time.time() - started) * 1000),
-                    }
-                    print(nats_dumps(timeout))
+                        },
+                    )
                     raise
                 await asyncio.sleep(poll_s)
 
@@ -161,7 +160,14 @@ async def _wait_for_streams() -> None:
 
 
 async def main() -> None:
-    setup_logging(environment=os.getenv("ENVIRONMENT", "dev"))
+    setup_logging(
+        environment=os.getenv("ENVIRONMENT", "dev"),
+        queue_logs=resolve_queue_logs_enabled(
+            environment=os.getenv("ENVIRONMENT", "dev"),
+            raw_value=os.getenv("QUEUE_LOGGING_ENABLED"),
+        ),
+        component="outbox_worker",
+    )
     config = load_config()
 
     dispatch_mode = os.getenv("OUTBOX_DISPATCH_MODE", "local").strip().lower()
@@ -174,19 +180,17 @@ async def main() -> None:
     worker_id = os.getenv("OUTBOX_WORKER_ID", "local")
     lock_ttl_ms = int(os.getenv("OUTBOX_LOCK_TTL_MS", "120000"))
 
-    print(
-        nats_dumps(
-            {
-                "event": "outbox.worker.start",
-                "worker_id": worker_id,
-                "dispatch_mode": dispatch_mode,
-                "batch_size": config.batch_size,
-                "poll_interval_ms": config.poll_interval_ms,
-                "max_poll_interval_ms": config.max_poll_interval_ms,
-                "jitter_ms": config.jitter_ms,
-                "lock_ttl_ms": lock_ttl_ms,
-            }
-        )
+    logger.info(
+        "outbox.worker.start",
+        extra={
+            "worker_id": worker_id,
+            "dispatch_mode": dispatch_mode,
+            "batch_size": config.batch_size,
+            "poll_interval_ms": config.poll_interval_ms,
+            "max_poll_interval_ms": config.max_poll_interval_ms,
+            "jitter_ms": config.jitter_ms,
+            "lock_ttl_ms": lock_ttl_ms,
+        },
     )
 
     session_factory = get_session_factory()
@@ -230,6 +234,14 @@ async def main() -> None:
 
             except Exception:
                 sleep_ms = min(int(sleep_ms * 2), config.max_poll_interval_ms)
+                logger.exception(
+                    "outbox.worker.run_once_failed",
+                    extra={
+                        "worker_id": worker_id,
+                        "dispatch_mode": dispatch_mode,
+                        "sleep_ms": sleep_ms,
+                    },
+                )
 
             jitter = random.randint(0, config.jitter_ms) if config.jitter_ms > 0 else 0
             await asyncio.wait({stop_task}, timeout=(sleep_ms + jitter) / 1000)
@@ -240,8 +252,11 @@ async def main() -> None:
             try:
                 await close()
             except Exception:
-                pass
+                logger.exception("outbox.worker.close_failed", extra={"worker_id": worker_id})
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        shutdown_logging()

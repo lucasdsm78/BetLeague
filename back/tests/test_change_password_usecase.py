@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from types import SimpleNamespace
 
 from cryptography.fernet import Fernet
@@ -106,7 +107,7 @@ def make_usecase(user: User, totp_service: FakeTOTPService | None = None):
     return usecase, repo, manager, totp
 
 
-def test_change_password_success_revokes_tokens_and_updates_hash():
+def test_change_password_success_revokes_tokens_and_updates_hash(caplog: pytest.LogCaptureFixture):
     user = User(
         id=1,
         email=Email("player@example.com"),
@@ -118,17 +119,18 @@ def test_change_password_success_revokes_tokens_and_updates_hash():
     )
     usecase, repo, manager, _ = make_usecase(user)
 
-    res = asyncio.run(
-        usecase.change_my_password(
-            "player@example.com",
-            "access-token",
-            ChangeMyPasswordModel(
-                current_password="oldpassword123",
-                new_password="newpassword456",
-                two_fa_code="123456",
-            ),
+    with caplog.at_level(logging.INFO, logger="application.user.user_command_usecase"):
+        res = asyncio.run(
+            usecase.change_my_password(
+                "player@example.com",
+                "access-token",
+                ChangeMyPasswordModel(
+                    current_password="oldpassword123",
+                    new_password="newpassword456",
+                    two_fa_code="123456",
+                ),
+            )
         )
-    )
 
     assert res.message == "Mot de passe mis à jour."
     assert res.reauth_required is True
@@ -138,9 +140,14 @@ def test_change_password_success_revokes_tokens_and_updates_hash():
     assert repo.updated_user.password.password == "hashed::newpassword456"
     assert manager.invalidations == [("access-token", "1")]
     assert manager.global_invalidations == ["1"]
+    password_logs = [record for record in caplog.records if record.getMessage() == "auth.password_changed"]
+    assert password_logs
+    assert password_logs[-1].layer == "use_case"
+    assert password_logs[-1].user_id == 1
+    assert password_logs[-1].reauth_required is True
 
 
-def test_change_password_rejects_invalid_current_password():
+def test_change_password_rejects_invalid_current_password(caplog: pytest.LogCaptureFixture):
     user = User(
         id=2,
         email=Email("player2@example.com"),
@@ -151,21 +158,26 @@ def test_change_password_rejects_invalid_current_password():
     )
     usecase, repo, manager, _ = make_usecase(user)
 
-    with pytest.raises(InvalidPasswordError):
-        asyncio.run(
-            usecase.change_my_password(
-                "player2@example.com",
-                "access-token",
-                ChangeMyPasswordModel(
-                    current_password="wrongpass",
-                    new_password="newstrongpass",
-                ),
+    with caplog.at_level(logging.WARNING, logger="application.user.user_command_usecase"):
+        with pytest.raises(InvalidPasswordError):
+            asyncio.run(
+                usecase.change_my_password(
+                    "player2@example.com",
+                    "access-token",
+                    ChangeMyPasswordModel(
+                        current_password="wrongpass",
+                        new_password="newstrongpass",
+                    ),
+                )
             )
-        )
 
     assert repo.commit_called is False
     assert repo.updated_user is None
     assert manager.invalidations == []
+    rejection_logs = [record for record in caplog.records if record.getMessage() == "auth.password_change_rejected"]
+    assert rejection_logs
+    assert rejection_logs[-1].layer == "use_case"
+    assert rejection_logs[-1].reason == "invalid_password"
 
 
 def test_change_password_requires_two_factor_code_when_enabled():

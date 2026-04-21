@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import List
 
+from application.logging_utils import hash_identifier
 from domain.purchase.model.pack import Pack
 from domain.purchase.model.purchase import Purchase
 from domain.purchase.repository.pack_repository import PackRepository
@@ -9,6 +11,9 @@ from domain.shop.service.shop_availability_policy import ShopAvailabilityPolicy
 
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.user.repository.user_repository import UserRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class PurchaseQueryUseCase(ABC):
@@ -41,13 +46,19 @@ class PurchaseQueryUseCaseImpl(PurchaseQueryUseCase):
 
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("purchase.query.packs_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
-        return await self.pack_repository.find_all()
+        packs = await self.pack_repository.find_all()
+        logger.info("purchase.query.packs_loaded", extra={"user_id": user.id, "packs_count": len(packs)})
+        return packs
 
     async def get_user_purchases(self, email: str) -> List[Purchase]:
         user = await self.user_repository.find_by_email(email)
         if not user:
+            logger.warning("purchase.query.user_purchases_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
             raise UserNotFoundError
 
-        return await self.purchase_repository.find_all_by_user_id(user.id)
+        purchases = await self.purchase_repository.find_all_by_user_id(user.id)
+        logger.info("purchase.query.user_purchases_loaded", extra={"user_id": user.id, "purchases_count": len(purchases)})
+        return purchases

@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import hashlib
+import logging
 from typing import Callable
 
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -16,6 +18,14 @@ from infrastructure.config import Settings
 from infrastructure.postgresql.tournament_subscription.tournament_subscription_repository import \
     TournamentSubscriptionRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
+
+
+logger = logging.getLogger(__name__)
+
+
+def _hash_identifier(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class CreateTournamentSubscriptionUseCase(ABC):
@@ -53,6 +63,10 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
                 tournament_subscription_repository = TournamentSubscriptionRepositoryImpl(session=session)
                 user = await user_repository.find_by_email(email)
                 if not user:
+                    logger.warning(
+                        "tournament.subscription.create.rejected",
+                        extra={"email_hash": _hash_identifier(email), "reason": "user_missing"},
+                    )
                     raise UserNotFoundError
 
                 subscription_type = TournamentSubscriptionPlan(request.subscription_plan)
@@ -77,6 +91,17 @@ class CreateTournamentSubscriptionUseCaseImpl(CreateTournamentSubscriptionUseCas
                     subscription.update_stripe_subscription_id_from_stripe(stripe_sub_id)
 
                 await tournament_subscription_repository.create(subscription)
+                logger.info(
+                    "tournament.subscription.create.succeeded",
+                    extra={
+                        "user_id": user.id,
+                        "email_hash": _hash_identifier(email),
+                        "subscription_uuid": subscription.uuid,
+                        "subscription_plan": subscription_type.value,
+                        "stripe_subscription_id": stripe_sub_id,
+                        "stripe_checkout_session_id": getattr(session_stripe, "id", None),
+                    },
+                )
 
                 return CheckoutSessionResponse(
                     checkout_url=session_stripe.url,
