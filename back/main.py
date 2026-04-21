@@ -26,6 +26,7 @@ settings = get_settings()
 setup_logging(
     environment=getattr(settings, 'environment', 'dev'),
     json_logs=getattr(settings, 'json_logs', None),
+    queue_logs=getattr(settings, 'queue_logs_enabled_value', getattr(settings, 'environment', 'dev') == 'prod'),
     component='api',
 )
 
