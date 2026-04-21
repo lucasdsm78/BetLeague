@@ -11,7 +11,7 @@ from nats.js.errors import NotFoundError
 
 from application.events.jetstream_event_decoder import decode_domain_event, JetStreamEventDecodeError
 from dependency_injections import outbox_handler_bus_dependency
-from infrastructure.logging_config import setup_logging
+from infrastructure.logging_config import setup_logging, shutdown_logging
 from infrastructure.services.nats_jetstream import build_nats_connect_kwargs
 from infrastructure.services.nats_json import nats_loads, nats_encode
 from infrastructure.services.nats_subjects import load_nats_subjects
@@ -316,4 +316,7 @@ if __name__ == "__main__":
         json_logs=None,
         component="jetstream_consumer",
     )
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        shutdown_logging()

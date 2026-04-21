@@ -8,7 +8,7 @@ import signal
 import time
 from dataclasses import dataclass
 
-from infrastructure.logging_config import setup_logging
+from infrastructure.logging_config import setup_logging, shutdown_logging
 
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
@@ -252,4 +252,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        shutdown_logging()

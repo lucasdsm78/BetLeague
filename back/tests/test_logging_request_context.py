@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import QueueHandler
 from types import SimpleNamespace
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from infrastructure.http_exception_handlers import register_exception_handlers
-from infrastructure.logging_config import JsonFormatter, SensitiveDataRedactionFilter
+from infrastructure.logging_config import JsonFormatter, SensitiveDataRedactionFilter, setup_logging, shutdown_logging
 from infrastructure.logging_context import RequestContextFilter, reset_request_id, set_request_id
 from infrastructure.logging_middleware import RequestLoggingMiddleware
 
@@ -286,6 +287,33 @@ def test_sensitive_data_redaction_filter_masks_nested_sensitive_fields():
     assert payload["context"]["context"]["authorization"] == "[REDACTED]"
     assert payload["context"]["context"]["nested"]["refresh_token"] == "[REDACTED]"
     assert payload["context"]["context"]["nested"]["ok"] is True
+
+
+def test_setup_logging_can_enable_queue_handler_and_shutdown_cleanly():
+    root = logging.getLogger()
+    original_handlers = list(root.handlers)
+    original_level = root.level
+
+    try:
+        setup_logging(
+            environment="prod",
+            json_logs=True,
+            component="test",
+            queue_logs=True,
+        )
+
+        assert root.handlers, "Expected root logger to have handlers configured"
+        assert any(isinstance(handler, QueueHandler) for handler in root.handlers)
+
+        logging.getLogger("tests.queue_logging").info("logging.queue.enabled")
+    finally:
+        shutdown_logging()
+        for handler in list(root.handlers):
+            root.removeHandler(handler)
+        for handler in original_handlers:
+            root.addHandler(handler)
+        root.setLevel(original_level)
+
 
 
 

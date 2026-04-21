@@ -25,7 +25,7 @@ if BACK_DIR not in sys.path:
 from sqlalchemy import text
 
 from dependency_injections import get_session_factory, domain_event_bus_dependency, outbox_handler_bus_dependency
-from infrastructure.logging_config import setup_logging
+from infrastructure.logging_config import setup_logging, shutdown_logging
 from infrastructure.postgresql.notification.notification_repository import NotificationRepositoryImpl
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.league.league_players_repository import LeaguePlayersRepositoryImpl
@@ -137,4 +137,7 @@ if __name__ == '__main__':
         json_logs=None,
         component="notification_demo",
     )
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    finally:
+        shutdown_logging()
