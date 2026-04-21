@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from dependency_injections import get_settings, token_blacklist_singleton
 from infrastructure.http_exception_handlers import register_exception_handlers
-from infrastructure.logging_config import setup_logging
+from infrastructure.logging_config import setup_logging, shutdown_logging
 from infrastructure.logging_middleware import RequestLoggingMiddleware
 from infrastructure.services.authentication.token_blacklist_impl import shutdown_token_blacklist_service, start_token_blacklist_service
 
@@ -59,6 +59,7 @@ async def lifespan(app: FastAPI):
     logger.info("app.lifecycle.stopping")
     await shutdown_token_blacklist_service(blacklist_service)
     logger.info("app.lifecycle.stopped")
+    shutdown_logging()
 
 
 app = FastAPI(lifespan=lifespan)
