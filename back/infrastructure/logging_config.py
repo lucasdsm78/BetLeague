@@ -110,13 +110,19 @@ def _env_flag(name: str) -> bool | None:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def resolve_queue_logs_enabled(*, environment: str, raw_value: str | None = None) -> bool:
+    if raw_value is not None:
+        return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+    return environment == "prod"
+
+
 def _use_queue_logging(*, environment: str, queue_logs: bool | None) -> bool:
     if queue_logs is not None:
         return queue_logs
     env_value = _env_flag("QUEUE_LOGGING_ENABLED")
     if env_value is not None:
         return env_value
-    return environment == "prod"
+    return resolve_queue_logs_enabled(environment=environment)
 
 
 def _queue_maxsize() -> int:

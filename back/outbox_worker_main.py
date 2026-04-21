@@ -8,7 +8,7 @@ import signal
 import time
 from dataclasses import dataclass
 
-from infrastructure.logging_config import setup_logging, shutdown_logging
+from infrastructure.logging_config import resolve_queue_logs_enabled, setup_logging, shutdown_logging
 
 from dependency_injections import get_session_factory, outbox_handler_bus_dependency
 from application.events.outbox_processor import OutboxProcessor
@@ -162,6 +162,10 @@ async def _wait_for_streams() -> None:
 async def main() -> None:
     setup_logging(
         environment=os.getenv("ENVIRONMENT", "dev"),
+        queue_logs=resolve_queue_logs_enabled(
+            environment=os.getenv("ENVIRONMENT", "dev"),
+            raw_value=os.getenv("QUEUE_LOGGING_ENABLED"),
+        ),
         component="outbox_worker",
     )
     config = load_config()

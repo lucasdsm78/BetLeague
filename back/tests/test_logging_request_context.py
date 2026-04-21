@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
 from infrastructure.http_exception_handlers import register_exception_handlers
-from infrastructure.logging_config import JsonFormatter, SensitiveDataRedactionFilter, setup_logging, shutdown_logging
+from infrastructure.logging_config import JsonFormatter, SensitiveDataRedactionFilter, resolve_queue_logs_enabled, setup_logging, shutdown_logging
 from infrastructure.logging_context import RequestContextFilter, reset_request_id, set_request_id
 from infrastructure.logging_middleware import RequestLoggingMiddleware
 
@@ -313,6 +313,14 @@ def test_setup_logging_can_enable_queue_handler_and_shutdown_cleanly():
         for handler in original_handlers:
             root.addHandler(handler)
         root.setLevel(original_level)
+
+
+def test_resolve_queue_logs_enabled_supports_explicit_environment_resolution():
+    assert resolve_queue_logs_enabled(environment="prod") is True
+    assert resolve_queue_logs_enabled(environment="dev") is False
+    assert resolve_queue_logs_enabled(environment="dev", raw_value="true") is True
+    assert resolve_queue_logs_enabled(environment="prod", raw_value="false") is False
+
 
 
 
