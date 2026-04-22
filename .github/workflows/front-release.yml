@@ -1,0 +1,132 @@
+name: Frontend Release CI/CD
+
+on:
+  push:
+    tags:
+      - "front-v*"
+
+concurrency:
+  group: frontend-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "18"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/betleague-front
+
+jobs:
+  verify-frontend:
+    name: Frontend tests and production build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: front
+    env:
+      FRONTEND_RELEASE_REACT_APP_API_URL: ${{ vars.FRONTEND_RELEASE_REACT_APP_API_URL }}
+      FRONTEND_RELEASE_REACT_APP_DEBUG: ${{ vars.FRONTEND_RELEASE_REACT_APP_DEBUG }}
+      FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER: ${{ vars.FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Prepare release build environment
+        shell: bash
+        run: |
+          {
+            echo "CI=true"
+            echo "REACT_APP_API_URL=${FRONTEND_RELEASE_REACT_APP_API_URL:-https://api.betleague.app/api}"
+            echo "REACT_APP_ENV=production"
+            echo "REACT_APP_DEBUG=${FRONTEND_RELEASE_REACT_APP_DEBUG:-false}"
+            echo "REACT_APP_TICKETS_SERVER_FILTER=${FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER:-false}"
+            echo "GENERATE_SOURCEMAP=false"
+          } >> "$GITHUB_ENV"
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --prefer-offline
+
+      - name: Run frontend test suite
+        run: npm run test:ci -- --runInBand
+
+      - name: Build production frontend
+        run: npm run build
+
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frontend-build
+          path: front/build
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish-ghcr:
+    name: Publish frontend image to GHCR
+    runs-on: ubuntu-latest
+    needs: verify-frontend
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download production build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: frontend-build
+          path: front/build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags and labels
+        id: image_meta
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#front-v}"
+          minor="${version%.*}"
+
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE_NAME}:${tag}"
+            echo "${IMAGE_NAME}:${version}"
+            if [ "${minor}" != "${version}" ]; then
+              echo "${IMAGE_NAME}:${minor}"
+            fi
+            echo "EOF"
+            echo "labels<<EOF"
+            echo "org.opencontainers.image.title=betleague-front"
+            echo "org.opencontainers.image.description=BetLeague React frontend"
+            echo "org.opencontainers.image.vendor=BetLeague"
+            echo "org.opencontainers.image.version=${version}"
+            echo "org.opencontainers.image.revision=${GITHUB_SHA}"
+            echo "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./front
+          file: ./front/Dockerfile.release
+          push: true
+          tags: ${{ steps.image_meta.outputs.tags }}
+          labels: ${{ steps.image_meta.outputs.labels }}
+
