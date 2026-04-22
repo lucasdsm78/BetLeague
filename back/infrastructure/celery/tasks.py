@@ -5,6 +5,8 @@ import sys
 import time
 from datetime import date, timedelta, datetime
 
+from redis import Redis
+
 # Celery prefork workers may lose /app from sys.path after fork
 _app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _app_root not in sys.path:
@@ -34,8 +36,6 @@ def _redis_state_url() -> str:
 def _redis_state() -> "Redis":
     global _redis_state_client_singleton
     if _redis_state_client_singleton is None:
-        from redis import Redis
-
         _redis_state_client_singleton = Redis.from_url(
             _redis_state_url(),
             decode_responses=True,

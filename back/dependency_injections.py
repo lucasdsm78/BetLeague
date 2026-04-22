@@ -22,6 +22,7 @@ from application.tournament_subscription.query_tournament_subscription_usecase i
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase, ProcessStripeWebhookTournamentSubscriptionUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
+from application.user.user_command_model import UserLoginModel
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from application.tournament.advance_tournament_stage_usecase import (
     AdvanceTournamentStageUseCase,
