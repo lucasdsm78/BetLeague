@@ -3,7 +3,7 @@ name: Backend FastAPI CI/CD
 on:
   push:
     tags:
-      - "v*"
+      - "backend/v*"
 
 concurrency:
   group: backend-fastapi-ci-cd-${{ github.ref }}
@@ -87,10 +87,10 @@ jobs:
       VAPID_PUBLIC_KEY: ${{ secrets.BACKEND_CI_VAPID_PUBLIC_KEY }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -113,45 +113,57 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-          labels: |
-            org.opencontainers.image.title=betleague-back
-            org.opencontainers.image.description=BetLeague FastAPI backend
-            org.opencontainers.image.vendor=BetLeague
+      - name: Derive image tags and labels
+        id: image_meta
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#backend/v}"
+          minor="${version%.*}"
+
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE_NAME}:${version}"
+            if [ "${minor}" != "${version}" ]; then
+              echo "${IMAGE_NAME}:${minor}"
+            fi
+            echo "${IMAGE_NAME}:sha-${GITHUB_SHA}"
+            echo "EOF"
+            echo "labels<<EOF"
+            echo "org.opencontainers.image.title=betleague-back"
+            echo "org.opencontainers.image.description=BetLeague FastAPI backend"
+            echo "org.opencontainers.image.vendor=BetLeague"
+            echo "org.opencontainers.image.version=${version}"
+            echo "org.opencontainers.image.revision=${GITHUB_SHA}"
+            echo "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and push backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./back
           file: ./back/Dockerfile
           push: true
           secrets: |
             pip_config=${{ secrets.BACKEND_BUILD_PIP_CONFIG }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.image_meta.outputs.tags }}
+          labels: ${{ steps.image_meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
 
 
