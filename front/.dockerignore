@@ -51,5 +51,4 @@ src/**/*.test.js
 src/**/*.spec.js
 cypress/
 jest.config.js
-.eslintrc*
 .prettierrc*
