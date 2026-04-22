@@ -3,7 +3,7 @@ name: Frontend Release CI/CD
 on:
   push:
     tags:
-      - "front-v*"
+      - "front/v*"
 
 concurrency:
   group: frontend-release-${{ github.ref }}
@@ -100,16 +100,16 @@ jobs:
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME}"
-          version="${tag#front-v}"
+          version="${tag#front/v}"
           minor="${version%.*}"
 
           {
             echo "tags<<EOF"
-            echo "${IMAGE_NAME}:${tag}"
             echo "${IMAGE_NAME}:${version}"
             if [ "${minor}" != "${version}" ]; then
               echo "${IMAGE_NAME}:${minor}"
             fi
+            echo "${IMAGE_NAME}:sha-${GITHUB_SHA}"
             echo "EOF"
             echo "labels<<EOF"
             echo "org.opencontainers.image.title=betleague-front"
@@ -129,4 +129,5 @@ jobs:
           push: true
           tags: ${{ steps.image_meta.outputs.tags }}
           labels: ${{ steps.image_meta.outputs.labels }}
+
 
