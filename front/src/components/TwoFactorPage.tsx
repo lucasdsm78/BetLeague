@@ -16,24 +16,15 @@ const TwoFactorPage: React.FC = () => {
   const totp = useTotpTimer(30);
   const toast = useGlobalToast();
 
-  // Si pas de challenge présent, revenir au login
-  if (!twoFactorChallenge) {
-    return (
-      <div className="auth-form form-container">
-        <div className="form-header">
-          <h2>Challenge 2FA expiré</h2>
-          <p>Veuillez recommencer la connexion.</p>
-        </div>
-        <div className="form-actions" style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={() => navigate('/', { replace: true })}>Accueil</button>
-          <button className="btn btn-primary" onClick={() => navigate('/login', { replace: true })}>Recommencer</button>
-        </div>
-      </div>
-    );
-  }
-
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!twoFactorChallenge) {
+      setLocalError('Challenge 2FA expiré');
+      toast.showError('2FA', 'Challenge expiré, veuillez recommencer la connexion.');
+      return;
+    }
+
     if (code.trim().length !== 6) {
       setLocalError('Code 2FA invalide (6 chiffres requis)');
       toast.showWarning('2FA', 'Code invalide (6 chiffres requis)');
@@ -66,6 +57,22 @@ const TwoFactorPage: React.FC = () => {
       setVerifying(false);
     }
   }, [code, twoFactorChallenge, login, clearTwoFactorChallenge, navigate, toast]);
+
+  // Si pas de challenge présent, revenir au login
+  if (!twoFactorChallenge) {
+    return (
+      <div className="auth-form form-container">
+        <div className="form-header">
+          <h2>Challenge 2FA expiré</h2>
+          <p>Veuillez recommencer la connexion.</p>
+        </div>
+        <div className="form-actions" style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={() => navigate('/', { replace: true })}>Accueil</button>
+          <button className="btn btn-primary" onClick={() => navigate('/login', { replace: true })}>Recommencer</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-form form-container">
