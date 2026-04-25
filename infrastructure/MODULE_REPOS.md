@@ -1,44 +1,34 @@
-# Modules Terraform à publier dans des repos GitHub séparés
+# Modules Terraform Git utilisés par `ovh-prod`
 
 ## Mapping recommandé
 
-| Module local | Repo GitHub recommandé |
+| Ancien module local | Repo GitHub |
 |---|---|
 | `modules/cloudinit-docker-host` | `terraform-cloudinit-docker-host` |
 | `modules/ovh-private-network` | `terraform-ovh-private-network` |
 | `modules/ovh-public-instance` | `terraform-ovh-public-instance` |
 | `modules/ovh-zone-records` | `terraform-ovh-zone-records` |
 
-## Publication repo par repo
+## Exemple de source Terraform
 
-Depuis la racine du monorepo :
-
-```bash
-infrastructure/scripts/publish_module_to_repo.sh cloudinit-docker-host git@github.com:YOUR_ORG/terraform-cloudinit-docker-host.git main
-infrastructure/scripts/publish_module_to_repo.sh ovh-private-network git@github.com:YOUR_ORG/terraform-ovh-private-network.git main
-infrastructure/scripts/publish_module_to_repo.sh ovh-public-instance git@github.com:YOUR_ORG/terraform-ovh-public-instance.git main
-infrastructure/scripts/publish_module_to_repo.sh ovh-zone-records git@github.com:YOUR_ORG/terraform-ovh-zone-records.git main
-```
-
-## Publication en une commande
-
-```bash
-infrastructure/scripts/publish_all_modules.sh YOUR_ORG main
-```
-
-## Après publication
-
-Dans `stacks/ovh-prod`, remplace les `source = "../../modules/..."` par des sources Git versionnées, par exemple :
+Dans `stacks/ovh-prod/main.tf`, les sources ressemblent à :
 
 ```hcl
-source = "git::ssh://git@github.com/YOUR_ORG/terraform-ovh-public-instance.git?ref=v1.0.0"
+source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
 ```
 
 ## État actuel de `ovh-prod`
 
-Actuellement, `stacks/ovh-prod` reste branchée sur les modules locaux pour rester validable immédiatement.
+`stacks/ovh-prod` consomme uniquement ces repos Git tagués. Le monorepo ne contient plus de copie locale des modules.
 
-La bascule prête à l’emploi vers les **URLs Git des repos dédiés** est documentée dans `stacks/ovh-prod/git-module-sources.example.txt`.
+## Règle de maintenance
+
+Si tu modifies un module :
+
+1. publie la nouvelle version dans le repo du module concerné,
+2. crée un nouveau tag (`v1.0.1`, `v1.1.0`, ...),
+3. mets à jour la `ref` correspondante dans `stacks/ovh-prod/main.tf`.
+
 
 
 
