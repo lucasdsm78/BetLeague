@@ -16,7 +16,8 @@ from domain.invitation.exception.invitation_exception import InvitationFoundErro
 from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
-    LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError, LeagueFinishedError
+    LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError, LeagueFinishedError, \
+    UserNotInvitationLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.invitation.exception.invitation_exception import InvitationNotFoundError
 from infrastructure.services.rate_limiter import rate_limiter

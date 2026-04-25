@@ -22,6 +22,7 @@ from application.tournament_subscription.query_tournament_subscription_usecase i
 from application.tournament_subscription.webhook.process_stripe_webhook import \
     ProcessStripeWebhookTournamentSubscriptionUseCase, ProcessStripeWebhookTournamentSubscriptionUseCaseImpl
 from application.user.user_command_usecase import UserCommandUseCase, UserCommandUseCaseImpl
+from application.user.user_command_model import UserLoginModel
 from application.user.user_query_usecase import UserQueryUseCase, UserQueryUseCaseImpl
 from application.tournament.advance_tournament_stage_usecase import (
     AdvanceTournamentStageUseCase,
@@ -1026,6 +1027,13 @@ def _log_rate_limit_hit(
     logger.warning("ratelimit.hit", extra={k: v for k, v in extra.items() if v is not None})
 
 
+def _should_use_redis_rate_limiter(
+    limiter: SlidingWindowRateLimiter | None,
+    default_limiter: SlidingWindowRateLimiter | None,
+) -> bool:
+    return limiter is None or limiter is default_limiter
+
+
 @lru_cache()
 def delete_account_rate_limiter_singleton() -> SlidingWindowRateLimiter:
     settings = get_settings()
@@ -1058,7 +1066,8 @@ async def rate_limit_delete_my_account(
     limit = int(getattr(settings, "delete_account_rate_limit_per_minute", 3))
     window_s = int(getattr(settings, "delete_account_rate_limit_window_s", 60))
 
-    redis_limiter = redis_delete_account_rate_limiter_singleton()
+    default_limiter = delete_account_rate_limiter_singleton()
+    redis_limiter = redis_delete_account_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(
             key=key,
@@ -1119,7 +1128,8 @@ async def rate_limit_change_my_password(
     limit = int(getattr(settings, "change_password_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "change_password_rate_limit_window_s", 60))
 
-    redis_limiter = redis_change_password_rate_limiter_singleton()
+    default_limiter = change_password_rate_limiter_singleton()
+    redis_limiter = redis_change_password_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(
             key=key,
@@ -1186,7 +1196,8 @@ async def rate_limit_verify_2fa_activation(
     limit = int(getattr(settings, "two_factor_verify_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "two_factor_verify_rate_limit_window_s", 60))
 
-    redis_limiter = redis_two_factor_verify_rate_limiter_singleton()
+    default_limiter = two_factor_verify_rate_limiter_singleton()
+    redis_limiter = redis_two_factor_verify_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(
             key=key,
@@ -1255,7 +1266,8 @@ async def rate_limit_disable_2fa(
     limit = int(getattr(settings, "disable_2fa_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "disable_2fa_rate_limit_window_s", 60))
 
-    redis_limiter = redis_disable_2fa_rate_limiter_singleton()
+    default_limiter = disable_2fa_rate_limiter_singleton()
+    redis_limiter = redis_disable_2fa_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
         limiter_backend = "redis"
@@ -1352,7 +1364,8 @@ async def rate_limit_tournament_mutation(
     limit = int(getattr(settings, "tournament_mutation_rate_limit_per_minute", 20))
     window_s = int(getattr(settings, "tournament_mutation_rate_limit_window_s", 60))
 
-    redis_limiter = redis_tournament_mutation_rate_limiter_singleton()
+    default_limiter = tournament_mutation_rate_limiter_singleton()
+    redis_limiter = redis_tournament_mutation_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
         limiter_backend = "redis"
@@ -1394,7 +1407,8 @@ async def rate_limit_login_with_2fa_code(
     login_limit = int(getattr(settings, "login_rate_limit_per_minute", 10))
     login_window_s = int(getattr(settings, "login_rate_limit_window_s", 60))
 
-    redis_login_limiter = redis_login_rate_limiter_singleton()
+    default_limiter = login_rate_limiter_singleton()
+    redis_login_limiter = redis_login_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_login_limiter is not None:
         login_result = await redis_login_limiter.allow(key=login_key, limit=login_limit, window_s=login_window_s)
         login_backend = "redis"
@@ -1425,7 +1439,7 @@ async def rate_limit_login_with_2fa_code(
     limit = int(getattr(settings, "login_2fa_rate_limit_per_minute", 5))
     window_s = int(getattr(settings, "login_2fa_rate_limit_window_s", 60))
 
-    redis_limiter = redis_login_2fa_rate_limiter_singleton()
+    redis_limiter = redis_login_2fa_rate_limiter_singleton() if _should_use_redis_rate_limiter(limiter, default_limiter) else None
     if redis_limiter is not None:
         result = await redis_limiter.allow(key=key, limit=limit, window_s=window_s)
         limiter_backend = "redis"

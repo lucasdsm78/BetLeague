@@ -7,15 +7,15 @@
 import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
+import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import { useAuthStore } from '../store/authStore';
 import { useGlobalToast } from '../toast/ToastProvider';
 import { createLogger } from '../utils/logger';
-
-const logger = createLogger('DashboardLayout');
-import { useProfileMeQuery } from '../hooks/queries/useProfileQuery';
 import LogoutModal from './auth/LogoutModal';
 import { NotificationsHeaderButton } from './notifications/NotificationsHeaderButton';
 import './Dashboard.css';
+
+const logger = createLogger('DashboardLayout');
 
 // Simple sanitization function
 const sanitizeInput = (input: string): string => {

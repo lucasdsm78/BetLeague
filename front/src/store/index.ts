@@ -2,13 +2,13 @@
  * Store Index - Main store exports and configuration
  */
 
-// Re-export all stores
-export { default as useAuthStore, useSessionManager } from './authStore';
-export { default as useLeagueStore } from './leagueStore';
-
 // Direct imports for functions
 import useAuthStore from './authStore';
 import useLeagueStore from './leagueStore';
+
+// Re-export all stores
+export { default as useAuthStore, useSessionManager } from './authStore';
+export { default as useLeagueStore } from './leagueStore';
 
 // Re-export selectors for convenience
 export {
