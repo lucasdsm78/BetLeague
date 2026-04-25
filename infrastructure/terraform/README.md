@@ -1,4 +1,4 @@
-# Dossier `terraform`
+# Stack `ovh-prod`
 
 Cette stack assemble les modules Terraform OVH pour provisionner une fondation de prod BetLeague :
 
@@ -51,7 +51,7 @@ export AWS_SECRET_ACCESS_KEY="..."
 ## Démarrage
 
 ```bash
-cd infrastructure/terraform
+cd infrastructure/stacks/ovh-prod
 cp terraform.tfvars.example terraform.tfvars
 cp backend.hcl.example backend.hcl
 terraform init -reconfigure -backend-config=backend.hcl
@@ -67,54 +67,6 @@ cd infrastructure/terraform
 terraform init -backend=false
 terraform validate
 ```
-
-## GitHub Actions
-
-Deux workflows GitHub Actions pilotent désormais l’infrastructure :
-
-- `terraform-ci.yml` : `fmt`, `validate` et `plan`
-- `terraform-apply.yml` : déploiement manuel protégé sur l’environnement `production`
-
-### Secrets GitHub requis
-
-- `OVH_APPLICATION_KEY`
-- `OVH_APPLICATION_SECRET`
-- `OVH_CONSUMER_KEY`
-- `OVH_S3_ACCESS_KEY_ID`
-- `OVH_S3_SECRET_ACCESS_KEY`
-- `TF_MODULES_SSH_PRIVATE_KEY`
-
-`TF_MODULES_SSH_PRIVATE_KEY` doit être une clé SSH **read-only** capable de cloner les repos Terraform privés suivants :
-
-- `terraform-cloudinit-docker-host`
-- `terraform-ovh-private-network`
-- `terraform-ovh-public-instance`
-- `terraform-ovh-zone-records`
-
-### Variables GitHub recommandées
-
-Variables minimales à configurer dans le dépôt ou l’environnement GitHub :
-
-- `TF_VAR_SERVICE_NAME`
-- `TF_VAR_REGION`
-- `TF_VAR_FLAVOR_ID`
-- `TF_VAR_IMAGE_ID`
-
-Variables optionnelles utiles :
-
-- `TF_VAR_SSH_KEY_NAME`
-- `TF_VAR_SSH_KEY_PUBLIC_KEY`
-- `TF_VAR_SSH_AUTHORIZED_KEYS` (JSON, ex: `["ssh-ed25519 AAAA..."]`)
-- `TF_VAR_DNS_ZONE`
-- `TF_VAR_APP_SUBDOMAIN`
-- `TF_VAR_API_SUBDOMAIN`
-
-### Sécurité recommandée
-
-- protège l’environnement GitHub `production` avec reviewers obligatoires
-- n’exécute `terraform-apply.yml` qu’en manuel
-- garde les credentials OVH et S3 uniquement dans les secrets GitHub
-- ne commit jamais `backend.hcl`, `terraform.tfvars` ni de state Terraform
 
 ## Important
 
