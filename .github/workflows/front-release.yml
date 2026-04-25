@@ -59,7 +59,7 @@ jobs:
         run: npm run lint:security
 
       - name: Run frontend test suite
-        run: npm run test:ci -- --runInBand
+        run: npm run test:ci
 
       - name: Build production frontend
         env:
@@ -136,6 +136,9 @@ jobs:
           push: true
           tags: ${{ steps.image_meta.outputs.tags }}
           labels: ${{ steps.image_meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
 
 
 
