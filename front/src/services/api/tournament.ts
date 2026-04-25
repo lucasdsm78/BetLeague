@@ -3,8 +3,6 @@
 
 import http, { type ApiResponse } from '../http';
 import { createLogger } from '../../utils/logger';
-
-const logger = createLogger('tournamentApi');
 import { ApiClientError } from '../secureApiClient';
 import type {
   TournamentCreateRequest,
@@ -21,6 +19,8 @@ import type {
   TournamentInvitationsResponse,
   TournamentMatchOptionsResponse,
 } from '../../types/api/tournament';
+
+const logger = createLogger('tournamentApi');
 
 export class TournamentCreationError extends Error {
   public readonly status: number;
