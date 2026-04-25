@@ -1,4 +1,4 @@
-# Modules Terraform Git utilisés par `ovh-prod`
+# Modules Terraform Git utilisés par `terraform/`
 
 ## Mapping recommandé
 
@@ -11,15 +11,15 @@
 
 ## Exemple de source Terraform
 
-Dans `stacks/ovh-prod/main.tf`, les sources ressemblent à :
+Dans `terraform/main.tf`, les sources ressemblent à :
 
 ```hcl
 source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
 ```
 
-## État actuel de `ovh-prod`
+## État actuel de `terraform/`
 
-`stacks/ovh-prod` consomme uniquement ces repos Git tagués. Le monorepo ne contient plus de copie locale des modules.
+`terraform/` consomme uniquement ces repos Git tagués. Le monorepo ne contient plus de copie locale des modules.
 
 ## Règle de maintenance
 
@@ -27,7 +27,8 @@ Si tu modifies un module :
 
 1. publie la nouvelle version dans le repo du module concerné,
 2. crée un nouveau tag (`v1.0.1`, `v1.1.0`, ...),
-3. mets à jour la `ref` correspondante dans `stacks/ovh-prod/main.tf`.
+3. mets à jour la `ref` correspondante dans `terraform/main.tf`.
+
 
 
 
