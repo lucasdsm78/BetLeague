@@ -10,23 +10,23 @@ Cette arborescence contient une base Terraform modulaire pour déployer une infr
 - **Base PostgreSQL managée externe** recommandée (ex: Neon), volontairement hors Terraform ici
 - **Secrets runtime hors Terraform** (fichiers montés en lecture seule sur le serveur)
 
-## Modules fournis
+## Modules utilisés
 
-- `modules/ovh-private-network`
-- `modules/cloudinit-docker-host`
-- `modules/ovh-public-instance`
-- `modules/ovh-zone-records`
+La stack `ovh-prod` consomme désormais directement les modules Git publiés sous le compte `lucasdsm78` :
 
-Chaque module est **self-contained** pour être publié dans un repo Git distinct.
+- `terraform-cloudinit-docker-host`
+- `terraform-ovh-private-network`
+- `terraform-ovh-public-instance`
+- `terraform-ovh-zone-records`
 
 ## Stack fournie
 
 - `stacks/ovh-prod`
 
-Par défaut, la stack référence les modules en **local** pour accélérer le bootstrap. Une fois les modules publiés, remplace les `source = "../../modules/..."` par des sources Git :
+La stack référence directement des sources Git versionnées :
 
 ```hcl
-source = "git::ssh://git@github.com/your-org/terraform-ovh-public-instance.git?ref=v1.0.0"
+source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
 ```
 
 ## Pré-requis
@@ -60,54 +60,24 @@ Garde hors Terraform :
 
 Recommandation : stocker ces secrets sur le serveur dans `/opt/betleague/secrets/` et les monter en lecture seule dans les conteneurs.
 
-## Publication de chaque module dans un repo GitHub séparé
+## Référentiel des modules Git
 
-Un script est fourni :
-
-```bash
-infrastructure/scripts/publish_module_to_repo.sh ovh-private-network git@github.com:your-org/terraform-ovh-private-network.git
-```
-
-Le script utilise `git subtree split` pour extraire l'historique du module et le pousser vers un dépôt Git distant.
-
-Pour publier tous les modules d'un coup dans des repos GitHub distincts :
-
-```bash
-infrastructure/scripts/publish_all_modules.sh your-org-or-user main
-```
-
-Puis, pour basculer automatiquement `stacks/ovh-prod/main.tf` vers les URLs Git des repos modules :
-
-```bash
-infrastructure/scripts/switch_ovh_prod_to_git_modules.sh your-org-or-user v1.0.0
-```
-
-Ou vers le monorepo BetLeague lui-même :
-
-```bash
-infrastructure/scripts/switch_ovh_prod_to_git_modules.sh https://github.com/lucasdsm78/BetLeague dev
-```
-
-Cela poussera automatiquement vers :
-
-- `terraform-cloudinit-docker-host`
-- `terraform-ovh-private-network`
-- `terraform-ovh-public-instance`
-- `terraform-ovh-zone-records`
+Le mapping entre le monorepo historique et les repos Git des modules est documenté dans `MODULE_REPOS.md`.
 
 ## Démarrage rapide
 
 ```bash
 cd infrastructure/stacks/ovh-prod
 cp terraform.tfvars.example terraform.tfvars
-terraform init
+cp backend.hcl.example backend.hcl
+terraform init -reconfigure -backend-config=backend.hcl
 terraform plan
 ```
 
 ## Ordre recommandé
 
-1. Publier les modules dans leurs repos GitHub dédiés
-2. Remplacer les `source` locaux de la stack par des `source` Git versionnées
+1. Maintenir les modules Git dédiés tagués (`v1.0.0`, `v1.0.1`, ...)
+2. Mettre à jour les refs Git dans `stacks/ovh-prod/main.tf`
 3. Déployer la stack `ovh-prod`
 4. Déployer l'application (Docker Compose ou systemd) sur l'instance
 5. Injecter les secrets runtime hors Terraform
@@ -116,15 +86,9 @@ terraform plan
 
 ```text
 infrastructure/
-├── modules/
-│   ├── cloudinit-docker-host/
-│   ├── ovh-private-network/
-│   ├── ovh-public-instance/
-│   └── ovh-zone-records/
+├── MODULE_REPOS.md
 ├── scripts/
-│   ├── publish_module_to_repo.sh
-│   └── publish_all_modules.sh
 └── stacks/
-	└── ovh-prod/
+    └── ovh-prod/
 ```
 

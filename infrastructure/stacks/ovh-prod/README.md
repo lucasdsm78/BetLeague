@@ -9,28 +9,15 @@ Cette stack assemble les modules Terraform OVH pour provisionner une fondation d
 
 ## Sources des modules
 
-Par défaut, cette stack continue d’utiliser les modules locaux `../../modules/...` afin de rester **immédiatement validable** tant que les repos Git dédiés ne sont pas encore publiés.
+Cette stack consomme directement les repos Git dédiés des modules Terraform, versionnés par tags immuables.
 
-La conversion prête à l’emploi vers des **URLs Git** est fournie dans `git-module-sources.example.txt`.
-
-Tu peux basculer soit :
-
-- vers le **monorepo BetLeague** avec des sources du type `git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/...?...`
-- vers des **repos modules dédiés** avec des tags immuables `?ref=vX.Y.Z`
-
-⚠️ Important : le `ref` Git choisi doit déjà contenir `infrastructure/modules` sur GitHub. Si ces fichiers ne sont présents que localement et pas encore pushés, `terraform init` échouera.
-
-Exemple monorepo BetLeague :
+Exemple :
 
 ```hcl
-source = "git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/ovh-public-instance?ref=dev"
+source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
 ```
 
-Exemple repos dédiés :
-
-```hcl
-source = "git::ssh://git@github.com/YOUR_ORG/terraform-ovh-public-instance.git?ref=v1.0.0"
-```
+Si tu modifies un module, publie d’abord un nouveau tag dans son repo puis mets à jour la `ref` correspondante dans `main.tf`.
 
 ## Backend distant sécurisé
 
@@ -90,6 +77,7 @@ Recommandation actuelle pour BetLeague :
 - PostgreSQL managé externe
 - secrets montés sur le serveur dans `/opt/betleague/secrets/`
 - application déployée ensuite via Docker Compose ou systemd
+
 
 
 
