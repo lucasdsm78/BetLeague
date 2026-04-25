@@ -1,4 +1,4 @@
-# Stack `ovh-prod`
+# Dossier `terraform`
 
 Cette stack assemble les modules Terraform OVH pour provisionner une fondation de prod BetLeague :
 
@@ -51,7 +51,7 @@ export AWS_SECRET_ACCESS_KEY="..."
 ## Démarrage
 
 ```bash
-cd infrastructure/stacks/ovh-prod
+cd infrastructure/terraform
 cp terraform.tfvars.example terraform.tfvars
 cp backend.hcl.example backend.hcl
 terraform init -reconfigure -backend-config=backend.hcl
@@ -63,7 +63,7 @@ terraform plan
 Pour valider la stack sans accéder au backend distant :
 
 ```bash
-cd infrastructure/stacks/ovh-prod
+cd infrastructure/terraform
 terraform init -backend=false
 terraform validate
 ```

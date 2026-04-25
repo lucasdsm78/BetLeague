@@ -19,9 +19,9 @@ La stack `ovh-prod` consomme désormais directement les modules Git publiés sou
 - `terraform-ovh-public-instance`
 - `terraform-ovh-zone-records`
 
-## Stack fournie
+## Dossier Terraform fourni
 
-- `stacks/ovh-prod`
+- `terraform/`
 
 La stack référence directement des sources Git versionnées :
 
@@ -67,7 +67,7 @@ Le mapping entre le monorepo historique et les repos Git des modules est documen
 ## Démarrage rapide
 
 ```bash
-cd infrastructure/stacks/ovh-prod
+cd infrastructure/terraform
 cp terraform.tfvars.example terraform.tfvars
 cp backend.hcl.example backend.hcl
 terraform init -reconfigure -backend-config=backend.hcl
@@ -77,8 +77,8 @@ terraform plan
 ## Ordre recommandé
 
 1. Maintenir les modules Git dédiés tagués (`v1.0.0`, `v1.0.1`, ...)
-2. Mettre à jour les refs Git dans `stacks/ovh-prod/main.tf`
-3. Déployer la stack `ovh-prod`
+2. Mettre à jour les refs Git dans `terraform/main.tf`
+3. Déployer l'infrastructure Terraform
 4. Déployer l'application (Docker Compose ou systemd) sur l'instance
 5. Injecter les secrets runtime hors Terraform
 
@@ -88,7 +88,6 @@ terraform plan
 infrastructure/
 ├── MODULE_REPOS.md
 ├── scripts/
-└── stacks/
-    └── ovh-prod/
+└── terraform/
 ```
 
