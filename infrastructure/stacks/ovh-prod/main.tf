@@ -18,7 +18,7 @@ locals {
 }
 
 module "private_network" {
-  source = "../../modules/ovh-private-network"
+  source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-private-network.git?ref=v1.0.0"
 
   service_name = var.service_name
   region       = var.region
@@ -29,7 +29,7 @@ module "private_network" {
 }
 
 module "cloudinit" {
-  source = "../../modules/cloudinit-docker-host"
+  source = "git::ssh://git@github.com/lucasdsm78/terraform-cloudinit-docker-host.git?ref=v1.0.0"
 
   hostname            = local.instance_name
   admin_user          = var.admin_user
@@ -43,7 +43,7 @@ module "cloudinit" {
 }
 
 module "instance" {
-  source = "../../modules/ovh-public-instance"
+  source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
 
   service_name           = var.service_name
   instance_name          = local.instance_name
@@ -62,7 +62,7 @@ module "instance" {
 
 module "dns" {
   count  = var.create_dns_records ? 1 : 0
-  source = "../../modules/ovh-zone-records"
+  source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-zone-records.git?ref=v1.0.0"
 
   zone        = var.dns_zone
   default_ttl = var.dns_default_ttl
