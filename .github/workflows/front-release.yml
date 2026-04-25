@@ -42,7 +42,6 @@ jobs:
         shell: bash
         run: |
           {
-            echo "CI=true"
             echo "REACT_APP_API_URL=${FRONTEND_RELEASE_REACT_APP_API_URL:-https://api.betleague.app/api}"
             echo "REACT_APP_ENV=production"
             echo "REACT_APP_DEBUG=${FRONTEND_RELEASE_REACT_APP_DEBUG:-false}"
@@ -135,6 +134,7 @@ jobs:
           push: true
           tags: ${{ steps.image_meta.outputs.tags }}
           labels: ${{ steps.image_meta.outputs.labels }}
+
 
 
 
