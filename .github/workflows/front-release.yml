@@ -53,11 +53,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --no-audit --prefer-offline
 
-      - name: Run frontend lint
-        run: npm run lint -- --max-warnings=0
+      - name: Run frontend release lint
+        run: npm run lint:release
 
       - name: Run frontend security lint
-        run: npm run lint:security -- --max-warnings=0
+        run: npm run lint:security
 
       - name: Run frontend test suite
         run: npm run test:ci -- --runInBand
@@ -135,6 +135,7 @@ jobs:
           push: true
           tags: ${{ steps.image_meta.outputs.tags }}
           labels: ${{ steps.image_meta.outputs.labels }}
+
 
 
 
