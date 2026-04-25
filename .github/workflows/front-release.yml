@@ -62,6 +62,8 @@ jobs:
         run: npm run test:ci -- --runInBand
 
       - name: Build production frontend
+        env:
+          CI: "false"
         run: npm run build
 
       - name: Upload production build artifact
@@ -134,6 +136,7 @@ jobs:
           push: true
           tags: ${{ steps.image_meta.outputs.tags }}
           labels: ${{ steps.image_meta.outputs.labels }}
+
 
 
 
