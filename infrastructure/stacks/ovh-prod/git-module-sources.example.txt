@@ -1,0 +1,39 @@
+# Remplacement prêt à l'emploi pour basculer ovh-prod vers des sources Git
+
+# Option A — monorepo BetLeague (le ref choisi doit contenir `infrastructure/modules` sur GitHub)
+
+module "private_network" {
+  source = "git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/ovh-private-network?ref=dev"
+}
+
+module "cloudinit" {
+  source = "git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/cloudinit-docker-host?ref=dev"
+}
+
+module "instance" {
+  source = "git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/ovh-public-instance?ref=dev"
+}
+
+module "dns" {
+  source = "git::https://github.com/lucasdsm78/BetLeague.git//infrastructure/modules/ovh-zone-records?ref=dev"
+}
+
+# Option B — repos modules dédiés
+
+module "private_network" {
+  source = "git::ssh://git@github.com/YOUR_ORG/terraform-ovh-private-network.git?ref=v1.0.0"
+}
+
+module "cloudinit" {
+  source = "git::ssh://git@github.com/YOUR_ORG/terraform-cloudinit-docker-host.git?ref=v1.0.0"
+}
+
+module "instance" {
+  source = "git::ssh://git@github.com/YOUR_ORG/terraform-ovh-public-instance.git?ref=v1.0.0"
+}
+
+module "dns" {
+  source = "git::ssh://git@github.com/YOUR_ORG/terraform-ovh-zone-records.git?ref=v1.0.0"
+}
+
+
