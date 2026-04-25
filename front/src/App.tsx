@@ -160,8 +160,6 @@ function App(): React.JSX.Element {
         initializeStores();
 
 
-        // Appliquer la configuration de sécurité
-        SecurityUtils.DEFAULT_SECURITY_CONFIG;
 
         // Marquer comme initialisé
         setIsInitialized(true);
