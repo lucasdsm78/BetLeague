@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  extends: ['./.eslintrc.cjs'],
+  extends: ['./.eslintrc.release.cjs'],
   plugins: ['no-unsanitized'],
   rules: {
     'no-eval': 'error',
@@ -19,4 +19,5 @@ module.exports = {
     ],
   },
 };
+
 
