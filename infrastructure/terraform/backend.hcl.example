@@ -1,5 +1,5 @@
 bucket = "betleague-terraform-state"
-key    = "ovh-prod/terraform.tfstate"
+key    = "terraform/terraform.tfstate"
 region = "gra"
 
 endpoints = {
