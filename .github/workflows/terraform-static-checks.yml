@@ -8,6 +8,16 @@ on:
         required: false
         type: string
         default: infrastructure/terraform
+      lockfile-path:
+        description: "Path to the Terraform lockfile used for provider cache keying"
+        required: false
+        type: string
+        default: infrastructure/terraform/.terraform.lock.hcl
+      requires-ssh-key:
+        description: "Whether Terraform init needs a GitHub SSH key for module sources"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -47,16 +57,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.terraform.d/plugin-cache
-          key: terraform-${{ runner.os }}-${{ hashFiles('infrastructure/terraform/.terraform.lock.hcl') }}
+          key: terraform-${{ runner.os }}-${{ hashFiles(inputs.lockfile-path) }}
           restore-keys: |
             terraform-${{ runner.os }}-
 
       - name: Load SSH key for private module sources
+        if: inputs.requires-ssh-key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.TF_MODULES_SSH_PRIVATE_KEY }}
 
       - name: Add GitHub to known hosts
+        if: inputs.requires-ssh-key
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
@@ -98,6 +110,7 @@ jobs:
       - name: Run Checkov
         working-directory: ${{ inputs.working-directory }}
         run: checkov -d . --quiet
+
 
 
 

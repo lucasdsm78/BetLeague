@@ -109,6 +109,8 @@ terraform plan
 
 Le bootstrap `state-identities/` crée désormais les identités Object Storage S3 `dev` / `prod`, et `state-backend/` crée les buckets dédiés `betleague-terraform-state-dev` et `betleague-terraform-state-prod`.
 
+Le workflow GitHub Actions dédié `.github/workflows/terraform-state-identities.yml` exécute les checks en CI et réserve le `plan/apply` à un runner self-hosted approuvé pour éviter l’exfiltration des credentials S3 générées.
+
 ## Structure livrée
 
 ```text
