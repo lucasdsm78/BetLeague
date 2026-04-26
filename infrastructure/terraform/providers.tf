@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = "~> 1.14.0"
 
   required_providers {
     ovh = {
       source  = "ovh/ovh"
-      version = ">= 1.0.0"
+      version = "~> 2.13.0"
     }
   }
 }

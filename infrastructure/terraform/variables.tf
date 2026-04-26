@@ -103,9 +103,15 @@ variable "timezone" {
 }
 
 variable "allowed_tcp_ports" {
-  description = "Ports TCP ouverts sur l’hôte."
+  description = "Ports TCP publics ouverts sur l’hôte. Le port 22 n'est autorisé que si enable_public_ssh vaut true."
   type        = list(number)
-  default     = [22, 80, 443]
+  default     = [80, 443]
+}
+
+variable "enable_public_ssh" {
+  description = "Autorise explicitement l’ouverture publique du port SSH 22. Désactivé par défaut pour éviter SSH ouvert au monde."
+  type        = bool
+  default     = false
 }
 
 variable "docker_users" {
