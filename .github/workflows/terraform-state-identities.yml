@@ -11,6 +11,7 @@ on:
     branches:
       - dev
       - main
+      - SCRUM-118
     paths:
       - "infrastructure/state-identities/**"
       - "infrastructure/scripts/render-state-backend-tfvars.sh"
@@ -192,6 +193,7 @@ jobs:
         working-directory: infrastructure/state-identities
         run: |
           shred -u tfplan tfplan.json 2>/dev/null || rm -f -- tfplan tfplan.json
+
 
 
 
