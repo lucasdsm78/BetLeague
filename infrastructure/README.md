@@ -12,26 +12,28 @@ Cette arborescence contient une base Terraform modulaire pour déployer une infr
 
 ## Modules utilisés
 
-La stack `ovh-prod` consomme désormais directement les modules Git publiés sous le compte `lucasdsm78` :
+La stack `terraform/` consomme directement les modules Git publiés sous le compte `lucasdsm78` :
 
 - `terraform-cloudinit-docker-host`
 - `terraform-ovh-private-network`
 - `terraform-ovh-public-instance`
 - `terraform-ovh-zone-records`
 
-## Dossier Terraform fourni
+## Dossiers Terraform fournis
 
+- `state-identities/`
 - `terraform/`
+- `state-backend/`
 
-La stack référence directement des sources Git versionnées :
+La stack référence directement des sources Git pinnées sur des commits immuables :
 
 ```hcl
-source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=v1.0.0"
+source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=cb8ba898d1b63fbb8c054f91dad0abfad2b826b1"
 ```
 
 ## Pré-requis
 
-- Terraform >= 1.5
+- Terraform ~> 1.14
 - Un projet OVH Public Cloud
 - Un domaine OVH si tu veux gérer le DNS via Terraform
 - Variables OVH exportées dans le shell :
@@ -42,6 +44,15 @@ export OVH_APPLICATION_KEY="..."
 export OVH_APPLICATION_SECRET="..."
 export OVH_CONSUMER_KEY="..."
 ```
+
+Pour le backend Terraform distant, les credentials OVH Object Storage `dev` / `prod` peuvent désormais être générées par la stack `state-identities/`.
+
+En CI GitHub Actions, cela correspond aux secrets :
+
+- `OVH_S3_ACCESS_KEY_ID_DEV`
+- `OVH_S3_SECRET_ACCESS_KEY_DEV`
+- `OVH_S3_ACCESS_KEY_ID_PROD`
+- `OVH_S3_SECRET_ACCESS_KEY_PROD`
 
 ## Sécurité
 
@@ -67,20 +78,36 @@ Le mapping entre le monorepo historique et les repos Git des modules est documen
 ## Démarrage rapide
 
 ```bash
-cd infrastructure/terraform
+cd infrastructure/state-identities
 cp terraform.tfvars.example terraform.tfvars
-cp backend.hcl.example backend.hcl
+terraform init
+terraform apply
+
+../scripts/render-state-backend-tfvars.sh . ../state-backend/terraform.tfvars
+
+cd ../state-backend
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform apply
+
+cd ../terraform
+cp terraform.tfvars.example terraform.tfvars
+cp environments/prod/backend.hcl.example backend.hcl
 terraform init -reconfigure -backend-config=backend.hcl
 terraform plan
 ```
 
 ## Ordre recommandé
 
-1. Maintenir les modules Git dédiés tagués (`v1.0.0`, `v1.0.1`, ...)
-2. Mettre à jour les refs Git dans `terraform/main.tf`
-3. Déployer l'infrastructure Terraform
-4. Déployer l'application (Docker Compose ou systemd) sur l'instance
-5. Injecter les secrets runtime hors Terraform
+1. Maintenir les modules Git dédiés pinnés sur des commits immuables
+2. Générer/rotater les identités S3 du backend dans `state-identities/`
+3. Bootstraper/maintenir les buckets de state dans `state-backend/`
+4. Mettre à jour les refs Git dans `terraform/main.tf`
+5. Déployer l'infrastructure Terraform
+6. Déployer l'application (Docker Compose ou systemd) sur l'instance
+7. Injecter les secrets runtime hors Terraform
+
+Le bootstrap `state-identities/` crée désormais les identités Object Storage S3 `dev` / `prod`, et `state-backend/` crée les buckets dédiés `betleague-terraform-state-dev` et `betleague-terraform-state-prod`.
 
 ## Structure livrée
 
@@ -88,6 +115,8 @@ terraform plan
 infrastructure/
 ├── MODULE_REPOS.md
 ├── scripts/
+├── state-identities/
+├── state-backend/
 └── terraform/
 ```
 

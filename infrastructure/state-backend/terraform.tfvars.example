@@ -1,0 +1,11 @@
+access_key_id_dev     = "replace-me-dev"
+secret_access_key_dev = "replace-me-dev"
+access_key_id_prod    = "replace-me-prod"
+secret_access_key_prod = "replace-me-prod"
+
+bucket_name_dev  = "betleague-terraform-state-dev"
+bucket_name_prod = "betleague-terraform-state-prod"
+region           = "gra"
+s3_endpoint      = "https://s3.gra.io.cloud.ovh.net"
+
+
