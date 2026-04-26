@@ -187,4 +187,11 @@ jobs:
             echo 'Do not upload generated tfvars files or Terraform outputs as CI artifacts.'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Cleanup ephemeral plan files
+        if: ${{ always() }}
+        working-directory: infrastructure/state-identities
+        run: |
+          shred -u tfplan tfplan.json 2>/dev/null || rm -f -- tfplan tfplan.json
+
+
 
