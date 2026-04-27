@@ -205,6 +205,7 @@ jobs:
           REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+          MIGRATIONS_ENV: ${{ secrets.MIGRATIONS_ENV }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           NATS_USER: ${{ secrets.NATS_USER }}
           NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
@@ -228,6 +229,7 @@ jobs:
               "BETLEAGUE_FRONTEND_IMAGE": os.environ.get("BETLEAGUE_FRONTEND_IMAGE", "").strip(),
               "LETSENCRYPT_EMAIL": os.environ.get("LETSENCRYPT_EMAIL", "").strip(),
               "BACKEND_ENV": os.environ.get("BACKEND_ENV", "").strip(),
+              "MIGRATIONS_ENV": os.environ.get("MIGRATIONS_ENV", "").strip(),
               "REDIS_PASSWORD": os.environ.get("REDIS_PASSWORD", "").strip(),
               "NATS_USER": os.environ.get("NATS_USER", "").strip(),
               "NATS_PASSWORD": os.environ.get("NATS_PASSWORD", "").strip(),
@@ -276,6 +278,7 @@ jobs:
               "betleague_swarm_registry_username": os.environ.get("REGISTRY_USERNAME", ""),
               "betleague_swarm_registry_password": os.environ.get("REGISTRY_PASSWORD", ""),
               "betleague_swarm_backend_env_content": required["BACKEND_ENV"],
+              "betleague_swarm_migrations_env_content": required["MIGRATIONS_ENV"],
               "betleague_swarm_redis_password": required["REDIS_PASSWORD"],
               "betleague_swarm_nats_user": required["NATS_USER"],
               "betleague_swarm_nats_password": required["NATS_PASSWORD"],
@@ -332,6 +335,7 @@ jobs:
             echo "- Image backend : ${BACKEND_IMAGE}"
             echo "- Image frontend : ${FRONTEND_IMAGE}"
           } >> "$GITHUB_STEP_SUMMARY"
+
 
 
 

@@ -82,6 +82,13 @@ x-secret-backend-env: &secret-backend-env
   gid: "1000"
   mode: 0400
 
+x-secret-migrations-env: &secret-migrations-env
+  source: migrations_env
+  target: migrations_env
+  uid: "1000"
+  gid: "1000"
+  mode: 0400
+
 x-secret-nats-ca-cert-client: &secret-nats-ca-cert-client
   source: nats_ca_cert
   target: ca-cert.pem
@@ -313,10 +320,12 @@ services:
       - |
         set -a
         . /run/secrets/backend_env
+        . /run/secrets/migrations_env
         set +a
         exec ./scripts/run_migrations.sh
     secrets:
       - *secret-backend-env
+      - *secret-migrations-env
       - *secret-nats-ca-cert-client
       - *secret-nats-client-cert
       - *secret-nats-client-key
@@ -500,6 +509,8 @@ configs:
 secrets:
   backend_env:
     file: ./secrets/backend.env
+  migrations_env:
+    file: ./secrets/migrations.env
   redis_password:
     file: ./secrets/redis_password.txt
   nats_user:

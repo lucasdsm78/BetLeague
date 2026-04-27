@@ -6,6 +6,7 @@
   ansible.builtin.command: >-
     docker run --rm
     --env-file {{ betleague_swarm_deploy_path }}/secrets/backend.env
+    --env-file {{ betleague_swarm_deploy_path }}/secrets/migrations.env
     {{ betleague_swarm_backend_image }}
     ./scripts/run_migrations.sh
   register: betleague_swarm_migrations_result
@@ -69,6 +70,7 @@
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
 
 
 

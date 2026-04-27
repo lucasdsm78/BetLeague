@@ -8,7 +8,6 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
@@ -20,6 +19,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from infrastructure.config import Settings
+from infrastructure.postgresql.engine_factory import create_configured_async_engine
 from infrastructure.postgresql.database import Base
 from infrastructure.postgresql.init_models import init_models
 
@@ -55,6 +55,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         compare_server_default=True,
+        transaction_per_migration=True,
     )
 
     with context.begin_transaction():
@@ -62,13 +63,11 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-
-    configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = get_database_url()
-
-    connectable = async_engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
+    settings = Settings()
+    connectable = create_configured_async_engine(
+        get_database_url(),
+        settings=settings,
+        application_name="betleague-migrations",
         poolclass=pool.NullPool,
     )
 

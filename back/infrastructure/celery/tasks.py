@@ -95,16 +95,15 @@ def _make_session_factory():
     that occurs when a module-level engine is reused across
     Celery's per-task event loops.
     """
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
     from infrastructure.config import Settings
+    from infrastructure.postgresql.engine_factory import create_configured_async_engine
 
     settings = Settings()
-    engine = create_async_engine(
+    engine = create_configured_async_engine(
         settings.sqlalchemy_database_url,
-        echo=bool(getattr(settings, "sqlalchemy_echo", False)),
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        settings=settings,
+        application_name="betleague-celery",
     )
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     return engine, factory
