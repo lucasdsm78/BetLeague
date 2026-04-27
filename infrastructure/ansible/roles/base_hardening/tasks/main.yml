@@ -81,7 +81,7 @@
     group: root
     mode: '0644'
   when: betleague_enable_fail2ban | bool
-  notify: Restart fail2ban
+  notify: Reload fail2ban
 
 - name: Activer auditd
   ansible.builtin.service:
@@ -174,6 +174,7 @@
     enabled: true
     state: started
   when: betleague_enable_fail2ban | bool
+
 
 
 

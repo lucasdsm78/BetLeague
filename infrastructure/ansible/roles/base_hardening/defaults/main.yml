@@ -14,6 +14,11 @@ betleague_fail2ban_bantime_factor: 2
 betleague_fail2ban_bantime_maxtime: 24h
 betleague_fail2ban_bantime_rndtime: 5m
 betleague_fail2ban_sshd_mode: aggressive
+betleague_fail2ban_recidive_enabled: true
+betleague_fail2ban_recidive_logpath: /var/log/fail2ban.log
+betleague_fail2ban_recidive_maxretry: 3
+betleague_fail2ban_recidive_findtime: 1d
+betleague_fail2ban_recidive_bantime: 1w
 betleague_public_tcp_ports:
   - 80
   - 443
@@ -62,6 +67,7 @@ betleague_ufw_docker_log_prefix: '[UFW DOCKER BLOCK] '
 betleague_unattended_origins:
   - "origin=${distro_id},codename=${distro_codename}-security,label=${distro_id}"
   - "origin=${distro_id},codename=${distro_codename}-updates,label=${distro_id}"
+
 
 
 
