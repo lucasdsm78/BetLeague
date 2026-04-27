@@ -111,6 +111,8 @@ Le bootstrap `state-identities/` crée désormais les identités Object Storage 
 
 Le workflow GitHub Actions dédié `.github/workflows/terraform-state-identities.yml` exécute les checks en CI et réserve le `plan/apply` à un runner self-hosted approuvé pour éviter l’exfiltration des credentials S3 générées.
 
+Le workflow `.github/workflows/terraform-state-backend.yml` prend ensuite le relais pour créer les buckets de state à partir des credentials générées par `state-identities/`, également sur runner self-hosted approuvé.
+
 ## Structure livrée
 
 ```text

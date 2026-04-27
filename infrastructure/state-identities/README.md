@@ -7,6 +7,8 @@ Cette stack crée les identités Object Storage OVH nécessaires au backend Terr
 - une paire `access_key_id` / `secret_access_key` pour chaque user
 - des policies bucket-scoped optionnelles pour limiter chaque identité à son bucket
 
+Par défaut, l’identité `dev` est **temporairement désactivée** via `enable_dev_state_identity = false` afin de ne gérer que `prod` pendant le bootstrap courant.
+
 ## Pré-requis
 
 - projet OVH Public Cloud existant
@@ -22,6 +24,8 @@ export TF_VAR_service_name="..."
 ```
 
 Optionnellement, copie `terraform.tfvars.example` vers `terraform.tfvars` puis complète-le localement.
+
+Pour réactiver `dev`, passe `enable_dev_state_identity = true`.
 
 ## Démarrage
 
@@ -49,6 +53,8 @@ Pré-requis CI recommandés :
 - les secrets GitHub `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
 
 Le workflow n’upload volontairement **aucun** artifact contenant de plan binaire, d’outputs sensibles ou de `terraform.tfvars` générés.
+
+Après un `apply` réussi, la suite CI/CD naturelle est de déclencher `.github/workflows/terraform-state-backend.yml` pour matérialiser les buckets de state à partir des credentials générées.
 
 ## Outputs utiles
 
@@ -78,5 +84,7 @@ cd infrastructure/state-identities
 ## Important
 
 Les secret keys S3 générées sont stockées dans le `tfstate` local de cette stack. Protège-le comme un secret : stockage chiffré, sauvegarde sécurisée, accès restreint.
+
+
 
 

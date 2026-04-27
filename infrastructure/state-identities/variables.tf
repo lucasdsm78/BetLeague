@@ -33,10 +33,22 @@ variable "bucket_name_dev" {
   default     = "betleague-terraform-state-dev"
 }
 
+variable "enable_dev_state_identity" {
+  description = "Crée temporairement l'identité S3 dev si true."
+  type        = bool
+  default     = false
+}
+
 variable "bucket_name_prod" {
   description = "Nom du bucket de state Terraform pour prod."
   type        = string
   default     = "betleague-terraform-state-prod"
+}
+
+variable "enable_prod_state_identity" {
+  description = "Crée l'identité S3 prod si true."
+  type        = bool
+  default     = true
 }
 
 variable "enable_bucket_scoped_policies" {
@@ -44,4 +56,5 @@ variable "enable_bucket_scoped_policies" {
   type        = bool
   default     = true
 }
+
 
