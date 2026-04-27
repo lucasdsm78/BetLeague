@@ -11,6 +11,13 @@ terraform.tfvars
 *.auto.tfvars
 backend.hcl
 backend-*.hcl
+ansible/.cache/
+ansible/collections/
+ansible/*.retry
+ansible/inventories/*/hosts.yml
+ansible/inventories/*/group_vars/all.yml
+
+
 
 
 

@@ -1,0 +1,123 @@
+---
+- name: Vérifier le système supporté
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Debian'
+    fail_msg: >-
+      Ce rôle est conçu pour Ubuntu/Debian, cohérent avec le bootstrap OVH actuel.
+
+- name: Installer les paquets de hardening
+  ansible.builtin.apt:
+    name: "{{ betleague_hardening_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configurer les mises à jour de sécurité automatiques
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configurer les origines autorisées pour unattended-upgrades
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Durcir la configuration SSH
+  ansible.builtin.template:
+    src: sshd_config_hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-betleague-hardening.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart ssh
+
+- name: Valider la configuration SSH globale
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+
+- name: Déployer la configuration sysctl de hardening
+  ansible.builtin.template:
+    src: 99-betleague-hardening.conf.j2
+    dest: /etc/sysctl.d/99-betleague-hardening.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload sysctl
+
+- name: Configurer la politique d'expiration des mots de passe
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^{{ item.key }}'
+    line: '{{ item.key }}\t{{ item.value }}'
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { key: 'PASS_MAX_DAYS', value: '90' }
+    - { key: 'PASS_MIN_DAYS', value: '1' }
+    - { key: 'PASS_WARN_AGE', value: '14' }
+
+- name: Déployer la prison fail2ban SSHD
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: '0644'
+  when: betleague_enable_fail2ban | bool
+  notify: Restart fail2ban
+
+- name: Activer auditd
+  ansible.builtin.service:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Définir la politique UFW par défaut sur deny incoming
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Définir la politique UFW par défaut sur allow outgoing
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Autoriser SSH seulement depuis les CIDR de confiance
+  community.general.ufw:
+    rule: limit
+    src: "{{ item }}"
+    port: '22'
+    proto: tcp
+  loop: "{{ betleague_ssh_trusted_cidrs }}"
+
+- name: Autoriser les ports publics applicatifs
+  community.general.ufw:
+    rule: allow
+    port: "{{ item | string }}"
+    proto: tcp
+  loop: "{{ betleague_public_tcp_ports }}"
+
+- name: Activer les logs UFW
+  community.general.ufw:
+    logging: "{{ betleague_ufw_logging }}"
+
+- name: Activer UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Activer fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    enabled: true
+    state: started
+  when: betleague_enable_fail2ban | bool
+
+

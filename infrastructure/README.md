@@ -1,40 +1,31 @@
 # Infrastructure Terraform OVH - BetLeague
 
-Cette arborescence contient une base Terraform modulaire pour déployer une infrastructure BetLeague sur OVH Public Cloud avec une approche simple, rapide et sécurisée.
+Cette arborescence contient une base Terraform + Ansible pour déployer une infrastructure BetLeague sur **un vrai OVH VPS-3**, avec un backend Terraform distant stocké sur OVH Object Storage.
 
 ## Architecture cible
 
-- **1 instance publique OVH Public Cloud** durcie via `cloud-init`
-- **1 réseau privé OVH** pour les communications internes futures
+- **1 OVH VPS-3** durci ensuite via Ansible
 - **DNS OVH** pour `app` / `api`
 - **Base PostgreSQL managée externe** recommandée (ex: Neon), volontairement hors Terraform ici
 - **Secrets runtime hors Terraform** (fichiers montés en lecture seule sur le serveur)
 
-## Modules utilisés
+## Composants utilisés
 
-La stack `terraform/` consomme directement les modules Git publiés sous le compte `lucasdsm78` :
-
-- `terraform-cloudinit-docker-host`
-- `terraform-ovh-private-network`
-- `terraform-ovh-public-instance`
-- `terraform-ovh-zone-records`
+La stack `terraform/` consomme désormais le repo GitHub dédié `terraform-ovh-vps` pour la partie compute, pinné sur un SHA immuable dans `terraform/main.tf`, et conserve le module Git de DNS OVH.
 
 ## Dossiers Terraform fournis
 
 - `state-identities/`
 - `terraform/`
+- `ansible/`
 - `state-backend/`
 
-La stack référence directement des sources Git pinnées sur des commits immuables :
-
-```hcl
-source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=cb8ba898d1b63fbb8c054f91dad0abfad2b826b1"
-```
+Le backend Terraform distant reste compatible OVH Object Storage S3-compatible via `state-identities/` et `state-backend/`.
 
 ## Pré-requis
 
 - Terraform ~> 1.14
-- Un projet OVH Public Cloud
+- Un compte OVH avec droits de commande VPS
 - Un domaine OVH si tu veux gérer le DNS via Terraform
 - Variables OVH exportées dans le shell :
 
@@ -105,9 +96,11 @@ terraform plan
 2. Générer/rotater les identités S3 du backend dans `state-identities/`
 3. Bootstraper/maintenir les buckets de state dans `state-backend/`
 4. Mettre à jour les refs Git dans `terraform/main.tf`
-5. Déployer l'infrastructure Terraform
-6. Déployer l'application (Docker Compose ou systemd) sur l'instance
-7. Injecter les secrets runtime hors Terraform
+5. Déployer l'infrastructure Terraform (le plan ciblé est un vrai `VPS-3`)
+6. Générer l’inventaire Ansible depuis les outputs Terraform
+7. Appliquer le hardening hôte via Ansible
+8. Déployer l'application (Docker Compose ou systemd) sur le VPS
+9. Injecter les secrets runtime hors Terraform
 
 Le bootstrap `state-identities/` crée désormais les identités Object Storage S3 `dev` / `prod`, et `state-backend/` crée les buckets dédiés `betleague-terraform-state-dev` et `betleague-terraform-state-prod`.
 
@@ -123,6 +116,7 @@ infrastructure/
 ├── scripts/
 ├── state-identities/
 ├── state-backend/
-└── terraform/
+├── terraform/
+└── ansible/
 ```
 
