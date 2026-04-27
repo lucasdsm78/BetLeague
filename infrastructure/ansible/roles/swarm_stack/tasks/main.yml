@@ -34,7 +34,7 @@
 
 - name: Déployer le manifest Swarm
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../deploy/swarm/stack.prod.yml"
+    src: "{{ playbook_dir }}/../../deploy/swarm/stack.prod.yml"
     dest: "{{ betleague_swarm_deploy_path }}/stack.prod.yml"
     owner: root
     group: "{{ betleague_runtime_group }}"
@@ -155,6 +155,7 @@
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
 
 
 
