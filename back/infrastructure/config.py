@@ -151,6 +151,24 @@ class Settings(BaseSettings):
             return bool(self.queue_logs_enabled)
         return self.environment == "prod"
 
+    @property
+    def fastapi_docs_enabled(self) -> bool:
+        return self.environment != "prod"
+
+    @property
+    def fastapi_docs_urls(self) -> dict[str, str | None]:
+        if not self.fastapi_docs_enabled:
+            return {
+                "docs_url": None,
+                "redoc_url": None,
+                "openapi_url": None,
+            }
+        return {
+            "docs_url": "/docs",
+            "redoc_url": "/redoc",
+            "openapi_url": "/openapi.json",
+        }
+
     class Config:
         env_file = ".env"
         extra = "ignore"

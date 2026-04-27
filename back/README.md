@@ -33,6 +33,7 @@ Exemple de workflow:
 Voir aussi `back/.env.example`.
 
 - `ENVIRONMENT=prod`
+- en `prod`, FastAPI désactive automatiquement `/docs`, `/redoc` et `/openapi.json`
 - `JSON_LOGS=true`
 - `LOG_SERVICE_NAME=betleague-back`
 - `HTTP_REQUEST_LOGGING_ENABLED=true`
@@ -79,3 +80,4 @@ En production:
 - injecter `LOG_SERVICE_NAME`
 - agréger stdout/stderr dans votre plateforme de logs
 - indexer au minimum `request_id`, `msg`, `level`, `component`, `status_code`
+
