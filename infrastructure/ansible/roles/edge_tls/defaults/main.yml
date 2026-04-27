@@ -1,0 +1,21 @@
+---
+betleague_letsencrypt_enabled: true
+betleague_letsencrypt_email: ""
+betleague_letsencrypt_staging: false
+betleague_letsencrypt_cert_name: betleague-edge
+betleague_letsencrypt_key_type: rsa
+betleague_letsencrypt_rsa_key_size: 2048
+betleague_letsencrypt_domains:
+  - "{{ betleague_swarm_app_domain }}"
+  - "{{ betleague_swarm_api_domain }}"
+betleague_edge_acme_webroot: "{{ betleague_compose_root }}/shared/acme-challenge"
+betleague_edge_tls_dir: "{{ betleague_compose_root }}/shared/tls/edge"
+betleague_edge_tls_cert_path: "{{ betleague_edge_tls_dir }}/fullchain.pem"
+betleague_edge_tls_key_path: "{{ betleague_edge_tls_dir }}/privkey.pem"
+betleague_edge_tls_group: betleague-edge-tls
+betleague_edge_tls_group_gid: 940
+betleague_edge_service_name: "{{ betleague_swarm_stack_name }}_edge"
+betleague_edge_tls_bootstrap_days: 3
+
+
+

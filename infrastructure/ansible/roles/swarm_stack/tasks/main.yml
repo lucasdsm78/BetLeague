@@ -11,8 +11,6 @@
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
-      - betleague_swarm_edge_tls_cert | trim != ''
-      - betleague_swarm_edge_tls_key | trim != ''
       - betleague_swarm_nats_ca_cert | trim != ''
       - betleague_swarm_nats_server_cert | trim != ''
       - betleague_swarm_nats_server_key | trim != ''
@@ -76,8 +74,6 @@
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
-    - { name: 'tls.crt.pem', content: "{{ betleague_swarm_edge_tls_cert }}" }
-    - { name: 'tls.key.pem', content: "{{ betleague_swarm_edge_tls_key }}" }
     - { name: 'nats-ca-cert.pem', content: "{{ betleague_swarm_nats_ca_cert }}" }
     - { name: 'nats-server-cert.pem', content: "{{ betleague_swarm_nats_server_cert }}" }
     - { name: 'nats-server-key.pem', content: "{{ betleague_swarm_nats_server_key }}" }
@@ -101,6 +97,29 @@
     - betleague_swarm_registry_password | trim != ''
   no_log: true
 
+- name: Précharger l'image backend cible
+  ansible.builtin.command: docker pull {{ betleague_swarm_backend_image }}
+  register: betleague_swarm_backend_pull
+  changed_when: >-
+    'Downloaded newer image' in betleague_swarm_backend_pull.stdout or
+    'Status: Downloaded newer image' in betleague_swarm_backend_pull.stdout
+
+- name: Précharger l'image frontend cible
+  ansible.builtin.command: docker pull {{ betleague_swarm_frontend_image }}
+  register: betleague_swarm_frontend_pull
+  changed_when: >-
+    'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
+    'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+
+- name: Appliquer les migrations DB avant le rolling update backend
+  ansible.builtin.command: >-
+    docker run --rm
+    --env-file {{ betleague_swarm_deploy_path }}/secrets/backend.env
+    {{ betleague_swarm_backend_image }}
+    ./scripts/run_migrations.sh
+  register: betleague_swarm_migrations_result
+  changed_when: false
+
 - name: Déployer la stack Swarm BetLeague
   ansible.builtin.command: docker stack deploy --with-registry-auth -c stack.prod.yml {{ betleague_swarm_stack_name }}
   args:
@@ -110,6 +129,9 @@
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
     GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
     GUNICORN_FORWARDED_ALLOW_IPS: "{{ betleague_swarm_gunicorn_forwarded_allow_ips }}"
+    BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
+    BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
+    BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"
   register: betleague_swarm_deploy_result
   changed_when: >-
     'Updating service' in betleague_swarm_deploy_result.stdout or
@@ -149,13 +171,16 @@
     method: GET
     return_content: false
     status_code: 200
-    validate_certs: true
+    validate_certs: "{{ not (betleague_letsencrypt_enabled | default(false) | bool) }}"
   register: betleague_swarm_api_health
   retries: 12
   delay: 5
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
+
+
 
 
 

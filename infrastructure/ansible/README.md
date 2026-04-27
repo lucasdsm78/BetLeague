@@ -30,6 +30,7 @@ ansible/
     ├── app_host/
     ├── base_hardening/
     ├── docker_host/
+    ├── edge_tls/
     ├── swarm_host/
     └── swarm_stack/
 ```
@@ -102,6 +103,10 @@ Les jobs `harden-host-dev` et `harden-host-prod` attendent la variable GitHub En
 
 Les jobs `deploy-swarm-dev` et `deploy-swarm-prod` construisent aussi un `swarm-vars.json` qui injecte explicitement `GUNICORN_WORKERS` et `GUNICORN_FORWARDED_ALLOW_IPS` dans le rôle `swarm_stack`, sans dépendre de `backend.env` pour ces paramètres de runtime Gunicorn.
 
+Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
+
+Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée.
+
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
 
 ## Application
@@ -115,11 +120,15 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
+- Le certificat TLS edge public n'est plus injecté comme secret GitHub : la clé privée est générée et renouvelée sur l'hôte par Let’s Encrypt, puis copiée dans `/opt/betleague/shared/tls/edge/` avec permissions strictes.
+- Les releases backend/frontend sans downtime supposent des migrations DB backward-compatible (_expand / contract_). Si une migration casse l’ancienne version backend, Swarm ne pourra pas garantir une continuité fonctionnelle malgré le rolling update `start-first`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
 - La politique UFW BetLeague bloque les nouvelles connexions Docker publiées autres que les ports explicitement autorisés dans `betleague_public_tcp_ports` (par défaut `80/443`).
 - Fail2ban est aligné sur le port SSH réel (`betleague_ssh_port`), ignore `localhost` + les CIDR d’administration, applique des bannissements progressifs via l’action `ufw` et active aussi une jail `recidive` pour bannir plus longtemps les IP déjà sanctionnées à répétition.
 - `betleague_ssh_trusted_cidrs` reste volontairement vide par défaut : le rôle échoue explicitement tant qu’au moins un CIDR d’administration valide n’est pas fourni, pour éviter toute ouverture SSH implicite ou tout lockout silencieux.
 - Les changements de configuration Fail2ban utilisent un `reload` plutôt qu’un `restart`, afin de préserver autant que possible l’état des bans actifs.
+
+
 
 
 

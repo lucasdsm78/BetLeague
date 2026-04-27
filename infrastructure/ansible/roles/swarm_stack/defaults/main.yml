@@ -5,6 +5,9 @@ betleague_swarm_backend_image: ""
 betleague_swarm_frontend_image: ""
 betleague_swarm_gunicorn_workers: 2
 betleague_swarm_gunicorn_forwarded_allow_ips: "*"
+betleague_swarm_edge_acme_webroot: "{{ betleague_compose_root }}/shared/acme-challenge"
+betleague_swarm_edge_tls_dir: "{{ betleague_compose_root }}/shared/tls/edge"
+betleague_swarm_edge_tls_gid: 940
 betleague_swarm_app_domain: app.betleague.app
 betleague_swarm_api_domain: api.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
@@ -15,8 +18,6 @@ betleague_swarm_backend_env_content: ""
 betleague_swarm_redis_password: ""
 betleague_swarm_nats_user: ""
 betleague_swarm_nats_password: ""
-betleague_swarm_edge_tls_cert: ""
-betleague_swarm_edge_tls_key: ""
 betleague_swarm_nats_ca_cert: ""
 betleague_swarm_nats_server_cert: ""
 betleague_swarm_nats_server_key: ""
@@ -24,6 +25,7 @@ betleague_swarm_nats_client_cert: ""
 betleague_swarm_nats_client_key: ""
 betleague_swarm_wait_timeout_seconds: 180
 betleague_swarm_wait_sleep_seconds: 5
+
 
 
 
