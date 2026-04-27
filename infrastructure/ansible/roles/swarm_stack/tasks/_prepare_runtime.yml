@@ -8,6 +8,7 @@
       - betleague_swarm_app_domain | trim != ''
       - betleague_swarm_api_domain | trim != ''
       - betleague_swarm_backend_env_content | trim != ''
+      - betleague_swarm_migrations_env_content | trim != ''
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
@@ -71,6 +72,7 @@
     mode: '0600'
   loop:
     - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content }}" }
+    - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
@@ -120,4 +122,5 @@
   changed_when: >-
     'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
     'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+
 

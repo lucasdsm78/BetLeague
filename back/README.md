@@ -33,12 +33,20 @@ Exemple de workflow:
 Voir aussi `back/.env.example`.
 
 - `ENVIRONMENT=prod`
+- `SQLALCHEMY_DATABASE_URL` : endpoint Neon **pooler** pour le runtime applicatif
+- `ALEMBIC_DATABASE_URL` : endpoint Neon **direct** pour les migrations Alembic
+- `SQLALCHEMY_SSL_MODE=verify-full`
+- `SQLALCHEMY_POOL_RECYCLE=300`
+- `SQLALCHEMY_POOL_TIMEOUT=30`
+- `SQLALCHEMY_COMMAND_TIMEOUT=30`
 - en `prod`, FastAPI désactive automatiquement `/docs`, `/redoc` et `/openapi.json`
 - `JSON_LOGS=true`
 - `LOG_SERVICE_NAME=betleague-back`
 - `HTTP_REQUEST_LOGGING_ENABLED=true`
 - `HTTP_REQUEST_LOGGING_EXCLUDED_PATHS=/health`
 - `HTTP_SLOW_REQUEST_THRESHOLD_MS=1000`
+
+Le backend applique désormais un `application_name` PostgreSQL explicite par composant (`betleague-api`, `betleague-celery`, `betleague-migrations`) via `connect_args`, avec `jit=off`, `pool_pre_ping`, `pool_recycle` et `pool_timeout` pour mieux supporter Neon en production.
 
 ### Événements principaux
 

@@ -73,6 +73,7 @@ Les entrées de déploiement sont désormais portées par :
 ```bash
 cd /Users/lucasdasilvamarques/BetLeague/infrastructure/deploy/swarm
 cp secrets/backend.env.example secrets/backend.env
+cp secrets/migrations.env.example secrets/migrations.env
 cp secrets/redis_password.txt.example secrets/redis_password.txt
 cp secrets/nats_user.txt.example secrets/nats_user.txt
 cp secrets/nats_password.txt.example secrets/nats_password.txt
@@ -88,7 +89,9 @@ cp secrets/nats-client-key.pem.example secrets/nats-client-key.pem
 Adapte en particulier :
 
 - `SQLALCHEMY_DATABASE_URL`
-- `ALEMBIC_DATABASE_URL` (recommandé avec Neon : endpoint direct pour migrations, distinct du runtime)
+- `SQLALCHEMY_SSL_MODE`
+- `SQLALCHEMY_POOL_RECYCLE`
+- `SQLALCHEMY_POOL_TIMEOUT`
 - `SECRET_KEY_TOKEN`
 - `SECRET_KEY_TOKEN_REFRESH`
 - `ENCRYPTION_KEY`
@@ -106,9 +109,11 @@ Adapte en particulier :
 Avec **Neon**, la stratégie recommandée est :
 
 - `SQLALCHEMY_DATABASE_URL` → **endpoint poolé** Neon pour le runtime applicatif (`backend`, `celery`, `outbox`)
-- `ALEMBIC_DATABASE_URL` → **endpoint direct** Neon pour les migrations Alembic
+- `migrations.env` / `MIGRATIONS_ENV` → contient uniquement `ALEMBIC_DATABASE_URL`, sur **endpoint direct** Neon pour les migrations Alembic
 
 Cela permet de garder une bonne élasticité côté application tout en évitant les surprises liées au pooler transactionnel pendant les migrations de schéma.
+
+Le backend Python applique aussi un hardening TLS `verify-full` côté `asyncpg` via `certifi`, un `application_name` PostgreSQL explicite par composant et un tuning de pool SQLAlchemy aligné sur Neon (`pool_pre_ping`, `pool_recycle`, `pool_timeout`, `command_timeout`).
 
 ## Initialiser puis déployer la stack
 
@@ -251,6 +256,7 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `SSH_PRIVATE_KEY`
 - `SSH_KNOWN_HOSTS`
 - `BACKEND_ENV`
+- `MIGRATIONS_ENV`
 - `REDIS_PASSWORD`
 - `NATS_USER`
 - `NATS_PASSWORD`
@@ -307,6 +313,7 @@ sudo certbot renew --dry-run
 - Le service `jetstream_provision` est volontairement one-shot.
 - Le service `migrations` est volontairement défini avec `replicas: 0` dans la stack, puis activé uniquement lors d’une release applicative dédiée.
 - Les migrations DB restent exécutées **avant** `docker stack deploy` par Ansible pour le déploiement complet, et via le service one-shot `migrations` pour la release applicative dédiée.
+- Le secret runtime `backend.env` ne doit plus contenir `ALEMBIC_DATABASE_URL` : l’URL DDL de migration vit désormais dans un secret séparé `migrations.env` / `MIGRATIONS_ENV`, monté uniquement pour les migrations.
 - Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
 - Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.
 - Premier bootstrap recommandé : `LETSENCRYPT_STAGING=true`, vérification HTTPS complète, puis second déploiement avec `LETSENCRYPT_STAGING=false` et `LETSENCRYPT_PRODUCTION_ACK=true` pour obtenir le certificat public final.
