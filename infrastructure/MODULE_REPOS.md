@@ -1,4 +1,4 @@
-j'a# Modules Terraform Git utilisés par `terraform/`
+# Modules Terraform Git utilisés par `terraform/`
 
 ## Mapping recommandé
 
@@ -35,6 +35,7 @@ Si tu modifies un module :
 1. publie la nouvelle version dans le repo du module concerné,
 2. récupère le SHA du commit à promouvoir,
 3. mets à jour la `ref` correspondante dans `terraform/main.tf`.
+
 
 
 
