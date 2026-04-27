@@ -11,6 +11,7 @@ def _env_int(name: str, default: int) -> int:
 
 bind = os.getenv("GUNICORN_BIND", "0.0.0.0:8000")
 worker_class = os.getenv("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
+forwarded_allow_ips = os.getenv("GUNICORN_FORWARDED_ALLOW_IPS", "*")
 workers = _env_int(
     "GUNICORN_WORKERS",
     _env_int("WEB_CONCURRENCY", _env_int("UVICORN_WORKERS", 2)),
@@ -33,5 +34,6 @@ proc_name = os.getenv("GUNICORN_PROC_NAME", "betleague-api")
 preload_app = False
 
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+
 
 

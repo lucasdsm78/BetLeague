@@ -12,6 +12,7 @@ def _load_gunicorn_conf(monkeypatch, **env_overrides):
     for key in [
         "GUNICORN_BIND",
         "GUNICORN_WORKER_CLASS",
+        "GUNICORN_FORWARDED_ALLOW_IPS",
         "GUNICORN_WORKERS",
         "WEB_CONCURRENCY",
         "UVICORN_WORKERS",
@@ -48,6 +49,7 @@ def test_gunicorn_config_uses_secure_defaults(monkeypatch):
 
     assert module.bind == "0.0.0.0:8000"
     assert module.worker_class == "uvicorn.workers.UvicornWorker"
+    assert module.forwarded_allow_ips == "*"
     assert module.workers == 2
     assert module.keepalive == 15
     assert module.timeout == 120
@@ -83,5 +85,12 @@ def test_gunicorn_workers_supports_legacy_uvicorn_workers_fallback(monkeypatch):
     module = _load_gunicorn_conf(monkeypatch, UVICORN_WORKERS=5)
 
     assert module.workers == 5
+
+
+def test_gunicorn_forwarded_allow_ips_supports_explicit_env(monkeypatch):
+    module = _load_gunicorn_conf(monkeypatch, GUNICORN_FORWARDED_ALLOW_IPS="10.0.0.10,10.0.0.11")
+
+    assert module.forwarded_allow_ips == "10.0.0.10,10.0.0.11"
+
 
 
