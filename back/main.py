@@ -63,7 +63,10 @@ async def lifespan(app: FastAPI):
     shutdown_logging()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    **getattr(settings, "fastapi_docs_urls", {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}),
+)
 register_exception_handlers(app, settings=settings)
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
