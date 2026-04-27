@@ -317,7 +317,7 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     environment:
-      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
     command:
       - sh
       - -ec
