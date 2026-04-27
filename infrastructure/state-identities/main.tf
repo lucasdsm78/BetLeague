@@ -1,14 +1,18 @@
 locals {
-  state_identities = {
-    dev = {
-      description = "Terraform state backend operator (dev)"
-      bucket_name = var.bucket_name_dev
-    }
-    prod = {
-      description = "Terraform state backend operator (prod)"
-      bucket_name = var.bucket_name_prod
-    }
-  }
+  state_identities = merge(
+    var.enable_dev_state_identity ? {
+      dev = {
+        description = "Terraform state backend operator (dev)"
+        bucket_name = var.bucket_name_dev
+      }
+    } : {},
+    var.enable_prod_state_identity ? {
+      prod = {
+        description = "Terraform state backend operator (prod)"
+        bucket_name = var.bucket_name_prod
+      }
+    } : {},
+  )
 }
 
 resource "ovh_cloud_project_user" "state" {
@@ -47,4 +51,5 @@ resource "ovh_cloud_project_user_s3_policy" "state" {
     ]
   })
 }
+
 

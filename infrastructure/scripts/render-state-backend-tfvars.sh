@@ -11,6 +11,11 @@ trap 'rm -f "$TMP_JSON"' EXIT
 
 (
   cd "$STATE_IDENTITIES_DIR"
+
+  if [[ -n "${TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH:-}" ]]; then
+    terraform init -backend-config="path=$TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH" -reconfigure >/dev/null
+  fi
+
   terraform output -json > "$TMP_JSON"
 )
 
@@ -24,15 +29,30 @@ payload = json.loads(Path(sys.argv[1]).read_text())
 def value(name):
     return payload[name]["value"]
 
+enabled = value("state_backend_enabled_environments")
+bucket_names = value("state_backend_bucket_names")
+
 lines = [
-    f'access_key_id_dev      = "{value("state_dev_s3_access_key_id")}"',
-    f'secret_access_key_dev  = "{value("state_dev_s3_secret_access_key")}"',
-    f'access_key_id_prod     = "{value("state_prod_s3_access_key_id")}"',
-    f'secret_access_key_prod = "{value("state_prod_s3_secret_access_key")}"',
+    f'enable_dev_bucket  = {str(enabled.get("dev", False)).lower()}',
+    f'enable_prod_bucket = {str(enabled.get("prod", False)).lower()}',
     "",
-    f'bucket_name_dev  = "{value("state_backend_bucket_names")["dev"]}"',
-    f'bucket_name_prod = "{value("state_backend_bucket_names")["prod"]}"',
 ]
+
+if enabled.get("dev", False):
+    lines.extend([
+        f'access_key_id_dev      = "{value("state_dev_s3_access_key_id")}"',
+        f'secret_access_key_dev  = "{value("state_dev_s3_secret_access_key")}"',
+        f'bucket_name_dev        = "{bucket_names["dev"]}"',
+        "",
+    ])
+
+if enabled.get("prod", False):
+    lines.extend([
+        f'access_key_id_prod     = "{value("state_prod_s3_access_key_id")}"',
+        f'secret_access_key_prod = "{value("state_prod_s3_secret_access_key")}"',
+        f'bucket_name_prod       = "{bucket_names["prod"]}"',
+    ])
+
 print("\n".join(lines))
 PY
 )"
@@ -43,4 +63,6 @@ if [[ -n "$OUTPUT_PATH" ]]; then
 else
   printf '%s\n' "$RENDERED"
 fi
+
+
 
