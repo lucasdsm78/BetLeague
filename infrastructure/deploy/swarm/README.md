@@ -44,7 +44,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 ## Fichiers principaux
 
 ```text
-deploy/swarm/
+infrastructure/deploy/swarm/
 ├── stack.prod.yml
 └── secrets/
     ├── *.example
@@ -66,7 +66,7 @@ Les entrées de déploiement sont désormais portées par :
 ### 2. Préparer les secrets d'exemple si tu veux tester localement Ansible
 
 ```bash
-cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
+cd /Users/lucasdasilvamarques/BetLeague/infrastructure/deploy/swarm
 cp secrets/backend.env.example secrets/backend.env
 cp secrets/redis_password.txt.example secrets/redis_password.txt
 cp secrets/nats_user.txt.example secrets/nats_user.txt
