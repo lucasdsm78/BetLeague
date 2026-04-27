@@ -5,7 +5,7 @@ map $http_upgrade $connection_upgrade {
 
 server {
     listen 8080;
-    server_name ${APP_DOMAIN} ${API_DOMAIN};
+    server_name {{ betleague_swarm_app_domain }} {{ betleague_swarm_api_domain }};
     return 301 https://$host$request_uri;
 }
 
@@ -17,7 +17,7 @@ server {
 
 server {
     listen 8443 ssl http2;
-    server_name ${APP_DOMAIN};
+    server_name {{ betleague_swarm_app_domain }};
 
     ssl_certificate     /run/secrets/edge_tls_cert.pem;
     ssl_certificate_key /run/secrets/edge_tls_key.pem;
@@ -56,7 +56,7 @@ server {
 
 server {
     listen 8443 ssl http2;
-    server_name ${API_DOMAIN};
+    server_name {{ betleague_swarm_api_domain }};
 
     ssl_certificate     /run/secrets/edge_tls_cert.pem;
     ssl_certificate_key /run/secrets/edge_tls_key.pem;

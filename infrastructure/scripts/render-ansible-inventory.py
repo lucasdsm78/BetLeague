@@ -31,6 +31,9 @@ def _load_payload(terraform_dir: Path, input_json: Path | None) -> dict:
 
 
 def _extract_host(payload: dict) -> dict:
+    if isinstance(payload, dict) and "ansible_inventory_host" in payload:
+        payload = payload["ansible_inventory_host"]
+
     if isinstance(payload, dict) and "value" in payload:
         payload = payload["value"]
 
@@ -87,4 +90,5 @@ if __name__ == "__main__":
     except Exception as exc:  # noqa: BLE001
         print(str(exc), file=sys.stderr)
         raise SystemExit(1) from exc
+
 
