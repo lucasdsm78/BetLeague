@@ -32,6 +32,11 @@ on:
         description: "Explicit deploy user override for direct inventory strategy"
         required: false
         type: string
+      ansible_playbook:
+        description: "Ansible playbook to execute"
+        required: false
+        default: infrastructure/ansible/playbooks/deploy_swarm.yml
+        type: string
 
 concurrency:
   group: swarm-deploy-${{ inputs.target_environment }}
@@ -69,6 +74,7 @@ jobs:
         env:
           INVENTORY_STRATEGY: ${{ inputs.inventory_strategy }}
           TERRAFORM_OUTPUTS_ARTIFACT: ${{ inputs.terraform_outputs_artifact }}
+          ANSIBLE_PLAYBOOK: ${{ inputs.ansible_playbook }}
         run: |
           set -euo pipefail
           case "${INVENTORY_STRATEGY}" in
@@ -82,6 +88,15 @@ jobs:
               ;;
             *)
               echo "Unsupported inventory_strategy: ${INVENTORY_STRATEGY}. Expected direct or terraform_artifact." >&2
+              exit 1
+              ;;
+          esac
+
+          case "${ANSIBLE_PLAYBOOK}" in
+            infrastructure/ansible/playbooks/deploy_swarm.yml|infrastructure/ansible/playbooks/release_swarm.yml)
+              ;;
+            *)
+              echo "Unsupported ansible_playbook: ${ANSIBLE_PLAYBOOK}" >&2
               exit 1
               ;;
           esac
@@ -262,7 +277,7 @@ jobs:
             --private-key "$RUNNER_TEMP/ssh/id_ed25519" \
             -i "$RUNNER_TEMP/hosts.yml" \
             -e @"$RUNNER_TEMP/ansible-connection-vars.json" \
-            infrastructure/ansible/playbooks/deploy_swarm.yml \
+            "${{ inputs.ansible_playbook }}" \
             --syntax-check
 
       - name: Deploy Swarm stack with Ansible
@@ -274,11 +289,12 @@ jobs:
             -i "$RUNNER_TEMP/hosts.yml" \
             -e @"$RUNNER_TEMP/ansible-connection-vars.json" \
             -e @"$RUNNER_TEMP/swarm-vars.json" \
-            infrastructure/ansible/playbooks/deploy_swarm.yml
+            "${{ inputs.ansible_playbook }}"
 
       - name: Publish deploy summary
         env:
           INVENTORY_STRATEGY: ${{ inputs.inventory_strategy }}
+          ANSIBLE_PLAYBOOK: ${{ inputs.ansible_playbook }}
           DEPLOY_HOST: ${{ inputs.deploy_host != '' && inputs.deploy_host || vars.DEPLOY_HOST }}
           BACKEND_IMAGE: ${{ inputs.backend_image != '' && inputs.backend_image || vars.BETLEAGUE_BACKEND_IMAGE }}
           FRONTEND_IMAGE: ${{ inputs.frontend_image != '' && inputs.frontend_image || vars.BETLEAGUE_FRONTEND_IMAGE }}
@@ -288,10 +304,12 @@ jobs:
             echo ""
             echo "- Environnement : ${{ inputs.target_environment }}"
             echo "- Stratégie inventaire : ${INVENTORY_STRATEGY}"
+            echo "- Playbook Ansible : ${ANSIBLE_PLAYBOOK}"
             if [ -n "${DEPLOY_HOST:-}" ]; then
               echo "- Hôte cible : ${DEPLOY_HOST}"
             fi
             echo "- Image backend : ${BACKEND_IMAGE}"
             echo "- Image frontend : ${FRONTEND_IMAGE}"
           } >> "$GITHUB_STEP_SUMMARY"
+
 

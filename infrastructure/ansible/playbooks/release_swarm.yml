@@ -1,0 +1,10 @@
+---
+- name: Publier une release applicative BetLeague sur Docker Swarm
+  hosts: betleague_vps3
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: swarm_stack
+      tasks_from: release.yml
+
