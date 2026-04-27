@@ -317,7 +317,7 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     environment:
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
     command:
       - sh
       - -ec
@@ -325,9 +325,9 @@ services:
         set -a
         . /run/secrets/backend_env
         set +a
-        export UVICORN_WORKERS="$${UVICORN_WORKERS:-2}"
+        export GUNICORN_WORKERS="$${GUNICORN_WORKERS:-$${UVICORN_WORKERS:-2}}"
         ./scripts/run_migrations.sh
-        exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers "$$UVICORN_WORKERS"
+        exec gunicorn -c /app/gunicorn.conf.py main:app
     secrets:
       - *secret-backend-env
       - *secret-nats-ca-cert-client
