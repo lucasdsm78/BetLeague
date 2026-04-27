@@ -1,23 +1,20 @@
 # Dossier `terraform`
 
-Cette stack assemble les modules Terraform OVH pour provisionner l’infrastructure BetLeague avec des environnements séparés `dev` et `prod`.
+Cette stack provisionne l’infrastructure BetLeague avec des environnements séparés `dev` et `prod`.
 
-- une instance publique OVH Public Cloud
-- un réseau privé OVH
-- un bootstrap cloud-init Docker host
-- des enregistrements DNS `app` / `api`
+La cible compute recommandée et désormais préconfigurée pour la production est un **vrai OVH VPS-3** consommé via le module Git dédié `terraform-ovh-vps`.
 
-## Sources des modules
-
-Cette stack consomme directement les repos Git dédiés des modules Terraform, versionnés par commit SHA immuable.
-
-Exemple :
+La stack principale le consomme par exemple sous cette forme :
 
 ```hcl
-source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-public-instance.git?ref=cb8ba898d1b63fbb8c054f91dad0abfad2b826b1"
+source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-vps.git?ref=b2edc34ccaf5dbc76ffe87e75eaefc934a99c4bc"
 ```
 
-Si tu modifies un module, publie la nouvelle version dans son repo puis mets à jour la `ref` correspondante dans `main.tf` avec le SHA à promouvoir.
+- un OVH VPS-3
+- des enregistrements DNS `app` / `api`
+- des outputs dédiés pour générer l’inventaire Ansible de l’hôte
+
+Le DNS OVH reste géré via le module Git dédié déjà pinné sur un commit immuable.
 
 ## Backend distant sécurisé
 
@@ -53,7 +50,7 @@ Utilise une paire de credentials Object Storage distincte pour chaque environnem
 
 ## Pré-requis
 
-- projet OVH Public Cloud existant
+- compte OVH avec droits suffisants pour commander un VPS
 - stack `../state-identities/` appliquée ou credentials S3 `dev` / `prod` déjà disponibles
 - domaine OVH si `create_dns_records = true`
 - secrets applicatifs **hors Terraform**
@@ -94,13 +91,20 @@ terraform validate
 
 Cette stack ne déploie pas la base PostgreSQL ni les secrets runtime.
 
-SSH public est **désactivé par défaut** dans cette stack pour éviter une exposition mondiale du port 22. Si tu veux rouvrir SSH publiquement, passe `enable_public_ssh = true` explicitement dans l’environnement ciblé.
+Sur un OVH VPS, l’accès SSH initial est fourni par la plateforme elle-même via `vps_public_ssh_key`. Le hardening réseau fin n’est donc pas fait au moment du provisioning Terraform, mais immédiatement après via Ansible (`ufw`, `fail2ban`, durcissement SSH).
 
-Le provider OVH utilisé ici ne fournit pas de ressource Terraform native exploitable pour un vrai security group/firewall Public Cloud dans cette stack. La mitigation appliquée côté IaC est donc :
+Pour exécuter Ansible en bootstrap sur un hôte neuf, le scénario recommandé est :
 
-- fermeture publique de SSH par défaut
-- exposition limitée à `80/443`
-- hardening hôte via cloud-init + `ufw` + `fail2ban`
+1. commander le VPS avec `terraform apply`
+2. générer l’inventaire Ansible via `../scripts/render-ansible-inventory.py`
+3. appliquer le playbook Ansible dès que l’accès SSH par clé est disponible
+4. restreindre ensuite SSH aux seuls CIDR administratifs de confiance
+
+Le provider OVH utilisé ici ne fournit pas dans cette stack un firewall hôte natif suffisant pour le hardening complet du VPS. La mitigation appliquée côté IaC est donc :
+
+- injection d’une clé SSH publique au provisioning OVH
+- hardening hôte immédiat via Ansible + `ufw` + `fail2ban`
+- réduction de la surface exposée à `80/443` après bootstrap
 
 ## GitHub Actions
 
@@ -133,6 +137,10 @@ Recommandation actuelle pour BetLeague :
 - PostgreSQL managé externe
 - secrets montés sur le serveur dans `/opt/betleague/secrets/`
 - application déployée ensuite via Docker Compose ou systemd
+
+## Exemple `vps-3`
+
+Un exemple prêt à compléter est fourni dans `environments/prod/terraform.vps-3.tfvars.example`.
 
 
 

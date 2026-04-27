@@ -1,0 +1,10 @@
+Unattended-Upgrade::Origins-Pattern {
+{% for origin in betleague_unattended_origins %}
+        "{{ origin }}";
+{% endfor %}
+};
+
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+
+

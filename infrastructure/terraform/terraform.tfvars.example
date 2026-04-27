@@ -2,15 +2,14 @@ ovh_application_key    = "replace-me"
 ovh_application_secret = "replace-me"
 ovh_consumer_key       = "replace-me"
 
-service_name = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-region       = "GRA11"
-flavor_id    = "replace-with-ovh-flavor-id"
-image_id     = "replace-with-ovh-image-id"
-ssh_key_name = "betleague-admin"
-
-ssh_authorized_keys = [
-  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
-]
+vps_zone           = "RBX"
+vps_plan_code      = "vps-3"
+vps_duration       = "P1M"
+vps_pricing_mode   = "default"
+vps_image_id       = "replace-with-ovh-vps-image-id"
+vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
+admin_user         = "betleague"
+compose_root       = "/opt/betleague"
 
 dns_zone      = "betleague.app"
 app_subdomain = "app"

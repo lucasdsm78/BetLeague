@@ -32,110 +32,115 @@ variable "environment" {
   description = "Nom de l’environnement déployé."
   type        = string
   default     = "prod"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.environment))
+    error_message = "environment doit contenir uniquement des lettres minuscules, chiffres et tirets."
+  }
 }
 
-variable "service_name" {
-  description = "ID du projet OVH Public Cloud."
-  type        = string
-}
-
-variable "region" {
-  description = "Région OVH Public Cloud cible."
-  type        = string
-}
-
-variable "instance_name" {
-  description = "Nom explicite de l’instance. Si null, construit depuis project_name + environment."
+variable "vps_name" {
+  description = "Nom explicite du VPS. Si null, construit depuis project_name + environment."
   type        = string
   default     = null
 }
 
-variable "flavor_id" {
-  description = "ID du flavor OVH Public Cloud."
-  type        = string
-}
-
-variable "image_id" {
-  description = "ID de l’image OVH Public Cloud."
-  type        = string
-}
-
-variable "ssh_key_name" {
-  description = "Nom OVH d’une clé SSH déjà présente dans le projet Public Cloud."
+variable "vps_display_name" {
+  description = "Nom d’affichage du VPS dans OVH Manager."
   type        = string
   default     = null
 }
 
-variable "ssh_key_public_key" {
-  description = "Clé publique SSH à importer dans OVH si tu ne veux pas utiliser une clé existante."
+variable "ovh_subsidiary" {
+  description = "Filiale OVH utilisée pour la commande VPS, ex: FR."
   type        = string
-  default     = null
+  default     = "FR"
+
+  validation {
+    condition     = can(regex("^[A-Z]{2}$", var.ovh_subsidiary))
+    error_message = "ovh_subsidiary doit être un code pays OVH en majuscules, ex: FR."
+  }
 }
 
-variable "ssh_authorized_keys" {
-  description = "Liste de clés SSH publiques installées par cloud-init."
-  type        = list(string)
-  default     = []
+variable "vps_zone" {
+  description = "Zone/datacenter OVH cible pour le VPS, ex: RBX ou GRA."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9-]+$", var.vps_zone))
+    error_message = "vps_zone doit être une zone OVH valide."
+  }
+}
+
+variable "vps_offer_type" {
+  description = "Type d’offre OVH VPS."
+  type        = string
+  default     = "default"
+}
+
+variable "vps_plan_code" {
+  description = "Plan code OVH de l’offre VPS à commander. Il doit correspondre à une offre VPS-3."
+  type        = string
+  default     = "vps-3"
+
+  validation {
+    condition     = strcontains(lower(var.vps_plan_code), "vps-3")
+    error_message = "vps_plan_code doit correspondre à une offre VPS-3."
+  }
+}
+
+variable "vps_pricing_mode" {
+  description = "Mode de pricing OVH pour la commande du VPS."
+  type        = string
+  default     = "default"
+}
+
+variable "vps_duration" {
+  description = "Durée de souscription OVH pour la commande VPS, ex: P1M ou P1Y suivant le catalogue."
+  type        = string
+  default     = "P1M"
+
+  validation {
+    condition     = can(regex("^P[0-9]+[MY]$", var.vps_duration))
+    error_message = "vps_duration doit suivre un format de type P1M ou P1Y."
+  }
+}
+
+variable "vps_image_id" {
+  description = "Image/template OVH à installer sur le VPS."
+  type        = string
+}
+
+variable "vps_public_ssh_key" {
+  description = "Clé publique SSH injectée par OVH au provisioning initial du VPS."
+  type        = string
+
+  validation {
+    condition     = can(regex("^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521))\\s+", var.vps_public_ssh_key))
+    error_message = "vps_public_ssh_key doit être une clé SSH publique valide."
+  }
 }
 
 variable "admin_user" {
   description = "Utilisateur d’administration créé sur l’hôte."
   type        = string
   default     = "betleague"
-}
 
-variable "billing_period" {
-  description = "Période de facturation OVH de l’instance: hourly ou monthly."
-  type        = string
-  default     = "monthly"
-}
-
-variable "private_subnet_cidr" {
-  description = "CIDR du réseau privé OVH."
-  type        = string
-  default     = "10.42.0.0/24"
-}
-
-variable "timezone" {
-  description = "Fuseau horaire système."
-  type        = string
-  default     = "Europe/Paris"
-}
-
-variable "allowed_tcp_ports" {
-  description = "Ports TCP publics ouverts sur l’hôte. Le port 22 n'est autorisé que si enable_public_ssh vaut true."
-  type        = list(number)
-  default     = [80, 443]
-}
-
-variable "enable_public_ssh" {
-  description = "Autorise explicitement l’ouverture publique du port SSH 22. Désactivé par défaut pour éviter SSH ouvert au monde."
-  type        = bool
-  default     = false
-}
-
-variable "docker_users" {
-  description = "Utilisateurs supplémentaires à ajouter au groupe docker."
-  type        = list(string)
-  default     = []
-}
-
-variable "extra_packages" {
-  description = "Paquets supplémentaires à installer au bootstrap."
-  type        = list(string)
-  default     = []
-}
-
-variable "enable_fail2ban" {
-  description = "Active fail2ban sur l’hôte."
-  type        = bool
-  default     = true
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.admin_user))
+    error_message = "admin_user doit être un nom d’utilisateur Linux valide."
+  }
 }
 
 variable "compose_root" {
   description = "Répertoire de déploiement de BetLeague sur l’hôte."
   type        = string
   default     = "/opt/betleague"
+
+  validation {
+    condition     = startswith(var.compose_root, "/")
+    error_message = "compose_root doit être un chemin absolu."
+  }
 }
 
 variable "create_dns_records" {
@@ -154,6 +159,11 @@ variable "dns_default_ttl" {
   description = "TTL par défaut des enregistrements DNS."
   type        = number
   default     = 300
+
+  validation {
+    condition     = var.dns_default_ttl >= 60 && var.dns_default_ttl <= 86400
+    error_message = "dns_default_ttl doit être compris entre 60 et 86400 secondes."
+  }
 }
 
 variable "app_subdomain" {
