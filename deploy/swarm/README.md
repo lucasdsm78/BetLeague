@@ -114,17 +114,17 @@ Oui, cette stack peut être déployée entièrement via GitHub Actions.
 Le chemin recommandé est désormais :
 
 - Terraform via `terraform-ci.yml`
-- hardening hôte via `harden-host-prod`
+- hardening hôte via `harden-host-dev` / `harden-host-prod`
 - puis déploiement Swarm via le playbook Ansible `infrastructure/ansible/playbooks/deploy_swarm.yml`
 
 ### Stratégie recommandée
 
-Pour un mono-VPS de production, le meilleur compromis **sécurité + rapidité** est :
+Pour un mono-VPS, le meilleur compromis **sécurité + rapidité** est :
 
 - runner **GitHub-hosted**
 - connexion **SSH stricte** vers le VPS
-- secrets stockés dans l’Environment GitHub `production`
-- approbation manuelle de l’Environment avant déploiement
+- secrets stockés dans les GitHub Environments `development` / `production`
+- approbation manuelle de l’Environment avant déploiement sensible
 
 Cette approche évite d’exécuter un runner self-hosted directement sur le serveur de prod.
 
@@ -136,18 +136,18 @@ L’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terr
 
 ### Workflow fourni
 
-Le job `deploy-swarm-prod` de `/.github/workflows/terraform-ci.yml` :
+Les jobs Swarm de `/.github/workflows/terraform-ci.yml` suivent désormais le même enchaînement en `development` et `production` :
 
-1. `apply-prod` provisionne/met à jour le VPS et publie les outputs Terraform
-2. `harden-host-prod` applique `harden_host.yml` sur l’hôte
-3. `deploy-swarm-prod` génère l'inventaire Ansible automatiquement
-4. injecte les vars/secrets Swarm depuis l’Environment GitHub
+1. `apply-dev` / `apply-prod` provisionne ou met à jour le VPS et publie les outputs Terraform
+2. `harden-host-dev` / `harden-host-prod` applique `harden_host.yml` sur l’hôte
+3. `deploy-swarm-dev` / `deploy-swarm-prod` génère l'inventaire Ansible automatiquement
+4. injecte les vars/secrets Swarm depuis l’Environment GitHub ciblé
 5. lance le playbook `deploy_swarm.yml`
 6. attend la convergence de la stack puis vérifie l’API
 
 ### Variables GitHub Environment recommandées
 
-Dans l’Environment `production`, configure au minimum :
+Dans chaque Environment GitHub (`development` et `production`), configure au minimum :
 
 - `STACK_NAME`
 - `APP_DOMAIN`
@@ -164,7 +164,7 @@ Dans l’Environment `production`, configure au minimum :
 
 `SSH_TRUSTED_CIDRS` doit contenir au moins un CIDR autorisé à conserver l’accès SSH après hardening, par exemple `203.0.113.10/32` ou une liste séparée par virgules/sauts de ligne.
 
-Attention : `harden-host-prod` et `deploy-swarm-prod` sont deux jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
+Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
 
 ### Secrets GitHub Environment recommandés
 
@@ -187,7 +187,7 @@ Attention : `harden-host-prod` et `deploy-swarm-prod` sont deux jobs distincts. 
 
 Le déploiement Swarm s’exécute dans `terraform-ci.yml` quand tu lances un `workflow_dispatch` avec :
 
-- `target_environment=prod`
+- `target_environment=dev` ou `target_environment=prod`
 - `confirm_apply=APPLY`
 
 ## Vérifications post-déploiement
@@ -209,6 +209,7 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
 
 
 
