@@ -88,15 +88,15 @@ ansible-playbook -i inventories/prod/hosts.yml \
   playbooks/deploy_swarm.yml
 ```
 
-En CI/CD, le workflow `/.github/workflows/terraform-ci.yml` enchaîne désormais :
+En CI/CD, le workflow `/.github/workflows/terraform-ci.yml` enchaîne désormais, selon l’environnement ciblé :
 
-1. `apply-prod`
-2. `harden-host-prod` qui appelle `playbooks/harden_host.yml`
-3. `deploy-swarm-prod` qui appelle `playbooks/deploy_swarm.yml`
+1. `apply-dev` / `apply-prod`
+2. `harden-host-dev` / `harden-host-prod` qui appelle `playbooks/harden_host.yml`
+3. `deploy-swarm-dev` / `deploy-swarm-prod` qui appelle `playbooks/deploy_swarm.yml`
 
-Le job `harden-host-prod` attend la variable GitHub Environment `SSH_TRUSTED_CIDRS` pour construire `betleague_ssh_trusted_cidrs`.
+Les jobs `harden-host-dev` et `harden-host-prod` attendent la variable GitHub Environment `SSH_TRUSTED_CIDRS` pour construire `betleague_ssh_trusted_cidrs`.
 
-Attention : `harden-host-prod` et `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
+Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
 
 ## Application
 
@@ -110,6 +110,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
+
 
 
 
