@@ -21,6 +21,9 @@ graceful_timeout = _env_int("GUNICORN_GRACEFUL_TIMEOUT", 15)
 max_requests = _env_int("GUNICORN_MAX_REQUESTS", 1000)
 max_requests_jitter = _env_int("GUNICORN_MAX_REQUESTS_JITTER", 100)
 backlog = _env_int("GUNICORN_BACKLOG", 2048)
+limit_request_line = _env_int("GUNICORN_LIMIT_REQUEST_LINE", 4094)
+limit_request_fields = _env_int("GUNICORN_LIMIT_REQUEST_FIELDS", 100)
+limit_request_field_size = _env_int("GUNICORN_LIMIT_REQUEST_FIELD_SIZE", 8190)
 worker_tmp_dir = os.getenv("GUNICORN_WORKER_TMP_DIR", "/tmp")
 accesslog = os.getenv("GUNICORN_ACCESSLOG", "-")
 errorlog = os.getenv("GUNICORN_ERRORLOG", "-")
@@ -30,4 +33,5 @@ proc_name = os.getenv("GUNICORN_PROC_NAME", "betleague-api")
 preload_app = False
 
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+
 
