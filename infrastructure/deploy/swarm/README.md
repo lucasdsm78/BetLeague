@@ -31,6 +31,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - healthchecks, limites mémoire/CPU/PIDs, rolling updates avec rollback, `stop_grace_period` explicites pour les services sensibles
 - placement explicite sur le manager labellisé `betleague.role=manager`
 - hardening hôte avec `ufw` Docker-aware: seuls SSH restreint + `80/443` sont censés rester exposables publiquement
+- Nginx edge/frontend durci : `server_tokens off`, headers de sécurité, redirection HTTPS stricte, timeouts bornés, méthodes limitées côté app SPA et cache explicite sur `index.html`
 - déploiement convergent via Ansible
 
 ## Limites et décisions de sécurité
