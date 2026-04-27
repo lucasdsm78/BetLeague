@@ -27,7 +27,9 @@ ansible/
 └── roles/
     ├── app_host/
     ├── base_hardening/
-    └── docker_host/
+    ├── docker_host/
+    ├── swarm_host/
+    └── swarm_stack/
 ```
 
 ## Pré-requis
@@ -86,6 +88,8 @@ ansible-playbook -i inventories/prod/hosts.yml \
   playbooks/deploy_swarm.yml
 ```
 
+En CI/CD, ce playbook est appelé automatiquement par le job `deploy-swarm-prod` du workflow `/.github/workflows/terraform-ci.yml` après `apply-prod`.
+
 ## Application
 
 ```bash
@@ -98,6 +102,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
+
 
 
 

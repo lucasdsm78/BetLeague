@@ -29,7 +29,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - publication publique limitée au reverse proxy `edge`
 - `read_only`, `tmpfs`, healthchecks, limites mémoire/CPU, rolling updates avec rollback
 - placement explicite sur le manager labellisé `betleague.role=manager`
-- préflight avant déploiement (`scripts/preflight.sh`)
+- déploiement convergent via Ansible
 
 ## Limites et décisions de sécurité
 
@@ -42,14 +42,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 
 ```text
 deploy/swarm/
-├── .env.example
 ├── stack.prod.yml
-├── templates/
-│   └── edge.conf.template
-├── scripts/
-│   ├── deploy_stack.sh
-│   ├── preflight.sh
-│   └── render_stack_assets.py
 └── secrets/
     ├── *.example
     └── backend.env.example
@@ -57,11 +50,20 @@ deploy/swarm/
 
 ## Préparation
 
-### 1. Copier les exemples locaux
+### 1. Préparer les valeurs d'entrée
+
+La structure finale ne repose plus sur des scripts shell locaux ni sur un `.env` rendu côté dépôt.
+
+Les entrées de déploiement sont désormais portées par :
+
+- le rôle Ansible `swarm_stack`
+- le playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`
+- les variables/secrets GitHub Environment utilisés par `terraform-ci.yml`
+
+### 2. Préparer les secrets d'exemple si tu veux tester localement Ansible
 
 ```bash
 cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
-cp .env.example .env
 cp secrets/backend.env.example secrets/backend.env
 cp secrets/redis_password.txt.example secrets/redis_password.txt
 cp secrets/nats_user.txt.example secrets/nats_user.txt
@@ -74,17 +76,6 @@ cp secrets/nats-server-key.pem.example secrets/nats-server-key.pem
 cp secrets/nats-client-cert.pem.example secrets/nats-client-cert.pem
 cp secrets/nats-client-key.pem.example secrets/nats-client-key.pem
 ```
-
-### 2. Renseigner les variables d'environnement
-
-Dans `.env` :
-
-- `STACK_NAME`
-- `APP_DOMAIN`
-- `API_DOMAIN`
-- `BETLEAGUE_BACKEND_IMAGE`
-- `BETLEAGUE_FRONTEND_IMAGE`
-- `UVICORN_WORKERS`
 
 ### 3. Renseigner `secrets/backend.env`
 
@@ -105,33 +96,13 @@ Adapte en particulier :
 - `TRUSTED_PROXY_IPS`
 - `NATS_*`
 
-## Initialiser le nœud Swarm
+## Initialiser puis déployer la stack
 
-L'initialisation peut être faite via Ansible ou manuellement.
+La voie officielle est désormais :
 
-Exemple manuel sur le VPS :
-
-```bash
-docker swarm init
-node_id="$(docker info -f '{{.Swarm.NodeID}}')"
-docker node update --label-add betleague.role=manager "$node_id"
-```
-
-## Déployer la stack
-
-### Préflight
-
-```bash
-cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
-bash ./scripts/preflight.sh
-```
-
-### Déploiement
-
-```bash
-cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
-bash ./scripts/deploy_stack.sh
-```
+1. Terraform provisionne le VPS
+2. Ansible initialise Swarm avec `playbooks/init_swarm.yml`
+3. Ansible déploie la stack avec `playbooks/deploy_swarm.yml`
 
 ## Déploiement via GitHub Actions
 
@@ -141,8 +112,6 @@ Le chemin recommandé est désormais :
 
 - Terraform via `terraform-ci.yml`
 - puis déploiement Swarm via le playbook Ansible `infrastructure/ansible/playbooks/deploy_swarm.yml`
-
-Les scripts `deploy/swarm/scripts/*.sh` restent disponibles comme secours manuel local, mais la CI/CD recommandée passe par Ansible.
 
 ### Stratégie recommandée
 
@@ -163,14 +132,13 @@ Le compte `SSH_USER` doit :
 
 ### Workflow fourni
 
-Le workflow `/.github/workflows/swarm-deploy.yml` :
+Le job `deploy-swarm-prod` de `/.github/workflows/terraform-ci.yml` :
 
-1. prépare un bundle temporaire de déploiement
-2. rend `.env` et les fichiers secrets depuis GitHub Environments
-3. synchronise le bundle vers le VPS via `rsync` sur SSH strict
-4. initialise Swarm si nécessaire
-5. déploie la stack
-6. attend que les services convergent puis vérifie l’API
+1. récupère les outputs Terraform publiés par `apply-prod`
+2. génère l'inventaire Ansible automatiquement
+3. injecte les vars/secrets Swarm depuis l’Environment GitHub
+4. lance le playbook `deploy_swarm.yml`
+5. attend la convergence de la stack puis vérifie l’API
 
 ### Variables GitHub Environment recommandées
 
@@ -210,7 +178,10 @@ Dans l’Environment `production`, configure au minimum :
 
 ### Déclenchement
 
-Le workflow se déclenche manuellement sur `main` et exige la confirmation `DEPLOY`.
+Le déploiement Swarm s’exécute dans `terraform-ci.yml` quand tu lances un `workflow_dispatch` avec :
+
+- `target_environment=prod`
+- `confirm_apply=APPLY`
 
 ## Vérifications post-déploiement
 
@@ -231,6 +202,7 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
 
 
 
