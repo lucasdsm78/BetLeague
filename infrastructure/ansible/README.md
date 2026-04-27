@@ -43,10 +43,25 @@ ansible/
 
 ## Génération de l'inventaire
 
+### Depuis Terraform (bootstrap infra)
+
 ```bash
 cd infrastructure
 python3 scripts/render-ansible-inventory.py \
   --terraform-dir terraform \
+  --output ansible/inventories/prod/hosts.yml
+```
+
+### Sans Terraform (release applicative dédiée)
+
+```bash
+cd infrastructure
+python3 scripts/render-ansible-inventory.py \
+  --ansible-host 203.0.113.10 \
+  --ansible-user deploy \
+  --hostname betleague-prod \
+  --environment-name prod \
+  --compose-root /opt/betleague \
   --output ansible/inventories/prod/hosts.yml
 ```
 
@@ -93,15 +108,30 @@ ansible-playbook -i inventories/prod/hosts.yml \
   playbooks/deploy_swarm.yml
 ```
 
-En CI/CD, le workflow `/.github/workflows/terraform-ci.yml` enchaîne désormais, selon l’environnement ciblé :
+En CI/CD, deux chemins existent désormais :
+
+1. `/.github/workflows/terraform-ci.yml` pour l’enchaînement infra + hardening + déploiement applicatif
+2. `/.github/workflows/app-release.yml` pour une release applicative seule, sans Terraform
+
+Dans les deux cas, le déploiement Swarm passe désormais par le workflow réutilisable `/.github/workflows/_swarm-deploy.yml`, ce qui centralise :
+
+- la génération d’inventaire Ansible
+- la préparation SSH stricte
+- la construction de `swarm-vars.json`
+- le `--syntax-check` Ansible
+- l’exécution de `playbooks/deploy_swarm.yml`
+
+Le workflow `terraform-ci.yml` enchaîne, selon l’environnement ciblé :
 
 1. `apply-dev` / `apply-prod`
 2. `harden-host-dev` / `harden-host-prod` qui appelle `playbooks/harden_host.yml`
-3. `deploy-swarm-dev` / `deploy-swarm-prod` qui appelle `playbooks/deploy_swarm.yml`
+3. `deploy-swarm-dev` / `deploy-swarm-prod` qui délègue à `/.github/workflows/_swarm-deploy.yml`
 
 Les jobs `harden-host-dev` et `harden-host-prod` attendent la variable GitHub Environment `SSH_TRUSTED_CIDRS` pour construire `betleague_ssh_trusted_cidrs`.
 
-Les jobs `deploy-swarm-dev` et `deploy-swarm-prod` construisent aussi un `swarm-vars.json` qui injecte explicitement `GUNICORN_WORKERS` et `GUNICORN_FORWARDED_ALLOW_IPS` dans le rôle `swarm_stack`, sans dépendre de `backend.env` pour ces paramètres de runtime Gunicorn.
+Les jobs `deploy-swarm-dev` et `deploy-swarm-prod`, ainsi que `app-release.yml`, s’appuient tous sur `/.github/workflows/_swarm-deploy.yml`, qui construit un `swarm-vars.json` injectant explicitement `GUNICORN_WORKERS` et `GUNICORN_FORWARDED_ALLOW_IPS` dans le rôle `swarm_stack`, sans dépendre de `backend.env` pour ces paramètres de runtime Gunicorn.
+
+Le workflow `app-release.yml` reste le point d’entrée manuel pour une release applicative seule. Il délègue à `/.github/workflows/_swarm-deploy.yml`, lequel reconstruit l'inventaire Ansible directement depuis `DEPLOY_HOST` et `DEPLOY_USER` portés par les GitHub Environments, ce qui évite toute dépendance à un artefact Terraform lors d’une simple mise à jour d’images applicatives.
 
 Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
 
@@ -127,6 +157,8 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Fail2ban est aligné sur le port SSH réel (`betleague_ssh_port`), ignore `localhost` + les CIDR d’administration, applique des bannissements progressifs via l’action `ufw` et active aussi une jail `recidive` pour bannir plus longtemps les IP déjà sanctionnées à répétition.
 - `betleague_ssh_trusted_cidrs` reste volontairement vide par défaut : le rôle échoue explicitement tant qu’au moins un CIDR d’administration valide n’est pas fourni, pour éviter toute ouverture SSH implicite ou tout lockout silencieux.
 - Les changements de configuration Fail2ban utilisent un `reload` plutôt qu’un `restart`, afin de préserver autant que possible l’état des bans actifs.
+
+
 
 
 
