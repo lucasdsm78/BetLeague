@@ -1,0 +1,160 @@
+---
+- name: Vérifier les variables Swarm requises
+  ansible.builtin.assert:
+    that:
+      - betleague_swarm_stack_name | trim != ''
+      - betleague_swarm_backend_image | trim != ''
+      - betleague_swarm_frontend_image | trim != ''
+      - betleague_swarm_app_domain | trim != ''
+      - betleague_swarm_api_domain | trim != ''
+      - betleague_swarm_backend_env_content | trim != ''
+      - betleague_swarm_redis_password | trim != ''
+      - betleague_swarm_nats_user | trim != ''
+      - betleague_swarm_nats_password | trim != ''
+      - betleague_swarm_edge_tls_cert | trim != ''
+      - betleague_swarm_edge_tls_key | trim != ''
+      - betleague_swarm_nats_ca_cert | trim != ''
+      - betleague_swarm_nats_server_cert | trim != ''
+      - betleague_swarm_nats_server_key | trim != ''
+      - betleague_swarm_nats_client_cert | trim != ''
+      - betleague_swarm_nats_client_key | trim != ''
+    fail_msg: Variables Swarm requises manquantes pour le déploiement de la stack.
+
+- name: Créer l'arborescence de déploiement Swarm
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ betleague_swarm_deploy_path }}", mode: '0750' }
+    - { path: "{{ betleague_swarm_deploy_path }}/generated", mode: '0750' }
+    - { path: "{{ betleague_swarm_deploy_path }}/secrets", mode: '0750' }
+
+- name: Déployer le manifest Swarm
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../deploy/swarm/stack.prod.yml"
+    dest: "{{ betleague_swarm_deploy_path }}/stack.prod.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0640'
+
+- name: Déployer le template Redis
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../redis/redis.conf.template"
+    dest: "{{ betleague_swarm_deploy_path }}/redis.conf.template"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Déployer la configuration NATS
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../back/nats/nats-server.conf"
+    dest: "{{ betleague_swarm_deploy_path }}/nats-server.conf"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre la configuration edge Nginx
+  ansible.builtin.template:
+    src: edge.conf.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/edge.conf"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Déployer les secrets de stack Swarm
+  ansible.builtin.copy:
+    content: "{{ item.content }}\n"
+    dest: "{{ betleague_swarm_deploy_path }}/secrets/{{ item.name }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content }}" }
+    - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
+    - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
+    - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
+    - { name: 'tls.crt.pem', content: "{{ betleague_swarm_edge_tls_cert }}" }
+    - { name: 'tls.key.pem', content: "{{ betleague_swarm_edge_tls_key }}" }
+    - { name: 'nats-ca-cert.pem', content: "{{ betleague_swarm_nats_ca_cert }}" }
+    - { name: 'nats-server-cert.pem', content: "{{ betleague_swarm_nats_server_cert }}" }
+    - { name: 'nats-server-key.pem', content: "{{ betleague_swarm_nats_server_key }}" }
+    - { name: 'nats-client-cert.pem', content: "{{ betleague_swarm_nats_client_cert }}" }
+    - { name: 'nats-client-key.pem', content: "{{ betleague_swarm_nats_client_key }}" }
+  no_log: true
+
+- name: Connecter le noeud au registre privé si configuré
+  ansible.builtin.shell: |
+    set -euo pipefail
+    printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY_SERVER" --username "$REGISTRY_USERNAME" --password-stdin >/dev/null
+  args:
+    executable: /bin/bash
+  environment:
+    REGISTRY_SERVER: "{{ betleague_swarm_registry_server }}"
+    REGISTRY_USERNAME: "{{ betleague_swarm_registry_username }}"
+    REGISTRY_PASSWORD: "{{ betleague_swarm_registry_password }}"
+  when:
+    - betleague_swarm_registry_server | trim != ''
+    - betleague_swarm_registry_username | trim != ''
+    - betleague_swarm_registry_password | trim != ''
+  no_log: true
+
+- name: Déployer la stack Swarm BetLeague
+  ansible.builtin.command: docker stack deploy --with-registry-auth -c stack.prod.yml {{ betleague_swarm_stack_name }}
+  args:
+    chdir: "{{ betleague_swarm_deploy_path }}"
+  environment:
+    BETLEAGUE_BACKEND_IMAGE: "{{ betleague_swarm_backend_image }}"
+    BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
+    UVICORN_WORKERS: "{{ betleague_swarm_uvicorn_workers | string }}"
+  register: betleague_swarm_deploy_result
+  changed_when: >-
+    'Updating service' in betleague_swarm_deploy_result.stdout or
+    'Creating service' in betleague_swarm_deploy_result.stdout or
+    'Creating network' in betleague_swarm_deploy_result.stdout or
+    'Creating secret' in betleague_swarm_deploy_result.stdout or
+    'Creating config' in betleague_swarm_deploy_result.stdout
+
+- name: Attendre que les services Swarm convergent
+  ansible.builtin.shell: |
+    set -euo pipefail
+    lines=$(docker stack services {{ betleague_swarm_stack_name }} --format '{{"{{.Name}} {{.Replicas}}"}}')
+    test -n "$lines"
+    while IFS= read -r line; do
+      name="${line%% *}"
+      if [[ "$name" == *"_jetstream_provision" ]]; then
+        continue
+      fi
+      replicas="${line##* }"
+      running="${replicas%%/*}"
+      desired="${replicas##*/}"
+      if [[ "$running" != "$desired" ]]; then
+        exit 1
+      fi
+    done <<< "$lines"
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_wait_services
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_wait_services.rc == 0
+  changed_when: false
+
+- name: Vérifier la santé de l'API après déploiement
+  ansible.builtin.uri:
+    url: "{{ betleague_swarm_api_healthcheck_url }}"
+    method: GET
+    return_content: false
+    status_code: 200
+    validate_certs: true
+  register: betleague_swarm_api_health
+  retries: 12
+  delay: 5
+  until: betleague_swarm_api_health.status == 200
+  delegate_to: localhost
+  become: false
+
+
+

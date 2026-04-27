@@ -123,15 +123,94 @@ docker node update --label-add betleague.role=manager "$node_id"
 
 ```bash
 cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
-./scripts/preflight.sh
+bash ./scripts/preflight.sh
 ```
 
 ### Déploiement
 
 ```bash
 cd /Users/lucasdasilvamarques/BetLeague/deploy/swarm
-./scripts/deploy_stack.sh
+bash ./scripts/deploy_stack.sh
 ```
+
+## Déploiement via GitHub Actions
+
+Oui, cette stack peut être déployée entièrement via GitHub Actions.
+
+Le chemin recommandé est désormais :
+
+- Terraform via `terraform-ci.yml`
+- puis déploiement Swarm via le playbook Ansible `infrastructure/ansible/playbooks/deploy_swarm.yml`
+
+Les scripts `deploy/swarm/scripts/*.sh` restent disponibles comme secours manuel local, mais la CI/CD recommandée passe par Ansible.
+
+### Stratégie recommandée
+
+Pour un mono-VPS de production, le meilleur compromis **sécurité + rapidité** est :
+
+- runner **GitHub-hosted**
+- connexion **SSH stricte** vers le VPS
+- secrets stockés dans l’Environment GitHub `production`
+- approbation manuelle de l’Environment avant déploiement
+
+Cette approche évite d’exécuter un runner self-hosted directement sur le serveur de prod.
+
+Le compte `SSH_USER` doit :
+
+- pouvoir écrire dans `DEPLOY_PATH`
+- appartenir au groupe `docker` sur le VPS
+- être limité à l’authentification par clé
+
+### Workflow fourni
+
+Le workflow `/.github/workflows/swarm-deploy.yml` :
+
+1. prépare un bundle temporaire de déploiement
+2. rend `.env` et les fichiers secrets depuis GitHub Environments
+3. synchronise le bundle vers le VPS via `rsync` sur SSH strict
+4. initialise Swarm si nécessaire
+5. déploie la stack
+6. attend que les services convergent puis vérifie l’API
+
+### Variables GitHub Environment recommandées
+
+Dans l’Environment `production`, configure au minimum :
+
+- `STACK_NAME`
+- `APP_DOMAIN`
+- `API_DOMAIN`
+- `BETLEAGUE_BACKEND_IMAGE`
+- `BETLEAGUE_FRONTEND_IMAGE`
+- `UVICORN_WORKERS`
+- `SSH_HOST`
+- `SSH_PORT`
+- `SSH_USER`
+- `DEPLOY_PATH`
+- `SWARM_ADVERTISE_ADDR`
+- `API_HEALTHCHECK_URL`
+- `REGISTRY_SERVER` (optionnel)
+- `REGISTRY_USERNAME` (optionnel)
+
+### Secrets GitHub Environment recommandés
+
+- `SSH_PRIVATE_KEY`
+- `SSH_KNOWN_HOSTS`
+- `BACKEND_ENV`
+- `REDIS_PASSWORD`
+- `NATS_USER`
+- `NATS_PASSWORD`
+- `EDGE_TLS_CERT`
+- `EDGE_TLS_KEY`
+- `NATS_CA_CERT`
+- `NATS_SERVER_CERT`
+- `NATS_SERVER_KEY`
+- `NATS_CLIENT_CERT`
+- `NATS_CLIENT_KEY`
+- `REGISTRY_PASSWORD` (optionnel si registre privé)
+
+### Déclenchement
+
+Le workflow se déclenche manuellement sur `main` et exige la confirmation `DEPLOY`.
 
 ## Vérifications post-déploiement
 
@@ -152,4 +231,8 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
+
+
+
 

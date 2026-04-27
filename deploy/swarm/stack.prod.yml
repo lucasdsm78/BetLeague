@@ -377,9 +377,9 @@ configs:
   edge_nginx_conf:
     file: ./generated/edge.conf
   redis_conf_template:
-    file: ../../redis/redis.conf.template
+    file: ./redis.conf.template
   nats_server_conf:
-    file: ../../back/nats/nats-server.conf
+    file: ./nats-server.conf
 
 secrets:
   backend_env:
@@ -404,4 +404,5 @@ secrets:
     file: ./secrets/nats-client-cert.pem
   nats_client_key:
     file: ./secrets/nats-client-key.pem
+
 

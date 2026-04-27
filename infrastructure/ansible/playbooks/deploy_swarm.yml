@@ -1,0 +1,10 @@
+---
+- name: Déployer la stack BetLeague sur Docker Swarm
+  hosts: betleague_vps3
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: swarm_host
+    - role: swarm_stack
+

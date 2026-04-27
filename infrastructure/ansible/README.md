@@ -20,6 +20,7 @@ ansible/
 │       └── group_vars/
 │           └── all.yml.example
 ├── playbooks/
+│   ├── deploy_swarm.yml
 │   ├── init_swarm.yml
 │   └── harden_host.yml
 ├── requirements.yml
@@ -64,6 +65,7 @@ ansible-galaxy collection install -r requirements.yml
 
 ```bash
 cd infrastructure/ansible
+ansible-playbook -i inventories/prod/hosts.yml playbooks/deploy_swarm.yml --syntax-check
 ansible-playbook -i inventories/prod/hosts.yml playbooks/init_swarm.yml --syntax-check
 ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml --syntax-check
 ```
@@ -73,6 +75,15 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml --synta
 ```bash
 cd infrastructure/ansible
 ansible-playbook -i inventories/prod/hosts.yml playbooks/init_swarm.yml
+```
+
+## Déploiement de la stack Swarm
+
+```bash
+cd infrastructure/ansible
+ansible-playbook -i inventories/prod/hosts.yml \
+  -e @/chemin/vers/swarm-vars.json \
+  playbooks/deploy_swarm.yml
 ```
 
 ## Application
@@ -87,5 +98,6 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
+
 
 
