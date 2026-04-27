@@ -65,7 +65,7 @@ Les entrées de déploiement sont désormais portées par :
 
 - le rôle Ansible `swarm_stack`
 - le playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`
-- les variables/secrets GitHub Environment utilisés par `terraform-ci.yml`
+- les variables/secrets GitHub Environment utilisés par `terraform-ci.yml` ou `app-release.yml`
 
 ### 2. Préparer les secrets d'exemple si tu veux tester localement Ansible
 
@@ -124,8 +124,8 @@ Le chemin recommandé est désormais :
 Pour publier une release applicative (ex. `backend:1.0.0`, `frontend:1.0.0`) sans interruption perceptible côté utilisateur :
 
 1. pousse des images immuables (tag versionné ou digest) pour `BETLEAGUE_BACKEND_IMAGE` et `BETLEAGUE_FRONTEND_IMAGE`
-2. mets à jour ces références dans l'Environment GitHub ciblé
-3. relance `deploy-swarm-dev` ou `deploy-swarm-prod`
+2. soit mets à jour ces références dans l'Environment GitHub ciblé puis lance `app-release.yml`
+3. soit lance directement `app-release.yml` avec des overrides `backend_image` / `frontend_image`
 
 Le rôle Ansible `swarm_stack` :
 
@@ -134,6 +134,28 @@ Le rôle Ansible `swarm_stack` :
 - applique ensuite un rolling update backend en `start-first`
 
 Cela supprime le principal trou de disponibilité précédent, où l'unique conteneur `backend` s'arrêtait pour appliquer les migrations avant de redémarrer.
+
+### Workflow dédié `app-release.yml` (sans Terraform)
+
+Un workflow dédié `/.github/workflows/app-release.yml` permet désormais de redéployer l'application **sans relancer Terraform**.
+
+Ce workflow visible sert de point d’entrée manuel et délègue l’exécution au workflow réutilisable `/.github/workflows/_swarm-deploy.yml`, partagé aussi par `terraform-ci.yml`. On garde ainsi un seul socle pour :
+
+- la génération d’inventaire Ansible
+- la préparation SSH et des variables de connexion
+- la construction de `swarm-vars.json`
+- le contrôle syntaxique Ansible
+- l’appel du playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`
+
+Il réutilise le même playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`, mais construit l'inventaire Ansible directement à partir des variables GitHub Environment suivantes :
+
+- `DEPLOY_HOST` (**requis**) : IP ou DNS de l'hôte cible
+- `DEPLOY_USER` (**requis**) : utilisateur SSH d'administration
+- `DEPLOY_HOSTNAME` (optionnel) : alias Ansible lisible, ex. `betleague-prod`
+- `DEPLOY_GROUP` (optionnel) : groupe d'inventaire, défaut `betleague_vps3`
+- `DEPLOY_COMPOSE_ROOT` (optionnel) : racine runtime, défaut dérivé depuis `DEPLOY_PATH` ou `/opt/betleague`
+
+Ce workflow ne dépend donc plus de l'artefact `terraform-outputs.json` ni des outputs Terraform pour retrouver l'hôte cible.
 
 Important : ce modèle sans downtime suppose des migrations de schéma **backward-compatible** (stratégie _expand / contract_). Une migration destructive ou incompatible avec l'ancienne version backend peut toujours créer une coupure logique, même si Swarm garde les conteneurs en rotation.
 
@@ -154,22 +176,29 @@ L’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terr
 - appartenir au groupe `docker` sur le VPS
 - être limité à l’authentification par clé
 
-### Workflow fourni
+### Workflows fournis
 
 Les jobs Swarm de `/.github/workflows/terraform-ci.yml` suivent désormais le même enchaînement en `development` et `production` :
 
 1. `apply-dev` / `apply-prod` provisionne ou met à jour le VPS et publie les outputs Terraform
 2. `harden-host-dev` / `harden-host-prod` applique `harden_host.yml` sur l’hôte
-3. `deploy-swarm-dev` / `deploy-swarm-prod` génère l'inventaire Ansible automatiquement
+3. `deploy-swarm-dev` / `deploy-swarm-prod` délègue au workflow réutilisable `/.github/workflows/_swarm-deploy.yml`
 4. injecte les vars/secrets Swarm depuis l’Environment GitHub ciblé
 5. lance le playbook `deploy_swarm.yml`
 6. attend la convergence de la stack puis vérifie l’API
+
+Le workflow dédié `app-release.yml` réutilise exactement le même socle, mais en mode **sans Terraform** : l’hôte cible vient alors de `DEPLOY_HOST` / `DEPLOY_USER` (ou des overrides saisis au lancement manuel) au lieu d’un artefact `terraform-outputs.json`.
 
 ### Variables GitHub Environment recommandées
 
 Dans chaque Environment GitHub (`development` et `production`), configure au minimum :
 
 - `STACK_NAME`
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_HOSTNAME` (optionnel)
+- `DEPLOY_GROUP` (optionnel)
+- `DEPLOY_COMPOSE_ROOT` (optionnel)
 - `APP_DOMAIN`
 - `API_DOMAIN`
 - `BETLEAGUE_BACKEND_IMAGE`
@@ -210,10 +239,24 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 
 ### Déclenchement
 
+Deux chemins coexistent désormais.
+
+#### Déploiement infra + applicatif via `terraform-ci.yml`
+
 Le déploiement Swarm s’exécute dans `terraform-ci.yml` quand tu lances un `workflow_dispatch` avec :
 
 - `target_environment=dev` ou `target_environment=prod`
 - `confirm_apply=APPLY`
+
+#### Release applicative seule via `app-release.yml`
+
+Le workflow dédié s'exécute via `workflow_dispatch` avec :
+
+- `target_environment=dev` ou `target_environment=prod`
+- `confirm_release=RELEASE`
+- `backend_image` (optionnel)
+- `frontend_image` (optionnel)
+- `deploy_host` / `deploy_user` (optionnels, si tu veux surcharger les variables d'Environment)
 
 ## Vérifications post-déploiement
 

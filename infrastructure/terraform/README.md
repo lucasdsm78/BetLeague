@@ -132,6 +132,10 @@ Le fichier `.github/workflows/terraform-static-checks.yml` est le workflow réut
 
 Ces secrets peuvent être alimentés à partir des outputs de `state-identities/`.
 
+Une fois l’hôte provisionné et durci, les releases applicatives backend/frontend n’ont plus besoin de repasser par Terraform : le workflow `/.github/workflows/app-release.yml` permet de redéployer la stack Swarm en visant directement `DEPLOY_HOST` / `DEPLOY_USER` depuis les GitHub Environments `development` et `production`.
+
+Ce point d’entrée applicatif s’appuie sur le workflow réutilisable `/.github/workflows/_swarm-deploy.yml`, également utilisé par `terraform-ci.yml`, afin de partager la même logique de déploiement Swarm et d’éviter toute dérive entre release applicative et déploiement post-provisioning.
+
 Recommandation actuelle pour BetLeague :
 
 - PostgreSQL managé externe

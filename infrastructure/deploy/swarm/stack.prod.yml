@@ -370,7 +370,7 @@ services:
       - app
     deploy:
       <<: *deploy-defaults
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           cpus: "1.00"
