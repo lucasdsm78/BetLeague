@@ -27,7 +27,8 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - configs Docker Swarm pour les fichiers non sensibles
 - réseau `overlay` interne dédié à l'application
 - publication publique limitée au reverse proxy `edge`
-- `read_only`, `tmpfs`, healthchecks, limites mémoire/CPU, rolling updates avec rollback
+- `read_only`, `tmpfs`, `cap_drop: ALL`, utilisateurs non-root, permissions strictes sur les secrets Docker (`0400`)
+- healthchecks, limites mémoire/CPU/PIDs, rolling updates avec rollback, `stop_grace_period` explicites pour les services sensibles
 - placement explicite sur le manager labellisé `betleague.role=manager`
 - déploiement convergent via Ansible
 
@@ -37,6 +38,8 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - Les réseaux `overlay` ne sont pas marqués `attachable`, pour éviter des attaches ad hoc.
 - Les certificats TLS edge et NATS sont traités comme secrets Docker.
 - Le backend charge son environnement depuis un secret `backend.env`; aucun `.env` sensible n'est committé.
+- L'image backend doit embarquer un utilisateur applicatif `1000:1000` pour rester compatible avec la stack Swarm fournie.
+- NATS JetStream persiste sur un volume monté sous `/var/tmp`, afin de rester rootless avec l'image upstream.
 
 ## Fichiers principaux
 
@@ -199,6 +202,7 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
 
 
 

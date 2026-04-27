@@ -22,6 +22,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV HOME=/home/appuser
 WORKDIR /app
 
 COPY --from=builder /wheels /wheels
@@ -35,6 +36,13 @@ RUN pip install \
  && rm -rf /wheels
 
 COPY . .
+
+RUN groupadd --system --gid 1000 appuser \
+ && useradd --system --uid 1000 --gid 1000 --create-home --home-dir /home/appuser --shell /usr/sbin/nologin appuser \
+ && mkdir -p /var/lib/celery \
+ && chown -R 1000:1000 /app /var/lib/celery /home/appuser
+
+USER 1000:1000
 
 EXPOSE 8000
 
