@@ -30,7 +30,12 @@ Exemple de workflow:
 
 ### Variables d’environnement utiles
 
-Voir aussi `back/.env.example`.
+Voir aussi :
+
+- `back/.env.local.example` pour le **développement local**
+- `back/.env.example` pour la **production / Neon**
+
+Pour travailler en local, copie `back/.env.local.example` vers `back/.env`. Le fichier `docker-compose.yml` continue de charger `back/.env`.
 
 - `ENVIRONMENT=prod`
 - `SQLALCHEMY_DATABASE_URL` : endpoint Neon **pooler** pour le runtime applicatif
@@ -47,6 +52,18 @@ Voir aussi `back/.env.example`.
 - `HTTP_SLOW_REQUEST_THRESHOLD_MS=1000`
 
 Le backend applique désormais un `application_name` PostgreSQL explicite par composant (`betleague-api`, `betleague-celery`, `betleague-migrations`) via `connect_args`, avec `jit=off`, `pool_pre_ping`, `pool_recycle` et `pool_timeout` pour mieux supporter Neon en production.
+
+### Développement local rapide
+
+Exemple minimal local :
+
+- `ENVIRONMENT=dev`
+- `SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/betleague`
+- `SQLALCHEMY_SSL_MODE=disable`
+- `APP_FRONTEND_URL=http://localhost:3000`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+
+Le setup local ne nécessite ni endpoint Neon, ni `ALEMBIC_DATABASE_URL`, ni secret de migration séparé : Alembic retombe automatiquement sur `SQLALCHEMY_DATABASE_URL` si aucune URL dédiée n’est fournie.
 
 ### Événements principaux
 
