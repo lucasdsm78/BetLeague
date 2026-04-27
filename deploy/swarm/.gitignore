@@ -1,5 +1,3 @@
-generated/
-.env
 secrets/backend.env
 secrets/redis_password.txt
 secrets/nats_user.txt
@@ -11,4 +9,5 @@ secrets/nats-server-cert.pem
 secrets/nats-server-key.pem
 secrets/nats-client-cert.pem
 secrets/nats-client-key.pem
+
 
