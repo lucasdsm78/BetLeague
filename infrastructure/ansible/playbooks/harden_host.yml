@@ -90,4 +90,24 @@
           La prison Fail2ban `sshd` n'est pas active comme attendu.
       when: betleague_enable_fail2ban | bool
 
+    - name: Lire l'état de la prison Fail2ban recidive
+      ansible.builtin.command: fail2ban-client status recidive
+      changed_when: false
+      register: betleague_fail2ban_recidive_status
+      when:
+        - betleague_enable_fail2ban | bool
+        - betleague_fail2ban_recidive_enabled | bool
+
+    - name: Vérifier que la prison Fail2ban recidive est active
+      ansible.builtin.assert:
+        that:
+          - "'Status for the jail: recidive' in betleague_fail2ban_recidive_status.stdout"
+          - "'Currently banned:' in betleague_fail2ban_recidive_status.stdout"
+        fail_msg: >-
+          La prison Fail2ban `recidive` n'est pas active comme attendu.
+      when:
+        - betleague_enable_fail2ban | bool
+        - betleague_fail2ban_recidive_enabled | bool
+
+
 
