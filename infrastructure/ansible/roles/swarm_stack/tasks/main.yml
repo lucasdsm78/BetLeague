@@ -108,7 +108,7 @@
   environment:
     BETLEAGUE_BACKEND_IMAGE: "{{ betleague_swarm_backend_image }}"
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
-    UVICORN_WORKERS: "{{ betleague_swarm_uvicorn_workers | string }}"
+    GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
   register: betleague_swarm_deploy_result
   changed_when: >-
     'Updating service' in betleague_swarm_deploy_result.stdout or
@@ -155,6 +155,7 @@
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
 
 
 

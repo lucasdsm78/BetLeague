@@ -32,6 +32,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - placement explicite sur le manager labellisé `betleague.role=manager`
 - hardening hôte avec `ufw` Docker-aware: seuls SSH restreint + `80/443` sont censés rester exposables publiquement
 - Nginx edge/frontend durci : `server_tokens off`, headers de sécurité, CSP distinctes app/API, redirection HTTPS stricte, timeouts bornés, méthodes limitées côté app SPA, rate limiting ciblé sur l’API, deny défensif des routes FastAPI de documentation et cache explicite sur `index.html`
+- backend prod servi par Gunicorn + workers Uvicorn, avec timeouts, `max_requests` et logs stdout adaptés au déploiement conteneurisé
 - déploiement convergent via Ansible
 
 ## Limites et décisions de sécurité
@@ -156,7 +157,7 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `API_DOMAIN`
 - `BETLEAGUE_BACKEND_IMAGE`
 - `BETLEAGUE_FRONTEND_IMAGE`
-- `UVICORN_WORKERS`
+- `GUNICORN_WORKERS`
 - `SSH_PORT`
 - `SSH_TRUSTED_CIDRS`
 - `DEPLOY_PATH`

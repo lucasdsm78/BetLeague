@@ -583,7 +583,7 @@ jobs:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           BETLEAGUE_BACKEND_IMAGE: ${{ vars.BETLEAGUE_BACKEND_IMAGE }}
           BETLEAGUE_FRONTEND_IMAGE: ${{ vars.BETLEAGUE_FRONTEND_IMAGE }}
-          UVICORN_WORKERS: ${{ vars.UVICORN_WORKERS }}
+          GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
           REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
           REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
@@ -607,7 +607,7 @@ jobs:
               "betleague_swarm_deploy_path": os.environ.get("DEPLOY_PATH") or "/opt/betleague/swarm",
               "betleague_swarm_backend_image": os.environ["BETLEAGUE_BACKEND_IMAGE"],
               "betleague_swarm_frontend_image": os.environ["BETLEAGUE_FRONTEND_IMAGE"],
-              "betleague_swarm_uvicorn_workers": int(os.environ.get("UVICORN_WORKERS") or "2"),
+              "betleague_swarm_gunicorn_workers": int(os.environ.get("GUNICORN_WORKERS") or "2"),
               "betleague_swarm_app_domain": os.environ["APP_DOMAIN"],
               "betleague_swarm_api_domain": api_domain,
               "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",
@@ -725,7 +725,7 @@ jobs:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           BETLEAGUE_BACKEND_IMAGE: ${{ vars.BETLEAGUE_BACKEND_IMAGE }}
           BETLEAGUE_FRONTEND_IMAGE: ${{ vars.BETLEAGUE_FRONTEND_IMAGE }}
-          UVICORN_WORKERS: ${{ vars.UVICORN_WORKERS }}
+          GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
           REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
           REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
@@ -749,7 +749,7 @@ jobs:
               "betleague_swarm_deploy_path": os.environ.get("DEPLOY_PATH") or "/opt/betleague/swarm",
               "betleague_swarm_backend_image": os.environ["BETLEAGUE_BACKEND_IMAGE"],
               "betleague_swarm_frontend_image": os.environ["BETLEAGUE_FRONTEND_IMAGE"],
-              "betleague_swarm_uvicorn_workers": int(os.environ.get("UVICORN_WORKERS") or "2"),
+              "betleague_swarm_gunicorn_workers": int(os.environ.get("GUNICORN_WORKERS") or "2"),
               "betleague_swarm_app_domain": os.environ["APP_DOMAIN"],
               "betleague_swarm_api_domain": api_domain,
               "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",

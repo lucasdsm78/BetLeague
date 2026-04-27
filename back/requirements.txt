@@ -4,6 +4,7 @@ sqlalchemy~=2.0.36
 alembic~=1.13.3
 psycopg2-binary
 uvicorn[standard]
+gunicorn
 pydantic~=2.10.3
 bcrypt>=4.0.0
 shortuuid~=1.0.13
