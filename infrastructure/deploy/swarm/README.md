@@ -88,6 +88,7 @@ cp secrets/nats-client-key.pem.example secrets/nats-client-key.pem
 Adapte en particulier :
 
 - `SQLALCHEMY_DATABASE_URL`
+- `ALEMBIC_DATABASE_URL` (recommandé avec Neon : endpoint direct pour migrations, distinct du runtime)
 - `SECRET_KEY_TOKEN`
 - `SECRET_KEY_TOKEN_REFRESH`
 - `ENCRYPTION_KEY`
@@ -101,6 +102,13 @@ Adapte en particulier :
 - `TRUSTED_HOSTS`
 - `TRUSTED_PROXY_IPS`
 - `NATS_*`
+
+Avec **Neon**, la stratégie recommandée est :
+
+- `SQLALCHEMY_DATABASE_URL` → **endpoint poolé** Neon pour le runtime applicatif (`backend`, `celery`, `outbox`)
+- `ALEMBIC_DATABASE_URL` → **endpoint direct** Neon pour les migrations Alembic
+
+Cela permet de garder une bonne élasticité côté application tout en évitant les surprises liées au pooler transactionnel pendant les migrations de schéma.
 
 ## Initialiser puis déployer la stack
 
