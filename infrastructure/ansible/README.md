@@ -138,6 +138,10 @@ Pour cette voie de release dédiée, le workflow appelle désormais le playbook 
 
 Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
 
+Par défaut, ce rôle émet maintenant les certificats Let’s Encrypt en **ECDSA P-256** (`--key-type ecdsa --elliptic-curve secp256r1`) et aligne le certificat autosigné de bootstrap sur la même famille de clé (courbe OpenSSL `prime256v1`). Le fallback RSA reste possible si tu changes explicitement `betleague_letsencrypt_key_type`, avec une taille durcie à `4096` bits.
+
+Le rôle applique aussi un garde-fou anti rate-limit : tant que `betleague_letsencrypt_staging=true` n'a pas été validé de bout en bout, une émission directe Let’s Encrypt production est refusée sauf si tu assumes explicitement le risque avec `betleague_letsencrypt_acked_production=true`.
+
 Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée.
 
 Le playbook `release_swarm.yml`, lui, est dédié aux releases applicatives d’une stack déjà en place. Il :
@@ -164,12 +168,14 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
 - Le certificat TLS edge public n'est plus injecté comme secret GitHub : la clé privée est générée et renouvelée sur l'hôte par Let’s Encrypt, puis copiée dans `/opt/betleague/shared/tls/edge/` avec permissions strictes.
+- Pour limiter les risques de rate-limit Let’s Encrypt en production, garde `LETSENCRYPT_STAGING=true` au premier déploiement public, valide tout le flux HTTP-01/HTTPS, puis bascule seulement ensuite vers `LETSENCRYPT_STAGING=false` avec `LETSENCRYPT_PRODUCTION_ACK=true`.
 - Les releases backend/frontend sans downtime supposent des migrations DB backward-compatible (_expand / contract_). Si une migration casse l’ancienne version backend, Swarm ne pourra pas garantir une continuité fonctionnelle malgré le rolling update `start-first`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
 - La politique UFW BetLeague bloque les nouvelles connexions Docker publiées autres que les ports explicitement autorisés dans `betleague_public_tcp_ports` (par défaut `80/443`).
 - Fail2ban est aligné sur le port SSH réel (`betleague_ssh_port`), ignore `localhost` + les CIDR d’administration, applique des bannissements progressifs via l’action `ufw` et active aussi une jail `recidive` pour bannir plus longtemps les IP déjà sanctionnées à répétition.
 - `betleague_ssh_trusted_cidrs` reste volontairement vide par défaut : le rôle échoue explicitement tant qu’au moins un CIDR d’administration valide n’est pas fourni, pour éviter toute ouverture SSH implicite ou tout lockout silencieux.
 - Les changements de configuration Fail2ban utilisent un `reload` plutôt qu’un `restart`, afin de préserver autant que possible l’état des bans actifs.
+
 
 
 

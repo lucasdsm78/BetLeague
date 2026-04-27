@@ -4,9 +4,17 @@
     that:
       - not (betleague_letsencrypt_enabled | bool) or (betleague_letsencrypt_email | trim != '')
       - betleague_letsencrypt_domains | length >= 1
+      - betleague_letsencrypt_key_type in ['ecdsa', 'rsa']
+      - >-
+        not (betleague_letsencrypt_enabled | bool) or
+        (betleague_letsencrypt_staging | bool) or
+        (betleague_letsencrypt_acked_production | bool)
     fail_msg: >-
-      Configure `betleague_letsencrypt_email` et au moins un domaine dans
-      `betleague_letsencrypt_domains` pour activer Let's Encrypt.
+      Configure `betleague_letsencrypt_email`, au moins un domaine dans
+      `betleague_letsencrypt_domains`, un `betleague_letsencrypt_key_type`
+      supporté (`ecdsa` ou `rsa`) et, pour Let's Encrypt en production,
+      valide d'abord le flux avec `betleague_letsencrypt_staging=true` avant
+      d'autoriser la prod via `betleague_letsencrypt_acked_production=true`.
 
 - name: Installer les paquets TLS edge
   ansible.builtin.apt:
@@ -57,7 +65,9 @@
 
 - name: Générer un certificat autosigné de bootstrap pour edge
   ansible.builtin.command: >-
-    openssl req -x509 -nodes -newkey rsa:{{ betleague_letsencrypt_rsa_key_size }}
+    openssl req -x509 -nodes
+    -newkey {% if betleague_letsencrypt_key_type == 'ecdsa' %}ec{% else %}rsa:{{ betleague_letsencrypt_rsa_key_size }}{% endif %}
+    {% if betleague_letsencrypt_key_type == 'ecdsa' %}-pkeyopt ec_paramgen_curve:{{ betleague_edge_tls_bootstrap_openssl_curve }}{% endif %}
     -sha256
     -days {{ betleague_edge_tls_bootstrap_days }}
     -keyout {{ betleague_edge_tls_key_path }}
@@ -85,4 +95,5 @@
     enabled: true
     state: started
   when: betleague_letsencrypt_enabled | bool
+
 

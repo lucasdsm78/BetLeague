@@ -44,6 +44,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - Le backend charge son environnement depuis un secret `backend.env`; aucun `.env` sensible n'est committé.
 - L'image backend doit embarquer un utilisateur applicatif `1000:1000` pour rester compatible avec la stack Swarm fournie.
 - NATS JetStream persiste sur un volume monté sous `/var/tmp`, afin de rester rootless avec l'image upstream.
+- Le TLS edge public est émis en **ECDSA P-256** par défaut ; le certificat autosigné de bootstrap généré avant la première émission Let’s Encrypt utilise la même famille de clé pour éviter un écart inutile entre bootstrap et runtime final.
 
 ## Fichiers principaux
 
@@ -219,6 +220,7 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `GUNICORN_FORWARDED_ALLOW_IPS`
 - `LETSENCRYPT_EMAIL`
 - `LETSENCRYPT_STAGING` (optionnel, `true` recommandé en environnement de développement public)
+- `LETSENCRYPT_PRODUCTION_ACK` (optionnel, requis uniquement si `LETSENCRYPT_STAGING=false` lors d'un `deploy_swarm.yml` en production)
 - `SSH_PORT`
 - `SSH_TRUSTED_CIDRS`
 - `DEPLOY_PATH`
@@ -231,6 +233,8 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 `GUNICORN_FORWARDED_ALLOW_IPS` est injecté explicitement par GitHub Actions puis Ansible au moment du `docker stack deploy`, au même titre que `GUNICORN_WORKERS`. Pour la topologie Swarm actuelle (backend non publié derrière le reverse proxy interne), la valeur pragmatique par défaut reste `*`, avec possibilité de la restreindre si tu maîtrises précisément les IP source du proxy.
 
 Le TLS edge public est désormais géré par `certbot` directement sur l’hôte via Let’s Encrypt (`HTTP-01` avec webroot). La CI ne transporte donc plus la clé privée publique edge ; elle fournit seulement `LETSENCRYPT_EMAIL` et, si besoin, `LETSENCRYPT_STAGING`.
+
+Pour réduire le risque de bloquer ton domaine sur les rate limits Let’s Encrypt, le workflow complet `deploy_swarm.yml` refuse aussi une première émission directe en production tant que `LETSENCRYPT_PRODUCTION_ACK=true` n’a pas été défini explicitement dans l’Environment GitHub après validation du chemin en staging.
 
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
 
@@ -297,6 +301,7 @@ sudo certbot renew --dry-run
 - Les migrations DB restent exécutées **avant** `docker stack deploy` par Ansible pour le déploiement complet, et via le service one-shot `migrations` pour la release applicative dédiée.
 - Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
 - Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.
+- Premier bootstrap recommandé : `LETSENCRYPT_STAGING=true`, vérification HTTPS complète, puis second déploiement avec `LETSENCRYPT_STAGING=false` et `LETSENCRYPT_PRODUCTION_ACK=true` pour obtenir le certificat public final.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation DNS-01 si wildcard/multi-nœud, sauvegardes et pipeline de build/release d'images.
 
 
