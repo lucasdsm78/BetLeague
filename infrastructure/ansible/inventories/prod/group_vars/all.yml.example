@@ -13,6 +13,9 @@ betleague_ssh_trusted_cidrs:
 betleague_unattended_origins:
   - "origin=${distro_id},codename=${distro_codename}-security,label=${distro_id}"
   - "origin=${distro_id},codename=${distro_codename}-updates,label=${distro_id}"
+betleague_letsencrypt_staging: true
+betleague_letsencrypt_acked_production: false
+
 
 
 

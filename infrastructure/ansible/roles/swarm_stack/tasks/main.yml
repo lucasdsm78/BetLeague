@@ -62,13 +62,14 @@
     method: GET
     return_content: false
     status_code: 200
-    validate_certs: "{{ not (betleague_letsencrypt_enabled | default(false) | bool) }}"
+    validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
   register: betleague_swarm_api_health
   retries: 12
   delay: 5
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
 
 
 

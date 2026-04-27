@@ -16,7 +16,7 @@
     --preferred-challenges http
     --keep-until-expiring
     --key-type {{ betleague_letsencrypt_key_type | quote }}
-    --rsa-key-size {{ betleague_letsencrypt_rsa_key_size | string }}
+    {% if betleague_letsencrypt_key_type == 'ecdsa' %}--elliptic-curve {{ betleague_letsencrypt_ecdsa_curve | quote }}{% else %}--rsa-key-size {{ betleague_letsencrypt_rsa_key_size | string }}{% endif %}
     {% if betleague_letsencrypt_staging | bool %}--staging{% endif %}
     {% for domain in betleague_letsencrypt_domains %}-d {{ domain | quote }} {% endfor %}
   register: betleague_letsencrypt_certbot_result
@@ -45,5 +45,6 @@
       - betleague_edge_tls_final_stats.results | map(attribute='stat.exists') | min
     fail_msg: Les fichiers TLS runtime edge n'ont pas été générés comme attendu.
   when: betleague_letsencrypt_enabled | bool
+
 
 
