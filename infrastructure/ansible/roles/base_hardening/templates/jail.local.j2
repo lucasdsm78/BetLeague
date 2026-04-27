@@ -1,7 +1,20 @@
+[DEFAULT]
+backend = {{ betleague_fail2ban_backend }}
+banaction = {{ betleague_fail2ban_banaction }}
+ignoreip = {{ betleague_fail2ban_ignoreip | join(' ') }}
+usedns = {{ betleague_fail2ban_usedns }}
+maxretry = {{ betleague_fail2ban_maxretry }}
+findtime = {{ betleague_fail2ban_findtime }}
+bantime = {{ betleague_fail2ban_bantime }}
+bantime.increment = {{ betleague_fail2ban_bantime_increment | bool | ternary('true', 'false') }}
+bantime.factor = {{ betleague_fail2ban_bantime_factor }}
+bantime.maxtime = {{ betleague_fail2ban_bantime_maxtime }}
+bantime.rndtime = {{ betleague_fail2ban_bantime_rndtime }}
+
 [sshd]
 enabled = true
-backend = systemd
-maxretry = 5
-findtime = 10m
-bantime = 1h
+backend = {{ betleague_fail2ban_backend }}
+port = {{ betleague_ssh_port }}
+mode = {{ betleague_fail2ban_sshd_mode }}
+
 
