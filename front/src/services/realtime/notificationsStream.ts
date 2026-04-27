@@ -33,12 +33,27 @@ export class NotificationsStream {
   private reconnectMs: number;
   private retries = 0;
   private handlers: NotificationsStreamHandlers | null = null;
+  private explicitlyStopped = false;
+  private listenersAttached = false;
+
+  private readonly onlineListener = () => {
+    if (!this.handlers || this.abortController || this.reconnectTimer) return;
+    this.retries = 0;
+    this.start(this.handlers);
+  };
+
+  private readonly visibilityListener = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!this.handlers || this.abortController || this.reconnectTimer) return;
+    this.start(this.handlers);
+  };
 
   constructor(reconnectMs = DEFAULT_RECONNECT_MS) {
     this.reconnectMs = reconnectMs;
   }
 
   stop() {
+    this.explicitlyStopped = true;
     this.retries = 0;
     this.handlers = null;
     if (this.reconnectTimer) {
@@ -49,11 +64,14 @@ export class NotificationsStream {
       this.abortController.abort();
       this.abortController = null;
     }
+    this.detachListeners();
   }
 
   start(handlers: NotificationsStreamHandlers) {
+    this.explicitlyStopped = false;
     // Stocke les handlers pour les reconnexions
     this.handlers = handlers;
+    this.attachListeners();
     // Stop sans effacer handlers (on veut les conserver)
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
@@ -156,7 +174,8 @@ export class NotificationsStream {
         handlers.onError?.(err);
       } finally {
         // auto-reconnect (best effort)
-        if (!this.abortController?.signal.aborted) {
+        this.abortController = null;
+        if (!this.explicitlyStopped) {
           this.scheduleReconnect();
         }
       }
@@ -168,6 +187,7 @@ export class NotificationsStream {
   private scheduleReconnect(overrideDelayMs?: number) {
     const handlers = this.handlers;
     if (!handlers) return;
+    if (this.reconnectTimer || this.explicitlyStopped) return;
 
     const base = overrideDelayMs ?? this.reconnectMs;
     const exp = Math.min(MAX_RECONNECT_MS, base * Math.pow(2, this.retries));
@@ -177,5 +197,19 @@ export class NotificationsStream {
       // Note: on ne rappelle pas stop() ici, start() s’en charge
       this.start(handlers);
     }, delay);
+  }
+
+  private attachListeners() {
+    if (this.listenersAttached) return;
+    window.addEventListener('online', this.onlineListener);
+    document.addEventListener('visibilitychange', this.visibilityListener);
+    this.listenersAttached = true;
+  }
+
+  private detachListeners() {
+    if (!this.listenersAttached) return;
+    window.removeEventListener('online', this.onlineListener);
+    document.removeEventListener('visibilitychange', this.visibilityListener);
+    this.listenersAttached = false;
   }
 }

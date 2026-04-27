@@ -9,6 +9,7 @@ from dependency_injections import get_settings, token_blacklist_singleton
 from infrastructure.http_exception_handlers import register_exception_handlers
 from infrastructure.logging_config import setup_logging, shutdown_logging
 from infrastructure.logging_middleware import RequestLoggingMiddleware
+from infrastructure.readiness import readiness_report
 from infrastructure.services.authentication.token_blacklist_impl import shutdown_token_blacklist_service, start_token_blacklist_service
 
 from presentation.user.user_router import router as user_router
@@ -21,6 +22,7 @@ from presentation.notification.notification_router import router as notification
 from presentation.realtime.notifications_stream_router import router as realtime_router
 from presentation.push_subscription.push_subscription_router import router as push_router
 from infrastructure.postgresql.init_models import init_models
+from starlette.responses import JSONResponse
 
 settings = get_settings()
 setup_logging(
@@ -121,6 +123,14 @@ app.add_middleware(RequestLoggingMiddleware, settings=settings)
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "message": "BetLeague API is running"}
+
+
+@app.get("/ready")
+async def ready_check():
+    ready, payload = await readiness_report(settings)
+    if ready:
+        return payload
+    return JSONResponse(status_code=503, content=payload)
 
 # CORS preflight est géré directement par CORSMiddleware.
 
