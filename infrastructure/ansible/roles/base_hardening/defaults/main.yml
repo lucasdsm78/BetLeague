@@ -1,6 +1,7 @@
 ---
 betleague_admin_user: "{{ ansible_user | default('betleague') }}"
 betleague_enable_fail2ban: true
+betleague_ssh_port: "{{ ansible_port | default(22) }}"
 betleague_public_tcp_ports:
   - 80
   - 443
@@ -34,9 +35,22 @@ betleague_sshd_client_alive_interval: 300
 betleague_sshd_client_alive_count_max: 2
 betleague_sshd_max_auth_tries: 3
 betleague_sshd_max_sessions: 2
+betleague_ufw_ipv6: true
 betleague_ufw_logging: 'on'
+betleague_ufw_docker_enabled: true
+betleague_ufw_docker_private_source_cidrs:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - 169.254.0.0/16
+betleague_ufw_docker_private_source_cidrs_ipv6:
+  - fc00::/7
+  - fe80::/10
+betleague_ufw_docker_log_prefix: '[UFW DOCKER BLOCK] '
 betleague_unattended_origins:
   - "origin=${distro_id},codename=${distro_codename}-security,label=${distro_id}"
   - "origin=${distro_id},codename=${distro_codename}-updates,label=${distro_id}"
+
+
 
 

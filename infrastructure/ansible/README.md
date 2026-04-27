@@ -6,6 +6,7 @@ Cette couche Ansible complète Terraform pour durcir l'hôte BetLeague après pr
 
 - fermeture SSH par mot de passe
 - restriction UFW de SSH aux CIDR de confiance
+- application d'une politique UFW compatible Docker/Swarm via `DOCKER-USER`, pour éviter l'exposition accidentelle de ports publiés
 - activation de `fail2ban`, `auditd` et `unattended-upgrades`
 - configuration Docker avec options runtime durcies
 - préparation d'une arborescence runtime stricte sous `/opt/betleague`
@@ -52,6 +53,7 @@ python3 scripts/render-ansible-inventory.py \
 Copie `inventories/prod/group_vars/all.yml.example` vers un fichier local non sensible adapté à ton environnement, puis renseigne au minimum :
 
 - `betleague_ssh_trusted_cidrs`
+- `betleague_ssh_port` (si SSH n'écoute pas sur `22`)
 - `betleague_admin_user`
 - `betleague_runtime_user`
 - `betleague_runtime_group`
@@ -110,6 +112,8 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
 - Garde les fichiers secrets dans `/opt/betleague/secrets/` avec propriétaire `root`.
 - Une fois le hardening appliqué, garde uniquement les CIDR administratifs strictement nécessaires dans `betleague_ssh_trusted_cidrs`.
+- La politique UFW BetLeague bloque les nouvelles connexions Docker publiées autres que les ports explicitement autorisés dans `betleague_public_tcp_ports` (par défaut `80/443`).
+
 
 
 

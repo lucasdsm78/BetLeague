@@ -30,6 +30,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - `read_only`, `tmpfs`, `cap_drop: ALL`, utilisateurs non-root, permissions strictes sur les secrets Docker (`0400`)
 - healthchecks, limites mémoire/CPU/PIDs, rolling updates avec rollback, `stop_grace_period` explicites pour les services sensibles
 - placement explicite sur le manager labellisé `betleague.role=manager`
+- hardening hôte avec `ufw` Docker-aware: seuls SSH restreint + `80/443` sont censés rester exposables publiquement
 - déploiement convergent via Ansible
 
 ## Limites et décisions de sécurité
