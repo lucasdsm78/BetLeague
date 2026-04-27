@@ -1,8 +1,9 @@
-version: "3.9"
-
 x-service-defaults: &service-defaults
   init: true
   read_only: true
+  cap_drop:
+    - ALL
+  stop_grace_period: 15s
   tmpfs:
     - /tmp:size=64m,mode=1777,noexec,nosuid
   logging:
@@ -32,10 +33,95 @@ x-deploy-defaults: &deploy-defaults
     delay: 5s
     order: stop-first
 
+x-secret-edge-tls-cert: &secret-edge-tls-cert
+  source: edge_tls_cert
+  target: edge_tls_cert.pem
+  uid: "101"
+  gid: "101"
+  mode: 0400
+
+x-secret-edge-tls-key: &secret-edge-tls-key
+  source: edge_tls_key
+  target: edge_tls_key.pem
+  uid: "101"
+  gid: "101"
+  mode: 0400
+
+x-secret-redis-password: &secret-redis-password
+  source: redis_password
+  target: redis_password
+  uid: "999"
+  gid: "1000"
+  mode: 0400
+
+x-secret-nats-user: &secret-nats-user
+  source: nats_user
+  target: nats_user
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
+x-secret-nats-password: &secret-nats-password
+  source: nats_password
+  target: nats_password
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
+x-secret-nats-ca-cert-server: &secret-nats-ca-cert-server
+  source: nats_ca_cert
+  target: ca-cert.pem
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
+x-secret-nats-server-cert: &secret-nats-server-cert
+  source: nats_server_cert
+  target: server-cert.pem
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
+x-secret-nats-server-key: &secret-nats-server-key
+  source: nats_server_key
+  target: server-key.pem
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
+x-secret-backend-env: &secret-backend-env
+  source: backend_env
+  target: backend_env
+  uid: "1000"
+  gid: "1000"
+  mode: 0400
+
+x-secret-nats-ca-cert-client: &secret-nats-ca-cert-client
+  source: nats_ca_cert
+  target: ca-cert.pem
+  uid: "1000"
+  gid: "1000"
+  mode: 0400
+
+x-secret-nats-client-cert: &secret-nats-client-cert
+  source: nats_client_cert
+  target: client-cert.pem
+  uid: "1000"
+  gid: "1000"
+  mode: 0400
+
+x-secret-nats-client-key: &secret-nats-client-key
+  source: nats_client_key
+  target: client-key.pem
+  uid: "1000"
+  gid: "1000"
+  mode: 0400
+
 services:
   edge:
     <<: *service-defaults
     image: nginxinc/nginx-unprivileged:1.27-alpine
+    user: "101:101"
     ports:
       - target: 8080
         published: 80
@@ -50,10 +136,8 @@ services:
         target: /etc/nginx/conf.d/default.conf
         mode: 0444
     secrets:
-      - source: edge_tls_cert
-        target: edge_tls_cert.pem
-      - source: edge_tls_key
-        target: edge_tls_key.pem
+      - *secret-edge-tls-cert
+      - *secret-edge-tls-key
     networks:
       - edge
     healthcheck:
@@ -69,12 +153,14 @@ services:
         limits:
           cpus: "0.50"
           memory: 256M
+          pids: 200
         reservations:
           memory: 64M
 
   frontend:
     <<: *service-defaults
     image: ${BETLEAGUE_FRONTEND_IMAGE:?BETLEAGUE_FRONTEND_IMAGE is required}
+    user: "101:101"
     networks:
       - edge
     healthcheck:
@@ -90,23 +176,25 @@ services:
         limits:
           cpus: "0.50"
           memory: 256M
+          pids: 200
         reservations:
           memory: 64M
 
   redis:
     <<: *service-defaults
     image: redis:7-alpine
+    user: "999:1000"
+    stop_grace_period: 30s
     command:
       - sh
       - -ec
       - |
-        export REDIS_PASSWORD="$(cat /run/secrets/redis_password)"
-        esc_pw=$(printf '%s' "$REDIS_PASSWORD" | sed -e 's/[\\/&]/\\\\&/g')
-        sed "s/__REDIS_PASSWORD__/${esc_pw}/g" /etc/redis/redis.conf.template > /tmp/redis.conf
+        export REDIS_PASSWORD="$$(cat /run/secrets/redis_password)"
+        esc_pw=$$(printf '%s' "$$REDIS_PASSWORD" | sed -e 's/[\\/&]/\\\\&/g')
+        sed "s/__REDIS_PASSWORD__/$$esc_pw/g" /etc/redis/redis.conf.template > /tmp/redis.conf
         exec redis-server /tmp/redis.conf
     secrets:
-      - source: redis_password
-        target: redis_password
+      - *secret-redis-password
     configs:
       - source: redis_conf_template
         target: /etc/redis/redis.conf.template
@@ -116,7 +204,7 @@ services:
     networks:
       - app
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -h 127.0.0.1 -p 6379 --user notif --pass \"$(cat /run/secrets/redis_password)\" --raw ping | grep -x PONG"]
+      test: ["CMD-SHELL", "redis-cli -h 127.0.0.1 -p 6379 --user notif --pass \"$$(cat /run/secrets/redis_password)\" --raw ping | grep -x PONG"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -134,37 +222,35 @@ services:
         limits:
           cpus: "0.50"
           memory: 384M
+          pids: 200
         reservations:
           memory: 96M
 
   nats:
     <<: *service-defaults
     image: nats:2.10-alpine
+    user: "65534:65534"
+    stop_grace_period: 30s
     command:
       - sh
       - -ec
       - |
         exec nats-server \
           -c /etc/nats/nats-server.conf \
-          --user "$(cat /run/secrets/nats_user)" \
-          --pass "$(cat /run/secrets/nats_password)"
+          --user "$$(cat /run/secrets/nats_user)" \
+          --pass "$$(cat /run/secrets/nats_password)"
     secrets:
-      - source: nats_user
-        target: nats_user
-      - source: nats_password
-        target: nats_password
-      - source: nats_ca_cert
-        target: ca-cert.pem
-      - source: nats_server_cert
-        target: server-cert.pem
-      - source: nats_server_key
-        target: server-key.pem
+      - *secret-nats-user
+      - *secret-nats-password
+      - *secret-nats-ca-cert-server
+      - *secret-nats-server-cert
+      - *secret-nats-server-key
     configs:
       - source: nats_server_conf
         target: /etc/nats/nats-server.conf
         mode: 0444
     volumes:
-      - nats_data:/data
+      - nats_data:/var/tmp
     networks:
       - app
     healthcheck:
@@ -186,12 +272,14 @@ services:
         limits:
           cpus: "0.75"
           memory: 512M
+          pids: 200
         reservations:
           memory: 128M
 
   jetstream_provision:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
     command:
       - sh
       - -ec
@@ -201,14 +289,10 @@ services:
         set +a
         exec python scripts/provision_jetstream_streams.py
     secrets:
-      - source: backend_env
-        target: backend_env
-      - source: nats_ca_cert
-        target: ca-cert.pem
-      - source: nats_client_cert
-        target: client-cert.pem
-      - source: nats_client_key
-        target: client-key.pem
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
     networks:
       - app
     deploy:
@@ -223,12 +307,17 @@ services:
         limits:
           cpus: "0.25"
           memory: 192M
+          pids: 200
         reservations:
           memory: 64M
 
   backend:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
+    environment:
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
     command:
       - sh
       - -ec
@@ -236,18 +325,14 @@ services:
         set -a
         . /run/secrets/backend_env
         set +a
-        export UVICORN_WORKERS="${UVICORN_WORKERS:-2}"
+        export UVICORN_WORKERS="$${UVICORN_WORKERS:-2}"
         ./scripts/run_migrations.sh
-        exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers "$UVICORN_WORKERS"
+        exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers "$$UVICORN_WORKERS"
     secrets:
-      - source: backend_env
-        target: backend_env
-      - source: nats_ca_cert
-        target: ca-cert.pem
-      - source: nats_client_cert
-        target: client-cert.pem
-      - source: nats_client_key
-        target: client-key.pem
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
     networks:
       - edge
       - app
@@ -270,12 +355,15 @@ services:
         limits:
           cpus: "1.00"
           memory: 768M
+          pids: 200
         reservations:
           memory: 256M
 
   celery_worker:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
     command:
       - sh
       - -ec
@@ -285,8 +373,7 @@ services:
         set +a
         exec celery -A infrastructure.celery.celery_app worker --loglevel=info --concurrency=2
     secrets:
-      - source: backend_env
-        target: backend_env
+      - *secret-backend-env
     networks:
       - app
     deploy:
@@ -296,12 +383,15 @@ services:
         limits:
           cpus: "1.00"
           memory: 768M
+          pids: 200
         reservations:
           memory: 192M
 
   celery_beat:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
     command:
       - sh
       - -ec
@@ -311,8 +401,7 @@ services:
         set +a
         exec celery -A infrastructure.celery.celery_app beat --loglevel=info --schedule /var/lib/celery/celerybeat-schedule
     secrets:
-      - source: backend_env
-        target: backend_env
+      - *secret-backend-env
     volumes:
       - celery_beat_schedule:/var/lib/celery
     networks:
@@ -324,12 +413,15 @@ services:
         limits:
           cpus: "0.50"
           memory: 384M
+          pids: 200
         reservations:
           memory: 128M
 
   outbox_worker:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
     command:
       - sh
       - -ec
@@ -339,14 +431,10 @@ services:
         set +a
         exec python outbox_worker_main.py
     secrets:
-      - source: backend_env
-        target: backend_env
-      - source: nats_ca_cert
-        target: ca-cert.pem
-      - source: nats_client_cert
-        target: client-cert.pem
-      - source: nats_client_key
-        target: client-key.pem
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
     networks:
       - app
     deploy:
@@ -356,6 +444,7 @@ services:
         limits:
           cpus: "0.75"
           memory: 512M
+          pids: 200
         reservations:
           memory: 160M
 
@@ -404,5 +493,7 @@ secrets:
     file: ./secrets/nats-client-cert.pem
   nats_client_key:
     file: ./secrets/nats-client-key.pem
+
+
 
 
