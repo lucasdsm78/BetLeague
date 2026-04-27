@@ -27,3 +27,67 @@
     - role: docker_host
     - role: app_host
 
+  post_tasks:
+    - name: Lire l'état UFW final
+      ansible.builtin.command: ufw status verbose
+      changed_when: false
+      register: betleague_ufw_status
+
+    - name: Vérifier qu'UFW est actif avec les politiques attendues
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in betleague_ufw_status.stdout"
+          - "'Default: deny (incoming), allow (outgoing), deny (routed)' in betleague_ufw_status.stdout"
+        fail_msg: >-
+          `ufw status verbose` ne reflète pas les politiques attendues BetLeague.
+
+    - name: Vérifier la présence des règles SSH restreintes dans UFW
+      ansible.builtin.assert:
+        that:
+          - >-
+            (betleague_ufw_status.stdout | regex_search(
+            '(?m)^' ~ (betleague_ssh_port | string) ~ '/tcp\\s+LIMIT IN\\s+' ~ (item | regex_escape)
+            )) is not none
+        fail_msg: >-
+          La règle UFW SSH attendue pour `{{ item }}` sur le port `{{ betleague_ssh_port }}` est absente.
+      loop: "{{ betleague_ssh_trusted_cidrs }}"
+
+    - name: Vérifier la présence des règles UFW IPv4 sur les ports publics
+      ansible.builtin.assert:
+        that:
+          - >-
+            (betleague_ufw_status.stdout | regex_search(
+            '(?m)^' ~ (item | string) ~ '/tcp\\s+ALLOW IN\\s+Anywhere(?:\\s|$)'
+            )) is not none
+        fail_msg: >-
+          La règle UFW IPv4 attendue pour le port `{{ item }}` est absente.
+      loop: "{{ betleague_public_tcp_ports }}"
+
+    - name: Vérifier la présence des règles UFW IPv6 sur les ports publics
+      ansible.builtin.assert:
+        that:
+          - >-
+            (betleague_ufw_status.stdout | regex_search(
+            '(?m)^' ~ (item | string) ~ '/tcp\\s+ALLOW IN\\s+Anywhere \\(v6\\)(?:\\s|$)'
+            )) is not none
+        fail_msg: >-
+          La règle UFW IPv6 attendue pour le port `{{ item }}` est absente.
+      loop: "{{ betleague_public_tcp_ports }}"
+      when: betleague_ufw_ipv6 | bool
+
+    - name: Lire l'état de la prison Fail2ban SSHD
+      ansible.builtin.command: fail2ban-client status sshd
+      changed_when: false
+      register: betleague_fail2ban_sshd_status
+      when: betleague_enable_fail2ban | bool
+
+    - name: Vérifier que la prison Fail2ban SSHD est active
+      ansible.builtin.assert:
+        that:
+          - "'Status for the jail: sshd' in betleague_fail2ban_sshd_status.stdout"
+          - "'Currently banned:' in betleague_fail2ban_sshd_status.stdout"
+        fail_msg: >-
+          La prison Fail2ban `sshd` n'est pas active comme attendu.
+      when: betleague_enable_fail2ban | bool
+
+
