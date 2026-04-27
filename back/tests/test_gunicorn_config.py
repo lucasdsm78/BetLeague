@@ -21,6 +21,9 @@ def _load_gunicorn_conf(monkeypatch, **env_overrides):
         "GUNICORN_MAX_REQUESTS",
         "GUNICORN_MAX_REQUESTS_JITTER",
         "GUNICORN_BACKLOG",
+        "GUNICORN_LIMIT_REQUEST_LINE",
+        "GUNICORN_LIMIT_REQUEST_FIELDS",
+        "GUNICORN_LIMIT_REQUEST_FIELD_SIZE",
         "GUNICORN_WORKER_TMP_DIR",
         "GUNICORN_ACCESSLOG",
         "GUNICORN_ERRORLOG",
@@ -52,6 +55,9 @@ def test_gunicorn_config_uses_secure_defaults(monkeypatch):
     assert module.max_requests == 1000
     assert module.max_requests_jitter == 100
     assert module.backlog == 2048
+    assert module.limit_request_line == 4094
+    assert module.limit_request_fields == 100
+    assert module.limit_request_field_size == 8190
     assert module.worker_tmp_dir == "/tmp"
     assert module.accesslog == "-"
     assert module.errorlog == "-"
@@ -77,4 +83,5 @@ def test_gunicorn_workers_supports_legacy_uvicorn_workers_fallback(monkeypatch):
     module = _load_gunicorn_conf(monkeypatch, UVICORN_WORKERS=5)
 
     assert module.workers == 5
+
 
