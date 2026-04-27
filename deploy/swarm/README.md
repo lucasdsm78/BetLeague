@@ -124,7 +124,7 @@ Pour un mono-VPS de production, le meilleur compromis **sécurité + rapidité**
 
 Cette approche évite d’exécuter un runner self-hosted directement sur le serveur de prod.
 
-Le compte `SSH_USER` doit :
+L’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terraform. Le compte administrateur exposé par Terraform doit :
 
 - pouvoir écrire dans `DEPLOY_PATH`
 - appartenir au groupe `docker` sur le VPS
@@ -150,11 +150,8 @@ Dans l’Environment `production`, configure au minimum :
 - `BETLEAGUE_BACKEND_IMAGE`
 - `BETLEAGUE_FRONTEND_IMAGE`
 - `UVICORN_WORKERS`
-- `SSH_HOST`
 - `SSH_PORT`
-- `SSH_USER`
 - `DEPLOY_PATH`
-- `SWARM_ADVERTISE_ADDR`
 - `API_HEALTHCHECK_URL`
 - `REGISTRY_SERVER` (optionnel)
 - `REGISTRY_USERNAME` (optionnel)
@@ -202,6 +199,7 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
 
 
 
