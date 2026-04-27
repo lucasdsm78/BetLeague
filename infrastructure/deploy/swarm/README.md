@@ -158,6 +158,7 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `BETLEAGUE_BACKEND_IMAGE`
 - `BETLEAGUE_FRONTEND_IMAGE`
 - `GUNICORN_WORKERS`
+- `GUNICORN_FORWARDED_ALLOW_IPS`
 - `SSH_PORT`
 - `SSH_TRUSTED_CIDRS`
 - `DEPLOY_PATH`
@@ -166,6 +167,8 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `REGISTRY_USERNAME` (optionnel)
 
 `SSH_TRUSTED_CIDRS` doit contenir au moins un CIDR autorisé à conserver l’accès SSH après hardening, par exemple `203.0.113.10/32` ou une liste séparée par virgules/sauts de ligne.
+
+`GUNICORN_FORWARDED_ALLOW_IPS` est injecté explicitement par GitHub Actions puis Ansible au moment du `docker stack deploy`, au même titre que `GUNICORN_WORKERS`. Pour la topologie Swarm actuelle (backend non publié derrière le reverse proxy interne), la valeur pragmatique par défaut reste `*`, avec possibilité de la restreindre si tu maîtrises précisément les IP source du proxy.
 
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
 

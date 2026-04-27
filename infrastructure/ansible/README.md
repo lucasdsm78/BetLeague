@@ -100,6 +100,8 @@ En CI/CD, le workflow `/.github/workflows/terraform-ci.yml` enchaîne désormais
 
 Les jobs `harden-host-dev` et `harden-host-prod` attendent la variable GitHub Environment `SSH_TRUSTED_CIDRS` pour construire `betleague_ssh_trusted_cidrs`.
 
+Les jobs `deploy-swarm-dev` et `deploy-swarm-prod` construisent aussi un `swarm-vars.json` qui injecte explicitement `GUNICORN_WORKERS` et `GUNICORN_FORWARDED_ALLOW_IPS` dans le rôle `swarm_stack`, sans dépendre de `backend.env` pour ces paramètres de runtime Gunicorn.
+
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
 
 ## Application
@@ -118,6 +120,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Fail2ban est aligné sur le port SSH réel (`betleague_ssh_port`), ignore `localhost` + les CIDR d’administration, applique des bannissements progressifs via l’action `ufw` et active aussi une jail `recidive` pour bannir plus longtemps les IP déjà sanctionnées à répétition.
 - `betleague_ssh_trusted_cidrs` reste volontairement vide par défaut : le rôle échoue explicitement tant qu’au moins un CIDR d’administration valide n’est pas fourni, pour éviter toute ouverture SSH implicite ou tout lockout silencieux.
 - Les changements de configuration Fail2ban utilisent un `reload` plutôt qu’un `restart`, afin de préserver autant que possible l’état des bans actifs.
+
 
 
 
