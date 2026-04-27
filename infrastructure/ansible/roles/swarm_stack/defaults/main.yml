@@ -4,6 +4,7 @@ betleague_swarm_deploy_path: "{{ betleague_compose_root }}/swarm"
 betleague_swarm_backend_image: ""
 betleague_swarm_frontend_image: ""
 betleague_swarm_gunicorn_workers: 2
+betleague_swarm_gunicorn_forwarded_allow_ips: "*"
 betleague_swarm_app_domain: app.betleague.app
 betleague_swarm_api_domain: api.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
@@ -23,5 +24,6 @@ betleague_swarm_nats_client_cert: ""
 betleague_swarm_nats_client_key: ""
 betleague_swarm_wait_timeout_seconds: 180
 betleague_swarm_wait_sleep_seconds: 5
+
 
 
