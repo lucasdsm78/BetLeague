@@ -54,6 +54,8 @@ En CI GitHub Actions, cela correspond aux secrets :
 - `OVH_S3_ACCESS_KEY_ID_PROD`
 - `OVH_S3_SECRET_ACCESS_KEY_PROD`
 
+Les secrets OVH API (`OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`) sont attendus dans les GitHub Environments utilisés par les jobs sensibles, par exemple `development`, `production` et `state-identities`.
+
 ## Sécurité
 
 ### Important

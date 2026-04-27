@@ -52,6 +52,8 @@ jobs:
     needs: static-checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment:
+      name: ${{ inputs.target_environment == 'prod' && 'production' || 'development' }}
     env:
       TF_VAR_ovh_application_key: ${{ secrets.OVH_APPLICATION_KEY }}
       TF_VAR_ovh_application_secret: ${{ secrets.OVH_APPLICATION_SECRET }}
@@ -160,6 +162,9 @@ jobs:
     environment:
       name: development
     env:
+      TF_VAR_ovh_application_key: ${{ secrets.OVH_APPLICATION_KEY }}
+      TF_VAR_ovh_application_secret: ${{ secrets.OVH_APPLICATION_SECRET }}
+      TF_VAR_ovh_consumer_key: ${{ secrets.OVH_CONSUMER_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.OVH_S3_ACCESS_KEY_ID_DEV }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.OVH_S3_SECRET_ACCESS_KEY_DEV }}
     steps:
@@ -232,6 +237,9 @@ jobs:
     environment:
       name: production
     env:
+      TF_VAR_ovh_application_key: ${{ secrets.OVH_APPLICATION_KEY }}
+      TF_VAR_ovh_application_secret: ${{ secrets.OVH_APPLICATION_SECRET }}
+      TF_VAR_ovh_consumer_key: ${{ secrets.OVH_CONSUMER_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.OVH_S3_ACCESS_KEY_ID_PROD }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.OVH_S3_SECRET_ACCESS_KEY_PROD }}
     steps:

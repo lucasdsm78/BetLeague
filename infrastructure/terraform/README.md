@@ -111,6 +111,12 @@ Le workflow principal `terraform-ci.yml` implémente :
 - des contrôles `tflint`, `tfsec` et `checkov`
 - une séparation `dev` / `prod` via des backends S3 distincts
 
+Les jobs sensibles `plan`, `apply-dev` et `apply-prod` sont rattachés à des GitHub Environments (`development` / `production`). Les secrets OVH API doivent donc être définis dans ces Environments, et non plus uniquement au niveau repository :
+
+- `OVH_APPLICATION_KEY`
+- `OVH_APPLICATION_SECRET`
+- `OVH_CONSUMER_KEY`
+
 Les secrets GitHub Actions attendus pour le backend S3 sont :
 
 - `OVH_S3_ACCESS_KEY_ID_DEV`
