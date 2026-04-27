@@ -114,6 +114,7 @@ Oui, cette stack peut être déployée entièrement via GitHub Actions.
 Le chemin recommandé est désormais :
 
 - Terraform via `terraform-ci.yml`
+- hardening hôte via `harden-host-prod`
 - puis déploiement Swarm via le playbook Ansible `infrastructure/ansible/playbooks/deploy_swarm.yml`
 
 ### Stratégie recommandée
@@ -137,11 +138,12 @@ L’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terr
 
 Le job `deploy-swarm-prod` de `/.github/workflows/terraform-ci.yml` :
 
-1. récupère les outputs Terraform publiés par `apply-prod`
-2. génère l'inventaire Ansible automatiquement
-3. injecte les vars/secrets Swarm depuis l’Environment GitHub
-4. lance le playbook `deploy_swarm.yml`
-5. attend la convergence de la stack puis vérifie l’API
+1. `apply-prod` provisionne/met à jour le VPS et publie les outputs Terraform
+2. `harden-host-prod` applique `harden_host.yml` sur l’hôte
+3. `deploy-swarm-prod` génère l'inventaire Ansible automatiquement
+4. injecte les vars/secrets Swarm depuis l’Environment GitHub
+5. lance le playbook `deploy_swarm.yml`
+6. attend la convergence de la stack puis vérifie l’API
 
 ### Variables GitHub Environment recommandées
 
@@ -154,10 +156,15 @@ Dans l’Environment `production`, configure au minimum :
 - `BETLEAGUE_FRONTEND_IMAGE`
 - `UVICORN_WORKERS`
 - `SSH_PORT`
+- `SSH_TRUSTED_CIDRS`
 - `DEPLOY_PATH`
 - `API_HEALTHCHECK_URL`
 - `REGISTRY_SERVER` (optionnel)
 - `REGISTRY_USERNAME` (optionnel)
+
+`SSH_TRUSTED_CIDRS` doit contenir au moins un CIDR autorisé à conserver l’accès SSH après hardening, par exemple `203.0.113.10/32` ou une liste séparée par virgules/sauts de ligne.
+
+Attention : `harden-host-prod` et `deploy-swarm-prod` sont deux jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
 
 ### Secrets GitHub Environment recommandés
 
@@ -202,6 +209,8 @@ Teste ensuite :
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+
+
 
 
 
