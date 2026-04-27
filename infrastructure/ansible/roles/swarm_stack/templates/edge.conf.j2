@@ -30,7 +30,16 @@ server {
     listen 8080;
     server_name {{ betleague_swarm_app_domain }} {{ betleague_swarm_api_domain }};
     server_tokens off;
-    return 301 https://$host$request_uri;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
@@ -54,8 +63,8 @@ server {
     send_timeout 15s;
     proxy_connect_timeout 5s;
 
-    ssl_certificate     /run/secrets/edge_tls_cert.pem;
-    ssl_certificate_key /run/secrets/edge_tls_key.pem;
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
     ssl_session_timeout 1d;
@@ -113,8 +122,8 @@ server {
     send_timeout 30s;
     proxy_connect_timeout 5s;
 
-    ssl_certificate     /run/secrets/edge_tls_cert.pem;
-    ssl_certificate_key /run/secrets/edge_tls_key.pem;
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
     ssl_session_timeout 1d;
@@ -241,6 +250,8 @@ server {
         proxy_pass http://backend:8000;
     }
 }
+
+
 
 
 

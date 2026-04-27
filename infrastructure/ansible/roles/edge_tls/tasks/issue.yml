@@ -1,0 +1,49 @@
+---
+- name: Synchroniser le certificat Let's Encrypt existant vers le runtime edge
+  ansible.builtin.command: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+  changed_when: false
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Obtenir ou renouveler le certificat Let's Encrypt edge
+  ansible.builtin.command: >-
+    certbot certonly
+    --non-interactive
+    --agree-tos
+    --email {{ betleague_letsencrypt_email | quote }}
+    --webroot
+    --webroot-path {{ betleague_edge_acme_webroot | quote }}
+    --cert-name {{ betleague_letsencrypt_cert_name | quote }}
+    --preferred-challenges http
+    --keep-until-expiring
+    --key-type {{ betleague_letsencrypt_key_type | quote }}
+    --rsa-key-size {{ betleague_letsencrypt_rsa_key_size | string }}
+    {% if betleague_letsencrypt_staging | bool %}--staging{% endif %}
+    {% for domain in betleague_letsencrypt_domains %}-d {{ domain | quote }} {% endfor %}
+  register: betleague_letsencrypt_certbot_result
+  changed_when: >-
+    'Certificate not yet due for renewal' not in betleague_letsencrypt_certbot_result.stdout and
+    'No renewals were attempted' not in betleague_letsencrypt_certbot_result.stdout
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Synchroniser le certificat Let's Encrypt émis vers le runtime edge
+  ansible.builtin.command: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+  changed_when: true
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Vérifier la présence du certificat runtime edge final
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ betleague_edge_tls_cert_path }}"
+    - "{{ betleague_edge_tls_key_path }}"
+  register: betleague_edge_tls_final_stats
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Vérifier que les fichiers TLS edge finaux existent
+  ansible.builtin.assert:
+    that:
+      - betleague_edge_tls_final_stats.results | map(attribute='stat.exists') | min
+    fail_msg: Les fichiers TLS runtime edge n'ont pas été générés comme attendu.
+  when: betleague_letsencrypt_enabled | bool
+
+

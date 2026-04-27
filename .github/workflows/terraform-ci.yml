@@ -585,6 +585,8 @@ jobs:
           BETLEAGUE_FRONTEND_IMAGE: ${{ vars.BETLEAGUE_FRONTEND_IMAGE }}
           GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
           GUNICORN_FORWARDED_ALLOW_IPS: ${{ vars.GUNICORN_FORWARDED_ALLOW_IPS }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          LETSENCRYPT_STAGING: ${{ vars.LETSENCRYPT_STAGING }}
           REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
           REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
@@ -592,8 +594,6 @@ jobs:
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           NATS_USER: ${{ secrets.NATS_USER }}
           NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
-          EDGE_TLS_CERT: ${{ secrets.EDGE_TLS_CERT }}
-          EDGE_TLS_KEY: ${{ secrets.EDGE_TLS_KEY }}
           NATS_CA_CERT: ${{ secrets.NATS_CA_CERT }}
           NATS_SERVER_CERT: ${{ secrets.NATS_SERVER_CERT }}
           NATS_SERVER_KEY: ${{ secrets.NATS_SERVER_KEY }}
@@ -610,6 +610,8 @@ jobs:
               "betleague_swarm_frontend_image": os.environ["BETLEAGUE_FRONTEND_IMAGE"],
               "betleague_swarm_gunicorn_workers": int(os.environ.get("GUNICORN_WORKERS") or "2"),
               "betleague_swarm_gunicorn_forwarded_allow_ips": os.environ.get("GUNICORN_FORWARDED_ALLOW_IPS") or "*",
+              "betleague_letsencrypt_email": os.environ["LETSENCRYPT_EMAIL"],
+              "betleague_letsencrypt_staging": (os.environ.get("LETSENCRYPT_STAGING") or "false").strip().lower() in {"1", "true", "yes", "on"},
               "betleague_swarm_app_domain": os.environ["APP_DOMAIN"],
               "betleague_swarm_api_domain": api_domain,
               "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",
@@ -620,8 +622,6 @@ jobs:
               "betleague_swarm_redis_password": os.environ["REDIS_PASSWORD"],
               "betleague_swarm_nats_user": os.environ["NATS_USER"],
               "betleague_swarm_nats_password": os.environ["NATS_PASSWORD"],
-              "betleague_swarm_edge_tls_cert": os.environ["EDGE_TLS_CERT"],
-              "betleague_swarm_edge_tls_key": os.environ["EDGE_TLS_KEY"],
               "betleague_swarm_nats_ca_cert": os.environ["NATS_CA_CERT"],
               "betleague_swarm_nats_server_cert": os.environ["NATS_SERVER_CERT"],
               "betleague_swarm_nats_server_key": os.environ["NATS_SERVER_KEY"],
@@ -729,6 +729,8 @@ jobs:
           BETLEAGUE_FRONTEND_IMAGE: ${{ vars.BETLEAGUE_FRONTEND_IMAGE }}
           GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
           GUNICORN_FORWARDED_ALLOW_IPS: ${{ vars.GUNICORN_FORWARDED_ALLOW_IPS }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          LETSENCRYPT_STAGING: ${{ vars.LETSENCRYPT_STAGING }}
           REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
           REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
@@ -736,8 +738,6 @@ jobs:
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           NATS_USER: ${{ secrets.NATS_USER }}
           NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
-          EDGE_TLS_CERT: ${{ secrets.EDGE_TLS_CERT }}
-          EDGE_TLS_KEY: ${{ secrets.EDGE_TLS_KEY }}
           NATS_CA_CERT: ${{ secrets.NATS_CA_CERT }}
           NATS_SERVER_CERT: ${{ secrets.NATS_SERVER_CERT }}
           NATS_SERVER_KEY: ${{ secrets.NATS_SERVER_KEY }}
@@ -754,6 +754,8 @@ jobs:
               "betleague_swarm_frontend_image": os.environ["BETLEAGUE_FRONTEND_IMAGE"],
               "betleague_swarm_gunicorn_workers": int(os.environ.get("GUNICORN_WORKERS") or "2"),
               "betleague_swarm_gunicorn_forwarded_allow_ips": os.environ.get("GUNICORN_FORWARDED_ALLOW_IPS") or "*",
+              "betleague_letsencrypt_email": os.environ["LETSENCRYPT_EMAIL"],
+              "betleague_letsencrypt_staging": (os.environ.get("LETSENCRYPT_STAGING") or "false").strip().lower() in {"1", "true", "yes", "on"},
               "betleague_swarm_app_domain": os.environ["APP_DOMAIN"],
               "betleague_swarm_api_domain": api_domain,
               "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",
@@ -764,8 +766,6 @@ jobs:
               "betleague_swarm_redis_password": os.environ["REDIS_PASSWORD"],
               "betleague_swarm_nats_user": os.environ["NATS_USER"],
               "betleague_swarm_nats_password": os.environ["NATS_PASSWORD"],
-              "betleague_swarm_edge_tls_cert": os.environ["EDGE_TLS_CERT"],
-              "betleague_swarm_edge_tls_key": os.environ["EDGE_TLS_KEY"],
               "betleague_swarm_nats_ca_cert": os.environ["NATS_CA_CERT"],
               "betleague_swarm_nats_server_cert": os.environ["NATS_SERVER_CERT"],
               "betleague_swarm_nats_server_key": os.environ["NATS_SERVER_KEY"],

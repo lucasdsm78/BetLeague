@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+live_dir="/etc/letsencrypt/live/{{ betleague_letsencrypt_cert_name }}"
+cert_src="$live_dir/fullchain.pem"
+key_src="$live_dir/privkey.pem"
+cert_dst="{{ betleague_edge_tls_cert_path }}"
+key_dst="{{ betleague_edge_tls_key_path }}"
+service_name="{{ betleague_edge_service_name }}"
+
+test -f "$cert_src" || exit 0
+test -f "$key_src" || exit 0
+
+install -o root -g {{ betleague_edge_tls_group }} -m 0444 "$cert_src" "$cert_dst"
+install -o root -g {{ betleague_edge_tls_group }} -m 0440 "$key_src" "$key_dst"
+
+container_id="$(docker ps --filter "label=com.docker.swarm.service.name=$service_name" --format '{{"{{.ID}}"}}' | head -n1)"
+if [[ -n "$container_id" ]]; then
+  docker exec "$container_id" nginx -s reload >/dev/null 2>&1 || true
+fi
+

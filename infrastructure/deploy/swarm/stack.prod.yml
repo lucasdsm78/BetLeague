@@ -33,20 +33,6 @@ x-deploy-defaults: &deploy-defaults
     delay: 5s
     order: stop-first
 
-x-secret-edge-tls-cert: &secret-edge-tls-cert
-  source: edge_tls_cert
-  target: edge_tls_cert.pem
-  uid: "101"
-  gid: "101"
-  mode: 0400
-
-x-secret-edge-tls-key: &secret-edge-tls-key
-  source: edge_tls_key
-  target: edge_tls_key.pem
-  uid: "101"
-  gid: "101"
-  mode: 0400
-
 x-secret-redis-password: &secret-redis-password
   source: redis_password
   target: redis_password
@@ -121,7 +107,7 @@ services:
   edge:
     <<: *service-defaults
     image: nginxinc/nginx-unprivileged:1.27-alpine
-    user: "101:101"
+    user: "101:${BETLEAGUE_EDGE_TLS_GID:-940}"
     ports:
       - target: 8080
         published: 80
@@ -135,9 +121,15 @@ services:
       - source: edge_nginx_conf
         target: /etc/nginx/conf.d/default.conf
         mode: 0444
-    secrets:
-      - *secret-edge-tls-cert
-      - *secret-edge-tls-key
+    volumes:
+      - type: bind
+        source: ${BETLEAGUE_EDGE_ACME_WEBROOT:?BETLEAGUE_EDGE_ACME_WEBROOT is required}
+        target: /var/www/letsencrypt
+        read_only: true
+      - type: bind
+        source: ${BETLEAGUE_EDGE_TLS_DIR:?BETLEAGUE_EDGE_TLS_DIR is required}
+        target: /etc/nginx/tls
+        read_only: true
     networks:
       - edge
     healthcheck:
@@ -327,7 +319,6 @@ services:
         . /run/secrets/backend_env
         set +a
         export GUNICORN_WORKERS="$${GUNICORN_WORKERS:-$${UVICORN_WORKERS:-2}}"
-        ./scripts/run_migrations.sh
         exec gunicorn -c /app/gunicorn.conf.py main:app
     secrets:
       - *secret-backend-env
@@ -351,7 +342,7 @@ services:
         delay: 15s
         failure_action: rollback
         monitor: 45s
-        order: stop-first
+        order: start-first
       resources:
         limits:
           cpus: "1.00"
@@ -480,10 +471,6 @@ secrets:
     file: ./secrets/nats_user.txt
   nats_password:
     file: ./secrets/nats_password.txt
-  edge_tls_cert:
-    file: ./secrets/tls.crt.pem
-  edge_tls_key:
-    file: ./secrets/tls.key.pem
   nats_ca_cert:
     file: ./secrets/nats-ca-cert.pem
   nats_server_cert:

@@ -33,13 +33,14 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - hardening hôte avec `ufw` Docker-aware: seuls SSH restreint + `80/443` sont censés rester exposables publiquement
 - Nginx edge/frontend durci : `server_tokens off`, headers de sécurité, CSP distinctes app/API, redirection HTTPS stricte, timeouts bornés, méthodes limitées côté app SPA, rate limiting ciblé sur l’API, deny défensif des routes FastAPI de documentation et cache explicite sur `index.html`
 - backend prod servi par Gunicorn + workers Uvicorn, avec timeouts, `max_requests` et logs stdout adaptés au déploiement conteneurisé
+- releases applicatives backend/frontend en rolling update `start-first`, avec migrations DB exécutées avant le déploiement de la nouvelle révision backend
 - déploiement convergent via Ansible
 
 ## Limites et décisions de sécurité
 
 - Le cluster est **mono-nœud**: pas de haute disponibilité native.
 - Les réseaux `overlay` ne sont pas marqués `attachable`, pour éviter des attaches ad hoc.
-- Les certificats TLS edge et NATS sont traités comme secrets Docker.
+- Les certificats NATS restent traités comme secrets Docker, mais le TLS edge public est désormais géré directement sur l’hôte via Let’s Encrypt puis monté en lecture seule dans `edge`.
 - Le backend charge son environnement depuis un secret `backend.env`; aucun `.env` sensible n'est committé.
 - L'image backend doit embarquer un utilisateur applicatif `1000:1000` pour rester compatible avec la stack Swarm fournie.
 - NATS JetStream persiste sur un volume monté sous `/var/tmp`, afin de rester rootless avec l'image upstream.
@@ -74,8 +75,6 @@ cp secrets/backend.env.example secrets/backend.env
 cp secrets/redis_password.txt.example secrets/redis_password.txt
 cp secrets/nats_user.txt.example secrets/nats_user.txt
 cp secrets/nats_password.txt.example secrets/nats_password.txt
-cp secrets/tls.crt.pem.example secrets/tls.crt.pem
-cp secrets/tls.key.pem.example secrets/tls.key.pem
 cp secrets/nats-ca-cert.pem.example secrets/nats-ca-cert.pem
 cp secrets/nats-server-cert.pem.example secrets/nats-server-cert.pem
 cp secrets/nats-server-key.pem.example secrets/nats-server-key.pem
@@ -120,6 +119,24 @@ Le chemin recommandé est désormais :
 - hardening hôte via `harden-host-dev` / `harden-host-prod`
 - puis déploiement Swarm via le playbook Ansible `infrastructure/ansible/playbooks/deploy_swarm.yml`
 
+### Releases backend/frontend sans downtime perceptible
+
+Pour publier une release applicative (ex. `backend:1.0.0`, `frontend:1.0.0`) sans interruption perceptible côté utilisateur :
+
+1. pousse des images immuables (tag versionné ou digest) pour `BETLEAGUE_BACKEND_IMAGE` et `BETLEAGUE_FRONTEND_IMAGE`
+2. mets à jour ces références dans l'Environment GitHub ciblé
+3. relance `deploy-swarm-dev` ou `deploy-swarm-prod`
+
+Le rôle Ansible `swarm_stack` :
+
+- précharge les nouvelles images sur le nœud
+- exécute `./scripts/run_migrations.sh` **avant** le déploiement Swarm
+- applique ensuite un rolling update backend en `start-first`
+
+Cela supprime le principal trou de disponibilité précédent, où l'unique conteneur `backend` s'arrêtait pour appliquer les migrations avant de redémarrer.
+
+Important : ce modèle sans downtime suppose des migrations de schéma **backward-compatible** (stratégie _expand / contract_). Une migration destructive ou incompatible avec l'ancienne version backend peut toujours créer une coupure logique, même si Swarm garde les conteneurs en rotation.
+
 ### Stratégie recommandée
 
 Pour un mono-VPS, le meilleur compromis **sécurité + rapidité** est :
@@ -159,6 +176,8 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `BETLEAGUE_FRONTEND_IMAGE`
 - `GUNICORN_WORKERS`
 - `GUNICORN_FORWARDED_ALLOW_IPS`
+- `LETSENCRYPT_EMAIL`
+- `LETSENCRYPT_STAGING` (optionnel, `true` recommandé en environnement de développement public)
 - `SSH_PORT`
 - `SSH_TRUSTED_CIDRS`
 - `DEPLOY_PATH`
@@ -170,6 +189,8 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 
 `GUNICORN_FORWARDED_ALLOW_IPS` est injecté explicitement par GitHub Actions puis Ansible au moment du `docker stack deploy`, au même titre que `GUNICORN_WORKERS`. Pour la topologie Swarm actuelle (backend non publié derrière le reverse proxy interne), la valeur pragmatique par défaut reste `*`, avec possibilité de la restreindre si tu maîtrises précisément les IP source du proxy.
 
+Le TLS edge public est désormais géré par `certbot` directement sur l’hôte via Let’s Encrypt (`HTTP-01` avec webroot). La CI ne transporte donc plus la clé privée publique edge ; elle fournit seulement `LETSENCRYPT_EMAIL` et, si besoin, `LETSENCRYPT_STAGING`.
+
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
 
 ### Secrets GitHub Environment recommandés
@@ -180,8 +201,6 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `REDIS_PASSWORD`
 - `NATS_USER`
 - `NATS_PASSWORD`
-- `EDGE_TLS_CERT`
-- `EDGE_TLS_KEY`
 - `NATS_CA_CERT`
 - `NATS_SERVER_CERT`
 - `NATS_SERVER_KEY`
@@ -210,11 +229,19 @@ Teste ensuite :
 - `https://app.<domaine>`
 - `https://api.<domaine>/health`
 
+Teste aussi le renouvellement à blanc sur l’hôte :
+
+```bash
+sudo certbot renew --dry-run
+```
+
 ## Remarques importantes
 
 - Le service `jetstream_provision` est volontairement one-shot.
 - Les migrations DB sont lancées par le `backend` avant son démarrage; sur un mono-réplique cela reste acceptable, mais il faudra externaliser cette étape si tu passes à plusieurs réplicas backend.
-- Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation TLS automatisée, sauvegardes et pipeline de build/release d'images.
+- Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
+- Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.
+- Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation DNS-01 si wildcard/multi-nœud, sauvegardes et pipeline de build/release d'images.
 
 
 
