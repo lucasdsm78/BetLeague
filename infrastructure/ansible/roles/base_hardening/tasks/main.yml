@@ -80,6 +80,52 @@
     enabled: true
     state: started
 
+- name: Forcer la prise en charge IPv6 dans UFW
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^IPV6='
+    line: 'IPV6={{ betleague_ufw_ipv6 | bool | ternary("yes", "no") }}'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload ufw
+
+- name: Définir la politique de forwarding UFW sur DROP
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: '^DEFAULT_FORWARD_POLICY='
+    line: 'DEFAULT_FORWARD_POLICY="DROP"'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload ufw
+
+- name: Déployer la chaîne UFW de protection Docker
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    insertbefore: '^COMMIT$'
+    marker: '# {mark} ANSIBLE MANAGED BLOCK BETLEAGUE DOCKER'
+    block: |
+      :btl-docker-log-deny - [0:0]
+      :DOCKER-USER - [0:0]
+      {{ lookup('template', 'ufw-docker-user.rules.j2') | indent(6, false) }}
+  when: betleague_ufw_docker_enabled | bool
+  notify: Reload ufw
+
+- name: Déployer la chaîne UFW IPv6 de protection Docker
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after6.rules
+    insertbefore: '^COMMIT$'
+    marker: '# {mark} ANSIBLE MANAGED BLOCK BETLEAGUE DOCKER IPV6'
+    block: |
+      :btl-docker-log-deny - [0:0]
+      :DOCKER-USER - [0:0]
+      {{ lookup('template', 'ufw-docker-user-ipv6.rules.j2') | indent(6, false) }}
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - betleague_ufw_ipv6 | bool
+  notify: Reload ufw
+
 - name: Définir la politique UFW par défaut sur deny incoming
   community.general.ufw:
     direction: incoming
@@ -94,7 +140,7 @@
   community.general.ufw:
     rule: limit
     src: "{{ item }}"
-    port: '22'
+    port: "{{ betleague_ssh_port | string }}"
     proto: tcp
   loop: "{{ betleague_ssh_trusted_cidrs }}"
 
@@ -119,5 +165,7 @@
     enabled: true
     state: started
   when: betleague_enable_fail2ban | bool
+
+
 
 
