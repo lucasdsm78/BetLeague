@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 
 class Settings(BaseSettings):
     sqlalchemy_database_url: str
+    alembic_database_url: str | None = Field(default=None, validation_alias="ALEMBIC_DATABASE_URL")
     environment: str = "dev"  # dev|prod
     sqlalchemy_echo: bool = False
     json_logs: bool | None = Field(default=None, validation_alias="JSON_LOGS")
