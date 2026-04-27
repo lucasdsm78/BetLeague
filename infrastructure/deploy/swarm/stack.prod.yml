@@ -303,6 +303,41 @@ services:
         reservations:
           memory: 64M
 
+  migrations:
+    <<: *service-defaults
+    image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    command:
+      - sh
+      - -ec
+      - |
+        set -a
+        . /run/secrets/backend_env
+        set +a
+        exec ./scripts/run_migrations.sh
+    secrets:
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
+    networks:
+      - app
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.betleague.role == manager
+      replicas: 0
+      restart_policy:
+        condition: none
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+          pids: 200
+        reservations:
+          memory: 128M
+
   backend:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}

@@ -130,8 +130,9 @@ Pour publier une release applicative (ex. `backend:1.0.0`, `frontend:1.0.0`) san
 Le rôle Ansible `swarm_stack` :
 
 - précharge les nouvelles images sur le nœud
-- exécute `./scripts/run_migrations.sh` **avant** le déploiement Swarm
-- applique ensuite un rolling update backend en `start-first`
+- expose aussi un service one-shot `migrations` pour les releases applicatives dédiées
+- exécute `./scripts/run_migrations.sh` **avant** le déploiement Swarm complet
+- ou, en mode release dédiée, déclenche ensuite un rolling update séquencé backend → workers → frontend
 
 Cela supprime le principal trou de disponibilité précédent, où l'unique conteneur `backend` s'arrêtait pour appliquer les migrations avant de redémarrer.
 
@@ -145,9 +146,11 @@ Ce workflow visible sert de point d’entrée manuel et délègue l’exécution
 - la préparation SSH et des variables de connexion
 - la construction de `swarm-vars.json`
 - le contrôle syntaxique Ansible
-- l’appel du playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`
+- l’appel d’un playbook Ansible autorisé (`deploy_swarm.yml` ou `release_swarm.yml`)
 
-Il réutilise le même playbook `infrastructure/ansible/playbooks/deploy_swarm.yml`, mais construit l'inventaire Ansible directement à partir des variables GitHub Environment suivantes :
+Pour la release applicative dédiée, `app-release.yml` appelle `infrastructure/ansible/playbooks/release_swarm.yml`, tandis que `terraform-ci.yml` conserve `infrastructure/ansible/playbooks/deploy_swarm.yml` pour l’initialisation/déploiement complet.
+
+Le workflow de release construit l'inventaire Ansible directement à partir des variables GitHub Environment suivantes :
 
 - `DEPLOY_HOST` (**requis**) : IP ou DNS de l'hôte cible
 - `DEPLOY_USER` (**requis**) : utilisateur SSH d'administration
@@ -170,7 +173,7 @@ Pour un mono-VPS, le meilleur compromis **sécurité + rapidité** est :
 
 Cette approche évite d’exécuter un runner self-hosted directement sur le serveur de prod.
 
-L’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terraform. Le compte administrateur exposé par Terraform doit :
+Dans le chemin `terraform-ci.yml`, l’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terraform. Dans le chemin `app-release.yml`, ils viennent directement de `DEPLOY_HOST` / `DEPLOY_USER` (ou des overrides saisis au lancement). Dans les deux cas, le compte administrateur utilisé doit :
 
 - pouvoir écrire dans `DEPLOY_PATH`
 - appartenir au groupe `docker` sur le VPS
@@ -188,6 +191,15 @@ Les jobs Swarm de `/.github/workflows/terraform-ci.yml` suivent désormais le m�
 6. attend la convergence de la stack puis vérifie l’API
 
 Le workflow dédié `app-release.yml` réutilise exactement le même socle, mais en mode **sans Terraform** : l’hôte cible vient alors de `DEPLOY_HOST` / `DEPLOY_USER` (ou des overrides saisis au lancement manuel) au lieu d’un artefact `terraform-outputs.json`.
+
+En plus, il utilise `release_swarm.yml`, qui orchestre explicitement :
+
+1. la vérification d’existence des images backend/frontend
+2. l’exécution du service one-shot `betleague_migrations`
+3. le rolling update du backend
+4. le rolling update des workers backend
+5. le rolling update du frontend
+6. les smoke tests HTTP finaux sur l’API et le frontend
 
 ### Variables GitHub Environment recommandées
 
@@ -281,7 +293,8 @@ sudo certbot renew --dry-run
 ## Remarques importantes
 
 - Le service `jetstream_provision` est volontairement one-shot.
-- Les migrations DB sont désormais exécutées **avant** `docker stack deploy` par Ansible, pour éviter qu'une release backend coupe l'unique instance active au moment du boot.
+- Le service `migrations` est volontairement défini avec `replicas: 0` dans la stack, puis activé uniquement lors d’une release applicative dédiée.
+- Les migrations DB restent exécutées **avant** `docker stack deploy` par Ansible pour le déploiement complet, et via le service one-shot `migrations` pour la release applicative dédiée.
 - Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
 - Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.
 - Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation DNS-01 si wildcard/multi-nœud, sauvegardes et pipeline de build/release d'images.

@@ -46,10 +46,12 @@ jobs:
     with:
       target_environment: ${{ inputs.target_environment }}
       inventory_strategy: direct
+      ansible_playbook: infrastructure/ansible/playbooks/release_swarm.yml
       backend_image: ${{ inputs.backend_image }}
       frontend_image: ${{ inputs.frontend_image }}
       deploy_host: ${{ inputs.deploy_host }}
       deploy_user: ${{ inputs.deploy_user }}
     secrets: inherit
+
 
 

@@ -1,0 +1,123 @@
+---
+- name: Vérifier les variables Swarm requises
+  ansible.builtin.assert:
+    that:
+      - betleague_swarm_stack_name | trim != ''
+      - betleague_swarm_backend_image | trim != ''
+      - betleague_swarm_frontend_image | trim != ''
+      - betleague_swarm_app_domain | trim != ''
+      - betleague_swarm_api_domain | trim != ''
+      - betleague_swarm_backend_env_content | trim != ''
+      - betleague_swarm_redis_password | trim != ''
+      - betleague_swarm_nats_user | trim != ''
+      - betleague_swarm_nats_password | trim != ''
+      - betleague_swarm_nats_ca_cert | trim != ''
+      - betleague_swarm_nats_server_cert | trim != ''
+      - betleague_swarm_nats_server_key | trim != ''
+      - betleague_swarm_nats_client_cert | trim != ''
+      - betleague_swarm_nats_client_key | trim != ''
+    fail_msg: Variables Swarm requises manquantes pour le déploiement de la stack.
+
+- name: Créer l'arborescence de déploiement Swarm
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ betleague_swarm_deploy_path }}", mode: '0750' }
+    - { path: "{{ betleague_swarm_deploy_path }}/generated", mode: '0750' }
+    - { path: "{{ betleague_swarm_deploy_path }}/secrets", mode: '0750' }
+
+- name: Déployer le manifest Swarm
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../deploy/swarm/stack.prod.yml"
+    dest: "{{ betleague_swarm_deploy_path }}/stack.prod.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0640'
+
+- name: Déployer le template Redis
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../redis/redis.conf.template"
+    dest: "{{ betleague_swarm_deploy_path }}/redis.conf.template"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Déployer la configuration NATS
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../back/nats/nats-server.conf"
+    dest: "{{ betleague_swarm_deploy_path }}/nats-server.conf"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre la configuration edge Nginx
+  ansible.builtin.template:
+    src: edge.conf.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/edge.conf"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Déployer les secrets de stack Swarm
+  ansible.builtin.copy:
+    content: "{{ item.content }}\n"
+    dest: "{{ betleague_swarm_deploy_path }}/secrets/{{ item.name }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content }}" }
+    - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
+    - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
+    - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
+    - { name: 'nats-ca-cert.pem', content: "{{ betleague_swarm_nats_ca_cert }}" }
+    - { name: 'nats-server-cert.pem', content: "{{ betleague_swarm_nats_server_cert }}" }
+    - { name: 'nats-server-key.pem', content: "{{ betleague_swarm_nats_server_key }}" }
+    - { name: 'nats-client-cert.pem', content: "{{ betleague_swarm_nats_client_cert }}" }
+    - { name: 'nats-client-key.pem', content: "{{ betleague_swarm_nats_client_key }}" }
+  no_log: true
+
+- name: Connecter le noeud au registre privé si configuré
+  ansible.builtin.shell: |
+    set -euo pipefail
+    printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY_SERVER" --username "$REGISTRY_USERNAME" --password-stdin >/dev/null
+  args:
+    executable: /bin/bash
+  environment:
+    REGISTRY_SERVER: "{{ betleague_swarm_registry_server }}"
+    REGISTRY_USERNAME: "{{ betleague_swarm_registry_username }}"
+    REGISTRY_PASSWORD: "{{ betleague_swarm_registry_password }}"
+  when:
+    - betleague_swarm_registry_server | trim != ''
+    - betleague_swarm_registry_username | trim != ''
+    - betleague_swarm_registry_password | trim != ''
+  no_log: true
+
+- name: Vérifier que l'image backend cible existe
+  ansible.builtin.command: docker manifest inspect {{ betleague_swarm_backend_image }}
+  register: betleague_swarm_backend_manifest
+  changed_when: false
+
+- name: Vérifier que l'image frontend cible existe
+  ansible.builtin.command: docker manifest inspect {{ betleague_swarm_frontend_image }}
+  register: betleague_swarm_frontend_manifest
+  changed_when: false
+
+- name: Précharger l'image backend cible
+  ansible.builtin.command: docker pull {{ betleague_swarm_backend_image }}
+  register: betleague_swarm_backend_pull
+  changed_when: >-
+    'Downloaded newer image' in betleague_swarm_backend_pull.stdout or
+    'Status: Downloaded newer image' in betleague_swarm_backend_pull.stdout
+
+- name: Précharger l'image frontend cible
+  ansible.builtin.command: docker pull {{ betleague_swarm_frontend_image }}
+  register: betleague_swarm_frontend_pull
+  changed_when: >-
+    'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
+    'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+

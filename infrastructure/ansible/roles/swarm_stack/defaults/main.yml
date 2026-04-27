@@ -11,6 +11,7 @@ betleague_swarm_edge_tls_gid: 940
 betleague_swarm_app_domain: app.betleague.app
 betleague_swarm_api_domain: api.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
+betleague_swarm_frontend_healthcheck_url: "https://{{ betleague_swarm_app_domain }}/"
 betleague_swarm_registry_server: ""
 betleague_swarm_registry_username: ""
 betleague_swarm_registry_password: ""
@@ -23,8 +24,13 @@ betleague_swarm_nats_server_cert: ""
 betleague_swarm_nats_server_key: ""
 betleague_swarm_nats_client_cert: ""
 betleague_swarm_nats_client_key: ""
+betleague_swarm_release_worker_services:
+  - celery_worker
+  - celery_beat
+  - outbox_worker
 betleague_swarm_wait_timeout_seconds: 180
 betleague_swarm_wait_sleep_seconds: 5
+
 
 
 

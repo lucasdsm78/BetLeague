@@ -23,6 +23,7 @@ ansible/
 │           └── all.yml.example
 ├── playbooks/
 │   ├── deploy_swarm.yml
+│   ├── release_swarm.yml
 │   ├── init_swarm.yml
 │   └── harden_host.yml
 ├── requirements.yml
@@ -119,7 +120,7 @@ Dans les deux cas, le déploiement Swarm passe désormais par le workflow réuti
 - la préparation SSH stricte
 - la construction de `swarm-vars.json`
 - le `--syntax-check` Ansible
-- l’exécution de `playbooks/deploy_swarm.yml`
+- l’exécution du playbook Ansible autorisé pour le contexte (`playbooks/deploy_swarm.yml` ou `playbooks/release_swarm.yml`)
 
 Le workflow `terraform-ci.yml` enchaîne, selon l’environnement ciblé :
 
@@ -133,9 +134,21 @@ Les jobs `deploy-swarm-dev` et `deploy-swarm-prod`, ainsi que `app-release.yml`,
 
 Le workflow `app-release.yml` reste le point d’entrée manuel pour une release applicative seule. Il délègue à `/.github/workflows/_swarm-deploy.yml`, lequel reconstruit l'inventaire Ansible directement depuis `DEPLOY_HOST` et `DEPLOY_USER` portés par les GitHub Environments, ce qui évite toute dépendance à un artefact Terraform lors d’une simple mise à jour d’images applicatives.
 
+Pour cette voie de release dédiée, le workflow appelle désormais le playbook `playbooks/release_swarm.yml` plutôt que `playbooks/deploy_swarm.yml`.
+
 Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
 
 Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée.
+
+Le playbook `release_swarm.yml`, lui, est dédié aux releases applicatives d’une stack déjà en place. Il :
+
+1. vérifie l’existence des images cibles
+2. déclenche le service one-shot `<stack>_migrations` (par défaut `betleague_migrations`)
+3. attend sa fin avec succès
+4. effectue ensuite un rolling update séquencé de `backend`, puis des workers (`celery_worker`, `celery_beat`, `outbox_worker`), puis de `frontend`
+5. termine par des smoke tests HTTP sur l’API et le frontend
+
+Cette voie est donc plus proche d’un workflow de release zero-downtime applicatif qu’un simple `docker stack deploy` global.
 
 Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
 
@@ -157,6 +170,10 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 - Fail2ban est aligné sur le port SSH réel (`betleague_ssh_port`), ignore `localhost` + les CIDR d’administration, applique des bannissements progressifs via l’action `ufw` et active aussi une jail `recidive` pour bannir plus longtemps les IP déjà sanctionnées à répétition.
 - `betleague_ssh_trusted_cidrs` reste volontairement vide par défaut : le rôle échoue explicitement tant qu’au moins un CIDR d’administration valide n’est pas fourni, pour éviter toute ouverture SSH implicite ou tout lockout silencieux.
 - Les changements de configuration Fail2ban utilisent un `reload` plutôt qu’un `restart`, afin de préserver autant que possible l’état des bans actifs.
+
+
+
+
 
 
 
