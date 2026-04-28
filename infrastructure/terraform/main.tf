@@ -1,4 +1,8 @@
 locals {
+  normalized_vps_offer_type = (
+    var.vps_offer_type == null || trimspace(var.vps_offer_type) == ""
+  ) ? null : trimspace(var.vps_offer_type)
+
   dns_records = var.create_dns_records ? {
     app = {
       subdomain = var.app_subdomain
@@ -24,7 +28,7 @@ module "vps" {
   vps_display_name   = var.vps_display_name
   ovh_subsidiary     = var.ovh_subsidiary
   vps_zone           = var.vps_zone
-  vps_offer_type     = var.vps_offer_type
+  vps_offer_type     = local.normalized_vps_offer_type
   vps_plan_code      = var.vps_plan_code
   vps_pricing_mode   = var.vps_pricing_mode
   vps_duration       = var.vps_duration
