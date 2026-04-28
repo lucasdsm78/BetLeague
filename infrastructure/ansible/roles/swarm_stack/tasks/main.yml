@@ -1,0 +1,84 @@
+---
+- name: Préparer le runtime Swarm
+  ansible.builtin.include_tasks: _prepare_runtime.yml
+
+- name: Appliquer les migrations DB avant le rolling update backend
+  ansible.builtin.command: >-
+    docker run --rm
+    --env-file {{ betleague_swarm_deploy_path }}/secrets/backend.env
+    --env-file {{ betleague_swarm_deploy_path }}/secrets/migrations.env
+    {{ betleague_swarm_backend_image }}
+    ./scripts/run_migrations.sh
+  register: betleague_swarm_migrations_result
+  changed_when: false
+
+- name: Déployer la stack Swarm BetLeague
+  ansible.builtin.command: docker stack deploy --with-registry-auth -c stack.prod.yml {{ betleague_swarm_stack_name }}
+  args:
+    chdir: "{{ betleague_swarm_deploy_path }}"
+  environment:
+    BETLEAGUE_BACKEND_IMAGE: "{{ betleague_swarm_backend_image }}"
+    BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
+    GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
+    GUNICORN_FORWARDED_ALLOW_IPS: "{{ betleague_swarm_gunicorn_forwarded_allow_ips }}"
+    BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
+    BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
+    BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"
+  register: betleague_swarm_deploy_result
+  changed_when: >-
+    'Updating service' in betleague_swarm_deploy_result.stdout or
+    'Creating service' in betleague_swarm_deploy_result.stdout or
+    'Creating network' in betleague_swarm_deploy_result.stdout or
+    'Creating secret' in betleague_swarm_deploy_result.stdout or
+    'Creating config' in betleague_swarm_deploy_result.stdout
+
+- name: Attendre que les services Swarm convergent
+  ansible.builtin.shell: |
+    set -euo pipefail
+    lines=$(docker stack services {{ betleague_swarm_stack_name }} --format '{{"{{.Name}} {{.Replicas}}"}}')
+    test -n "$lines"
+    while IFS= read -r line; do
+      name="${line%% *}"
+      if [[ "$name" == *"_jetstream_provision" ]]; then
+        continue
+      fi
+      replicas="${line##* }"
+      running="${replicas%%/*}"
+      desired="${replicas##*/}"
+      if [[ "$running" != "$desired" ]]; then
+        exit 1
+      fi
+    done <<< "$lines"
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_wait_services
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_wait_services.rc == 0
+  changed_when: false
+
+- name: Vérifier la santé de l'API après déploiement
+  ansible.builtin.uri:
+    url: "{{ betleague_swarm_api_healthcheck_url }}"
+    method: GET
+    return_content: false
+    status_code: 200
+    validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
+  register: betleague_swarm_api_health
+  retries: 12
+  delay: 5
+  until: betleague_swarm_api_health.status == 200
+  delegate_to: localhost
+  become: false
+
+
+
+
+
+
+
+
+
+
+
+

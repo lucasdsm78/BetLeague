@@ -4,6 +4,7 @@ sqlalchemy~=2.0.36
 alembic~=1.13.3
 psycopg2-binary
 uvicorn[standard]
+gunicorn
 pydantic~=2.10.3
 bcrypt>=4.0.0
 shortuuid~=1.0.13
@@ -13,6 +14,7 @@ pydantic_settings
 pyotp~=2.9.0
 qrcode~=8.0
 cryptography~=44.0.0
+certifi>=2024.0.0
 Pillow
 
 jose~=1.0.0

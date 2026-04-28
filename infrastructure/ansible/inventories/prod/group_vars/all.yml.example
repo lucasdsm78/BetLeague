@@ -1,0 +1,21 @@
+---
+betleague_admin_user: betleague
+betleague_runtime_user: betleague
+betleague_runtime_group: betleague
+betleague_compose_root: /opt/betleague
+betleague_ssh_port: 22
+betleague_enable_fail2ban: true
+betleague_public_tcp_ports:
+  - 80
+  - 443
+betleague_ssh_trusted_cidrs:
+  - 203.0.113.10/32
+betleague_unattended_origins:
+  - "origin=${distro_id},codename=${distro_codename}-security,label=${distro_id}"
+  - "origin=${distro_id},codename=${distro_codename}-updates,label=${distro_id}"
+betleague_letsencrypt_staging: true
+betleague_letsencrypt_acked_production: false
+
+
+
+

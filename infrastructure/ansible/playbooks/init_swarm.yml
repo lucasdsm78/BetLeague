@@ -1,0 +1,9 @@
+---
+- name: Initialiser le manager Docker Swarm BetLeague
+  hosts: betleague_vps3
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: swarm_host
+
