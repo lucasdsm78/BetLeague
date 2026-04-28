@@ -1,0 +1,251 @@
+/* Insufficient BTL Modal - Light Premium Sports Betting Theme */
+
+/* Modal Overlay */
+.modal-overlay {
+  z-index: 2000;
+}
+
+.insufficient-btl-modal {
+  max-width: 550px;
+  width: 95%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+}
+
+.modal-header.insufficient {
+  position: relative;
+  padding: 2rem 1.5rem 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-primary);
+  text-align: center;
+  background: var(--bg-elevated);
+}
+
+.icon-warning {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.modal-header.insufficient h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
+.insufficient-btl-modal .modal-body {
+  padding: 2rem 1.5rem;
+}
+
+.balance-info {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-primary);
+}
+
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.balance-row:last-child {
+  border-bottom: none;
+}
+
+.balance-row.highlight {
+  background: var(--color-danger-subtle);
+  margin: 0.5rem -1.5rem 0 -1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-top: 2px solid var(--color-danger);
+  border-bottom: none;
+}
+
+.balance-label {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.balance-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.balance-value.current {
+  color: var(--text-primary);
+}
+
+.balance-value.required {
+  color: var(--color-primary);
+}
+
+.balance-value.missing {
+  color: var(--color-danger);
+  font-size: 1.25rem;
+}
+
+.info-message {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-info-subtle);
+  border: 1px solid rgba(29, 78, 216, 0.25);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
+}
+
+.info-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.info-message p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.cta-section {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-accent);
+}
+
+.cta-section .cta-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cta-section h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cta-section .cta-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.insufficient-btl-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+}
+
+.insufficient-btl-modal .btn-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+}
+
+.btn-icon {
+  font-size: 1.25rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding-bottom: 0;
+    align-items: flex-end;
+  }
+
+  .insufficient-btl-modal {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: calc(100vh - 70px);
+    margin-bottom: 70px;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  }
+
+  .modal-header.insufficient {
+    padding: 1.5rem 1rem 1rem 1rem;
+  }
+
+  .icon-warning {
+    font-size: 2.5rem;
+  }
+
+  .modal-header.insufficient h2 {
+    font-size: 1.25rem;
+  }
+
+  .insufficient-btl-modal .modal-body {
+    padding: 1.5rem 1rem;
+  }
+
+  .balance-info {
+    padding: 1rem;
+  }
+
+  .balance-row.highlight {
+    margin: 0.5rem -1rem 0 -1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .cta-section {
+    padding: 1.25rem;
+  }
+
+  .cta-section .cta-icon {
+    font-size: 2rem;
+  }
+
+  .cta-section h3 {
+    font-size: 1.125rem;
+  }
+
+  .insufficient-btl-modal .modal-footer {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .insufficient-btl-modal .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .balance-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .balance-value {
+    font-size: 1rem;
+  }
+
+  .balance-value.missing {
+    font-size: 1.125rem;
+  }
+}

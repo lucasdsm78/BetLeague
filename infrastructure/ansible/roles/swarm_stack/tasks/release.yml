@@ -1,0 +1,168 @@
+---
+- name: Préparer le runtime Swarm
+  ansible.builtin.include_tasks: _prepare_runtime.yml
+
+- name: Vérifier que les services applicatifs existent déjà
+  ansible.builtin.command: docker service inspect {{ betleague_swarm_stack_name }}_{{ item }}
+  loop: "{{ ['migrations', 'backend', 'frontend'] + betleague_swarm_release_worker_services }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+
+- name: Lancer le service one-shot de migrations avec la nouvelle image backend
+  ansible.builtin.command: >-
+    docker service update
+    --with-registry-auth
+    --image {{ betleague_swarm_backend_image }}
+    --force
+    --replicas 1
+    {{ betleague_swarm_stack_name }}_migrations
+  register: betleague_swarm_release_migrations_update
+  changed_when: true
+
+- name: Attendre la fin des migrations one-shot
+  ansible.builtin.shell: |
+    set -euo pipefail
+    state="$(docker service ps {{ betleague_swarm_stack_name }}_migrations --no-trunc --format '{{"{{.CurrentState}}"}}' | head -n 1)"
+    if [[ "$state" == Complete* ]]; then
+      exit 0
+    fi
+    if [[ "$state" == Failed* || "$state" == Rejected* ]]; then
+      echo "$state" >&2
+      exit 2
+    fi
+    exit 1
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_release_migrations_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_release_migrations_wait.rc == 0
+  changed_when: false
+
+- name: Remettre le service de migrations à 0 replica après succès
+  ansible.builtin.command: >-
+    docker service scale
+    {{ betleague_swarm_stack_name }}_migrations=0
+  changed_when: true
+
+- name: Rolling update du backend
+  ansible.builtin.command: >-
+    docker service update
+    --with-registry-auth
+    --image {{ betleague_swarm_backend_image }}
+    --update-parallelism 1
+    --update-order start-first
+    --update-monitor 45s
+    --update-failure-action rollback
+    {{ betleague_swarm_stack_name }}_backend
+  register: betleague_swarm_release_backend_update
+  changed_when: true
+
+- name: Attendre la convergence du backend
+  ansible.builtin.shell: |
+    set -euo pipefail
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_backend$ --format '{{"{{.Replicas}}"}}')"
+    test -n "$replicas"
+    running="${replicas%%/*}"
+    desired="${replicas##*/}"
+    test "$running" = "$desired"
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_release_backend_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_release_backend_wait.rc == 0
+  changed_when: false
+
+- name: Rolling update des workers backend
+  ansible.builtin.command: >-
+    docker service update
+    --with-registry-auth
+    --image {{ betleague_swarm_backend_image }}
+    {{ betleague_swarm_stack_name }}_{{ item }}
+  loop: "{{ betleague_swarm_release_worker_services }}"
+  loop_control:
+    label: "{{ item }}"
+  register: betleague_swarm_release_workers_update
+  changed_when: true
+
+- name: Attendre la convergence des workers backend
+  ansible.builtin.shell: |
+    set -euo pipefail
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_{{ item }}$ --format '{{"{{.Replicas}}"}}')"
+    test -n "$replicas"
+    running="${replicas%%/*}"
+    desired="${replicas##*/}"
+    test "$running" = "$desired"
+  args:
+    executable: /bin/bash
+  loop: "{{ betleague_swarm_release_worker_services }}"
+  loop_control:
+    label: "{{ item }}"
+  register: betleague_swarm_release_workers_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_release_workers_wait.rc == 0
+  changed_when: false
+
+- name: Rolling update du frontend
+  ansible.builtin.command: >-
+    docker service update
+    --with-registry-auth
+    --image {{ betleague_swarm_frontend_image }}
+    --update-parallelism 1
+    --update-order start-first
+    --update-monitor 30s
+    --update-failure-action rollback
+    {{ betleague_swarm_stack_name }}_frontend
+  register: betleague_swarm_release_frontend_update
+  changed_when: true
+
+- name: Attendre la convergence du frontend
+  ansible.builtin.shell: |
+    set -euo pipefail
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_frontend$ --format '{{"{{.Replicas}}"}}')"
+    test -n "$replicas"
+    running="${replicas%%/*}"
+    desired="${replicas##*/}"
+    test "$running" = "$desired"
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_release_frontend_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_release_frontend_wait.rc == 0
+  changed_when: false
+
+- name: Smoke test API après release
+  ansible.builtin.uri:
+    url: "{{ betleague_swarm_api_healthcheck_url }}"
+    method: GET
+    return_content: false
+    status_code: 200
+    validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
+  register: betleague_swarm_release_api_health
+  retries: 12
+  delay: 5
+  until: betleague_swarm_release_api_health.status == 200
+  delegate_to: localhost
+  become: false
+
+- name: Smoke test frontend après release
+  ansible.builtin.uri:
+    url: "{{ betleague_swarm_frontend_healthcheck_url }}"
+    method: GET
+    return_content: true
+    status_code: 200
+    validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
+  register: betleague_swarm_release_frontend_health
+  retries: 12
+  delay: 5
+  until:
+    - betleague_swarm_release_frontend_health.status == 200
+    - "'<html' in (betleague_swarm_release_frontend_health.content | lower)"
+  delegate_to: localhost
+  become: false
+
+

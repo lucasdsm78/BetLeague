@@ -1,0 +1,198 @@
+name: Terraform State Identities
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/state-identities/**"
+      - "infrastructure/scripts/render-state-backend-tfvars.sh"
+      - ".github/workflows/terraform-state-identities.yml"
+      - ".github/workflows/terraform-static-checks.yml"
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "infrastructure/state-identities/**"
+      - "infrastructure/scripts/render-state-backend-tfvars.sh"
+      - ".github/workflows/terraform-state-identities.yml"
+      - ".github/workflows/terraform-static-checks.yml"
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Operation to execute on the secured self-hosted runner"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+      confirm_apply:
+        description: "Type APPLY to confirm the credential rotation/apply"
+        required: false
+        type: string
+
+concurrency:
+  group: terraform-state-identities-${{ github.event_name == 'workflow_dispatch' && inputs.operation || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+
+jobs:
+  static-checks:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/terraform-static-checks.yml
+    with:
+      working-directory: infrastructure/state-identities
+      lockfile-path: infrastructure/state-identities/.terraform.lock.hcl
+      requires-ssh-key: false
+
+  secure-plan-or-apply:
+    name: Secure state identities plan/apply
+    if: github.event_name == 'workflow_dispatch'
+    needs: static-checks
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - state-identities
+    timeout-minutes: 30
+    environment:
+      name: state-identities
+    permissions:
+      contents: read
+    env:
+      TF_VAR_ovh_application_key: ${{ secrets.OVH_APPLICATION_KEY }}
+      TF_VAR_ovh_application_secret: ${{ secrets.OVH_APPLICATION_SECRET }}
+      TF_VAR_ovh_consumer_key: ${{ secrets.OVH_CONSUMER_KEY }}
+      TF_VAR_service_name: ${{ vars.TF_VAR_SERVICE_NAME_STATE_IDENTITIES }}
+      TF_VAR_bucket_name_dev: ${{ vars.TF_STATE_BACKEND_BUCKET_NAME_DEV != '' && vars.TF_STATE_BACKEND_BUCKET_NAME_DEV || 'betleague-terraform-state-dev' }}
+      TF_VAR_bucket_name_prod: ${{ vars.TF_STATE_BACKEND_BUCKET_NAME_PROD != '' && vars.TF_STATE_BACKEND_BUCKET_NAME_PROD || 'betleague-terraform-state-prod' }}
+      TF_VAR_enable_bucket_scoped_policies: ${{ vars.TF_STATE_IDENTITIES_ENABLE_BUCKET_SCOPED_POLICIES != '' && vars.TF_STATE_IDENTITIES_ENABLE_BUCKET_SCOPED_POLICIES || 'true' }}
+      TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH: ${{ vars.TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH }}
+    steps:
+      - name: Fail fast if required secrets or variables are missing
+        run: |
+          set -euo pipefail
+          test -n "$TF_VAR_ovh_application_key"
+          test -n "$TF_VAR_ovh_application_secret"
+          test -n "$TF_VAR_ovh_consumer_key"
+          test -n "$TF_VAR_service_name"
+          test -n "$TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Prepare Terraform plugin cache
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: terraform-${{ runner.os }}-${{ hashFiles('infrastructure/state-identities/.terraform.lock.hcl') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
+
+      - name: Prepare persistent local backend path
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$(dirname "$TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH")"
+
+      - name: Terraform init with secured local backend path
+        working-directory: infrastructure/state-identities
+        run: terraform init -reconfigure -backend-config="path=$TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH"
+
+      - name: Terraform plan
+        working-directory: infrastructure/state-identities
+        run: terraform plan -no-color -out=tfplan
+
+      - name: Publish redacted plan summary
+        working-directory: infrastructure/state-identities
+        run: |
+          terraform show -json tfplan > tfplan.json
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          plan = json.loads(Path('tfplan.json').read_text())
+          changes = []
+          for change in plan.get('resource_changes', []):
+              actions = change.get('change', {}).get('actions', [])
+              changes.append((change.get('address', 'unknown'), ','.join(actions) or 'no-op'))
+
+          counts = {'create': 0, 'update': 0, 'delete': 0, 'replace': 0}
+          for _, actions in changes:
+              parts = actions.split(',')
+              if parts == ['create']:
+                  counts['create'] += 1
+              elif parts == ['update']:
+                  counts['update'] += 1
+              elif parts == ['delete']:
+                  counts['delete'] += 1
+              elif parts == ['delete', 'create'] or parts == ['create', 'delete']:
+                  counts['replace'] += 1
+
+          lines = [
+              '## Terraform state-identities plan',
+              '',
+              f"- create: {counts['create']}",
+              f"- update: {counts['update']}",
+              f"- delete: {counts['delete']}",
+              f"- replace: {counts['replace']}",
+              '',
+              '> Sensitive outputs and credentials are intentionally not published in CI artifacts.',
+          ]
+
+          if changes:
+              lines.extend(['', '### Resource changes', ''])
+              for address, actions in changes:
+                  lines.append(f'- `{address}` → `{actions}`')
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('\n'.join(lines) + '\n')
+          PY
+
+      - name: Terraform apply reviewed plan
+        if: inputs.operation == 'apply'
+        working-directory: infrastructure/state-identities
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.confirm_apply }}" != "APPLY" ]]; then
+            echo "confirm_apply must be exactly APPLY" >&2
+            exit 1
+          fi
+          terraform apply -auto-approve tfplan
+
+      - name: Post-apply guidance
+        if: inputs.operation == 'apply'
+        run: |
+          {
+            echo ''
+            echo '### Next step after apply'
+            echo ''
+            echo 'Run `infrastructure/scripts/render-state-backend-tfvars.sh` from a trusted environment to materialize the S3 credentials for `state-backend/`.'
+            echo 'Do not upload generated tfvars files or Terraform outputs as CI artifacts.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup ephemeral plan files
+        if: ${{ always() }}
+        working-directory: infrastructure/state-identities
+        run: |
+          shred -u tfplan tfplan.json 2>/dev/null || rm -f -- tfplan tfplan.json
+
+
+
+

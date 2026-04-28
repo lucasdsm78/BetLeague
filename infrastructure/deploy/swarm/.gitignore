@@ -1,0 +1,13 @@
+secrets/backend.env
+secrets/redis_password.txt
+secrets/nats_user.txt
+secrets/nats_password.txt
+secrets/tls.crt.pem
+secrets/tls.key.pem
+secrets/nats-ca-cert.pem
+secrets/nats-server-cert.pem
+secrets/nats-server-key.pem
+secrets/nats-client-cert.pem
+secrets/nats-client-key.pem
+
+

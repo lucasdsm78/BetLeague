@@ -1,0 +1,420 @@
+/* League Ranking Modal - Light Premium Sports Betting Theme */
+
+/* ========== MODAL OVERLAY ========== */
+
+.ranking-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ========== MODAL CONTAINER ========== */
+
+.ranking-modal {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: slideInUp 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ========== MODAL HEADER ========== */
+
+.ranking-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.ranking-modal__title {
+  color: var(--text-primary);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-modal__title-icon {
+  font-size: var(--text-2xl);
+  color: var(--color-gold);
+  animation: trophyGlow 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes trophyGlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.15);
+  }
+}
+
+.ranking-modal__close {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  flex-shrink: 0;
+}
+
+.ranking-modal__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.ranking-modal__close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.ranking-modal__close:active {
+  transform: scale(0.95);
+}
+
+/* ========== HEADER ACTIONS ========== */
+
+.ranking-modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.ranking-modal__copy {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.ranking-modal__copy:hover {
+  background: var(--color-gold-subtle);
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
+}
+
+.ranking-modal__copy:active {
+  transform: translateY(0);
+}
+
+.ranking-modal__copy:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .ranking-modal__header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ranking-modal__copy {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* ========== MODAL CONTENT ========== */
+
+.ranking-modal__content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  position: relative;
+}
+
+.ranking-modal__content .league-ranking {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.ranking-modal__content .league-ranking__header {
+  display: none;
+}
+
+.ranking-modal__content .league-ranking__table {
+  border-radius: 0;
+}
+
+/* ========== SCROLLBAR STYLING ========== */
+
+.ranking-modal__content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ranking-modal__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ranking-modal__content::-webkit-scrollbar-thumb {
+  background: var(--bg-surface);
+  border-radius: var(--radius-full);
+}
+
+.ranking-modal__content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Firefox */
+.ranking-modal__content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-surface) transparent;
+}
+
+/* ========== ACCESSIBILITY ========== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ========== RESPONSIVE DESIGN ========== */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .ranking-modal-overlay {
+    padding: var(--space-3);
+  }
+
+  .ranking-modal {
+    max-width: 100%;
+    border-radius: var(--radius-xl);
+  }
+
+  .ranking-modal__header {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .ranking-modal__title {
+    font-size: var(--text-lg);
+  }
+
+  .ranking-modal__title-icon {
+    font-size: var(--text-xl);
+  }
+
+  .ranking-modal__close {
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-base);
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .ranking-modal-overlay {
+    padding: var(--space-2);
+    align-items: flex-start;
+    padding-top: var(--space-8);
+  }
+
+  .ranking-modal {
+    width: 100%;
+    max-height: calc(100vh - 4rem);
+    border-radius: var(--radius-xl);
+  }
+
+  .ranking-modal__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    position: relative;
+  }
+
+  .ranking-modal__title {
+    justify-content: center;
+    font-size: var(--text-lg);
+    padding-right: var(--space-8);
+  }
+
+  .ranking-modal__title-icon {
+    font-size: var(--text-xl);
+  }
+
+  .ranking-modal__close {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    width: 32px;
+    height: 32px;
+    font-size: var(--text-sm);
+  }
+}
+
+/* Ultra small screens */
+@media (max-width: 480px) {
+  .ranking-modal-overlay {
+    padding: var(--space-1);
+    padding-top: var(--space-4);
+  }
+
+  .ranking-modal {
+    max-height: calc(100vh - 2rem);
+    border-radius: var(--radius-lg);
+  }
+
+  .ranking-modal__header {
+    padding: var(--space-3);
+  }
+
+  .ranking-modal__title {
+    font-size: var(--text-base);
+  }
+
+  .ranking-modal__title-icon {
+    font-size: var(--text-lg);
+  }
+
+  .ranking-modal__close {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-xs);
+    top: var(--space-2);
+    right: var(--space-2);
+  }
+}
+
+/* ========== REDUCED MOTION ========== */
+
+@media (prefers-reduced-motion: reduce) {
+  .ranking-modal-overlay,
+  .ranking-modal,
+  .ranking-modal__title-icon,
+  .ranking-modal__close {
+    animation: none;
+    transition: none;
+  }
+
+  .ranking-modal__close:hover,
+  .ranking-modal__close:active {
+    transform: none;
+  }
+}
+
+/* ========== HIGH CONTRAST ========== */
+
+@media (prefers-contrast: high) {
+  .ranking-modal {
+    border-width: 2px;
+  }
+
+  .ranking-modal__header {
+    border-bottom-width: 2px;
+  }
+
+  .ranking-modal__close {
+    border-width: 2px;
+  }
+}
+
+/* ========== TOUCH OPTIMIZATIONS ========== */
+
+@media (hover: none) {
+  .ranking-modal__close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ========== FOCUS MANAGEMENT ========== */
+
+.ranking-modal[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* ========== LOADING STATE ========== */
+
+.ranking-modal__content .league-ranking__loading {
+  padding: var(--space-16) var(--space-6);
+}
+
+.ranking-modal__content .league-ranking__error,
+.ranking-modal__content .league-ranking__empty {
+  margin: var(--space-6);
+}
+
+/* ========== MODAL BACKDROP ========== */
+
+.ranking-modal {
+  pointer-events: auto;
+}
+
+.ranking-modal-overlay {
+  pointer-events: auto;
+}

@@ -1,0 +1,349 @@
+/**
+ * Push Notification Service
+ *
+ * Manages Web Push subscriptions with VAPID authentication.
+ * Handles service worker registration, subscription management,
+ * and communication with the backend API.
+ */
+
+import http from '../http';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('push');
+
+// Types
+export interface PushSubscriptionStatus {
+  subscribed: boolean;
+  subscription_count: number;
+}
+
+export interface VapidKeyResponse {
+  public_key: string;
+}
+
+// Service Worker Registration
+let swRegistration: ServiceWorkerRegistration | null = null;
+
+/**
+ * Convert VAPID public key from base64 URL to Uint8Array
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+  const b64 = btoa(String.fromCharCode(...Array.from(bytes)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function isProbablyIos(): boolean {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua);
+}
+
+function isStandalonePwa(): boolean {
+  // iOS Safari
+  // @ts-ignore
+  return (window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+/**
+ * Check if push notifications are supported in the browser
+ */
+export function isPushSupported(): boolean {
+  const basic = (
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  );
+  if (!basic) return false;
+
+  // iOS: Web Push uniquement sur PWA installée (sinon UX frustrante)
+  if (isProbablyIos() && !isStandalonePwa()) return false;
+  return true;
+}
+
+/**
+ * Get the current notification permission status
+ */
+export function getPermissionStatus(): NotificationPermission {
+  if (!('Notification' in window)) {
+    return 'denied';
+  }
+  return Notification.permission;
+}
+
+/**
+ * Request notification permission from the user
+ */
+export async function requestPermission(): Promise<NotificationPermission> {
+  if (!('Notification' in window)) {
+    return 'denied';
+  }
+  return Notification.requestPermission();
+}
+
+/**
+ * Register the service worker
+ */
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) {
+    logger.warn('service workers not supported');
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+    });
+
+    // Wait for the service worker to be ready
+    await navigator.serviceWorker.ready;
+
+    swRegistration = registration;
+    logger.info('service worker registered');
+    return registration;
+  } catch (error) {
+    logger.error('service worker registration failed', { error });
+    return null;
+  }
+}
+
+/**
+ * Get the current service worker registration
+ */
+export async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (swRegistration) {
+    return swRegistration;
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    swRegistration = registration || null;
+    return swRegistration;
+  } catch (error) {
+    logger.error('failed to get service worker registration', { error });
+    return null;
+  }
+}
+
+/**
+ * Get the VAPID public key from the server
+ */
+export async function getVapidPublicKey(): Promise<string | null> {
+  try {
+    const response = await http.get<VapidKeyResponse>('/push/vapid-public-key');
+    if (!response.data) {
+      logger.error('failed to fetch vapid public key');
+      return null;
+    }
+    return response.data.public_key;
+  } catch (error) {
+    logger.error('error fetching vapid public key', { error });
+    return null;
+  }
+}
+
+/**
+ * Get the current push subscription status
+ */
+export async function getPushStatus(): Promise<PushSubscriptionStatus | null> {
+  try {
+    const response = await http.get<PushSubscriptionStatus>('/push/status');
+    return response.data ?? null;
+  } catch (error) {
+    logger.error('error fetching push status', { error });
+    return null;
+  }
+}
+
+/**
+ * Check if the browser has an active push subscription
+ */
+export async function getLocalSubscription(): Promise<PushSubscription | null> {
+  const registration = await getServiceWorkerRegistration();
+  if (!registration) {
+    return null;
+  }
+
+  try {
+    return await registration.pushManager.getSubscription();
+  } catch (error) {
+    logger.error('error getting local subscription', { error });
+    return null;
+  }
+}
+
+/**
+ * Subscribe to push notifications
+ */
+export async function subscribeToPush(): Promise<boolean> {
+  // Check support
+  if (!isPushSupported()) {
+    logger.warn('push notifications not supported');
+    return false;
+  }
+
+  // Request permission
+  const permission = await requestPermission();
+  if (permission !== 'granted') {
+    logger.warn('notification permission denied', { permission });
+    return false;
+  }
+
+  // Get service worker registration
+  let registration = await getServiceWorkerRegistration();
+  if (!registration) {
+    registration = await registerServiceWorker();
+    if (!registration) {
+      return false;
+    }
+  }
+
+  // Get VAPID public key
+  const vapidPublicKey = await getVapidPublicKey();
+  if (!vapidPublicKey) {
+    logger.error('could not get vapid public key');
+    return false;
+  }
+
+  try {
+    // Subscribe to push manager
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+
+    const rawKey = subscription.getKey('p256dh');
+    const rawAuth = subscription.getKey('auth');
+
+    if (!rawKey || !rawAuth) {
+      logger.error('could not get subscription keys');
+      return false;
+    }
+
+    const p256dh = toBase64Url(new Uint8Array(rawKey));
+    const auth = toBase64Url(new Uint8Array(rawAuth));
+
+    await http.post('/push/subscribe', {
+      endpoint: subscription.endpoint,
+      keys: { p256dh, auth },
+    });
+
+
+    logger.info('successfully subscribed to push notifications');
+    return true;
+  } catch (error) {
+    logger.error('subscription error', { error });
+    return false;
+  }
+}
+
+/**
+ * Unsubscribe from push notifications
+ */
+export async function unsubscribeFromPush(): Promise<boolean> {
+  const subscription = await getLocalSubscription();
+
+  if (!subscription) {
+    logger.info('no local subscription to unsubscribe');
+    return true;
+  }
+
+  try {
+    // Unsubscribe from browser
+    await subscription.unsubscribe();
+
+    // Notify backend
+    await http.post('/push/unsubscribe', {
+      endpoint: subscription.endpoint,
+    });
+
+    logger.info('successfully unsubscribed from push notifications');
+    return true;
+  } catch (error) {
+    logger.error('unsubscribe error', { error });
+    return false;
+  }
+}
+
+/**
+ * Unsubscribe from all push notifications
+ */
+export async function unsubscribeAll(): Promise<boolean> {
+  try {
+    // Unsubscribe local
+    const subscription = await getLocalSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+
+    // Notify backend to remove all
+    await http.delete('/push/unsubscribe-all');
+
+    logger.info('successfully unsubscribed from all push notifications');
+    return true;
+  } catch (error) {
+    logger.error('unsubscribe all error', { error });
+    return false;
+  }
+}
+
+// Prevent double message listeners
+let _swMessageListenerAttached = false;
+
+/**
+ * Initialize push notifications service
+ * Call this on app startup
+ */
+export async function initPushService(): Promise<void> {
+  if (!isPushSupported()) {
+    logger.info('push notifications not supported');
+    return;
+  }
+
+  // Register service worker
+  await registerServiceWorker();
+
+  if (!_swMessageListenerAttached) {
+    _swMessageListenerAttached = true;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+        // Dispatch custom event for React to handle
+        window.dispatchEvent(
+          new CustomEvent('push-notification-click', {
+            detail: event.data.data,
+          })
+        );
+      }
+    });
+  }
+}
+
+// Export singleton-style service
+const pushNotificationService = {
+  isPushSupported,
+  getPermissionStatus,
+  requestPermission,
+  registerServiceWorker,
+  getVapidPublicKey,
+  getPushStatus,
+  getLocalSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+  unsubscribeAll,
+  initPushService,
+};
+
+export default pushNotificationService;

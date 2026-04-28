@@ -1,0 +1,292 @@
+/* NotificationsDrawer - Light Premium Sports Betting Theme */
+
+/* ============================================================================
+   Root Container
+   ============================================================================ */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  isolation: isolate;
+}
+
+/* ============================================================================
+   Backdrop
+   ============================================================================ */
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  cursor: pointer;
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================================================
+   Drawer Panel
+   ============================================================================ */
+
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(94vw, 420px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-primary);
+  box-shadow:
+    -20px 0 60px rgba(0, 0, 0, 0.1),
+    -8px 0 20px rgba(0, 0, 0, 0.06);
+  animation: slideIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  outline: none;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.markAllBtn,
+.closeBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform 100ms ease;
+}
+
+.markAllBtn svg,
+.closeBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.markAllBtn:hover {
+  background: var(--color-primary-glow);
+  border-color: rgba(6, 182, 212, 0.3);
+  color: var(--color-primary);
+}
+
+.closeBtn:hover {
+  background: var(--bg-surface);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+.markAllBtn:active,
+.closeBtn:active {
+  transform: scale(0.95);
+}
+
+.markAllBtn:focus-visible,
+.closeBtn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Content Area
+   ============================================================================ */
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   Responsive - Mobile
+   ============================================================================ */
+
+@media (max-width: 480px) {
+  .drawer {
+    width: 100%;
+    border-left: none;
+  }
+
+  .header {
+    padding: 14px 16px;
+    /* Safe area for notch/dynamic island */
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+  }
+
+  .markAllBtn svg,
+  .closeBtn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .content {
+    /* Safe area for bottom home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .header {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 14px;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: none;
+  }
+
+  .drawer {
+    animation: none;
+  }
+
+  .markAllBtn,
+  .closeBtn {
+    transition: none;
+  }
+}
+
+/* ============================================================================
+   Safe Area Support (iOS)
+   ============================================================================ */
+
+@supports (padding: env(safe-area-inset-top)) {
+  .header {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -1,0 +1,57 @@
+name: Application Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      backend_image:
+        description: "Backend image override (optional, defaults to Environment variable BETLEAGUE_BACKEND_IMAGE)"
+        required: false
+        type: string
+      frontend_image:
+        description: "Frontend image override (optional, defaults to Environment variable BETLEAGUE_FRONTEND_IMAGE)"
+        required: false
+        type: string
+      deploy_host:
+        description: "Deploy host override (optional, defaults to Environment variable DEPLOY_HOST)"
+        required: false
+        type: string
+      deploy_user:
+        description: "Deploy user override (optional, defaults to Environment variable DEPLOY_USER)"
+        required: false
+        type: string
+      confirm_release:
+        description: "Type RELEASE to confirm the deployment"
+        required: true
+        type: string
+
+concurrency:
+  group: app-release-${{ inputs.target_environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-swarm:
+    name: Deploy application release
+    if: inputs.confirm_release == 'RELEASE'
+    uses: ./.github/workflows/_swarm-deploy.yml
+    with:
+      target_environment: ${{ inputs.target_environment }}
+      inventory_strategy: direct
+      ansible_playbook: infrastructure/ansible/playbooks/release_swarm.yml
+      backend_image: ${{ inputs.backend_image }}
+      frontend_image: ${{ inputs.frontend_image }}
+      deploy_host: ${{ inputs.deploy_host }}
+      deploy_user: ${{ inputs.deploy_user }}
+    secrets: inherit
+
+
+

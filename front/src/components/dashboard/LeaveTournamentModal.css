@@ -1,0 +1,331 @@
+/* ============================================
+   LEAVE TOURNAMENT MODAL - Light Premium Sports Betting
+   ============================================ */
+
+/* Overlay */
+.leave-tournament-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: leaveTournamentFadeIn 0.3s ease;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Content */
+.leave-tournament-content {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  animation: leaveTournamentSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.leave-tournament-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background: var(--color-danger-subtle);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.leave-tournament-title-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.leave-tournament-warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.leave-tournament-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-danger);
+  line-height: 1.2;
+}
+
+.leave-tournament-close-btn {
+  background: rgba(220, 38, 38, 0.15);
+  border: none;
+  color: var(--color-danger);
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.leave-tournament-close-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.25);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow-danger);
+}
+
+.leave-tournament-close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Body */
+.leave-tournament-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+.leave-tournament-message {
+  margin: 0 0 1.25rem 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.leave-tournament-message strong {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.leave-tournament-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Error */
+.leave-tournament-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--color-danger-subtle);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-lg);
+  color: var(--color-danger);
+  animation: leaveTournamentShake 0.4s ease;
+}
+
+.leave-tournament-error-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.leave-tournament-error-message {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Actions */
+.leave-tournament-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+/* Buttons */
+.leave-tournament-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  min-height: 48px;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.leave-tournament-btn-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.leave-tournament-btn-cancel:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.leave-tournament-btn-danger {
+  background: var(--gradient-danger);
+  color: white;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.leave-tournament-btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-danger);
+}
+
+.leave-tournament-btn-danger:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.leave-tournament-btn-danger:disabled,
+.leave-tournament-btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.leave-tournament-btn-icon {
+  font-size: 1.125rem;
+}
+
+/* Spinner */
+.leave-tournament-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: leaveTournamentSpin 0.8s linear infinite;
+}
+
+/* Animations */
+@keyframes leaveTournamentFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes leaveTournamentSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes leaveTournamentShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes leaveTournamentSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  .leave-tournament-overlay {
+    padding: 0.5rem;
+  }
+
+  .leave-tournament-content {
+    max-width: 100%;
+    max-height: 95vh;
+  }
+
+  .leave-tournament-header {
+    padding: 1.25rem;
+  }
+
+  .leave-tournament-title {
+    font-size: 1.25rem;
+  }
+
+  .leave-tournament-body {
+    padding: 1.25rem;
+  }
+
+  .leave-tournament-actions {
+    padding: 1.25rem;
+    flex-direction: column;
+  }
+
+  .leave-tournament-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .leave-tournament-hint {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.leave-tournament-btn:focus-visible,
+.leave-tournament-close-btn:focus-visible {
+  outline: 3px solid var(--color-danger);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .leave-tournament-overlay,
+  .leave-tournament-content,
+  .leave-tournament-error,
+  .leave-tournament-btn,
+  .leave-tournament-close-btn {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .leave-tournament-spinner {
+    animation: none;
+    border: 2px solid white;
+    border-radius: 0;
+  }
+}

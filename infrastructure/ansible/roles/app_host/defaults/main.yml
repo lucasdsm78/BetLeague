@@ -1,0 +1,31 @@
+---
+betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
+betleague_runtime_group: "{{ ansible_user | default('betleague') }}"
+betleague_compose_root: /opt/betleague
+betleague_directory_mode: '0750'
+betleague_app_directories:
+  - path: "{{ betleague_compose_root }}"
+    owner: root
+    group: root
+    mode: '0755'
+  - path: "{{ betleague_compose_root }}/compose"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ betleague_directory_mode }}"
+  - path: "{{ betleague_compose_root }}/shared"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ betleague_directory_mode }}"
+  - path: "{{ betleague_compose_root }}/logs"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ betleague_directory_mode }}"
+  - path: "{{ betleague_compose_root }}/backups"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: "{{ betleague_directory_mode }}"
+  - path: "{{ betleague_compose_root }}/secrets"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0750'
+
