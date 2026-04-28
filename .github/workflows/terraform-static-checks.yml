@@ -25,7 +25,7 @@ permissions:
 env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
-  TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
   TF_VAR_ovh_application_key: dummy
   TF_VAR_ovh_application_secret: dummy
   TF_VAR_ovh_consumer_key: dummy
@@ -55,7 +55,7 @@ jobs:
       - name: Cache Terraform providers
         uses: actions/cache@v4
         with:
-          path: ~/.terraform.d/plugin-cache
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
           key: terraform-${{ runner.os }}-${{ hashFiles(inputs.lockfile-path) }}
           restore-keys: |
             terraform-${{ runner.os }}-
