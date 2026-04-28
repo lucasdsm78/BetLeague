@@ -79,13 +79,13 @@ variable "vps_offer_type" {
 }
 
 variable "vps_plan_code" {
-  description = "Plan code OVH de l’offre VPS à commander. Il doit correspondre à une offre VPS-3."
+  description = "Plan code OVH de l’offre VPS à commander. Il doit correspondre à une offre VPS-3 historique ou au modèle 3 de la gamme VPS 2025."
   type        = string
   default     = "vps-3"
 
   validation {
-    condition     = strcontains(lower(var.vps_plan_code), "vps-3")
-    error_message = "vps_plan_code doit correspondre à une offre VPS-3."
+    condition     = strcontains(lower(var.vps_plan_code), "vps-3") || strcontains(lower(var.vps_plan_code), "model3")
+    error_message = "vps_plan_code doit correspondre à une offre VPS-3 historique ou au modèle 3 de la gamme VPS 2025."
   }
 }
 
