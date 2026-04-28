@@ -1,0 +1,101 @@
+from datetime import datetime
+from typing import Union, Optional
+from sqlalchemy import Float
+
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, Index, text
+from sqlalchemy.orm import relationship
+
+from domain.user.model.email import Email
+from domain.user.model.password import Password
+from domain.user.model.user import User
+from infrastructure.postgresql.database import Base
+
+
+def unixtimestamp() -> int:
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
+
+
+class DBUser(Base):
+    __tablename__ = "user"
+    __table_args__ = (
+        Index(
+            "ix_user_pseudo_active",
+            "pseudo",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    id: Union[int, Column] = Column(BigInteger, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False)
+    uuid = Column(String(30), unique=True, nullable=False)  # Augmentation de la taille
+    password = Column(String(255), nullable=False)
+    created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    deleted_at: Union[Optional[int], Column] = Column(BigInteger, index=True, nullable=True)
+    auth_revoked_at: Union[Optional[int], Column] = Column(BigInteger, nullable=True)
+    pseudo: Union[str, Column] = Column(String, nullable=False)
+    nb_win: Union[int, Column] = Column(Integer, default=0)
+    nb_lose: Union[int, Column] = Column(Integer, default=0)
+    nb_btl: Union[float, Column] = Column(Float, default=200)
+    nb_btl_paid: Union[float, Column] = Column(Float, default=0)
+    btl_from_tickets: Union[float, Column] = Column(Float, default=0)
+    two_factor_secret: Union[Optional[str], Column] = Column(String, nullable=True)
+    is_two_factor_enabled: Union[bool, Column] = Column(Boolean, default=False)
+    is_two_factor_verified: Union[bool, Column] = Column(Boolean, default=False)
+    is_tournament_subscriber: Union[bool, Column] = Column(Boolean, default=False)
+    leagues = relationship("DBLeague", foreign_keys="[DBLeague.user_id]", back_populates="user")
+    league_players = relationship("DBLeaguePlayers", back_populates="user")
+    tickets = relationship("DBTicket", back_populates="user")
+    tournaments = relationship("DBTournament", foreign_keys="[DBTournament.user_id]", back_populates="user")
+    tournaments_players = relationship("DBTournamentPlayer", foreign_keys="[DBTournamentPlayer.user_id]", back_populates="user")
+    tournament_stages = relationship("DBTournamentStage", foreign_keys="[DBTournamentStage.user_id]", back_populates="user")
+    purchases = relationship("DBPurchase", back_populates="user")
+
+    def to_entity(self) -> User:
+        return User(
+            id=self.id,
+            uuid=self.uuid,
+            email=Email(self.email),
+            password=Password(self.password),
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            pseudo=self.pseudo,
+            nb_win=self.nb_win,
+            nb_lose=self.nb_lose,
+            is_tournament_subscriber=self.is_tournament_subscriber,
+            nb_btl=self.nb_btl,
+            nb_btl_paid=self.nb_btl_paid,
+            btl_from_tickets=self.btl_from_tickets,
+            two_factor_secret=self.two_factor_secret,
+            is_two_factor_enabled=self.is_two_factor_enabled,
+            is_two_factor_verified=self.is_two_factor_verified,
+            deleted_at=self.deleted_at,
+            auth_revoked_at=self.auth_revoked_at,
+        )
+
+    @staticmethod
+    def from_entity(user: User, db_user: Optional["DBUser"] = None) -> "DBUser":
+        now = unixtimestamp()
+        user_db_to_update = db_user if db_user is not None else DBUser()
+        user_db_to_update.id = user.id
+        user_db_to_update.uuid = user.uuid
+        user_db_to_update.email = user.email.value
+        user_db_to_update.password = user.password.password
+        # Preserve original creation time when updating
+        user_db_to_update.created_at = user_db_to_update.created_at if db_user is not None else now
+        user_db_to_update.is_tournament_subscriber = user.is_tournament_subscriber
+        user_db_to_update.updated_at = now
+        user_db_to_update.deleted_at = user.deleted_at
+        user_db_to_update.auth_revoked_at = user.auth_revoked_at
+        user_db_to_update.pseudo = user.pseudo
+        user_db_to_update.nb_lose = user.nb_lose
+        user_db_to_update.nb_btl = user.nb_btl
+        user_db_to_update.nb_btl_paid = user.nb_btl_paid
+        user_db_to_update.btl_from_tickets = user.btl_from_tickets
+        user_db_to_update.nb_win = user.nb_win
+        user_db_to_update.two_factor_secret = user.two_factor_secret
+        user_db_to_update.is_two_factor_enabled = user.is_two_factor_enabled
+        user_db_to_update.is_two_factor_verified = user.is_two_factor_verified
+
+        return user_db_to_update

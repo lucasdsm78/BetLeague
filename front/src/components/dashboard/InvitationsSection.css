@@ -1,0 +1,845 @@
+/* ===== Invitations Section - Premium Sports Betting Theme ===== */
+
+.invitations-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.invitations-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.invitations-section .section-header h2 {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-extrabold);
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.invitations-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ===== Tabs ===== */
+.invitations-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: transparent;
+  border-bottom: 2px solid var(--border-primary);
+  position: relative;
+}
+
+.invitations-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.invitations-tabs .tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.invitations-tabs .tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.invitations-tabs .tab-content-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  position: relative;
+}
+
+.invitations-tabs .tab-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: all 0.2s ease;
+}
+
+.invitations-tabs .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.invitations-tabs .tab-button:hover {
+  color: var(--color-primary);
+  background: rgba(6, 182, 212, 0.06);
+}
+
+.invitations-tabs .tab-button:hover .tab-badge {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.invitations-tabs .tab-button.active {
+  color: var(--color-primary);
+}
+
+.invitations-tabs .tab-button.active::after {
+  transform: scaleX(1);
+}
+
+.invitations-tabs .tab-button.active .tab-title {
+  font-weight: 700;
+}
+
+.invitations-tabs .tab-button.active .tab-badge {
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+  transform: scale(1.1);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+/* ===== Grid ===== */
+.inv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .inv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1rem;
+  }
+}
+
+/* ===== Cards ===== */
+.inv-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  transition: var(--transition-fast);
+  contain: layout style;
+  will-change: transform;
+}
+
+.inv-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-accent);
+}
+
+/* Top accent bar */
+.inv-card--pending::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-gold);
+}
+
+.inv-card--neutral::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--border-primary);
+}
+
+.inv-card-inner {
+  padding: 1rem;
+}
+
+/* --- Card header --- */
+.inv-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.inv-card-header .left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.inv-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.inv-card-type-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+
+.inv-card-type-icon.league {
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+}
+
+.inv-card-type-icon.tournament {
+  background: var(--color-gold-glow);
+  color: var(--color-gold);
+}
+
+.inv-card-league-name {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.inv-resource-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.625rem;
+  font-weight: var(--font-extrabold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.inv-resource-badge.league {
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+}
+
+.inv-resource-badge.tournament {
+  background: var(--color-gold-glow);
+  color: var(--color-gold);
+}
+
+/* --- Status badges --- */
+.inv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: var(--font-bold);
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+
+.inv-badge--pending {
+  background: var(--color-warning-subtle);
+  color: var(--color-warning);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.inv-badge--pending::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  animation: invPulse 2s ease-in-out infinite;
+}
+
+.inv-badge--accepted {
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.inv-badge--accepted::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.inv-badge--refused {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.inv-badge--refused::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+@keyframes invPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* --- Card body --- */
+.inv-card-body {
+  margin-bottom: 0.875rem;
+}
+
+.inv-card-inviter {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.inv-card-inviter-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-inverse);
+  font-size: 0.75rem;
+  font-weight: var(--font-bold);
+  flex-shrink: 0;
+}
+
+.inv-card-inviter strong {
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+}
+
+.inv-card-recipient-email {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  margin-top: 0.25rem;
+  margin-left: 2.375rem;
+  word-break: break-all;
+}
+
+/* --- Stats bar --- */
+.inv-card-stats {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 0;
+  margin-bottom: 0.875rem;
+  border: 1px solid var(--border-primary);
+}
+
+.inv-card-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  padding: 0 0.5rem;
+}
+
+.inv-card-stat .label {
+  font-size: 0.625rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--font-semibold);
+}
+
+.inv-card-stat .value {
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.inv-card-stat.primary .value {
+  color: var(--color-primary);
+}
+
+.inv-card-stats .divider {
+  width: 1px;
+  background: var(--border-primary);
+  flex-shrink: 0;
+}
+
+/* --- Player progress bar --- */
+.inv-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.inv-card-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.inv-card-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--gradient-primary);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
+}
+
+.inv-card-progress-label {
+  font-size: 0.6875rem;
+  font-weight: var(--font-bold);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== Action Buttons ===== */
+.inv-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.inv-card-actions--single {
+  grid-template-columns: 1fr;
+}
+
+.inv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1rem;
+  min-height: 44px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.inv-btn svg {
+  flex-shrink: 0;
+}
+
+.inv-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.inv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Accept */
+.inv-btn--accept {
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.25);
+}
+
+.inv-btn--accept:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.inv-btn--accept:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Decline */
+.inv-btn--decline {
+  background: var(--bg-elevated);
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.inv-btn--decline:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+}
+
+.inv-btn--decline:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ===== Confirmation overlay ===== */
+.inv-card-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  animation: invFadeIn 0.15s ease-out;
+  text-align: center;
+}
+
+.inv-card-confirm p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-snug);
+}
+
+.inv-card-confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.inv-card-confirm-actions .inv-btn {
+  min-height: 38px;
+  padding: 0.5rem 1.25rem;
+  font-size: var(--text-xs);
+}
+
+@keyframes invFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ===== Empty State ===== */
+.inv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1.5px dashed var(--border-primary);
+  border-radius: var(--radius-xl);
+  background: var(--bg-secondary);
+}
+
+.inv-empty-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xl);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  margin-bottom: 0.25rem;
+}
+
+.inv-empty h3 {
+  margin: 0.25rem 0 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+}
+
+.inv-empty p {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  max-width: 280px;
+}
+
+/* ===== Skeleton ===== */
+.inv-card.skeleton .inv-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.inv-skeleton-bar {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.inv-skeleton-bar.header {
+  width: 60%;
+  height: 16px;
+}
+
+.inv-skeleton-bar.sub {
+  width: 45%;
+  height: 12px;
+}
+
+.inv-skeleton-bar.stats {
+  height: 52px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+
+.inv-skeleton-bar.actions {
+  height: 44px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+
+.inv-card.skeleton .inv-card-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+  animation: invShimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes invShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ===== Card note ===== */
+.inv-card-note {
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-info-subtle);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  margin-top: 0.625rem;
+}
+
+/* ===== Dark Theme ===== */
+[data-theme="dark"] .invitations-tabs {
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-card {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--border-accent);
+}
+
+[data-theme="dark"] .inv-card-stats {
+  background: var(--bg-deep);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-btn--decline {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-btn--decline:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger-light);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+[data-theme="dark"] .inv-card-confirm {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+[data-theme="dark"] .inv-empty {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .inv-card.skeleton .inv-card-inner::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    transparent 100%
+  );
+}
+
+/* ===== Touch / Motion ===== */
+@media (pointer: coarse) {
+  .inv-btn {
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+
+  .inv-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .inv-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-card,
+  .inv-btn,
+  .invitations-tabs .tab-button,
+  .inv-card-progress-fill {
+    transition: none;
+  }
+
+  .inv-card:hover {
+    transform: none;
+  }
+
+  .inv-badge--pending::before {
+    animation: none;
+  }
+
+  .inv-card.skeleton .inv-card-inner::after {
+    animation: none;
+  }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .invitations-section .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .invitations-section .section-header h2 {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+
+  .invitations-tabs .tab-button {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    flex: 1;
+    min-width: fit-content;
+  }
+
+  .invitations-tabs .tab-title {
+    font-size: 0.8125rem;
+  }
+
+  .invitations-tabs .tab-badge {
+    min-width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.6875rem;
+  }
+
+  .invitations-tabs .tab-button::after {
+    height: 2px;
+  }
+
+  .invitations-tabs .tab-button.active .tab-badge {
+    transform: scale(1.05);
+  }
+
+  .inv-card-inner {
+    padding: 0.875rem;
+  }
+
+  .inv-card-league-name {
+    font-size: var(--text-sm);
+  }
+
+  .inv-card-type-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 380px) {
+  .invitations-tabs .tab-button {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .invitations-tabs .tab-title {
+    font-size: 0.6875rem;
+  }
+
+  .invitations-tabs .tab-badge {
+    min-width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.625rem;
+  }
+
+  .inv-card-actions {
+    gap: 0.375rem;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .invitations-section {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

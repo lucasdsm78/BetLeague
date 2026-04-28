@@ -1,0 +1,17 @@
+---
+betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
+betleague_docker_packages:
+  - docker.io
+  - docker-compose-plugin
+betleague_docker_daemon_config:
+  live-restore: true
+  log-driver: json-file
+  log-opts:
+    max-size: 10m
+    max-file: '5'
+  userland-proxy: false
+  icc: false
+  no-new-privileges: true
+  features:
+    buildkit: true
+

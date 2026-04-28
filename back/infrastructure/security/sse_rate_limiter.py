@@ -1,0 +1,49 @@
+from __future__ import annotations
+
+import logging
+import time
+from collections import defaultdict, deque
+from dataclasses import dataclass
+
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class RateLimitResult:
+    allowed: bool
+    retry_after_s: int
+    remaining_attempts: int
+
+
+class SlidingWindowRateLimiter:
+
+    def __init__(self, *, limit: int, window_s: int):
+        self._limit = int(limit)
+        self._window_s = int(window_s)
+        self._hits = defaultdict(deque)  # key -> timestamps
+
+    def allow(self, key: str) -> RateLimitResult:
+        now = time.time()
+        q = self._hits[key]
+
+        cutoff = now - self._window_s
+        while q and q[0] < cutoff:
+            q.popleft()
+
+        if len(q) >= self._limit:
+            retry_after = int(max(1, q[0] + self._window_s - now))
+            logger.warning(
+                "ratelimiter.sse.blocked",
+                extra={
+                    "key": key,
+                    "limit": self._limit,
+                    "window_s": self._window_s,
+                    "retry_after_s": retry_after,
+                },
+            )
+            return RateLimitResult(allowed=False, retry_after_s=retry_after, remaining_attempts=0)
+
+        q.append(now)
+        remaining_attempts = max(self._limit - len(q), 0)
+        return RateLimitResult(allowed=True, retry_after_s=0, remaining_attempts=remaining_attempts)

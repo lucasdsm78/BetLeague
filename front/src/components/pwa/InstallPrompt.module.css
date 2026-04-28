@@ -1,0 +1,195 @@
+/**
+ * PWA Install Prompt - Light Premium Sports Betting Theme
+ */
+
+.container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+}
+
+.icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.description {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.shareIcon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  color: var(--color-primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.installBtn {
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.installBtn:hover {
+  box-shadow: var(--shadow-glow-primary);
+  opacity: 0.95;
+}
+
+.installBtn:active {
+  transform: scale(0.96);
+}
+
+.dismissBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dismissBtn:hover {
+  background: var(--bg-elevated);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+.dismissBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .container {
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .content {
+    gap: 10px;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+  }
+
+  .icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+
+  .description {
+    font-size: 11px;
+  }
+
+  .installBtn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
+  .dismissBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dismissBtn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .container {
+    animation: none;
+  }
+
+  .installBtn {
+    transition: none;
+  }
+}

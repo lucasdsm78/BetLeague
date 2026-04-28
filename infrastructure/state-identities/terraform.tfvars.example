@@ -1,0 +1,14 @@
+ovh_application_key    = "replace-me"
+ovh_application_secret = "replace-me"
+ovh_consumer_key       = "replace-me"
+
+service_name = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+bucket_name_dev  = "betleague-terraform-state-dev"
+bucket_name_prod = "betleague-terraform-state-prod"
+
+enable_dev_state_identity  = false
+enable_prod_state_identity = true
+enable_bucket_scoped_policies = true
+
+

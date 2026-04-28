@@ -1,0 +1,740 @@
+/* Tournament Subscription Modal - Light Premium Sports Betting Theme */
+
+.tournament-subscription-modal {
+  max-width: 600px;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+}
+
+.subscription-intro-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(6, 182, 212, 0.08));
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: var(--radius-xl);
+  margin-bottom: 1rem;
+}
+
+.intro-pill {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--color-gold-dark);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.subscription-intro-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-intro-card-manage {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(6, 182, 212, 0.08));
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.intro-pill-active {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-success);
+}
+
+.subscription-manage-card {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.subscription-manage-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.subscription-manage-card-header h3 {
+  margin: 0 0 0.35rem;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+
+.subscription-manage-card-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-manage-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+  color: var(--color-success);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.subscription-manage-list {
+  list-style: none;
+  display: grid;
+  gap: 0.875rem;
+  padding: 0;
+  margin: 0;
+}
+
+.subscription-manage-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.subscription-manage-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.subscription-manage-metadata-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+}
+
+.subscription-manage-metadata-item strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.subscription-manage-metadata-item span {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.subscription-manage-metadata-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.subscription-manage-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+.subscription-manage-warning p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.warning-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.subscription-loading-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.subscription-spinner {
+  border-top-color: var(--color-gold);
+  border-right-color: rgba(245, 158, 11, 0.2);
+  border-bottom-color: rgba(245, 158, 11, 0.2);
+  border-left-color: rgba(245, 158, 11, 0.2);
+}
+
+.subscription-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.subscription-plan-option {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xl);
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.subscription-plan-option:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.subscription-plan-option.is-selected {
+  border-color: var(--color-gold);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
+}
+
+.subscription-plan-option.is-recommended {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.1), var(--bg-elevated));
+}
+
+.subscription-plan-option-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.subscription-plan-option-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subscription-plan-option-billing {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.subscription-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: fit-content;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.subscription-plan-option-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--text-primary);
+}
+
+.subscription-plan-option-price strong {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.subscription-plan-option-price span {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.subscription-plan-equivalent,
+.subscription-plan-savings {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.subscription-plan-equivalent {
+  color: var(--text-secondary);
+}
+
+.subscription-plan-savings {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+/* Tournament Subscription Modal Styles */
+.tournament-subscription-modal {
+  max-width: 600px;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-2xl);
+}
+
+.tournament-subscription-modal .modal-header {
+  position: relative;
+  text-align: center;
+  padding: 2rem 2.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+}
+
+.subscription-icon {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 1rem;
+  background: var(--gradient-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  box-shadow: var(--shadow-glow-gold);
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.tournament-subscription-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.875rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.subscription-subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tournament-subscription-modal .modal-close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  font-size: 1.25rem;
+}
+
+.tournament-subscription-modal .modal-close:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Subscription Plan Card */
+.subscription-plan-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 0;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.plan-header {
+  background: var(--gradient-gold);
+  color: var(--text-inverse);
+  padding: 1.5rem 2rem;
+  text-align: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plan-header-copy {
+  text-align: left;
+}
+
+.plan-header-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.plan-header h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.price-amount {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.price-interval {
+  font-size: 1.125rem;
+  opacity: 0.9;
+}
+
+/* Features Section */
+.plan-features {
+  padding: 2rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.plan-features h4 {
+  margin: 0 0 1.25rem;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+}
+
+.feature-item:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.feature-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gradient-success);
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.feature-text {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* Plan Details */
+.plan-details {
+  padding: 1.5rem 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.detail-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.detail-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+/* Modal Footer */
+.tournament-subscription-modal .modal-footer {
+  padding: 1.5rem 2rem;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.btn-subscribe {
+  flex: 1;
+  background: var(--gradient-gold);
+  border: none;
+  color: var(--text-inverse);
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all var(--transition-base) ease;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.btn-subscribe::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.btn-subscribe:hover::before {
+  left: 100%;
+}
+
+.btn-subscribe:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-gold);
+}
+
+.btn-subscribe:active {
+  transform: translateY(0);
+}
+
+.btn-subscribe:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.subscribe-icon {
+  font-size: 1.25rem;
+}
+
+.btn-subscription-danger {
+  flex: 1;
+  border: none;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: var(--text-inverse);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(220, 38, 38, 0.24);
+  transition: transform var(--transition-base) ease, box-shadow var(--transition-base) ease, filter var(--transition-base) ease;
+}
+
+.btn-subscription-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  box-shadow: 0 20px 40px rgba(220, 38, 38, 0.3);
+}
+
+.btn-subscription-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Error Banner */
+.tournament-subscription-modal .error-banner {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-danger-subtle);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.error-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex: 1;
+  color: var(--color-danger);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+/* Loading Spinner */
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .tournament-subscription-modal {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .subscription-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-manage-card-header {
+    flex-direction: column;
+  }
+
+  .subscription-manage-metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-manage-status {
+    align-self: flex-start;
+  }
+
+  .plan-header {
+    padding: 1.25rem 1.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .subscription-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+
+  .tournament-subscription-modal h2 {
+    font-size: 1.5rem;
+  }
+
+  .subscription-subtitle {
+    font-size: 0.9375rem;
+  }
+
+  .tournament-subscription-modal .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .subscription-plan-card {
+    margin: 0;
+  }
+
+  .plan-header {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .price-amount {
+    font-size: 2.5rem;
+  }
+
+  .plan-features {
+    padding: 1.5rem;
+  }
+
+  .plan-details {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .tournament-subscription-modal .modal-footer {
+    padding: 1.25rem;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .tournament-subscription-modal .modal-footer .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .feature-item {
+    padding: 0.625rem;
+  }
+
+  .feature-text {
+    font-size: 0.875rem;
+  }
+
+  .detail-item {
+    font-size: 0.8125rem;
+  }
+
+  .subscription-plan-option-top {
+    flex-direction: column;
+  }
+
+  .subscription-plan-option-price strong {
+    font-size: 1.5rem;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .subscription-icon,
+  .feature-item,
+  .btn-subscribe::before {
+    animation: none;
+    transition: none;
+  }
+}

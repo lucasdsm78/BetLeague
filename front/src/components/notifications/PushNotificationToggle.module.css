@@ -1,0 +1,308 @@
+/**
+ * PushNotificationToggle - Light Premium Sports Betting Theme
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-tertiary);
+  transition: color 0.3s ease, filter 0.3s ease;
+}
+
+.iconActive {
+  color: var(--color-primary);
+  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.5));
+}
+
+.iconBlocked {
+  width: 20px;
+  height: 20px;
+  color: var(--color-danger);
+}
+
+.activeDot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.statusActive {
+  color: var(--color-primary);
+}
+
+/* Toggle Switch */
+.toggle {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleTrack {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.toggle:hover:not(:disabled) .toggleTrack {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.toggleActive .toggleTrack {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow-primary);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggleActive .toggleThumb {
+  transform: translateX(24px);
+}
+
+/* Help text */
+.helpText {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding-left: 52px;
+}
+
+/* Error message */
+.error {
+  font-size: 12px;
+  color: var(--color-danger);
+  padding-left: 52px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 480px) {
+  .container {
+    padding: 14px;
+  }
+
+  .iconWrapper {
+    width: 36px;
+    height: 36px;
+  }
+
+  .icon,
+  .iconBlocked {
+    width: 18px;
+    height: 18px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+
+  .status,
+  .helpText,
+  .error {
+    font-size: 11px;
+  }
+
+  .helpText,
+  .error {
+    padding-left: 48px;
+  }
+
+  .toggle {
+    width: 48px;
+    height: 26px;
+  }
+
+  .toggleTrack {
+    border-radius: 13px;
+  }
+
+  .toggleThumb {
+    width: 18px;
+    height: 18px;
+  }
+
+  .toggleActive .toggleThumb {
+    transform: translateX(22px);
+  }
+}
+
+/* Focus styles for accessibility */
+.toggle:focus-visible .toggleTrack {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .toggleThumb {
+    transition: none;
+  }
+
+  .activeDot {
+    animation: none;
+  }
+
+  .icon {
+    transition: none;
+  }
+
+  .toggleTrack {
+    transition: none;
+  }
+}
+
+.profileVariant {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.profileVariant .iconWrapper {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.profileVariant .label {
+  color: var(--text-primary);
+}
+
+.profileVariant .status,
+.profileVariant .helpText {
+  color: var(--text-secondary);
+}
+
+.profileVariant .toggleTrack {
+  background: var(--bg-surface);
+  border-color: var(--border-primary);
+}
+
+.profileVariant .toggle:hover:not(:disabled) .toggleTrack {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.profileVariant .icon {
+  color: var(--text-tertiary);
+}
+
+.profileVariant .error {
+  color: var(--color-danger);
+}
+
+.profileVariant:hover {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.profileVariant .statusActive {
+  color: var(--color-success);
+}
+
+.profileVariant .toggleActive .toggleTrack {
+  background: linear-gradient(135deg, var(--color-success), var(--color-success-dark));
+  border-color: transparent;
+  box-shadow: var(--shadow-glow-success);
+}
+
+.compact {
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.compact .content {
+  gap: 0;
+}
+
+.compact .toggle {
+  margin-left: 0;
+}
+
+.compact .error,
+.compact .helpText {
+  padding-left: 0;
+}

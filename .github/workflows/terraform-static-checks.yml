@@ -1,0 +1,117 @@
+name: Terraform Reusable Static Checks
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Terraform working directory"
+        required: false
+        type: string
+        default: infrastructure/terraform
+      lockfile-path:
+        description: "Path to the Terraform lockfile used for provider cache keying"
+        required: false
+        type: string
+        default: infrastructure/terraform/.terraform.lock.hcl
+      requires-ssh-key:
+        description: "Whether Terraform init needs a GitHub SSH key for module sources"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+  TF_VAR_ovh_application_key: dummy
+  TF_VAR_ovh_application_secret: dummy
+  TF_VAR_ovh_consumer_key: dummy
+  TF_VAR_vps_zone: RBX
+  TF_VAR_vps_image_id: dummy-image-id
+  TF_VAR_vps_public_ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeStaticChecksKey terraform-static-checks@example
+
+jobs:
+  terraform-static-checks:
+    name: Terraform static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Prepare Terraform plugin cache
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: terraform-${{ runner.os }}-${{ hashFiles(inputs.lockfile-path) }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
+
+      - name: Load SSH key for private module sources
+        if: inputs.requires-ssh-key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.TF_MODULES_SSH_PRIVATE_KEY }}
+
+      - name: Add GitHub to known hosts
+        if: inputs.requires-ssh-key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive ${{ inputs.working-directory }}
+
+      - name: Terraform init without backend
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform init -backend=false -reconfigure
+
+      - name: Terraform validate
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform validate
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Run TFLint
+        working-directory: ${{ inputs.working-directory }}
+        run: tflint --init && tflint --recursive
+
+      - name: Install tfsec
+        run: |
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+      - name: Run tfsec
+        working-directory: ${{ inputs.working-directory }}
+        run: tfsec . --soft-fail=false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Checkov
+        run: python -m pip install --upgrade pip checkov
+
+      - name: Run Checkov
+        working-directory: ${{ inputs.working-directory }}
+        run: checkov -d . --quiet
+
+
+
+
+
+

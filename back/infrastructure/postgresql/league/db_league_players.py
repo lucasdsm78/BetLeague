@@ -1,0 +1,83 @@
+from datetime import datetime
+from typing import Union, Optional
+
+from sqlalchemy import Column, Integer, ForeignKey, BigInteger, Float, Index, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from domain.league.model.league_players import LeaguePlayers
+from infrastructure.postgresql.database import Base
+
+
+def unixtimestamp() -> int:
+    # Always use UTC to avoid timezone-dependent shifts
+    return int(datetime.utcnow().timestamp() * 1000)
+
+
+class DBLeaguePlayers(Base):
+    __tablename__ = "leagues_players"
+    id: Union[int, Column] = Column(Integer, primary_key=True, autoincrement=True)
+    user_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user = relationship("DBUser", back_populates='league_players')
+    league_id: Union[int, Column] = Column(Integer, ForeignKey('league.id'), nullable=False)
+    league = relationship("DBLeague", back_populates='league_players')
+    nb_win: Union[int, Column] = Column(Integer, default=0)
+    nb_lose: Union[int, Column] = Column(Integer, default=0)
+    nb_btl: Union[float, Column] = Column(Float, default=100)
+    btl_from_tickets: Union[float, Column] = Column(Float, default=0)
+    created_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+    updated_at: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "league_id", name="uq_leagues_players_user_league"),
+        Index(
+            "idx_league_players_league_id",
+            "league_id",
+        ),
+        Index(
+            "idx_league_players_user_id",
+            "user_id",
+        ),
+        Index(
+            "ix_leagues_players_league_btl_rank",
+            "league_id",
+            "btl_from_tickets",
+            "user_id",
+        ),
+    )
+
+    def to_entity(self) -> LeaguePlayers:
+        return LeaguePlayers(
+            id=self.id,
+            user_id=self.user_id,
+            league_id=self.league_id,
+            nb_btl=self.nb_btl,
+            nb_lose=self.nb_lose,
+            btl_from_tickets=self.btl_from_tickets,
+            nb_win=self.nb_win,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+    @staticmethod
+    def from_entity(
+        league_players: LeaguePlayers,
+        db_league_players: Optional["DBLeaguePlayers"] = None,
+    ) -> "DBLeaguePlayers":
+        now = unixtimestamp()
+        # Create or reuse the DB model instance
+        league_players_db_to_update = (
+            db_league_players if db_league_players is not None else DBLeaguePlayers()
+        )
+        league_players_db_to_update.id = league_players.id
+        league_players_db_to_update.user_id = league_players.user_id
+        league_players_db_to_update.league_id = league_players.league_id
+        league_players_db_to_update.nb_btl = league_players.nb_btl
+        league_players_db_to_update.nb_win = league_players.nb_win
+        league_players_db_to_update.btl_from_tickets = league_players.btl_from_tickets
+        league_players_db_to_update.nb_lose = league_players.nb_lose
+        # Preserve original creation time when updating
+        league_players_db_to_update.created_at = (
+            league_players_db_to_update.created_at if db_league_players is not None else now
+        )
+        league_players_db_to_update.updated_at = now
+        return league_players_db_to_update
