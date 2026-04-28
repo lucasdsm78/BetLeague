@@ -1,0 +1,25 @@
+ovh_application_key    = "replace-me"
+ovh_application_secret = "replace-me"
+ovh_consumer_key       = "replace-me"
+
+project_name = "betleague"
+environment  = "prod"
+vps_name           = "betleague-prod"
+vps_display_name   = "BetLeague Production"
+ovh_subsidiary     = "FR"
+vps_zone           = "RBX"
+vps_offer_type     = "default"
+vps_plan_code      = "vps-3"
+vps_pricing_mode   = "default"
+vps_duration       = "P1M"
+vps_image_id       = "replace-with-ubuntu-vps-image-id"
+vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
+admin_user         = "betleague"
+compose_root       = "/opt/betleague"
+
+dns_zone      = "betleague.app"
+app_subdomain = "app"
+api_subdomain = "api"
+
+
+

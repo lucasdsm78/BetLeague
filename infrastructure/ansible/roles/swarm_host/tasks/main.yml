@@ -1,0 +1,32 @@
+---
+- name: Vérifier Docker CLI disponible
+  ansible.builtin.command: docker version --format '{{"{{.Server.Version}}"}}'
+  changed_when: false
+
+- name: Lire l'état Swarm local
+  ansible.builtin.command: docker info --format '{{"{{.Swarm.LocalNodeState}}"}}'
+  changed_when: false
+  register: betleague_swarm_state
+
+- name: Initialiser Swarm sur le manager unique
+  ansible.builtin.command: docker swarm init --advertise-addr {{ betleague_swarm_advertise_addr }}
+  when: betleague_swarm_state.stdout.strip() != 'active'
+
+- name: Récupérer l'identifiant du noeud local
+  ansible.builtin.command: docker info --format '{{"{{.Swarm.NodeID}}"}}'
+  changed_when: false
+  register: betleague_swarm_node_id
+
+- name: Lire le label manager BetLeague
+  ansible.builtin.command: docker node inspect {{ betleague_swarm_node_id.stdout }} --format '{{"{{ index .Spec.Labels \"betleague.role\" }}"}}'
+  changed_when: false
+  failed_when: false
+  register: betleague_swarm_manager_label
+
+- name: Labelliser le manager Swarm BetLeague
+  ansible.builtin.command: >-
+    docker node update
+    --label-add {{ betleague_swarm_manager_label_key }}={{ betleague_swarm_manager_label_value }}
+    {{ betleague_swarm_node_id.stdout }}
+  when: betleague_swarm_manager_label.stdout.strip() != betleague_swarm_manager_label_value
+

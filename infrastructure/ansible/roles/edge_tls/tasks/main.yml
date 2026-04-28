@@ -1,0 +1,99 @@
+---
+- name: Vérifier la configuration Let's Encrypt requise
+  ansible.builtin.assert:
+    that:
+      - not (betleague_letsencrypt_enabled | bool) or (betleague_letsencrypt_email | trim != '')
+      - betleague_letsencrypt_domains | length >= 1
+      - betleague_letsencrypt_key_type in ['ecdsa', 'rsa']
+      - >-
+        not (betleague_letsencrypt_enabled | bool) or
+        (betleague_letsencrypt_staging | bool) or
+        (betleague_letsencrypt_acked_production | bool)
+    fail_msg: >-
+      Configure `betleague_letsencrypt_email`, au moins un domaine dans
+      `betleague_letsencrypt_domains`, un `betleague_letsencrypt_key_type`
+      supporté (`ecdsa` ou `rsa`) et, pour Let's Encrypt en production,
+      valide d'abord le flux avec `betleague_letsencrypt_staging=true` avant
+      d'autoriser la prod via `betleague_letsencrypt_acked_production=true`.
+
+- name: Installer les paquets TLS edge
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - openssl
+    state: present
+    update_cache: true
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Créer le groupe système de lecture TLS edge
+  ansible.builtin.group:
+    name: "{{ betleague_edge_tls_group }}"
+    gid: "{{ betleague_edge_tls_group_gid }}"
+    system: true
+    state: present
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Créer les répertoires runtime ACME/TLS edge
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ betleague_edge_acme_webroot }}", group: root, mode: '0755' }
+    - { path: "{{ betleague_edge_tls_dir }}", group: "{{ betleague_edge_tls_group }}", mode: '0750' }
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Déployer le hook de synchronisation/reload TLS edge
+  ansible.builtin.template:
+    src: betleague-edge-certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+    owner: root
+    group: root
+    mode: '0750'
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Vérifier si un certificat runtime edge existe déjà
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ betleague_edge_tls_cert_path }}"
+    - "{{ betleague_edge_tls_key_path }}"
+  register: betleague_edge_runtime_cert_stats
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Générer un certificat autosigné de bootstrap pour edge
+  ansible.builtin.command: >-
+    openssl req -x509 -nodes
+    -newkey {% if betleague_letsencrypt_key_type == 'ecdsa' %}ec{% else %}rsa:{{ betleague_letsencrypt_rsa_key_size }}{% endif %}
+    {% if betleague_letsencrypt_key_type == 'ecdsa' %}-pkeyopt ec_paramgen_curve:{{ betleague_edge_tls_bootstrap_openssl_curve }}{% endif %}
+    -sha256
+    -days {{ betleague_edge_tls_bootstrap_days }}
+    -keyout {{ betleague_edge_tls_key_path }}
+    -out {{ betleague_edge_tls_cert_path }}
+    -subj /CN={{ betleague_swarm_api_domain }}
+    -addext subjectAltName=DNS:{{ betleague_swarm_app_domain }},DNS:{{ betleague_swarm_api_domain }}
+  when:
+    - betleague_letsencrypt_enabled | bool
+    - (betleague_edge_runtime_cert_stats.results | selectattr('stat.exists', 'equalto', false) | list | length) > 0
+
+- name: Appliquer les permissions strictes sur le bootstrap TLS edge
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: "{{ betleague_edge_tls_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ betleague_edge_tls_cert_path }}", mode: '0444' }
+    - { path: "{{ betleague_edge_tls_key_path }}", mode: '0440' }
+  when: betleague_letsencrypt_enabled | bool
+
+- name: Activer le timer certbot
+  ansible.builtin.service:
+    name: certbot.timer
+    enabled: true
+    state: started
+  when: betleague_letsencrypt_enabled | bool
+
+

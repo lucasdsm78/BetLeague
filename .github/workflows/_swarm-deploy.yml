@@ -1,0 +1,341 @@
+name: Reusable Swarm Deploy
+
+on:
+  workflow_call:
+    inputs:
+      target_environment:
+        description: "Target environment"
+        required: true
+        type: string
+      inventory_strategy:
+        description: "Inventory source: direct or terraform_artifact"
+        required: false
+        default: direct
+        type: string
+      terraform_outputs_artifact:
+        description: "Artifact name containing terraform-outputs.json when inventory_strategy=terraform_artifact"
+        required: false
+        type: string
+      backend_image:
+        description: "Backend image override"
+        required: false
+        type: string
+      frontend_image:
+        description: "Frontend image override"
+        required: false
+        type: string
+      deploy_host:
+        description: "Explicit deploy host override for direct inventory strategy"
+        required: false
+        type: string
+      deploy_user:
+        description: "Explicit deploy user override for direct inventory strategy"
+        required: false
+        type: string
+      ansible_playbook:
+        description: "Ansible playbook to execute"
+        required: false
+        default: infrastructure/ansible/playbooks/deploy_swarm.yml
+        type: string
+
+concurrency:
+  group: swarm-deploy-${{ inputs.target_environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-swarm:
+    name: Deploy Swarm stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.target_environment == 'prod' && 'production' || 'development' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip "ansible-core>=2.18,<2.19"
+
+      - name: Install Ansible collections
+        working-directory: infrastructure/ansible
+        run: ansible-galaxy collection install -r requirements.yml -p collections
+
+      - name: Validate Swarm deploy invocation
+        env:
+          INVENTORY_STRATEGY: ${{ inputs.inventory_strategy }}
+          TERRAFORM_OUTPUTS_ARTIFACT: ${{ inputs.terraform_outputs_artifact }}
+          ANSIBLE_PLAYBOOK: ${{ inputs.ansible_playbook }}
+        run: |
+          set -euo pipefail
+          case "${INVENTORY_STRATEGY}" in
+            direct)
+              ;;
+            terraform_artifact)
+              if [ -z "${TERRAFORM_OUTPUTS_ARTIFACT:-}" ]; then
+                echo "terraform_outputs_artifact is required when inventory_strategy=terraform_artifact" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Unsupported inventory_strategy: ${INVENTORY_STRATEGY}. Expected direct or terraform_artifact." >&2
+              exit 1
+              ;;
+          esac
+
+          case "${ANSIBLE_PLAYBOOK}" in
+            infrastructure/ansible/playbooks/deploy_swarm.yml|infrastructure/ansible/playbooks/release_swarm.yml)
+              ;;
+            *)
+              echo "Unsupported ansible_playbook: ${ANSIBLE_PLAYBOOK}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Download Terraform outputs artifact
+        if: inputs.inventory_strategy == 'terraform_artifact'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.terraform_outputs_artifact }}
+          path: ${{ runner.temp }}/terraform-outputs
+
+      - name: Render Ansible inventory from Terraform outputs
+        if: inputs.inventory_strategy == 'terraform_artifact'
+        run: |
+          python3 infrastructure/scripts/render-ansible-inventory.py \
+            --input-json "$RUNNER_TEMP/terraform-outputs/terraform-outputs.json" \
+            --output "$RUNNER_TEMP/hosts.yml"
+
+      - name: Render Ansible inventory from explicit release target
+        if: inputs.inventory_strategy == 'direct'
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          DEPLOY_HOST: ${{ inputs.deploy_host != '' && inputs.deploy_host || vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ inputs.deploy_user != '' && inputs.deploy_user || vars.DEPLOY_USER }}
+          DEPLOY_HOSTNAME: ${{ vars.DEPLOY_HOSTNAME }}
+          DEPLOY_GROUP: ${{ vars.DEPLOY_GROUP }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_COMPOSE_ROOT: ${{ vars.DEPLOY_COMPOSE_ROOT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_HOST:-}" ]; then
+            echo "DEPLOY_HOST must be provided either as workflow input or GitHub Environment variable" >&2
+            exit 1
+          fi
+          if [ -z "${DEPLOY_USER:-}" ]; then
+            echo "DEPLOY_USER must be provided either as workflow input or GitHub Environment variable" >&2
+            exit 1
+          fi
+
+          compose_root="${DEPLOY_COMPOSE_ROOT:-}"
+          if [ -z "$compose_root" ]; then
+            if [ -n "${DEPLOY_PATH:-}" ]; then
+              compose_root="$(python3 - <<'PY'
+              import os
+              from pathlib import Path
+              print(Path(os.environ['DEPLOY_PATH']).parent)
+              PY
+              )"
+            else
+              compose_root="/opt/betleague"
+            fi
+          fi
+
+          python3 infrastructure/scripts/render-ansible-inventory.py \
+            --ansible-host "$DEPLOY_HOST" \
+            --ansible-user "$DEPLOY_USER" \
+            --group "${DEPLOY_GROUP:-betleague_vps3}" \
+            --hostname "${DEPLOY_HOSTNAME:-betleague-${TARGET_ENVIRONMENT}}" \
+            --instance-name "${DEPLOY_HOSTNAME:-betleague-${TARGET_ENVIRONMENT}}" \
+            --environment-name "$TARGET_ENVIRONMENT" \
+            --compose-root "$compose_root" \
+            --output "$RUNNER_TEMP/hosts.yml"
+
+      - name: Prepare SSH materials
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/id_ed25519" "$RUNNER_TEMP/ssh/known_hosts"
+
+      - name: Build Ansible connection vars file
+        env:
+          SSH_PORT: ${{ vars.SSH_PORT }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          payload = {"ansible_port": int(os.environ.get("SSH_PORT") or "22")}
+          output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ansible-connection-vars.json"
+          output.write_text(json.dumps(payload))
+          output.chmod(0o600)
+          print(output)
+          PY
+
+      - name: Build Swarm deployment vars file
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          ANSIBLE_PLAYBOOK: ${{ inputs.ansible_playbook }}
+          STACK_NAME: ${{ vars.STACK_NAME }}
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+          API_DOMAIN: ${{ vars.API_DOMAIN }}
+          API_HEALTHCHECK_URL: ${{ vars.API_HEALTHCHECK_URL }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          BETLEAGUE_BACKEND_IMAGE: ${{ inputs.backend_image != '' && inputs.backend_image || vars.BETLEAGUE_BACKEND_IMAGE }}
+          BETLEAGUE_FRONTEND_IMAGE: ${{ inputs.frontend_image != '' && inputs.frontend_image || vars.BETLEAGUE_FRONTEND_IMAGE }}
+          GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
+          GUNICORN_FORWARDED_ALLOW_IPS: ${{ vars.GUNICORN_FORWARDED_ALLOW_IPS }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          LETSENCRYPT_STAGING: ${{ vars.LETSENCRYPT_STAGING }}
+          LETSENCRYPT_PRODUCTION_ACK: ${{ vars.LETSENCRYPT_PRODUCTION_ACK }}
+          REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
+          REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+          MIGRATIONS_ENV: ${{ secrets.MIGRATIONS_ENV }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          NATS_USER: ${{ secrets.NATS_USER }}
+          NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
+          NATS_CA_CERT: ${{ secrets.NATS_CA_CERT }}
+          NATS_SERVER_CERT: ${{ secrets.NATS_SERVER_CERT }}
+          NATS_SERVER_KEY: ${{ secrets.NATS_SERVER_KEY }}
+          NATS_CLIENT_CERT: ${{ secrets.NATS_CLIENT_CERT }}
+          NATS_CLIENT_KEY: ${{ secrets.NATS_CLIENT_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+
+          def parse_bool(value: str) -> bool:
+              return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+          required = {
+              "STACK_NAME": os.environ.get("STACK_NAME", "").strip(),
+              "APP_DOMAIN": os.environ.get("APP_DOMAIN", "").strip(),
+              "API_DOMAIN": os.environ.get("API_DOMAIN", "").strip(),
+              "BETLEAGUE_BACKEND_IMAGE": os.environ.get("BETLEAGUE_BACKEND_IMAGE", "").strip(),
+              "BETLEAGUE_FRONTEND_IMAGE": os.environ.get("BETLEAGUE_FRONTEND_IMAGE", "").strip(),
+              "LETSENCRYPT_EMAIL": os.environ.get("LETSENCRYPT_EMAIL", "").strip(),
+              "BACKEND_ENV": os.environ.get("BACKEND_ENV", "").strip(),
+              "MIGRATIONS_ENV": os.environ.get("MIGRATIONS_ENV", "").strip(),
+              "REDIS_PASSWORD": os.environ.get("REDIS_PASSWORD", "").strip(),
+              "NATS_USER": os.environ.get("NATS_USER", "").strip(),
+              "NATS_PASSWORD": os.environ.get("NATS_PASSWORD", "").strip(),
+              "NATS_CA_CERT": os.environ.get("NATS_CA_CERT", "").strip(),
+              "NATS_SERVER_CERT": os.environ.get("NATS_SERVER_CERT", "").strip(),
+              "NATS_SERVER_KEY": os.environ.get("NATS_SERVER_KEY", "").strip(),
+              "NATS_CLIENT_CERT": os.environ.get("NATS_CLIENT_CERT", "").strip(),
+              "NATS_CLIENT_KEY": os.environ.get("NATS_CLIENT_KEY", "").strip(),
+          }
+          missing = [name for name, value in required.items() if not value]
+          if missing:
+              raise SystemExit(
+                  "Variables/secrets GitHub Environment manquants pour le déploiement Swarm: "
+                  + ", ".join(missing)
+              )
+
+          letsencrypt_staging = parse_bool(os.environ.get("LETSENCRYPT_STAGING", "false"))
+          letsencrypt_prod_ack = parse_bool(os.environ.get("LETSENCRYPT_PRODUCTION_ACK", "false"))
+          if (
+              os.environ.get("TARGET_ENVIRONMENT") == "prod"
+              and os.environ.get("ANSIBLE_PLAYBOOK") == "infrastructure/ansible/playbooks/deploy_swarm.yml"
+              and not letsencrypt_staging
+              and not letsencrypt_prod_ack
+          ):
+              raise SystemExit(
+                  "Let's Encrypt production est bloqué par défaut pour éviter les rate limits. "
+                  "Fais d'abord un déploiement avec LETSENCRYPT_STAGING=true, puis "
+                  "définis LETSENCRYPT_PRODUCTION_ACK=true dans l'Environment GitHub avant d'émettre en production."
+              )
+
+          api_domain = required["API_DOMAIN"]
+          payload = {
+              "betleague_swarm_stack_name": required["STACK_NAME"],
+              "betleague_swarm_deploy_path": os.environ.get("DEPLOY_PATH") or "/opt/betleague/swarm",
+              "betleague_swarm_backend_image": required["BETLEAGUE_BACKEND_IMAGE"],
+              "betleague_swarm_frontend_image": required["BETLEAGUE_FRONTEND_IMAGE"],
+              "betleague_swarm_gunicorn_workers": int(os.environ.get("GUNICORN_WORKERS") or "2"),
+              "betleague_swarm_gunicorn_forwarded_allow_ips": os.environ.get("GUNICORN_FORWARDED_ALLOW_IPS") or "*",
+              "betleague_letsencrypt_email": required["LETSENCRYPT_EMAIL"],
+              "betleague_letsencrypt_staging": letsencrypt_staging,
+              "betleague_letsencrypt_acked_production": letsencrypt_prod_ack,
+              "betleague_swarm_app_domain": required["APP_DOMAIN"],
+              "betleague_swarm_api_domain": api_domain,
+              "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",
+              "betleague_swarm_registry_server": os.environ.get("REGISTRY_SERVER", ""),
+              "betleague_swarm_registry_username": os.environ.get("REGISTRY_USERNAME", ""),
+              "betleague_swarm_registry_password": os.environ.get("REGISTRY_PASSWORD", ""),
+              "betleague_swarm_backend_env_content": required["BACKEND_ENV"],
+              "betleague_swarm_migrations_env_content": required["MIGRATIONS_ENV"],
+              "betleague_swarm_redis_password": required["REDIS_PASSWORD"],
+              "betleague_swarm_nats_user": required["NATS_USER"],
+              "betleague_swarm_nats_password": required["NATS_PASSWORD"],
+              "betleague_swarm_nats_ca_cert": required["NATS_CA_CERT"],
+              "betleague_swarm_nats_server_cert": required["NATS_SERVER_CERT"],
+              "betleague_swarm_nats_server_key": required["NATS_SERVER_KEY"],
+              "betleague_swarm_nats_client_cert": required["NATS_CLIENT_CERT"],
+              "betleague_swarm_nats_client_key": required["NATS_CLIENT_KEY"],
+          }
+          output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "swarm-vars.json"
+          output.write_text(json.dumps(payload))
+          output.chmod(0o600)
+          print(output)
+          PY
+
+      - name: Ansible syntax check for Swarm playbook
+        run: |
+          ANSIBLE_CONFIG="$GITHUB_WORKSPACE/infrastructure/ansible/ansible.cfg" \
+          ansible-playbook \
+            --private-key "$RUNNER_TEMP/ssh/id_ed25519" \
+            -i "$RUNNER_TEMP/hosts.yml" \
+            -e @"$RUNNER_TEMP/ansible-connection-vars.json" \
+            "${{ inputs.ansible_playbook }}" \
+            --syntax-check
+
+      - name: Deploy Swarm stack with Ansible
+        run: |
+          ANSIBLE_CONFIG="$GITHUB_WORKSPACE/infrastructure/ansible/ansible.cfg" \
+          ANSIBLE_HOST_KEY_CHECKING=True \
+          ansible-playbook \
+            --private-key "$RUNNER_TEMP/ssh/id_ed25519" \
+            -i "$RUNNER_TEMP/hosts.yml" \
+            -e @"$RUNNER_TEMP/ansible-connection-vars.json" \
+            -e @"$RUNNER_TEMP/swarm-vars.json" \
+            "${{ inputs.ansible_playbook }}"
+
+      - name: Publish deploy summary
+        env:
+          INVENTORY_STRATEGY: ${{ inputs.inventory_strategy }}
+          ANSIBLE_PLAYBOOK: ${{ inputs.ansible_playbook }}
+          DEPLOY_HOST: ${{ inputs.deploy_host != '' && inputs.deploy_host || vars.DEPLOY_HOST }}
+          BACKEND_IMAGE: ${{ inputs.backend_image != '' && inputs.backend_image || vars.BETLEAGUE_BACKEND_IMAGE }}
+          FRONTEND_IMAGE: ${{ inputs.frontend_image != '' && inputs.frontend_image || vars.BETLEAGUE_FRONTEND_IMAGE }}
+        run: |
+          {
+            echo "## Déploiement Swarm"
+            echo ""
+            echo "- Environnement : ${{ inputs.target_environment }}"
+            echo "- Stratégie inventaire : ${INVENTORY_STRATEGY}"
+            echo "- Playbook Ansible : ${ANSIBLE_PLAYBOOK}"
+            if [ -n "${DEPLOY_HOST:-}" ]; then
+              echo "- Hôte cible : ${DEPLOY_HOST}"
+            fi
+            echo "- Image backend : ${BACKEND_IMAGE}"
+            echo "- Image frontend : ${FRONTEND_IMAGE}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
+
+

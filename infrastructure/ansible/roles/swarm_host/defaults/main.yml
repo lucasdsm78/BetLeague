@@ -1,0 +1,6 @@
+---
+betleague_swarm_enabled: true
+betleague_swarm_manager_label_key: betleague.role
+betleague_swarm_manager_label_value: manager
+betleague_swarm_advertise_addr: "{{ ansible_default_ipv4.address | default(ansible_host) }}"
+
