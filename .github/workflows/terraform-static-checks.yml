@@ -91,8 +91,17 @@ jobs:
         run: tflint --init && tflint --recursive
 
       - name: Install tfsec
+        env:
+          TFSEC_VERSION: v1.28.14
         run: |
-          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          archive="tfsec-linux-amd64.tar.gz"
+          curl -fsSLo "$tmp_dir/$archive" "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/${archive}"
+          tar -xzf "$tmp_dir/$archive" -C "$tmp_dir"
+          install -m 0755 "$tmp_dir/tfsec" /usr/local/bin/tfsec
+          tfsec --version
 
       - name: Run tfsec
         working-directory: ${{ inputs.working-directory }}
@@ -109,6 +118,7 @@ jobs:
       - name: Run Checkov
         working-directory: ${{ inputs.working-directory }}
         run: checkov -d . --quiet
+
 
 
 
