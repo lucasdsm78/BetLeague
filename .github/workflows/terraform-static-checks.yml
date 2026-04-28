@@ -97,9 +97,8 @@ jobs:
           set -euo pipefail
           tmp_dir="$(mktemp -d)"
           trap 'rm -rf "$tmp_dir"' EXIT
-          archive="tfsec-linux-amd64.tar.gz"
-          curl -fsSLo "$tmp_dir/$archive" "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/${archive}"
-          tar -xzf "$tmp_dir/$archive" -C "$tmp_dir"
+          binary="tfsec-linux-amd64"
+          curl -fsSLo "$tmp_dir/tfsec" "https://github.com/aquasecurity/tfsec/releases/download/${TFSEC_VERSION}/${binary}"
           install -m 0755 "$tmp_dir/tfsec" /usr/local/bin/tfsec
           tfsec --version
 
