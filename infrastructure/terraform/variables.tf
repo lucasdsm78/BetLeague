@@ -73,7 +73,7 @@ variable "vps_zone" {
 }
 
 variable "vps_offer_type" {
-  description = "Type d’offre OVH VPS. Facultatif : laisse OVH/provider déterminer la valeur si null."
+  description = "Type d’offre OVH VPS. Facultatif : laisse OVH/provider déterminer la valeur si null. Les chaînes vides provenant de la CI sont normalisées à null dans la stack racine."
   type        = string
   default     = null
 }
