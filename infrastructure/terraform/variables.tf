@@ -73,9 +73,9 @@ variable "vps_zone" {
 }
 
 variable "vps_offer_type" {
-  description = "Type d’offre OVH VPS."
+  description = "Type d’offre OVH VPS. Facultatif : laisse OVH/provider déterminer la valeur si null."
   type        = string
-  default     = "default"
+  default     = null
 }
 
 variable "vps_plan_code" {
