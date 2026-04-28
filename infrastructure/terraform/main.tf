@@ -16,7 +16,7 @@ locals {
 }
 
 module "vps" {
-  source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-vps.git?ref=475f26230d162d54e281ac3681a3c8f03b039302"
+  source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-vps.git?ref=77b9de6783fb63f88f5f8aac82bfadb54af996d7"
 
   project_name       = var.project_name
   environment        = var.environment
