@@ -355,6 +355,7 @@ services:
     environment:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
+      GUNICORN_WORKER_TMP_DIR: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
