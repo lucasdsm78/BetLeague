@@ -4,6 +4,11 @@ betleague_letsencrypt_email: ""
 betleague_letsencrypt_staging: false
 betleague_letsencrypt_acked_production: false
 betleague_letsencrypt_cert_name: betleague-edge
+betleague_letsencrypt_dir: /etc/letsencrypt
+betleague_letsencrypt_live_dir: "{{ betleague_letsencrypt_dir }}/live/{{ betleague_letsencrypt_cert_name }}"
+betleague_letsencrypt_renewal_hooks_dir: "{{ betleague_letsencrypt_dir }}/renewal-hooks"
+betleague_letsencrypt_deploy_hooks_dir: "{{ betleague_letsencrypt_renewal_hooks_dir }}/deploy"
+betleague_letsencrypt_deploy_hook_path: "{{ betleague_letsencrypt_deploy_hooks_dir }}/betleague-edge.sh"
 betleague_letsencrypt_key_type: ecdsa
 betleague_letsencrypt_ecdsa_curve: secp256r1
 betleague_letsencrypt_rsa_key_size: 4096
@@ -19,6 +24,7 @@ betleague_edge_tls_group: betleague-edge-tls
 betleague_edge_tls_group_gid: 940
 betleague_edge_service_name: "{{ betleague_swarm_stack_name }}_edge"
 betleague_edge_tls_bootstrap_days: 3
+
 
 
 

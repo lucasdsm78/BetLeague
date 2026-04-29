@@ -45,10 +45,23 @@
     - { path: "{{ betleague_edge_tls_dir }}", group: "{{ betleague_edge_tls_group }}", mode: '0750' }
   when: betleague_letsencrypt_enabled | bool
 
+- name: Créer l'arborescence Let’s Encrypt pour les hooks de déploiement
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ betleague_letsencrypt_dir }}"
+    - "{{ betleague_letsencrypt_renewal_hooks_dir }}"
+    - "{{ betleague_letsencrypt_deploy_hooks_dir }}"
+  when: betleague_letsencrypt_enabled | bool
+
 - name: Déployer le hook de synchronisation/reload TLS edge
   ansible.builtin.template:
     src: betleague-edge-certbot-deploy-hook.sh.j2
-    dest: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+    dest: "{{ betleague_letsencrypt_deploy_hook_path }}"
     owner: root
     group: root
     mode: '0750'
@@ -95,5 +108,7 @@
     enabled: true
     state: started
   when: betleague_letsencrypt_enabled | bool
+
+
 
 
