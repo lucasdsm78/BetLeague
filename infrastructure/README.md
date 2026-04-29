@@ -104,9 +104,9 @@ terraform plan
 
 Le bootstrap `state-identities/` crée désormais les identités Object Storage S3 `dev` / `prod`, et `state-backend/` crée les buckets dédiés `betleague-terraform-state-dev` et `betleague-terraform-state-prod`.
 
-Le workflow GitHub Actions dédié `.github/workflows/terraform-state-identities.yml` exécute les checks en CI et réserve le `plan/apply` à un runner self-hosted approuvé pour éviter l’exfiltration des credentials S3 générées.
+Le workflow GitHub Actions dédié `.github/workflows/terraform-state-identities.yml` exécute les checks en CI et réserve le `plan/apply` à un runner self-hosted approuvé pour éviter l’exfiltration des credentials S3 générées. Les labels ciblés sont désormais pilotés par la variable de dépôt `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON` (fallback par défaut : `["self-hosted","macOS"]`).
 
-Le workflow `.github/workflows/terraform-state-backend.yml` prend ensuite le relais pour créer les buckets de state à partir des credentials générées par `state-identities/`, également sur runner self-hosted approuvé.
+Le workflow `.github/workflows/terraform-state-backend.yml` prend ensuite le relais pour créer les buckets de state à partir des credentials générées par `state-identities/`, également sur runner self-hosted approuvé et piloté par `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON`.
 
 ## Structure livrée
 

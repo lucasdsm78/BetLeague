@@ -48,7 +48,7 @@ permissions:
 jobs:
   deploy-swarm:
     name: Deploy Swarm stack
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON || '["self-hosted","macOS"]') }}
     timeout-minutes: 30
     environment:
       name: ${{ inputs.target_environment == 'prod' && 'production' || 'development' }}

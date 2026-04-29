@@ -55,11 +55,7 @@ jobs:
     name: Secure state identities plan/apply
     if: github.event_name == 'workflow_dispatch'
     needs: static-checks
-    runs-on:
-      - self-hosted
-      - linux
-      - x64
-      - state-identities
+    runs-on: ${{ fromJSON(vars.BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON || '["self-hosted","macOS"]') }}
     timeout-minutes: 30
     environment:
       name: state-identities
@@ -93,6 +89,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Prepare Terraform plugin cache
         run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
