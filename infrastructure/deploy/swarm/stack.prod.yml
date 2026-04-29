@@ -192,8 +192,26 @@ services:
       - -ec
       - |
         export REDIS_PASSWORD="$$(cat /run/secrets/redis_password)"
-        esc_pw=$$(printf '%s' "$$REDIS_PASSWORD" | sed -e 's/[\\/&]/\\\\&/g')
-        sed "s/__REDIS_PASSWORD__/$$esc_pw/g" /etc/redis/redis.conf.template > /data/redis.conf
+        test -n "$$REDIS_PASSWORD"
+        redis_password_sha256=$$(printf '%s' "$$REDIS_PASSWORD" | sha256sum | awk '{print $$1}')
+
+        cat > /data/users.acl <<EOF
+        user default off
+        user notif on #$$redis_password_sha256 +ping +hello +client|id +client|setinfo +auth +quit +publish +subscribe +psubscribe +unsubscribe +punsubscribe +pubsub +get +set +setex +del +expire +eval +evalsha +script|load +incrby +zadd +zcard +zrange +zremrangebyscore ~betleague:pwdreset:* ~betleague:notifications:user:* ~betleague:auth:* ~ratelimit:* &betleague:notifications:user:*
+        user celery on #$$redis_password_sha256 +@all ~* &*
+        EOF
+
+        cat > /data/redis.conf <<EOF
+        save ""
+        appendonly no
+        aclfile /data/users.acl
+        maxmemory 256mb
+        maxmemory-policy allkeys-lru
+        protected-mode yes
+        bind 0.0.0.0
+        port 6379
+        EOF
+
         exec redis-server /data/redis.conf
     secrets:
       - *secret-redis-password
