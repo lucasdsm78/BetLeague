@@ -5,10 +5,10 @@
 - name: Appliquer les migrations DB avant le rolling update backend
   ansible.builtin.command: >-
     docker run --rm
-    --env-file {{ betleague_swarm_deploy_path }}/secrets/backend.env
-    --env-file {{ betleague_swarm_deploy_path }}/secrets/migrations.env
+    --mount type=bind,src={{ betleague_swarm_deploy_path }}/secrets/backend.env,dst=/run/secrets/backend_env,ro
+    --mount type=bind,src={{ betleague_swarm_deploy_path }}/secrets/migrations.env,dst=/run/secrets/migrations_env,ro
     {{ betleague_swarm_backend_image }}
-    ./scripts/run_migrations.sh
+    python scripts/run_with_env_files.py /run/secrets/backend_env /run/secrets/migrations_env -- ./scripts/run_migrations.sh
   register: betleague_swarm_migrations_result
   changed_when: false
 
@@ -109,6 +109,7 @@
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
 
 
 

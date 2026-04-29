@@ -51,6 +51,16 @@ def test_parse_env_file_content_rejects_dangerous_process_env_keys():
         raise AssertionError("Expected ValueError for blocked env key")
 
 
+def test_parse_env_file_content_rejects_shell_startup_env_keys():
+    for key in ("ENV", "BASH_ENV", "IFS", "SHELLOPTS"):
+        try:
+            parse_env_file_content(f"{key}=malicious\n")
+        except ValueError as exc:
+            assert "is not allowed" in str(exc)
+        else:
+            raise AssertionError(f"Expected ValueError for blocked env key {key}")
+
+
 def test_resolve_command_executable_uses_current_path_before_env_files(monkeypatch):
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
     resolved = resolve_command_executable(["python3", "-V"])

@@ -8,11 +8,18 @@ from typing import Iterable
 
 _ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _BLOCKED_ENV_KEYS = {
+    "BASH_ENV",
+    "CDPATH",
+    "ENV",
+    "GLOBIGNORE",
+    "IFS",
     "LD_LIBRARY_PATH",
     "LD_PRELOAD",
     "PATH",
     "PYTHONHOME",
+    "PYTHONINSPECT",
     "PYTHONPATH",
+    "SHELLOPTS",
 }
 
 
