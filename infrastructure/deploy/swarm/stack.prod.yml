@@ -283,9 +283,9 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     environment:
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
@@ -321,9 +321,9 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     environment:
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
@@ -363,10 +363,10 @@ services:
     environment:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
-      GUNICORN_WORKER_TMP_DIR: /dev/shm
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      GUNICORN_WORKER_TMP_DIR: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
@@ -414,9 +414,9 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     environment:
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
@@ -449,9 +449,9 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     environment:
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
@@ -487,9 +487,9 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     environment:
-      TMPDIR: /dev/shm
-      TEMP: /dev/shm
-      TMP: /dev/shm
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
     command:
       - python
       - scripts/run_with_env_files.py
