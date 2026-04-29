@@ -131,6 +131,13 @@ def test_ensure_project_root_in_pythonpath_preserves_existing_entries(monkeypatc
     assert "/opt/custom" in entries
 
 
+def test_alembic_script_location_is_relative_to_config_file():
+    project_root = Path(__file__).resolve().parents[1]
+    alembic_ini = project_root / "alembic.ini"
+
+    assert "script_location = %(here)s/alembic" in alembic_ini.read_text(encoding="utf-8")
+
+
 def test_run_migrations_script_unsets_pythonpath_and_runs_outside_project_root(tmp_path: Path):
     project_root = Path(__file__).resolve().parents[1]
     fake_bin = tmp_path / "bin"
