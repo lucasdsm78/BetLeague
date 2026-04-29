@@ -131,5 +131,52 @@ def test_ensure_project_root_in_pythonpath_preserves_existing_entries(monkeypatc
     assert "/opt/custom" in entries
 
 
+def test_run_migrations_script_unsets_pythonpath_and_runs_outside_project_root(tmp_path: Path):
+    project_root = Path(__file__).resolve().parents[1]
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+
+    cwd_file = tmp_path / "cwd.txt"
+    pythonpath_file = tmp_path / "pythonpath.txt"
+    args_file = tmp_path / "args.txt"
+    fake_alembic = fake_bin / "alembic"
+    fake_alembic.write_text(
+        "#!/bin/sh\n"
+        "printf '%s' \"$PWD\" > \"$TEST_CWD_FILE\"\n"
+        "printf '%s' \"${PYTHONPATH-}\" > \"$TEST_PYTHONPATH_FILE\"\n"
+        "printf '%s\\n' \"$@\" > \"$TEST_ARGS_FILE\"\n",
+        encoding="utf-8",
+    )
+    fake_alembic.chmod(0o755)
+
+    env = {
+        "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+        "PYTHONPATH": str(project_root),
+        "ALEMBIC_UPGRADE_MAX_RETRIES": "1",
+        "ALEMBIC_UPGRADE_RETRY_DELAY_S": "0",
+        "TEST_CWD_FILE": str(cwd_file),
+        "TEST_PYTHONPATH_FILE": str(pythonpath_file),
+        "TEST_ARGS_FILE": str(args_file),
+    }
+    result = subprocess.run(
+        ["./scripts/run_migrations.sh"],
+        cwd=project_root,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "Alembic upgrade head succeeded." in result.stdout
+    assert cwd_file.read_text(encoding="utf-8") == "/"
+    assert pythonpath_file.read_text(encoding="utf-8") == ""
+    assert args_file.read_text(encoding="utf-8").splitlines() == [
+        "-c",
+        str(project_root / "alembic.ini"),
+        "upgrade",
+        "head",
+    ]
+
+
 
 
