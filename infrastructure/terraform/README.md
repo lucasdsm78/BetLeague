@@ -115,6 +115,8 @@ Le workflow principal `terraform-ci.yml` implémente :
 - des contrôles `tflint`, `tfsec` et `checkov`
 - une séparation `dev` / `prod` via des backends S3 distincts
 
+La CI GitHub Actions pince explicitement Terraform sur `1.14.7`, afin de rester compatible avec les contraintes `required_version = "~> 1.14.0"` présentes dans cette stack et dans les modules Git consommés.
+
 Les jobs sensibles `plan`, `apply-dev` et `apply-prod` sont rattachés à des GitHub Environments (`development` / `production`). Les secrets OVH API doivent donc être définis dans ces Environments, et non plus uniquement au niveau repository :
 
 - `OVH_APPLICATION_KEY`
