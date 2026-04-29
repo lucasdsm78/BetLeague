@@ -6,14 +6,15 @@ project_name = "betleague"
 environment  = "prod"
 vps_name           = "betleague-prod"
 vps_display_name   = "BetLeague Production"
+# existing_vps_service_name = "vps-xxxxxxxx.vps.ovh.net" # Renseigne cette variable pour adopter un VPS existant sans que Terraform tente de le recréer.
 ovh_subsidiary     = "FR"
 vps_zone           = "RBX"
 # vps_offer_type is optional for ovh_vps; leave unset unless you have a verified OVH need.
 vps_plan_code      = "vps-comfort-4-16-160-vps-2025-model3"
 vps_pricing_mode   = "default"
 vps_duration       = "P1M"
-vps_image_id       = "replace-with-ubuntu-vps-image-id"
-vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
+# vps_image_id       = "replace-with-ubuntu-vps-image-id" # Requis seulement si Terraform doit créer le VPS.
+# vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example" # Requis seulement si Terraform doit créer le VPS.
 admin_user         = "betleague"
 compose_root       = "/opt/betleague"
 

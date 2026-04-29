@@ -2,12 +2,13 @@ ovh_application_key    = "replace-me"
 ovh_application_secret = "replace-me"
 ovh_consumer_key       = "replace-me"
 
+# existing_vps_service_name = "vps-xxxxxxxx.vps.ovh.net" # Renseigne cette variable pour adopter un VPS existant sans création Terraform.
 vps_zone           = "RBX"
 vps_plan_code      = "vps-3"
 vps_duration       = "P1M"
 vps_pricing_mode   = "default"
-vps_image_id       = "replace-with-ovh-vps-image-id"
-vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example"
+# vps_image_id       = "replace-with-ovh-vps-image-id" # Requis seulement si Terraform crée le VPS.
+# vps_public_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... you@example" # Requis seulement si Terraform crée le VPS.
 admin_user         = "betleague"
 compose_root       = "/opt/betleague"
 

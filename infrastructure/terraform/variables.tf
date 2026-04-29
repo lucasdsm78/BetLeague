@@ -51,6 +51,12 @@ variable "vps_display_name" {
   default     = null
 }
 
+variable "existing_vps_service_name" {
+  description = "Nom de service OVH d’un VPS existant à adopter sans création Terraform. Quand cette variable est renseignée, la stack lit le VPS via data source et n’essaie pas de le commander/recréer."
+  type        = string
+  default     = null
+}
+
 variable "ovh_subsidiary" {
   description = "Filiale OVH utilisée pour la commande VPS, ex: FR."
   type        = string
@@ -107,16 +113,18 @@ variable "vps_duration" {
 }
 
 variable "vps_image_id" {
-  description = "Image/template OVH à installer sur le VPS."
+  description = "Image/template OVH à installer sur le VPS lors d’une création Terraform. Optionnel si `existing_vps_service_name` est utilisé."
   type        = string
+  default     = null
 }
 
 variable "vps_public_ssh_key" {
-  description = "Clé publique SSH injectée par OVH au provisioning initial du VPS."
+  description = "Clé publique SSH injectée par OVH au provisioning initial du VPS. Optionnelle si `existing_vps_service_name` est utilisé."
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521))\\s+", var.vps_public_ssh_key))
+    condition     = var.vps_public_ssh_key == null || can(regex("^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521))\\s+", var.vps_public_ssh_key))
     error_message = "vps_public_ssh_key doit être une clé SSH publique valide."
   }
 }
