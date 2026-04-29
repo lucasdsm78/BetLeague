@@ -60,10 +60,11 @@
     that:
       - item.invalid_line_numbers | length == 0
     fail_msg: >-
-      Le fichier `{{ item.name }}` contient des lignes incompatibles avec `docker run --env-file` :
+      Le fichier `{{ item.name }}` contient des lignes incompatibles avec le chargeur d'environnement BetLeague :
       {{ item.invalid_line_numbers | join(', ') }}.
       Utilise uniquement des lignes `KEY=value`, des commentaires commençant par `#` et des lignes vides.
-      Les syntaxes `KEY = value`, `export KEY=value`, l'indentation en début de ligne et les valeurs multilignes ne sont pas supportées.
+      Les syntaxes `KEY = value`, `export KEY=value`, l'indentation en début de ligne et les valeurs multilignes réelles ne sont pas supportées.
+      Pour les PEM/certificats, utilise une seule ligne avec des `\n` échappés.
   loop: "{{ betleague_swarm_env_validation_results }}"
 
 - name: Créer l'arborescence de déploiement Swarm
@@ -169,6 +170,7 @@
   changed_when: >-
     'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
     'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+
 
 
 
