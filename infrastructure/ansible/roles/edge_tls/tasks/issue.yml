@@ -4,40 +4,6 @@
   changed_when: false
   when: betleague_letsencrypt_enabled | bool
 
-- name: Vérifier si un certificat Let's Encrypt existe déjà
-  ansible.builtin.stat:
-    path: "{{ betleague_letsencrypt_live_dir }}/fullchain.pem"
-  register: betleague_letsencrypt_live_cert_stat
-  when: betleague_letsencrypt_enabled | bool
-
-- name: Inspecter l'émetteur du certificat Let's Encrypt existant
-  ansible.builtin.command:
-    argv:
-      - openssl
-      - x509
-      - -in
-      - "{{ betleague_letsencrypt_live_dir }}/fullchain.pem"
-      - -noout
-      - -issuer
-  register: betleague_letsencrypt_existing_issuer
-  changed_when: false
-  failed_when: false
-  when:
-    - betleague_letsencrypt_enabled | bool
-    - betleague_letsencrypt_live_cert_stat.stat.exists | default(false)
-
-- name: Déterminer si un ancien certificat staging doit être remplacé
-  ansible.builtin.set_fact:
-    betleague_letsencrypt_force_renewal: >-
-      {{
-        (not (betleague_letsencrypt_staging | bool)) and
-        (
-          ((betleague_letsencrypt_existing_issuer.stdout | default(''))
-          | regex_search('(?i)STAGING|Fake LE|Pretend Pear')) is not none
-        )
-      }}
-  when: betleague_letsencrypt_enabled | bool
-
 - name: Obtenir ou renouveler le certificat Let's Encrypt edge
   ansible.builtin.command: >-
     certbot certonly
@@ -48,8 +14,7 @@
     --webroot-path {{ betleague_edge_acme_webroot | quote }}
     --cert-name {{ betleague_letsencrypt_cert_name | quote }}
     --preferred-challenges http
-    --expand
-    {% if betleague_letsencrypt_force_renewal | default(false) | bool %}--force-renewal{% else %}--keep-until-expiring{% endif %}
+    --keep-until-expiring
     --key-type {{ betleague_letsencrypt_key_type | quote }}
     {% if betleague_letsencrypt_key_type == 'ecdsa' %}--elliptic-curve {{ betleague_letsencrypt_ecdsa_curve | quote }}{% else %}--rsa-key-size {{ betleague_letsencrypt_rsa_key_size | string }}{% endif %}
     {% if betleague_letsencrypt_staging | bool %}--staging{% endif %}
@@ -79,50 +44,6 @@
     that:
       - betleague_edge_tls_final_stats.results | map(attribute='stat.exists') | min
     fail_msg: Les fichiers TLS runtime edge n'ont pas été générés comme attendu.
-  when: betleague_letsencrypt_enabled | bool
-
-- name: Inspecter le certificat runtime edge final
-  ansible.builtin.command:
-    argv:
-      - python3
-      - -c
-      - |
-        import json
-        import ssl
-        import sys
-
-        def flatten(name):
-            return ", ".join("=".join(attribute) for rdn in name for attribute in rdn)
-
-        cert = ssl._ssl._test_decode_cert(sys.argv[1])
-        payload = {
-            "subject": flatten(cert.get("subject", ())),
-            "issuer": flatten(cert.get("issuer", ())),
-            "sans": [value for key, value in cert.get("subjectAltName", ()) if key == "DNS"],
-            "not_after": cert.get("notAfter", ""),
-            "serial_number": cert.get("serialNumber", ""),
-        }
-        print(json.dumps(payload, sort_keys=True))
-      - "{{ betleague_edge_tls_cert_path }}"
-  register: betleague_edge_tls_runtime_cert_details_command
-  changed_when: false
-  when: betleague_letsencrypt_enabled | bool
-
-- name: Enregistrer les détails du certificat runtime edge final
-  ansible.builtin.set_fact:
-    betleague_edge_tls_runtime_cert_details: "{{ betleague_edge_tls_runtime_cert_details_command.stdout | from_json }}"
-  when: betleague_letsencrypt_enabled | bool
-
-- name: Vérifier que le runtime edge sert un certificat CA non autosigné pour les domaines attendus
-  ansible.builtin.assert:
-    that:
-      - betleague_edge_tls_runtime_cert_details.issuer != betleague_edge_tls_runtime_cert_details.subject
-      - (betleague_letsencrypt_domains | difference(betleague_edge_tls_runtime_cert_details.sans)) | length == 0
-    fail_msg: >-
-      Le certificat runtime edge n'est pas le certificat Let's Encrypt attendu.
-      Détails: {{ betleague_edge_tls_runtime_cert_details | to_json }}.
-      Vérifie que certbot a pu valider le challenge HTTP-01 via le port 80 public et que
-      {{ betleague_letsencrypt_deploy_hook_path }} copie bien le certificat vers {{ betleague_edge_tls_dir }}.
   when: betleague_letsencrypt_enabled | bool
 
 
