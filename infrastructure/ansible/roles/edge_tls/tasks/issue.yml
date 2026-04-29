@@ -1,6 +1,6 @@
 ---
 - name: Synchroniser le certificat Let's Encrypt existant vers le runtime edge
-  ansible.builtin.command: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+  ansible.builtin.command: "{{ betleague_letsencrypt_deploy_hook_path }}"
   changed_when: false
   when: betleague_letsencrypt_enabled | bool
 
@@ -26,7 +26,7 @@
   when: betleague_letsencrypt_enabled | bool
 
 - name: Synchroniser le certificat Let's Encrypt émis vers le runtime edge
-  ansible.builtin.command: /etc/letsencrypt/renewal-hooks/deploy/betleague-edge.sh
+  ansible.builtin.command: "{{ betleague_letsencrypt_deploy_hook_path }}"
   changed_when: true
   when: betleague_letsencrypt_enabled | bool
 
@@ -45,6 +45,7 @@
       - betleague_edge_tls_final_stats.results | map(attribute='stat.exists') | min
     fail_msg: Les fichiers TLS runtime edge n'ont pas été générés comme attendu.
   when: betleague_letsencrypt_enabled | bool
+
 
 
 
