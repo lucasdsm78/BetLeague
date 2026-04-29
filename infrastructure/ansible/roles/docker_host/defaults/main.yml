@@ -7,7 +7,7 @@ betleague_docker_compose_package_candidates:
   - docker-compose-v2
   - docker-compose
 betleague_docker_daemon_config:
-  live-restore: true
+  live-restore: false
   log-driver: json-file
   log-opts:
     max-size: 10m
@@ -17,5 +17,6 @@ betleague_docker_daemon_config:
   no-new-privileges: true
   features:
     buildkit: true
+
 
 

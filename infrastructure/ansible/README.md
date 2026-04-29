@@ -12,6 +12,8 @@ Cette couche Ansible complète Terraform pour durcir l'hôte BetLeague après pr
 - configuration Docker avec options runtime durcies
 - préparation d'une arborescence runtime stricte sous `/opt/betleague`
 
+Dans la configuration Docker gérée par le rôle `docker_host`, l'option `live-restore` est volontairement désactivée : elle est incompatible avec le mode Docker Swarm utilisé ensuite par `init_swarm.yml` et `deploy_swarm.yml`.
+
 ## Structure
 
 ```text
