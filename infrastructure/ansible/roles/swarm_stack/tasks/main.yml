@@ -176,18 +176,116 @@
           le service bloquant (image, healthcheck, crashloop, rollback ou dépendance indisponible).
 
 - name: Vérifier la santé de l'API après déploiement
-  ansible.builtin.uri:
-    url: "{{ betleague_swarm_api_healthcheck_url }}"
-    method: GET
-    return_content: false
-    status_code: 200
-    validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
-  register: betleague_swarm_api_health
-  retries: 12
-  delay: 5
-  until: betleague_swarm_api_health.status == 200
-  delegate_to: localhost
-  become: false
+  block:
+    - name: Vérifier la santé de l'API après déploiement
+      ansible.builtin.uri:
+        url: "{{ betleague_swarm_api_healthcheck_url }}"
+        method: GET
+        return_content: false
+        status_code: 200
+        validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
+      register: betleague_swarm_api_health
+      retries: 12
+      delay: 5
+      until: betleague_swarm_api_health.status == 200
+      delegate_to: localhost
+      become: false
+
+  rescue:
+    - name: Diagnostiquer DNS et connectivité API depuis le contrôleur
+      ansible.builtin.shell: |
+        set -u
+        url="{{ betleague_swarm_api_healthcheck_url }}"
+        host="$(python3 - <<'PY' "$url"
+        from urllib.parse import urlparse
+        import sys
+        print(urlparse(sys.argv[1]).hostname or "")
+        PY
+        )"
+
+        printf 'URL: %s\nHost: %s\n\n' "$url" "$host"
+
+        python3 - <<'PY' "$host"
+        import socket
+        import sys
+
+        host = sys.argv[1]
+        print("=== DNS getaddrinfo ===")
+        try:
+            infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        except Exception as exc:
+            print(f"DNS error: {exc!r}")
+            raise SystemExit(0)
+
+        seen = []
+        for family, _type, _proto, _canon, sockaddr in infos:
+            address = sockaddr[0]
+            if (family, address) in seen:
+                continue
+            seen.append((family, address))
+            label = "IPv6" if family == socket.AF_INET6 else "IPv4"
+            print(f"{label} {address}")
+
+        print("\n=== TCP 443 connect ===")
+        for family, address in seen:
+            label = "IPv6" if family == socket.AF_INET6 else "IPv4"
+            try:
+                with socket.create_connection((address, 443), timeout=5):
+                    print(f"{label} {address}: CONNECT OK")
+            except Exception as exc:
+                print(f"{label} {address}: CONNECT FAILED: {exc!r}")
+        PY
+
+        if command -v curl >/dev/null 2>&1; then
+          printf '\n=== curl IPv4 ===\n'
+          curl -4 -vk --connect-timeout 10 --max-time 20 "$url" -o /dev/null || true
+          printf '\n=== curl IPv6 ===\n'
+          curl -6 -vk --connect-timeout 10 --max-time 20 "$url" -o /dev/null || true
+        fi
+      args:
+        executable: /bin/bash
+      register: betleague_swarm_public_api_controller_diagnostics
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Diagnostiquer l'exposition edge sur l'hôte Swarm
+      ansible.builtin.shell: |
+        set -u
+        printf '=== docker service inspect edge ports ===\n'
+        docker service inspect {{ betleague_swarm_stack_name }}_edge \
+          --format 'Ports={{"{{json .Endpoint.Spec.Ports}}"}} UpdateStatus={{"{{json .UpdateStatus}}"}}' || true
+
+        printf '\n=== sockets 80/443 ===\n'
+        ss -ltnp | grep -E '(:80|:443)[[:space:]]' || true
+
+        printf '\n=== edge tasks ===\n'
+        docker service ps --no-trunc {{ betleague_swarm_stack_name }}_edge || true
+
+        printf '\n=== edge logs ===\n'
+        docker service logs --since 15m --tail 200 {{ betleague_swarm_stack_name }}_edge 2>&1 || true
+      args:
+        executable: /bin/bash
+      register: betleague_swarm_public_api_edge_diagnostics
+      changed_when: false
+      failed_when: false
+
+    - name: Afficher les diagnostics d'accès public API
+      ansible.builtin.debug:
+        msg:
+          - "Le smoke test public {{ betleague_swarm_api_healthcheck_url }} a échoué."
+          - "Diagnostics contrôleur:"
+          - "{{ betleague_swarm_public_api_controller_diagnostics.stdout | default('Aucun diagnostic contrôleur') }}"
+          - "Diagnostics edge VPS:"
+          - "{{ betleague_swarm_public_api_edge_diagnostics.stdout | default('Aucun diagnostic edge') }}"
+
+    - name: Échouer explicitement si la santé publique API reste indisponible
+      ansible.builtin.fail:
+        msg: >-
+          L'API publique {{ betleague_swarm_api_healthcheck_url }} n'est pas joignable depuis le contrôleur.
+          Vérifie en priorité DNS A/AAAA, publication des ports 80/443 du service edge, firewall hôte/provider,
+          et logs Nginx edge affichés dans les diagnostics ci-dessus.
 
 
 

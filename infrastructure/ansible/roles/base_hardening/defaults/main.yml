@@ -23,6 +23,9 @@ betleague_fail2ban_recidive_bantime: 1w
 betleague_public_tcp_ports:
   - 80
   - 443
+betleague_docker_public_tcp_target_ports:
+  - 8080
+  - 8443
 betleague_ssh_trusted_cidrs: []
 betleague_hardening_packages:
   - ufw
