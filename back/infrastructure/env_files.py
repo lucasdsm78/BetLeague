@@ -1,8 +1,19 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Iterable
+
+
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_BLOCKED_ENV_KEYS = {
+    "LD_LIBRARY_PATH",
+    "LD_PRELOAD",
+    "PATH",
+    "PYTHONHOME",
+    "PYTHONPATH",
+}
 
 
 def parse_env_file_content(content: str) -> dict[str, str]:
@@ -18,6 +29,12 @@ def parse_env_file_content(content: str) -> dict[str, str]:
         key, separator, value = raw_line.partition("=")
         if separator != "=" or not key:
             raise ValueError(f"Invalid env file line: {raw_line!r}")
+        if "\x00" in key or "\x00" in value:
+            raise ValueError(f"Invalid env file line with NUL byte: {raw_line!r}")
+        if not _ENV_KEY_RE.fullmatch(key):
+            raise ValueError(f"Invalid environment variable name: {key!r}")
+        if key in _BLOCKED_ENV_KEYS or key.startswith("DYLD_"):
+            raise ValueError(f"Environment variable {key!r} is not allowed in env files")
         parsed[key] = value
     return parsed
 
@@ -34,4 +51,5 @@ def apply_env_files(paths: Iterable[str]) -> dict[str, str]:
     loaded = load_env_files(paths)
     os.environ.update(loaded)
     return loaded
+
 
