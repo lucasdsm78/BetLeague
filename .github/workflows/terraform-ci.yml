@@ -283,39 +283,6 @@ jobs:
           name: terraform-plan-${{ github.run_id }}-prod
           path: infrastructure/terraform
 
-      - name: TEMP DEBUG - tester les secrets OVH côté GitHub Actions
-        env:
-          OVH_APP_KEY: ${{ secrets.OVH_APPLICATION_KEY }}
-          OVH_APP_SECRET: ${{ secrets.OVH_APPLICATION_SECRET }}
-          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
-        run: |
-          pip install --quiet ovh
-          python3 - <<'PY'
-          import hashlib
-          import os
-
-          import ovh
-
-          for k in ['OVH_APP_KEY', 'OVH_APP_SECRET', 'OVH_CONSUMER_KEY']:
-              v = os.environ.get(k, '')
-              sha = hashlib.sha256(v.encode()).hexdigest()[:8]
-              print(f"  {k}: len={len(v)} sha256[:8]={sha}")
-
-          print("\nTest /me :")
-          c = ovh.Client(
-              endpoint='ovh-eu',
-              application_key=os.environ['OVH_APP_KEY'],
-              application_secret=os.environ['OVH_APP_SECRET'],
-              consumer_key=os.environ['OVH_CONSUMER_KEY'],
-          )
-          me = c.get('/me')
-          print(f"  OK: {me['email']}")
-
-          print("\nTest /me/payment/method (LE critique) :")
-          methods = c.get('/me/payment/method')
-          print(f"  OK: {len(methods)} methode(s)")
-          PY
-
       - name: Terraform apply reviewed plan
         working-directory: infrastructure/terraform
         run: terraform apply -auto-approve tfplan
