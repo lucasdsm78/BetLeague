@@ -90,10 +90,14 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Verify Python 3 availability on self-hosted runner
+        run: |
+          set -euo pipefail
+          if ! command -v python3 >/dev/null 2>&1; then
+            echo "python3 is required on the self-hosted runner. Install Python 3.11+ on the Mac and retry." >&2
+            exit 1
+          fi
+          python3 --version
 
       - name: Prepare Terraform plugin cache
         run: mkdir -p "$TF_PLUGIN_CACHE_DIR"

@@ -178,14 +178,14 @@ Important : ce modèle sans downtime suppose des migrations de schéma **backwar
 
 ### Stratégie recommandée
 
-Pour un mono-VPS, le meilleur compromis **sécurité + rapidité** est :
+Pour un mono-VPS avec le setup BetLeague actuel, le compromis recommandé est désormais :
 
-- runner **GitHub-hosted**
+- runner **self-hosted approuvé** (par exemple ton Mac dédié) sélectionné via la variable de dépôt `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON`
 - connexion **SSH stricte** vers le VPS
 - secrets stockés dans les GitHub Environments `development` / `production`
 - approbation manuelle de l’Environment avant déploiement sensible
 
-Cette approche évite d’exécuter un runner self-hosted directement sur le serveur de prod.
+Évite en revanche d’exécuter ce runner self-hosted directement sur le serveur de prod.
 
 Dans le chemin `terraform-ci.yml`, l’hôte cible et l’utilisateur SSH sont récupérés depuis les outputs Terraform. Dans le chemin `app-release.yml`, ils viennent directement de `DEPLOY_HOST` / `DEPLOY_USER` (ou des overrides saisis au lancement). Dans les deux cas, le compte administrateur utilisé doit :
 
@@ -249,7 +249,7 @@ Le TLS edge public est désormais géré par `certbot` directement sur l’hôte
 
 Pour réduire le risque de bloquer ton domaine sur les rate limits Let’s Encrypt, le workflow complet `deploy_swarm.yml` refuse aussi une première émission directe en production tant que `LETSENCRYPT_PRODUCTION_ACK=true` n’a pas été défini explicitement dans l’Environment GitHub après validation du chemin en staging.
 
-Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Si tu utilises des runners GitHub-hosted, le second job peut partir d’une autre IP. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (bastion, VPN, runner self-hosted ou plage réseau explicitement assumée).
+Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` sont des jobs distincts. Il faut donc que `SSH_TRUSTED_CIDRS` couvre le chemin SSH réellement utilisé après hardening (runner self-hosted, bastion, VPN ou plage réseau explicitement assumée). Avec un runner self-hosted sur ton Mac, pense à autoriser son IP publique de sortie en CIDR `/32` si elle est stable.
 
 ### Secrets GitHub Environment recommandés
 

@@ -47,9 +47,10 @@ Le workflow `.github/workflows/terraform-state-backend.yml` permet d’exécuter
 Pré-requis CI recommandés :
 
 - un environnement GitHub `state-backend` avec approbation manuelle
-- un runner self-hosted portant les labels `self-hosted`, `linux`, `x64`, `state-backend`
+- une variable de dépôt GitHub `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON` contenant un tableau JSON de labels pour le runner approuvé, par exemple `["self-hosted","macOS"]` ou `["self-hosted","macOS","betleague-mac"]`
+- Python 3.11+ déjà installé sur ce runner (les workflows self-hosted BetLeague utilisent désormais `python3` local au lieu de `actions/setup-python`)
 - une variable GitHub `TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH` pointant vers le state persistant de `state-identities/`
-- une variable GitHub `TF_STATE_BACKEND_LOCAL_BACKEND_PATH` pointant vers un chemin persistant chiffré pour cette stack, par exemple `/srv/terraform/state-backend/terraform.tfstate`
+- une variable GitHub `TF_STATE_BACKEND_LOCAL_BACKEND_PATH` pointant vers un chemin persistant chiffré pour cette stack, par exemple `/Users/github-actions/terraform/state-backend/terraform.tfstate`
 
 Le workflow génère un fichier `terraform.ci.auto.tfvars` temporaire à partir des outputs de `state-identities/`, puis le supprime systématiquement en fin de job.
 
@@ -81,6 +82,8 @@ Puis applique la configuration :
 cd infrastructure/state-backend
 terraform apply
 ```
+
+
 
 
 

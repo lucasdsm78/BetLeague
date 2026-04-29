@@ -134,6 +134,8 @@ Ces secrets peuvent être alimentés à partir des outputs de `state-identities/
 
 Une fois l’hôte provisionné et durci, les releases applicatives backend/frontend n’ont plus besoin de repasser par Terraform : le workflow `/.github/workflows/app-release.yml` permet de redéployer la stack Swarm en visant directement `DEPLOY_HOST` / `DEPLOY_USER` depuis les GitHub Environments `development` et `production`.
 
+Les workflows manuels `terraform-ci.yml` et `app-release.yml` ciblent désormais un runner self-hosted configurable via la variable de dépôt `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON`, avec fallback `["self-hosted","macOS"]` pour un runner dédié sur Mac.
+
 Ce point d’entrée applicatif s’appuie sur le workflow réutilisable `/.github/workflows/_swarm-deploy.yml`, également utilisé par `terraform-ci.yml`, afin de partager la même logique de déploiement Swarm et d’éviter toute dérive entre release applicative et déploiement post-provisioning.
 
 Recommandation actuelle pour BetLeague :

@@ -47,8 +47,9 @@ Le workflow `.github/workflows/terraform-state-identities.yml` suit une stratég
 Pré-requis CI recommandés :
 
 - un environnement GitHub `state-identities` avec approbation manuelle
-- un runner self-hosted portant les labels `self-hosted`, `linux`, `x64`, `state-identities`
-- une variable GitHub `TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH` pointant vers un chemin persistant chiffré sur ce runner, par exemple `/srv/terraform/state-identities/terraform.tfstate`
+- une variable de dépôt GitHub `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON` contenant un tableau JSON de labels pour le runner approuvé, par exemple `["self-hosted","macOS"]` ou `["self-hosted","macOS","betleague-mac"]`
+- Python 3.11+ déjà installé sur ce runner (les workflows self-hosted BetLeague utilisent désormais `python3` local au lieu de `actions/setup-python`)
+- une variable GitHub `TF_STATE_IDENTITIES_LOCAL_BACKEND_PATH` pointant vers un chemin persistant chiffré sur ce runner, par exemple `/Users/github-actions/terraform/state-identities/terraform.tfstate`
 - une variable GitHub `TF_VAR_SERVICE_NAME_STATE_IDENTITIES`
 - les secrets GitHub `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`
 
@@ -84,6 +85,8 @@ cd infrastructure/state-identities
 ## Important
 
 Les secret keys S3 générées sont stockées dans le `tfstate` local de cette stack. Protège-le comme un secret : stockage chiffré, sauvegarde sécurisée, accès restreint.
+
+
 
 
 
