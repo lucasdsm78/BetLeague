@@ -91,9 +91,61 @@
       changed_when: false
       failed_when: false
 
+    - name: Identifier les services Swarm non convergés
+      ansible.builtin.shell: |
+        set -euo pipefail
+        stack_name="{{ betleague_swarm_stack_name }}"
+        docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}' | while IFS= read -r line; do
+          name="${line%% *}"
+          replicas="${line##* }"
+          running="${replicas%%/*}"
+          desired="${replicas##*/}"
+          if [[ "$name" == *"_jetstream_provision" ]]; then
+            continue
+          fi
+          if [[ "$running" != "$desired" ]]; then
+            printf '%s\n' "$name"
+          fi
+        done
+      args:
+        executable: /bin/bash
+      register: betleague_swarm_non_converged_services
+      changed_when: false
+      failed_when: false
+
     - name: Capturer l'état courant des tâches de la stack Swarm
       ansible.builtin.command: docker stack ps --no-trunc {{ betleague_swarm_stack_name }}
       register: betleague_swarm_tasks_state
+      changed_when: false
+      failed_when: false
+
+    - name: Capturer les diagnostics détaillés des services Swarm non convergés
+      ansible.builtin.shell: |
+        set -euo pipefail
+        services="{{ betleague_swarm_non_converged_services.stdout_lines | default([]) | join(' ') }}"
+        if [[ -z "$services" ]]; then
+          echo "Aucun service non convergé identifié."
+          exit 0
+        fi
+
+        for service in $services; do
+          printf '\n===== %s: inspect =====\n' "$service"
+          docker service inspect "$service" \
+            --format 'Image={{"{{.Spec.TaskTemplate.ContainerSpec.Image}}"}} UpdateState={{"{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}"}} UpdateMessage={{"{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}"}}' \
+            || true
+
+          printf '\n===== %s: tasks =====\n' "$service"
+          docker service ps --no-trunc "$service" || true
+
+          printf '\n===== %s: logs since {{ betleague_swarm_diagnostics_logs_since }} =====\n' "$service"
+          docker service logs \
+            --since "{{ betleague_swarm_diagnostics_logs_since }}" \
+            --tail "{{ betleague_swarm_diagnostics_logs_tail }}" \
+            "$service" 2>&1 || true
+        done
+      args:
+        executable: /bin/bash
+      register: betleague_swarm_non_converged_diagnostics
       changed_when: false
       failed_when: false
 
@@ -105,6 +157,8 @@
           - "{{ betleague_swarm_services_state.stdout | default('Aucune sortie docker stack services') }}"
           - "Tâches:"
           - "{{ betleague_swarm_tasks_state.stdout | default('Aucune sortie docker stack ps') }}"
+          - "Diagnostics services non convergés:"
+          - "{{ betleague_swarm_non_converged_diagnostics.stdout | default('Aucun diagnostic détaillé disponible') }}"
 
     - name: Échouer explicitement si la stack Swarm ne converge pas
       ansible.builtin.fail:
