@@ -1,10 +1,48 @@
 ---
-- name: Installer Docker Engine et le plugin Compose
+- name: Installer Docker Engine
   ansible.builtin.apt:
-    name: "{{ betleague_docker_packages }}"
+    name: "{{ betleague_docker_engine_packages }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
+
+- name: Détecter le paquet Compose disponible
+  ansible.builtin.command:
+    argv:
+      - apt-cache
+      - show
+      - "{{ item }}"
+  register: betleague_docker_compose_package_probe
+  changed_when: false
+  failed_when: false
+  loop: "{{ betleague_docker_compose_package_candidates }}"
+
+- name: Choisir le paquet Compose disponible
+  ansible.builtin.set_fact:
+    betleague_docker_compose_package_selected: >-
+      {{
+        (
+          betleague_docker_compose_package_probe.results
+          | selectattr('rc', 'equalto', 0)
+          | map(attribute='item')
+          | list
+          | first
+        ) | default('')
+      }}
+
+- name: Installer le paquet Compose disponible
+  ansible.builtin.apt:
+    name: "{{ betleague_docker_compose_package_selected }}"
+    state: present
+    update_cache: false
+  when: betleague_docker_compose_package_selected | length > 0
+
+- name: Signaler l'absence de paquet Compose supporté
+  ansible.builtin.debug:
+    msg: >-
+      Aucun paquet Compose parmi {{ betleague_docker_compose_package_candidates | join(', ') }}
+      n'est disponible sur l'hôte. Docker Engine reste installé, mais la CLI Compose ne sera pas fournie.
+  when: betleague_docker_compose_package_selected | length == 0
 
 - name: Déployer la configuration sécurisée du daemon Docker
   ansible.builtin.template:
@@ -26,4 +64,5 @@
     name: docker
     enabled: true
     state: started
+
 

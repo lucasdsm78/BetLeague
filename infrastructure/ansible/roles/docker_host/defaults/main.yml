@@ -1,8 +1,11 @@
 ---
 betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
-betleague_docker_packages:
+betleague_docker_engine_packages:
   - docker.io
+betleague_docker_compose_package_candidates:
   - docker-compose-plugin
+  - docker-compose-v2
+  - docker-compose
 betleague_docker_daemon_config:
   live-restore: true
   log-driver: json-file
@@ -14,4 +17,5 @@ betleague_docker_daemon_config:
   no-new-privileges: true
   features:
     buildkit: true
+
 
