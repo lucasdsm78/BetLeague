@@ -7,7 +7,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import certifi
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from infrastructure.config import Settings
+from infrastructure.config import DatabaseSettings, Settings
+
+DatabaseSettingsLike = DatabaseSettings | Settings
 
 _SSL_QUERY_KEYS = {"ssl", "sslmode", "sslcert", "sslkey", "sslrootcert"}
 
@@ -22,7 +24,7 @@ def sanitize_asyncpg_database_url(database_url: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(filtered_query, doseq=True), parts.fragment))
 
 
-def build_asyncpg_ssl_context(settings: Settings) -> ssl.SSLContext | None:
+def build_asyncpg_ssl_context(settings: DatabaseSettingsLike) -> ssl.SSLContext | None:
     ssl_mode = getattr(settings, "sqlalchemy_ssl_mode_value", "disable")
     if ssl_mode == "disable":
         return None
@@ -38,7 +40,7 @@ def build_asyncpg_ssl_context(settings: Settings) -> ssl.SSLContext | None:
     return context
 
 
-def build_asyncpg_connect_args(settings: Settings, *, application_name: str) -> dict[str, Any]:
+def build_asyncpg_connect_args(settings: DatabaseSettingsLike, *, application_name: str) -> dict[str, Any]:
     server_settings: dict[str, str] = {
         "application_name": application_name,
     }
@@ -60,11 +62,11 @@ def build_asyncpg_connect_args(settings: Settings, *, application_name: str) -> 
 def create_configured_async_engine(
     database_url: str,
     *,
-    settings: Settings | None = None,
+    settings: DatabaseSettingsLike | None = None,
     application_name: str | None = None,
     poolclass: Any | None = None,
 ) -> AsyncEngine:
-    effective_settings = settings or Settings()
+    effective_settings = settings or DatabaseSettings()
     engine_kwargs: dict[str, Any] = {
         "echo": bool(getattr(effective_settings, "sqlalchemy_echo", False)),
         "pool_pre_ping": True,

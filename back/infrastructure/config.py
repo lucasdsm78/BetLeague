@@ -3,6 +3,33 @@ from pydantic import Field, field_validator
 from urllib.parse import urlsplit
 
 
+class DatabaseSettings(BaseSettings):
+    sqlalchemy_database_url: str
+    alembic_database_url: str | None = Field(default=None, validation_alias="ALEMBIC_DATABASE_URL")
+    environment: str = "dev"
+    sqlalchemy_echo: bool = False
+    sqlalchemy_pool_size: int = Field(default=5, validation_alias="SQLALCHEMY_POOL_SIZE")
+    sqlalchemy_max_overflow: int = Field(default=10, validation_alias="SQLALCHEMY_MAX_OVERFLOW")
+    sqlalchemy_pool_recycle_seconds: int = Field(default=300, validation_alias="SQLALCHEMY_POOL_RECYCLE")
+    sqlalchemy_pool_timeout_seconds: int = Field(default=30, validation_alias="SQLALCHEMY_POOL_TIMEOUT")
+    sqlalchemy_command_timeout_seconds: int = Field(default=30, validation_alias="SQLALCHEMY_COMMAND_TIMEOUT")
+    sqlalchemy_ssl_mode: str = Field(default="", validation_alias="SQLALCHEMY_SSL_MODE")
+    sqlalchemy_ssl_root_cert_path: str = Field(default="", validation_alias="SQLALCHEMY_SSL_ROOT_CERT_PATH")
+    sqlalchemy_disable_jit: bool = Field(default=True, validation_alias="SQLALCHEMY_DISABLE_JIT")
+    sqlalchemy_application_name: str = Field(default="betleague-api", validation_alias="SQLALCHEMY_APPLICATION_NAME")
+
+    @property
+    def sqlalchemy_ssl_mode_value(self) -> str:
+        value = (self.sqlalchemy_ssl_mode or "").strip().lower()
+        if value:
+            return value
+        return "verify-full" if self.environment == "prod" else "disable"
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
+
+
 class Settings(BaseSettings):
     sqlalchemy_database_url: str
     alembic_database_url: str | None = Field(default=None, validation_alias="ALEMBIC_DATABASE_URL")
