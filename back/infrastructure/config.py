@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 from urllib.parse import urlsplit
 
 
@@ -93,6 +93,19 @@ class Settings(BaseSettings):
     auth_refresh_cookie_path: str = Field(default="/api/auth", validation_alias="AUTH_REFRESH_COOKIE_PATH")
     auth_refresh_cookie_samesite: str = Field(default="lax", validation_alias="AUTH_REFRESH_COOKIE_SAMESITE")
     auth_refresh_cookie_secure: bool | None = Field(default=None, validation_alias="AUTH_REFRESH_COOKIE_SECURE")
+
+    @field_validator("private_key", "public_key", mode="before")
+    @classmethod
+    def normalize_pem_env(cls, value: str) -> str:
+        if not isinstance(value, str):
+            return value
+
+        normalized = value.strip()
+        if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {'"', "'"}:
+            normalized = normalized[1:-1]
+
+        normalized = normalized.replace("\\r\\n", "\\n").replace("\\n", "\n")
+        return normalized
 
     @staticmethod
     def _split_csv(raw: str) -> list[str]:
