@@ -18,15 +18,32 @@
   register: betleague_swarm_node_id
 
 - name: Lire le label manager BetLeague
-  ansible.builtin.command: docker node inspect {{ betleague_swarm_node_id.stdout }} --format '{{"{{ index .Spec.Labels \"betleague.role\" }}"}}'
+  ansible.builtin.command:
+    argv:
+      - docker
+      - node
+      - inspect
+      - "{{ betleague_swarm_node_id.stdout }}"
   changed_when: false
   failed_when: false
   register: betleague_swarm_manager_label
+
+- name: Normaliser la valeur actuelle du label manager BetLeague
+  ansible.builtin.set_fact:
+    betleague_swarm_manager_label_current: >-
+      {{
+        (
+          betleague_swarm_manager_label.stdout | default('[]') | from_json | first | default({})
+        ).Spec.Labels[betleague_swarm_manager_label_key]
+        | default('')
+      }}
+  when: betleague_swarm_manager_label.rc == 0
 
 - name: Labelliser le manager Swarm BetLeague
   ansible.builtin.command: >-
     docker node update
     --label-add {{ betleague_swarm_manager_label_key }}={{ betleague_swarm_manager_label_value }}
     {{ betleague_swarm_node_id.stdout }}
-  when: betleague_swarm_manager_label.stdout.strip() != betleague_swarm_manager_label_value
+  when: (betleague_swarm_manager_label_current | default('')) != betleague_swarm_manager_label_value
+
 
