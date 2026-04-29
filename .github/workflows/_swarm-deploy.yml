@@ -178,7 +178,15 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, os, pathlib
-          payload = {"ansible_port": int(os.environ.get("SSH_PORT") or "22")}
+          runner_temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          known_hosts = runner_temp / "ssh" / "known_hosts"
+          payload = {
+              "ansible_port": int(os.environ.get("SSH_PORT") or "22"),
+              "ansible_ssh_common_args": (
+                  f"-o UserKnownHostsFile={known_hosts} "
+                  "-o StrictHostKeyChecking=yes"
+              ),
+          }
           output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ansible-connection-vars.json"
           output.write_text(json.dumps(payload))
           output.chmod(0o600)
