@@ -10,6 +10,9 @@
   ansible.builtin.command: >-
     docker run --rm
     --user 0:0
+    --env TMPDIR={{ betleague_swarm_python_temp }}
+    --env TEMP={{ betleague_swarm_python_temp }}
+    --env TMP={{ betleague_swarm_python_tmp }}
     --mount type=bind,src={{ betleague_swarm_deploy_path }}/secrets/backend.env,dst=/run/secrets/backend_env,ro
     --mount type=bind,src={{ betleague_swarm_deploy_path }}/secrets/migrations.env,dst=/run/secrets/migrations_env,ro
     {{ betleague_swarm_backend_image }}
@@ -26,6 +29,8 @@
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
     GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
     GUNICORN_FORWARDED_ALLOW_IPS: "{{ betleague_swarm_gunicorn_forwarded_allow_ips }}"
+    BETLEAGUE_PYTHON_TEMP: "{{ betleague_swarm_python_temp }}"
+    BETLEAGUE_PYTHON_TMP: "{{ betleague_swarm_python_tmp }}"
     BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
     BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
     BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"

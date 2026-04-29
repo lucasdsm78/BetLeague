@@ -5,6 +5,8 @@
       - betleague_swarm_stack_name | trim != ''
       - betleague_swarm_backend_image | trim != ''
       - betleague_swarm_frontend_image | trim != ''
+      - betleague_swarm_python_temp | trim is match('^/')
+      - betleague_swarm_python_tmp | trim is match('^/')
       - betleague_swarm_app_domain | trim != ''
       - betleague_swarm_api_domain | trim != ''
       - betleague_swarm_backend_env_content | trim != ''
