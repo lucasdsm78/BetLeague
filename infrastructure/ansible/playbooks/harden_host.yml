@@ -45,18 +45,29 @@
       ansible.builtin.assert:
         that:
           - >-
-            (betleague_ufw_status.stdout | regex_search(
-            '(?m)^.*(?:^|\\s)' ~ (betleague_ssh_port | string) ~ '(?:/tcp)?(?:\\s|$).*LIMIT IN.*(?:' ~
             (
               (
+                betleague_ufw_status.stdout_lines
+                | select('search', '(?:^|\\s)' ~ (betleague_ssh_port | string) ~ '(?:/tcp)?(?:\\s|$)')
+                | select('search', 'LIMIT IN')
+                | select('search', (item | regex_escape))
+                | list
+                | length
+              ) > 0
+            ) or (
+              (
                 (item | regex_search('/(?:32|128)$')) is not none
+              ) and (
+                (
+                  betleague_ufw_status.stdout_lines
+                  | select('search', '(?:^|\\s)' ~ (betleague_ssh_port | string) ~ '(?:/tcp)?(?:\\s|$)')
+                  | select('search', 'LIMIT IN')
+                  | select('search', ((item | regex_replace('/(?:32|128)$', '')) | regex_escape))
+                  | list
+                  | length
+                ) > 0
               )
-              | ternary(
-                ((item | regex_replace('/(?:32|128)$', '')) | regex_escape) ~ '(?:/(?:32|128))?',
-                (item | regex_escape)
-              )
-            ) ~ '(?:\\s|$)'
-            )) is not none
+            )
         fail_msg: >-
           La règle UFW SSH attendue pour `{{ item }}` sur le port `{{ betleague_ssh_port }}` est absente
           ou affichée dans un format inattendu par `ufw status verbose`.
@@ -118,6 +129,7 @@
       when:
         - betleague_enable_fail2ban | bool
         - betleague_fail2ban_recidive_enabled | bool
+
 
 
 
