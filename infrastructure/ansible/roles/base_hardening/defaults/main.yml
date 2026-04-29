@@ -1,5 +1,6 @@
 ---
 betleague_admin_user: "{{ ansible_user | default('betleague') }}"
+betleague_admin_authorized_public_keys: []
 betleague_enable_fail2ban: true
 betleague_ssh_port: "{{ ansible_port | default(22) }}"
 betleague_fail2ban_backend: systemd
@@ -67,6 +68,7 @@ betleague_ufw_docker_log_prefix: '[UFW DOCKER BLOCK] '
 betleague_unattended_origins:
   - "origin=${distro_id},codename=${distro_codename}-security,label=${distro_id}"
   - "origin=${distro_id},codename=${distro_codename}-updates,label=${distro_id}"
+
 
 
 
