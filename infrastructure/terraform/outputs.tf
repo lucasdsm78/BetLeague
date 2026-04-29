@@ -1,21 +1,21 @@
 output "vps_id" {
   description = "ID Terraform de la ressource OVH VPS BetLeague."
-  value       = module.vps.id
+  value       = local.vps_id
 }
 
 output "vps_service_name" {
   description = "Nom de service OVH du VPS commandé."
-  value       = module.vps.service_name
+  value       = local.vps_service_name
 }
 
 output "instance_name" {
   description = "Nom logique du VPS déployé."
-  value       = module.vps.instance_name
+  value       = local.vps_instance_name
 }
 
 output "instance_public_ipv4" {
   description = "IPv4 publique du VPS."
-  value       = module.vps.public_ipv4
+  value       = local.vps_public_ipv4
 }
 
 output "environment" {
@@ -35,7 +35,7 @@ output "compose_root" {
 
 output "resolved_vps_plan_code" {
   description = "Plan code OVH utilisé pour commander le VPS-3."
-  value       = module.vps.plan_code
+  value       = var.vps_plan_code
 }
 
 output "dns_record_ids" {
@@ -47,14 +47,14 @@ output "ansible_inventory_host" {
   description = "Objet prêt à être transformé en inventaire Ansible pour l’hôte VPS-3."
   value = {
     group                      = "betleague_vps3"
-    hostname                   = module.vps.instance_name
-    ansible_host               = module.vps.public_ipv4
+    hostname                   = local.vps_instance_name
+    ansible_host               = local.vps_public_ipv4
     ansible_user               = var.admin_user
-    betleague_instance_name    = module.vps.instance_name
+    betleague_instance_name    = local.vps_instance_name
     betleague_environment      = var.environment
     betleague_compose_root     = var.compose_root
-    betleague_vps_service_name = module.vps.service_name
-    betleague_vps_plan_code    = module.vps.plan_code
+    betleague_vps_service_name = local.vps_service_name
+    betleague_vps_plan_code    = var.vps_plan_code
   }
 }
 

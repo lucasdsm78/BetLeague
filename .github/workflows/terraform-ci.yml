@@ -62,6 +62,7 @@ jobs:
       TF_VAR_environment: ${{ inputs.target_environment }}
       TF_VAR_vps_name: ${{ inputs.target_environment == 'prod' && vars.TF_VAR_VPS_NAME_PROD || vars.TF_VAR_VPS_NAME_DEV }}
       TF_VAR_vps_display_name: ${{ inputs.target_environment == 'prod' && vars.TF_VAR_VPS_DISPLAY_NAME_PROD || vars.TF_VAR_VPS_DISPLAY_NAME_DEV }}
+      TF_VAR_existing_vps_service_name: ${{ inputs.target_environment == 'prod' && vars.TF_VAR_EXISTING_VPS_SERVICE_NAME_PROD || vars.TF_VAR_EXISTING_VPS_SERVICE_NAME_DEV }}
       TF_VAR_ovh_subsidiary: ${{ vars.TF_VAR_OVH_SUBSIDIARY }}
       TF_VAR_vps_zone: ${{ inputs.target_environment == 'prod' && vars.TF_VAR_VPS_ZONE_PROD || vars.TF_VAR_VPS_ZONE_DEV }}
       TF_VAR_vps_offer_type: ${{ vars.TF_VAR_VPS_OFFER_TYPE }}
