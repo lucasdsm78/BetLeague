@@ -175,15 +175,15 @@
           `docker stack ps --no-trunc {{ betleague_swarm_stack_name }}` affichées juste avant pour identifier
           le service bloquant (image, healthcheck, crashloop, rollback ou dépendance indisponible).
 
-- name: Vérifier la santé de l'API après déploiement
+- name: Vérifier la santé de l'API après déploiement de la stack
   block:
-    - name: Vérifier la santé de l'API après déploiement
+    - name: Vérifier la santé de l'API après déploiement de la stack
       ansible.builtin.uri:
         url: "{{ betleague_swarm_api_healthcheck_url }}"
         method: GET
         return_content: false
         status_code: 200
-        validate_certs: "{{ not (betleague_letsencrypt_staging | default(false) | bool) }}"
+        validate_certs: "{{ not (betleague_letsencrypt_enabled | default(false) | bool) and not (betleague_letsencrypt_staging | default(false) | bool) }}"
       register: betleague_swarm_api_health
       retries: 12
       delay: 5
@@ -275,6 +275,7 @@
       ansible.builtin.debug:
         msg:
           - "Le smoke test public {{ betleague_swarm_api_healthcheck_url }} a échoué."
+          - "Note: lorsque Let's Encrypt est activé, ce test pré-émission TLS accepte le certificat autosigné de bootstrap ; le test strict est exécuté après certbot dans deploy_swarm.yml."
           - "Diagnostics contrôleur:"
           - "{{ betleague_swarm_public_api_controller_diagnostics.stdout | default('Aucun diagnostic contrôleur') }}"
           - "Diagnostics edge VPS:"
@@ -285,7 +286,7 @@
         msg: >-
           L'API publique {{ betleague_swarm_api_healthcheck_url }} n'est pas joignable depuis le contrôleur.
           Vérifie en priorité DNS A/AAAA, publication des ports 80/443 du service edge, firewall hôte/provider,
-          et logs Nginx edge affichés dans les diagnostics ci-dessus.
+          certificat TLS de bootstrap si Let's Encrypt est désactivé, et logs Nginx edge affichés dans les diagnostics ci-dessus.
 
 
 
