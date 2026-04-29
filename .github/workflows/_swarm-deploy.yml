@@ -168,9 +168,17 @@ jobs:
           set -euo pipefail
           umask 077
           mkdir -p "$RUNNER_TEMP/ssh"
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/id_ed25519"
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+            echo "SSH_PRIVATE_KEY GitHub secret is empty" >&2
+            exit 1
+          fi
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$RUNNER_TEMP/ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | tr -d '\r' > "$RUNNER_TEMP/ssh/known_hosts"
           chmod 600 "$RUNNER_TEMP/ssh/id_ed25519" "$RUNNER_TEMP/ssh/known_hosts"
+          if ! ssh-keygen -y -f "$RUNNER_TEMP/ssh/id_ed25519" >/dev/null 2>&1; then
+            echo "SSH_PRIVATE_KEY is invalid, encrypted with a passphrase, or not in a supported OpenSSH private key format" >&2
+            exit 1
+          fi
 
       - name: Build Ansible connection vars file
         env:

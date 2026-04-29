@@ -22,6 +22,24 @@
     update_cache: true
     cache_valid_time: 3600
 
+- name: Garantir la présence du répertoire SSH de l'administrateur
+  ansible.builtin.file:
+    path: "/home/{{ betleague_admin_user }}/.ssh"
+    state: directory
+    owner: "{{ betleague_admin_user }}"
+    group: "{{ betleague_admin_user }}"
+    mode: '0700'
+  when: betleague_admin_authorized_public_keys | length > 0
+
+- name: Installer les clés publiques SSH autorisées pour l'administrateur
+  ansible.posix.authorized_key:
+    user: "{{ betleague_admin_user }}"
+    key: "{{ item }}"
+    state: present
+    manage_dir: false
+  loop: "{{ betleague_admin_authorized_public_keys | unique }}"
+  when: betleague_admin_authorized_public_keys | length > 0
+
 - name: Configurer les mises à jour de sécurité automatiques
   ansible.builtin.template:
     src: 20auto-upgrades.j2
@@ -174,6 +192,7 @@
     enabled: true
     state: started
   when: betleague_enable_fail2ban | bool
+
 
 
 

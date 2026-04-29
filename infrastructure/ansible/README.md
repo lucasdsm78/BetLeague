@@ -74,8 +74,37 @@ Copie `inventories/prod/group_vars/all.yml.example` vers un fichier local non se
 - `betleague_ssh_port` (si SSH n'écoute pas sur `22`)
 - `betleague_enable_fail2ban`
 - `betleague_admin_user`
+- `betleague_admin_authorized_public_keys` (optionnel, pour gérer les clés SSH autorisées de l'utilisateur admin via Ansible)
 - `betleague_runtime_user`
 - `betleague_runtime_group`
+
+### Bootstrap sans édition manuelle de `authorized_keys`
+
+Pour installer la clé publique dédiée à GitHub Actions sans `nano`/édition interactive sur le VPS, utilise Ansible avec une clé d'administration déjà fonctionnelle :
+
+```bash
+ssh-keygen -y -f "$HOME/.ssh/betleague_github_actions" > /tmp/betleague_github_actions.pub
+
+python3 - <<'PY' > /tmp/ci-public-key-vars.json
+import json
+from pathlib import Path
+
+print(json.dumps({
+    "betleague_admin_authorized_public_keys": [
+        Path("/tmp/betleague_github_actions.pub").read_text().strip()
+    ]
+}))
+PY
+
+cd infrastructure/ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
+  -i inventories/prod/hosts.yml \
+  --private-key "$HOME/.ssh/ta-cle-admin-actuelle" \
+  -e @/tmp/ci-public-key-vars.json \
+  playbooks/harden_host.yml
+```
+
+Ainsi, la clé publique CI est ajoutée de façon idempotente dans `~{{ betleague_admin_user }}/.ssh/authorized_keys` par le rôle `base_hardening`, sans manipulation manuelle sur l'hôte.
 
 ## Installation des collections
 
