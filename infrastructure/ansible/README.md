@@ -159,6 +159,8 @@ Le workflow `terraform-ci.yml` enchaîne, selon l’environnement ciblé :
 
 Les jobs `harden-host-dev` et `harden-host-prod` attendent la variable GitHub Environment `SSH_TRUSTED_CIDRS` pour construire `betleague_ssh_trusted_cidrs`.
 
+Les jobs manuels `terraform-ci.yml` et le workflow réutilisable `/.github/workflows/_swarm-deploy.yml` ciblent désormais un runner self-hosted configurable via la variable de dépôt `BETLEAGUE_SELF_HOSTED_RUNNER_LABELS_JSON`, avec fallback `["self-hosted","macOS"]`. Si tu as un runner dédié sur ton Mac, le plus simple est donc de définir explicitement cette variable sur des labels qui n'identifient que ce runner. Ce runner doit aussi exposer `python3` (3.11+ recommandé) dans le `PATH`, car BetLeague crée maintenant son environnement Python local directement sur la machine au lieu d’utiliser `actions/setup-python`.
+
 Les jobs `deploy-swarm-dev` et `deploy-swarm-prod`, ainsi que `app-release.yml`, s’appuient tous sur `/.github/workflows/_swarm-deploy.yml`, qui construit un `swarm-vars.json` injectant explicitement `GUNICORN_WORKERS` et `GUNICORN_FORWARDED_ALLOW_IPS` dans le rôle `swarm_stack`, sans dépendre de `backend.env` pour ces paramètres de runtime Gunicorn.
 
 Le workflow `app-release.yml` reste le point d’entrée manuel pour une release applicative seule. Il délègue à `/.github/workflows/_swarm-deploy.yml`, lequel reconstruit l'inventaire Ansible directement depuis `DEPLOY_HOST` et `DEPLOY_USER` portés par les GitHub Environments, ce qui évite toute dépendance à un artefact Terraform lors d’une simple mise à jour d’images applicatives.
@@ -185,7 +187,7 @@ Le playbook `release_swarm.yml`, lui, est dédié aux releases applicatives d’
 
 Cette voie est donc plus proche d’un workflow de release zero-downtime applicatif qu’un simple `docker stack deploy` global.
 
-Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif.
+Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `deploy-swarm-prod` s’exécutent sur des jobs GitHub Actions distincts. Si les runners n’ont pas une sortie réseau stable et autorisée par `SSH_TRUSTED_CIDRS`, le déploiement Swarm suivant peut être bloqué après activation d’UFW/SSH restrictif. Avec un runner self-hosted sur ton Mac, `SSH_TRUSTED_CIDRS` doit donc inclure l’IP publique de sortie de ce Mac (ou celle de ton VPN/bastion), typiquement en `/32`.
 
 ## Application
 
