@@ -11,7 +11,19 @@ from infrastructure.config import DatabaseSettings, Settings
 
 DatabaseSettingsLike = DatabaseSettings | Settings
 
-_SSL_QUERY_KEYS = {"ssl", "sslmode", "sslcert", "sslkey", "sslrootcert"}
+_ASYNC_ENGINE_STRIPPED_QUERY_KEYS = {
+    "application_name",
+    "channel_binding",
+    "fallback_application_name",
+    "gssencmode",
+    "krbsrvname",
+    "options",
+    "ssl",
+    "sslcert",
+    "sslkey",
+    "sslmode",
+    "sslrootcert",
+}
 _ASYNCPG_SCHEMES = {"postgresql+asyncpg", "postgres+asyncpg"}
 _SYNC_POSTGRES_SCHEMES = {
     "postgresql",
@@ -43,7 +55,7 @@ def sanitize_asyncpg_database_url(database_url: str) -> str:
     filtered_query = [
         (key, value)
         for key, value in parse_qsl(parts.query, keep_blank_values=True)
-        if key.lower() not in _SSL_QUERY_KEYS
+        if key.lower() not in _ASYNC_ENGINE_STRIPPED_QUERY_KEYS
     ]
     return urlunsplit((normalized_scheme, parts.netloc, parts.path, urlencode(filtered_query, doseq=True), parts.fragment))
 
