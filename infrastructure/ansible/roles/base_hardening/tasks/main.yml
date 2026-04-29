@@ -127,6 +127,96 @@
     mode: '0644'
   notify: Reload ufw
 
+- name: Vérifier la présence du fichier UFW IPv4 after.rules
+  ansible.builtin.stat:
+    path: /etc/ufw/after.rules
+  register: betleague_ufw_after_rules_stat
+  when: betleague_ufw_docker_enabled | bool
+
+- name: Vérifier la présence du squelette UFW IPv4 embarqué
+  ansible.builtin.stat:
+    path: /usr/share/ufw/after.rules
+  register: betleague_ufw_after_rules_packaged_stat
+  when: betleague_ufw_docker_enabled | bool
+
+- name: Initialiser le fichier UFW IPv4 after.rules depuis le squelette embarqué
+  ansible.builtin.copy:
+    src: /usr/share/ufw/after.rules
+    dest: /etc/ufw/after.rules
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - not betleague_ufw_after_rules_stat.stat.exists
+    - betleague_ufw_after_rules_packaged_stat.stat.exists
+  notify: Reload ufw
+
+- name: Initialiser le fichier UFW IPv4 after.rules avec un squelette minimal valide
+  ansible.builtin.copy:
+    dest: /etc/ufw/after.rules
+    content: |
+      *filter
+
+      COMMIT
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - not betleague_ufw_after_rules_stat.stat.exists
+    - not betleague_ufw_after_rules_packaged_stat.stat.exists
+  notify: Reload ufw
+
+- name: Vérifier la présence du fichier UFW IPv6 after6.rules
+  ansible.builtin.stat:
+    path: /etc/ufw/after6.rules
+  register: betleague_ufw_after6_rules_stat
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - betleague_ufw_ipv6 | bool
+
+- name: Vérifier la présence du squelette UFW IPv6 embarqué
+  ansible.builtin.stat:
+    path: /usr/share/ufw/after6.rules
+  register: betleague_ufw_after6_rules_packaged_stat
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - betleague_ufw_ipv6 | bool
+
+- name: Initialiser le fichier UFW IPv6 after6.rules depuis le squelette embarqué
+  ansible.builtin.copy:
+    src: /usr/share/ufw/after6.rules
+    dest: /etc/ufw/after6.rules
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - betleague_ufw_ipv6 | bool
+    - not betleague_ufw_after6_rules_stat.stat.exists
+    - betleague_ufw_after6_rules_packaged_stat.stat.exists
+  notify: Reload ufw
+
+- name: Initialiser le fichier UFW IPv6 after6.rules avec un squelette minimal valide
+  ansible.builtin.copy:
+    dest: /etc/ufw/after6.rules
+    content: |
+      *filter
+
+      COMMIT
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - betleague_ufw_docker_enabled | bool
+    - betleague_ufw_ipv6 | bool
+    - not betleague_ufw_after6_rules_stat.stat.exists
+    - not betleague_ufw_after6_rules_packaged_stat.stat.exists
+  notify: Reload ufw
+
 - name: Déployer la chaîne UFW de protection Docker
   ansible.builtin.blockinfile:
     path: /etc/ufw/after.rules
@@ -192,6 +282,7 @@
     enabled: true
     state: started
   when: betleague_enable_fail2ban | bool
+
 
 
 
