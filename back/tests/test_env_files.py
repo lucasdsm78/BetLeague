@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 from infrastructure.env_files import load_env_files, parse_env_file_content
@@ -67,5 +69,29 @@ def test_resolve_command_executable_uses_current_path_before_env_files(monkeypat
 
     assert resolved.startswith("/")
     assert resolved.endswith("python3")
+
+
+def test_run_with_env_files_can_be_executed_as_script(tmp_path: Path):
+    env_file = tmp_path / "backend.env"
+    env_file.write_text("BETLEAGUE_TEST_VALUE=ok-from-env-file\n", encoding="utf-8")
+
+    project_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_with_env_files.py",
+            str(env_file),
+            "--",
+            sys.executable,
+            "-c",
+            "import os; print(os.environ['BETLEAGUE_TEST_VALUE'])",
+        ],
+        cwd=project_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.stdout.strip() == "ok-from-env-file"
 
 
