@@ -282,6 +282,10 @@ services:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
+    environment:
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
@@ -316,6 +320,10 @@ services:
     <<: *service-defaults
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
+    environment:
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
@@ -356,6 +364,9 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
       GUNICORN_WORKER_TMP_DIR: /dev/shm
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
@@ -402,6 +413,10 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     stop_grace_period: 20s
+    environment:
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
@@ -433,6 +448,10 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     stop_grace_period: 20s
+    environment:
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
@@ -467,6 +486,10 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     stop_grace_period: 20s
+    environment:
+      TMPDIR: /dev/shm
+      TEMP: /dev/shm
+      TMP: /dev/shm
     command:
       - python
       - scripts/run_with_env_files.py
