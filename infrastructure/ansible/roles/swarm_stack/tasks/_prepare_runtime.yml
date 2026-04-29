@@ -36,6 +36,20 @@
         | regex_replace('\n*$', '')
       }}
 
+- name: Calculer les noms immuables des secrets Swarm depuis leur contenu
+  ansible.builtin.set_fact:
+    betleague_swarm_backend_env_secret_name: "{{ betleague_swarm_stack_name }}_backend_env_{{ ((betleague_swarm_backend_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_migrations_env_secret_name: "{{ betleague_swarm_stack_name }}_migrations_env_{{ ((betleague_swarm_migrations_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_redis_password_secret_name: "{{ betleague_swarm_stack_name }}_redis_password_{{ ((betleague_swarm_redis_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_user_secret_name: "{{ betleague_swarm_stack_name }}_nats_user_{{ ((betleague_swarm_nats_user ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_password_secret_name: "{{ betleague_swarm_stack_name }}_nats_password_{{ ((betleague_swarm_nats_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_ca_cert_secret_name: "{{ betleague_swarm_stack_name }}_nats_ca_cert_{{ ((betleague_swarm_nats_ca_cert ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_server_cert_secret_name: "{{ betleague_swarm_stack_name }}_nats_server_cert_{{ ((betleague_swarm_nats_server_cert ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_server_key_secret_name: "{{ betleague_swarm_stack_name }}_nats_server_key_{{ ((betleague_swarm_nats_server_key ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_client_cert_secret_name: "{{ betleague_swarm_stack_name }}_nats_client_cert_{{ ((betleague_swarm_nats_client_cert ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_nats_client_key_secret_name: "{{ betleague_swarm_stack_name }}_nats_client_key_{{ ((betleague_swarm_nats_client_key ~ '\n') | hash('sha256'))[:12] }}"
+  no_log: true
+
 - name: Vérifier que backend.env et migrations.env utilisent une syntaxe KEY=value compatible
   ansible.builtin.set_fact:
     betleague_swarm_env_validation_results: >-

@@ -29,6 +29,16 @@
     BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
     BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
     BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"
+    BETLEAGUE_BACKEND_ENV_SECRET_NAME: "{{ betleague_swarm_backend_env_secret_name }}"
+    BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME: "{{ betleague_swarm_migrations_env_secret_name }}"
+    BETLEAGUE_REDIS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_redis_password_secret_name }}"
+    BETLEAGUE_NATS_USER_SECRET_NAME: "{{ betleague_swarm_nats_user_secret_name }}"
+    BETLEAGUE_NATS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_nats_password_secret_name }}"
+    BETLEAGUE_NATS_CA_CERT_SECRET_NAME: "{{ betleague_swarm_nats_ca_cert_secret_name }}"
+    BETLEAGUE_NATS_SERVER_CERT_SECRET_NAME: "{{ betleague_swarm_nats_server_cert_secret_name }}"
+    BETLEAGUE_NATS_SERVER_KEY_SECRET_NAME: "{{ betleague_swarm_nats_server_key_secret_name }}"
+    BETLEAGUE_NATS_CLIENT_CERT_SECRET_NAME: "{{ betleague_swarm_nats_client_cert_secret_name }}"
+    BETLEAGUE_NATS_CLIENT_KEY_SECRET_NAME: "{{ betleague_swarm_nats_client_key_secret_name }}"
   register: betleague_swarm_deploy_result
   changed_when: >-
     'Updating service' in betleague_swarm_deploy_result.stdout or
