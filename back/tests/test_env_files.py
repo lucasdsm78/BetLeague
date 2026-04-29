@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from infrastructure.env_files import load_env_files, parse_env_file_content
+from scripts.run_with_env_files import resolve_command_executable
 
 
 def test_parse_env_file_content_preserves_values_with_spaces_and_backslashes():
@@ -30,4 +31,31 @@ def test_load_env_files_merges_multiple_files_with_later_override(tmp_path: Path
     assert loaded["PRIVATE_KEY"] == "-----BEGIN PRIVATE KEY-----\\nabc"
     assert loaded["ALEMBIC_DATABASE_URL"] == "postgresql://migrate@example.test/db"
     assert loaded["ENVIRONMENT"] == "override"
+
+
+def test_parse_env_file_content_rejects_invalid_env_var_names():
+    try:
+        parse_env_file_content("BAD KEY=value\n")
+    except ValueError as exc:
+        assert "Invalid environment variable name" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for invalid env var name")
+
+
+def test_parse_env_file_content_rejects_dangerous_process_env_keys():
+    try:
+        parse_env_file_content("PATH=/tmp/malicious\n")
+    except ValueError as exc:
+        assert "is not allowed" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for blocked env key")
+
+
+def test_resolve_command_executable_uses_current_path_before_env_files(monkeypatch):
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    resolved = resolve_command_executable(["python3", "-V"])
+
+    assert resolved.startswith("/")
+    assert resolved.endswith("python3")
+
 
