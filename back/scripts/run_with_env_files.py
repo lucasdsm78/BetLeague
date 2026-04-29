@@ -16,6 +16,15 @@ from infrastructure.env_files import apply_env_files
 USAGE = "Usage: python scripts/run_with_env_files.py <env-file> [<env-file> ...] -- <command> [args ...]"
 
 
+def ensure_project_root_in_pythonpath() -> None:
+    project_root = str(PROJECT_ROOT)
+    current_pythonpath = os.environ.get("PYTHONPATH", "")
+    entries = [entry for entry in current_pythonpath.split(os.pathsep) if entry]
+    if project_root not in entries:
+        entries.insert(0, project_root)
+    os.environ["PYTHONPATH"] = os.pathsep.join(entries)
+
+
 def resolve_command_executable(command: list[str]) -> str:
     program = command[0]
     if os.path.sep in program or (os.path.altsep and os.path.altsep in program):
@@ -41,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
 
     executable = resolve_command_executable(command)
     apply_env_files(env_files)
+    ensure_project_root_in_pythonpath()
     os.execve(executable, command, os.environ)
     return 0
 
