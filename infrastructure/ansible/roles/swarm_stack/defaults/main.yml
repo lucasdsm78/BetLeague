@@ -32,6 +32,8 @@ betleague_swarm_release_worker_services:
   - outbox_worker
 betleague_swarm_wait_timeout_seconds: 180
 betleague_swarm_wait_sleep_seconds: 5
+betleague_swarm_diagnostics_logs_since: 30m
+betleague_swarm_diagnostics_logs_tail: 120
 
 
 
