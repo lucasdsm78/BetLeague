@@ -3,6 +3,13 @@ from pydantic import Field, field_validator
 from urllib.parse import urlsplit
 
 
+def strip_optional_wrapping_quotes(value: str) -> str:
+    normalized = value.strip()
+    if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {'"', "'"}:
+        return normalized[1:-1]
+    return normalized
+
+
 class DatabaseSettings(BaseSettings):
     sqlalchemy_database_url: str
     alembic_database_url: str | None = Field(default=None, validation_alias="ALEMBIC_DATABASE_URL")
@@ -24,6 +31,13 @@ class DatabaseSettings(BaseSettings):
         if value:
             return value
         return "verify-full" if self.environment == "prod" else "disable"
+
+    @field_validator("sqlalchemy_database_url", "alembic_database_url", mode="before")
+    @classmethod
+    def normalize_database_url_env(cls, value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return value
+        return strip_optional_wrapping_quotes(value)
 
     class Config:
         env_file = ".env"
@@ -121,15 +135,20 @@ class Settings(BaseSettings):
     auth_refresh_cookie_samesite: str = Field(default="lax", validation_alias="AUTH_REFRESH_COOKIE_SAMESITE")
     auth_refresh_cookie_secure: bool | None = Field(default=None, validation_alias="AUTH_REFRESH_COOKIE_SECURE")
 
+    @field_validator("sqlalchemy_database_url", "alembic_database_url", mode="before")
+    @classmethod
+    def normalize_database_url_env(cls, value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return value
+        return strip_optional_wrapping_quotes(value)
+
     @field_validator("private_key", "public_key", mode="before")
     @classmethod
     def normalize_pem_env(cls, value: str) -> str:
         if not isinstance(value, str):
             return value
 
-        normalized = value.strip()
-        if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {'"', "'"}:
-            normalized = normalized[1:-1]
+        normalized = strip_optional_wrapping_quotes(value)
 
         normalized = normalized.replace("\\r\\n", "\\n").replace("\\n", "\n")
         return normalized
