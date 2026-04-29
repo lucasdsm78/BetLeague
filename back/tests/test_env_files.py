@@ -1,9 +1,10 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 from infrastructure.env_files import load_env_files, parse_env_file_content
-from scripts.run_with_env_files import resolve_command_executable
+from scripts.run_with_env_files import ensure_project_root_in_pythonpath, resolve_command_executable
 
 
 def test_parse_env_file_content_preserves_values_with_spaces_and_backslashes():
@@ -93,5 +94,42 @@ def test_run_with_env_files_can_be_executed_as_script(tmp_path: Path):
     )
 
     assert result.stdout.strip() == "ok-from-env-file"
+
+
+def test_run_with_env_files_propagates_project_root_to_python_children(tmp_path: Path):
+    env_file = tmp_path / "backend.env"
+    env_file.write_text("BETLEAGUE_TEST_VALUE=ok-from-env-file\n", encoding="utf-8")
+
+    project_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_with_env_files.py",
+            str(env_file),
+            "--",
+            sys.executable,
+            "-c",
+            "from infrastructure.env_files import parse_env_file_content; print(parse_env_file_content('CHILD_IMPORT=ok')['CHILD_IMPORT'])",
+        ],
+        cwd=project_root,
+        env={"PATH": os.environ["PATH"]},
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.stdout.strip() == "ok"
+
+
+def test_ensure_project_root_in_pythonpath_preserves_existing_entries(monkeypatch):
+    monkeypatch.setenv("PYTHONPATH", "/opt/custom")
+
+    ensure_project_root_in_pythonpath()
+
+    entries = os.environ["PYTHONPATH"].split(os.pathsep)
+    assert entries[0] == str(Path(__file__).resolve().parents[1])
+    assert "/opt/custom" in entries
+
+
 
 
