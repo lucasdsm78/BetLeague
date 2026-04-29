@@ -269,6 +269,8 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 
 `BACKEND_ENV` et `MIGRATIONS_ENV` doivent rester dans un format `.env` strict compatible à la fois avec `docker run --env-file` et avec le sourcing shell côté stack Swarm : lignes `KEY=value`, commentaires commençant par `#`, lignes vides. Évite `KEY = value`, `export KEY=value`, les retours chariot Windows `CRLF` et toute valeur multiligne. Pour les clés PEM applicatives comme `PRIVATE_KEY` / `PUBLIC_KEY`, utilise une seule ligne avec des retours à la ligne échappés (`\n`) ; le backend BetLeague les renormalise au démarrage.
 
+Les secrets Docker Swarm sont immuables : Docker n’autorise pas la mise à jour de leur contenu sous un même nom. Le rôle Ansible `swarm_stack` génère donc des noms réels suffixés par un hash de contenu (`<stack>_backend_env_<hash>`, etc.) et les injecte dans `stack.prod.yml`, tout en conservant des chemins montés stables comme `/run/secrets/backend_env` et `/run/secrets/migrations_env` dans les conteneurs.
+
 ### Déclenchement
 
 Deux chemins coexistent désormais.
