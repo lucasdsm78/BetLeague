@@ -89,10 +89,11 @@
         that:
           - >-
             (betleague_ufw_status.stdout | regex_search(
-            '(?m)^' ~ (item | string) ~ '/tcp\\s+ALLOW IN\\s+Anywhere \\(v6\\)(?:\\s|$)'
+            '(?m)^' ~ (item | string) ~ '/tcp(?:\\s+\\(v6\\))?\\s+ALLOW IN\\s+Anywhere \\(v6\\)(?:\\s|$)'
             )) is not none
         fail_msg: >-
-          La règle UFW IPv6 attendue pour le port `{{ item }}` est absente.
+          La règle UFW IPv6 attendue pour le port `{{ item }}` est absente
+          ou affichée dans un format inattendu par `ufw status verbose`.
       loop: "{{ betleague_public_tcp_ports }}"
       when: betleague_ufw_ipv6 | bool
 
@@ -129,6 +130,7 @@
       when:
         - betleague_enable_fail2ban | bool
         - betleague_fail2ban_recidive_enabled | bool
+
 
 
 
