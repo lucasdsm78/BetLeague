@@ -67,6 +67,53 @@
       Pour les PEM/certificats, utilise une seule ligne avec des `\n` échappés.
   loop: "{{ betleague_swarm_env_validation_results }}"
 
+- name: Vérifier que les URLs Redis et Celery de backend.env sont valides
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import sys
+        from urllib.parse import urlsplit
+
+        env = {}
+        for raw_line in sys.stdin.read().splitlines():
+            if not raw_line or raw_line.startswith("#"):
+                continue
+            key, separator, value = raw_line.partition("=")
+            if separator:
+                env[key] = value
+
+        required = ("REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND")
+        allowed_schemes = {"redis", "rediss"}
+        errors = []
+        for key in required:
+            value = env.get(key, "").strip()
+            if not value:
+                errors.append(f"{key}: variable manquante ou vide")
+                continue
+            try:
+                parts = urlsplit(value)
+                port = parts.port
+            except ValueError:
+                errors.append(f"{key}: URL invalide ; percent-encode le mot de passe Redis dans l'URL")
+                continue
+            if parts.scheme not in allowed_schemes:
+                errors.append(f"{key}: schéma invalide, attendu redis:// ou rediss://")
+            if not parts.hostname:
+                errors.append(f"{key}: hostname manquant")
+            if port is None:
+                errors.append(f"{key}: port explicite manquant")
+
+        if errors:
+            print("backend.env contient des URLs Redis/Celery invalides:", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            raise SystemExit(1)
+  args:
+    stdin: "{{ betleague_swarm_backend_env_content_normalized }}"
+  changed_when: false
+
 - name: Créer l'arborescence de déploiement Swarm
   ansible.builtin.file:
     path: "{{ item.path }}"
