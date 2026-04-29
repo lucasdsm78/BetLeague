@@ -1,10 +1,10 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from infrastructure.config import Settings
+from infrastructure.config import DatabaseSettings
 from infrastructure.postgresql.engine_factory import create_configured_async_engine
 
-settings = Settings()
+settings = DatabaseSettings()
 
 engine = create_configured_async_engine(
     settings.sqlalchemy_database_url,

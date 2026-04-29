@@ -18,7 +18,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from infrastructure.config import Settings
+from infrastructure.config import DatabaseSettings
 from infrastructure.postgresql.engine_factory import create_configured_async_engine
 from infrastructure.postgresql.database import Base
 from infrastructure.postgresql.init_models import init_models
@@ -29,7 +29,7 @@ target_metadata = Base.metadata
 
 
 def get_database_url() -> str:
-    settings = Settings()
+    settings = DatabaseSettings()
     return settings.alembic_database_url or settings.sqlalchemy_database_url
 
 
@@ -63,7 +63,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    settings = Settings()
+    settings = DatabaseSettings()
     connectable = create_configured_async_engine(
         get_database_url(),
         settings=settings,
