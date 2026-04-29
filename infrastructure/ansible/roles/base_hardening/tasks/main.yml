@@ -135,7 +135,7 @@
     block: |
       :btl-docker-log-deny - [0:0]
       :DOCKER-USER - [0:0]
-      {{ lookup('template', 'ufw-docker-user.rules.j2') | indent(6, false) }}
+      {{ lookup('template', 'ufw-docker-user.rules.j2') }}
   when: betleague_ufw_docker_enabled | bool
   notify: Reload ufw
 
@@ -147,7 +147,7 @@
     block: |
       :btl-docker-log-deny - [0:0]
       :DOCKER-USER - [0:0]
-      {{ lookup('template', 'ufw-docker-user-ipv6.rules.j2') | indent(6, false) }}
+      {{ lookup('template', 'ufw-docker-user-ipv6.rules.j2') }}
   when:
     - betleague_ufw_docker_enabled | bool
     - betleague_ufw_ipv6 | bool
@@ -192,6 +192,7 @@
     enabled: true
     state: started
   when: betleague_enable_fail2ban | bool
+
 
 
 
