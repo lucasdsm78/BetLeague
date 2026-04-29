@@ -29,6 +29,7 @@
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
     GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
     GUNICORN_FORWARDED_ALLOW_IPS: "{{ betleague_swarm_gunicorn_forwarded_allow_ips }}"
+    BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION: "{{ betleague_swarm_update_failure_action }}"
     BETLEAGUE_PYTHON_TEMP: "{{ betleague_swarm_python_temp }}"
     BETLEAGUE_PYTHON_TMP: "{{ betleague_swarm_python_tmp }}"
     BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"

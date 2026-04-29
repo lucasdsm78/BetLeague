@@ -54,7 +54,7 @@
     --update-parallelism 1
     --update-order start-first
     --update-monitor 45s
-    --update-failure-action rollback
+    --update-failure-action {{ betleague_swarm_update_failure_action }}
     {{ betleague_swarm_stack_name }}_backend
   register: betleague_swarm_release_backend_update
   changed_when: true
@@ -80,6 +80,10 @@
     docker service update
     --with-registry-auth
     --image {{ betleague_swarm_backend_image }}
+    --update-parallelism 1
+    --update-order start-first
+    --update-monitor 45s
+    --update-failure-action {{ betleague_swarm_update_failure_action }}
     {{ betleague_swarm_stack_name }}_{{ item }}
   loop: "{{ betleague_swarm_release_worker_services }}"
   loop_control:
@@ -114,7 +118,7 @@
     --update-parallelism 1
     --update-order start-first
     --update-monitor 30s
-    --update-failure-action rollback
+    --update-failure-action {{ betleague_swarm_update_failure_action }}
     {{ betleague_swarm_stack_name }}_frontend
   register: betleague_swarm_release_frontend_update
   changed_when: true
