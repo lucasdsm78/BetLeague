@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-live_dir="/etc/letsencrypt/live/{{ betleague_letsencrypt_cert_name }}"
+live_dir="{{ betleague_letsencrypt_live_dir }}"
 cert_src="$live_dir/fullchain.pem"
 key_src="$live_dir/privkey.pem"
 cert_dst="{{ betleague_edge_tls_cert_path }}"
@@ -18,4 +18,5 @@ container_id="$(docker ps --filter "label=com.docker.swarm.service.name=$service
 if [[ -n "$container_id" ]]; then
   docker exec "$container_id" nginx -s reload >/dev/null 2>&1 || true
 fi
+
 
