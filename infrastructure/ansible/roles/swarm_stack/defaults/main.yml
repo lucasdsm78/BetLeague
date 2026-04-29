@@ -15,6 +15,8 @@ betleague_swarm_app_domain: app.betleague.app
 betleague_swarm_api_domain: api.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
 betleague_swarm_frontend_healthcheck_url: "https://{{ betleague_swarm_app_domain }}/"
+betleague_letsencrypt_enabled: true
+betleague_letsencrypt_staging: false
 betleague_swarm_registry_server: ""
 betleague_swarm_registry_username: ""
 betleague_swarm_registry_password: ""
