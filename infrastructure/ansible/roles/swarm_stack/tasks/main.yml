@@ -37,8 +37,10 @@
     - name: Vérifier la convergence des services Swarm
       ansible.builtin.shell: |
         set -euo pipefail
-        lines=$(docker stack services {{ betleague_swarm_stack_name }} --format '{{"{{.Name}} {{.Replicas}}"}}')
+        stack_name="{{ betleague_swarm_stack_name }}"
+        lines=$(docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}')
         test -n "$lines"
+        pending_services=""
         while IFS= read -r line; do
           name="${line%% *}"
           if [[ "$name" == *"_jetstream_provision" ]]; then
@@ -48,9 +50,15 @@
           running="${replicas%%/*}"
           desired="${replicas##*/}"
           if [[ "$running" != "$desired" ]]; then
-            exit 1
+            pending_services+=" - $line"$'\n'
           fi
         done <<< "$lines"
+        if [[ -n "$pending_services" ]]; then
+          printf 'Services Swarm non converges pour %s:\n' "$stack_name"
+          printf '%s' "$pending_services"
+          exit 1
+        fi
+        printf 'Tous les services Swarm ont converge pour %s.\n' "$stack_name"
       args:
         executable: /bin/bash
       register: betleague_swarm_wait_services
@@ -101,6 +109,9 @@
   until: betleague_swarm_api_health.status == 200
   delegate_to: localhost
   become: false
+
+
+
 
 
 
