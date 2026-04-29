@@ -172,6 +172,24 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Calculer les checksums des configs Swarm immuables
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+    checksum_algorithm: sha256
+  loop:
+    - { key: 'edge_nginx_conf', path: "{{ betleague_swarm_deploy_path }}/generated/edge.conf" }
+    - { key: 'redis_conf_template', path: "{{ betleague_swarm_deploy_path }}/redis.conf.template" }
+    - { key: 'nats_server_conf', path: "{{ betleague_swarm_deploy_path }}/nats-server.conf" }
+  loop_control:
+    label: "{{ item.key }}"
+  register: betleague_swarm_config_stats
+
+- name: Calculer les noms immuables des configs Swarm depuis leur contenu
+  ansible.builtin.set_fact:
+    betleague_swarm_edge_nginx_conf_config_name: "{{ betleague_swarm_stack_name }}_edge_nginx_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'edge_nginx_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_redis_conf_template_config_name: "{{ betleague_swarm_stack_name }}_redis_conf_template_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'redis_conf_template') | first).stat.checksum[:12] }}"
+    betleague_swarm_nats_server_conf_config_name: "{{ betleague_swarm_stack_name }}_nats_server_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'nats_server_conf') | first).stat.checksum[:12] }}"
+
 - name: Déployer les secrets de stack Swarm
   ansible.builtin.copy:
     content: "{{ item.content }}\n"

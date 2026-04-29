@@ -508,10 +508,13 @@ volumes:
 
 configs:
   edge_nginx_conf:
+    name: ${BETLEAGUE_EDGE_NGINX_CONF_CONFIG_NAME:?BETLEAGUE_EDGE_NGINX_CONF_CONFIG_NAME is required}
     file: ./generated/edge.conf
   redis_conf_template:
+    name: ${BETLEAGUE_REDIS_CONF_TEMPLATE_CONFIG_NAME:?BETLEAGUE_REDIS_CONF_TEMPLATE_CONFIG_NAME is required}
     file: ./redis.conf.template
   nats_server_conf:
+    name: ${BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME:?BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME is required}
     file: ./nats-server.conf
 
 secrets:
