@@ -12,16 +12,40 @@ from infrastructure.config import DatabaseSettings, Settings
 DatabaseSettingsLike = DatabaseSettings | Settings
 
 _SSL_QUERY_KEYS = {"ssl", "sslmode", "sslcert", "sslkey", "sslrootcert"}
+_ASYNCPG_SCHEMES = {"postgresql+asyncpg", "postgres+asyncpg"}
+_SYNC_POSTGRES_SCHEMES = {
+    "postgresql",
+    "postgres",
+    "postgresql+psycopg2",
+    "postgres+psycopg2",
+    "postgresql+psycopg",
+    "postgres+psycopg",
+}
 
 
 def sanitize_asyncpg_database_url(database_url: str) -> str:
     parts = urlsplit(database_url)
+    scheme = parts.scheme.lower()
+
+    if scheme in _ASYNCPG_SCHEMES or scheme in _SYNC_POSTGRES_SCHEMES:
+        normalized_scheme = "postgresql+asyncpg"
+    elif scheme.startswith("postgresql+") or scheme.startswith("postgres+"):
+        raise ValueError(
+            f"Unsupported PostgreSQL driver in database URL scheme {parts.scheme!r}. "
+            "Use postgresql+asyncpg://, postgresql:// or postgresql+psycopg2://."
+        )
+    else:
+        raise ValueError(
+            f"Unsupported database URL scheme {parts.scheme!r}. "
+            "BetLeague async database connections require a PostgreSQL URL."
+        )
+
     filtered_query = [
         (key, value)
         for key, value in parse_qsl(parts.query, keep_blank_values=True)
         if key.lower() not in _SSL_QUERY_KEYS
     ]
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(filtered_query, doseq=True), parts.fragment))
+    return urlunsplit((normalized_scheme, parts.netloc, parts.path, urlencode(filtered_query, doseq=True), parts.fragment))
 
 
 def build_asyncpg_ssl_context(settings: DatabaseSettingsLike) -> ssl.SSLContext | None:
