@@ -114,6 +114,7 @@ services:
   edge:
     <<: *service-defaults
     image: nginxinc/nginx-unprivileged:1.27-alpine
+    read_only: false
     user: "101:${BETLEAGUE_EDGE_TLS_GID:-940}"
     ports:
       - target: 8080
@@ -159,6 +160,7 @@ services:
   frontend:
     <<: *service-defaults
     image: ${BETLEAGUE_FRONTEND_IMAGE:?BETLEAGUE_FRONTEND_IMAGE is required}
+    read_only: false
     user: "101:101"
     networks:
       - edge
@@ -182,6 +184,7 @@ services:
   redis:
     <<: *service-defaults
     image: redis:7-alpine
+    read_only: false
     user: "999:1000"
     stop_grace_period: 30s
     command:
@@ -190,8 +193,8 @@ services:
       - |
         export REDIS_PASSWORD="$$(cat /run/secrets/redis_password)"
         esc_pw=$$(printf '%s' "$$REDIS_PASSWORD" | sed -e 's/[\\/&]/\\\\&/g')
-        sed "s/__REDIS_PASSWORD__/$$esc_pw/g" /etc/redis/redis.conf.template > /tmp/redis.conf
-        exec redis-server /tmp/redis.conf
+        sed "s/__REDIS_PASSWORD__/$$esc_pw/g" /etc/redis/redis.conf.template > /data/redis.conf
+        exec redis-server /data/redis.conf
     secrets:
       - *secret-redis-password
     configs:
@@ -280,13 +283,12 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     command:
-      - sh
-      - -ec
-      - |
-        set -a
-        . /run/secrets/backend_env
-        set +a
-        exec python scripts/provision_jetstream_streams.py
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - python
+      - scripts/provision_jetstream_streams.py
     secrets:
       - *secret-backend-env
       - *secret-nats-ca-cert-client
@@ -315,14 +317,12 @@ services:
     image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
     user: "1000:1000"
     command:
-      - sh
-      - -ec
-      - |
-        set -a
-        . /run/secrets/backend_env
-        . /run/secrets/migrations_env
-        set +a
-        exec ./scripts/run_migrations.sh
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - /run/secrets/migrations_env
+      - --
+      - ./scripts/run_migrations.sh
     secrets:
       - *secret-backend-env
       - *secret-migrations-env
@@ -356,12 +356,13 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
     command:
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
       - sh
       - -ec
       - |
-        set -a
-        . /run/secrets/backend_env
-        set +a
         export GUNICORN_WORKERS="$${GUNICORN_WORKERS:-$${UVICORN_WORKERS:-2}}"
         exec gunicorn -c /app/gunicorn.conf.py main:app
     secrets:
@@ -401,13 +402,16 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     command:
-      - sh
-      - -ec
-      - |
-        set -a
-        . /run/secrets/backend_env
-        set +a
-        exec celery -A infrastructure.celery.celery_app worker --loglevel=info --concurrency=2
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - celery
+      - -A
+      - infrastructure.celery.celery_app
+      - worker
+      - --loglevel=info
+      - --concurrency=2
     secrets:
       - *secret-backend-env
     networks:
@@ -429,13 +433,17 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     command:
-      - sh
-      - -ec
-      - |
-        set -a
-        . /run/secrets/backend_env
-        set +a
-        exec celery -A infrastructure.celery.celery_app beat --loglevel=info --schedule /var/lib/celery/celerybeat-schedule
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - celery
+      - -A
+      - infrastructure.celery.celery_app
+      - beat
+      - --loglevel=info
+      - --schedule
+      - /var/lib/celery/celerybeat-schedule
     secrets:
       - *secret-backend-env
     volumes:
@@ -459,13 +467,12 @@ services:
     user: "1000:1000"
     stop_grace_period: 20s
     command:
-      - sh
-      - -ec
-      - |
-        set -a
-        . /run/secrets/backend_env
-        set +a
-        exec python outbox_worker_main.py
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - python
+      - outbox_worker_main.py
     secrets:
       - *secret-backend-env
       - *secret-nats-ca-cert-client
