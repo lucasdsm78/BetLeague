@@ -19,6 +19,44 @@
       - betleague_swarm_nats_client_key | trim != ''
     fail_msg: Variables Swarm requises manquantes pour le déploiement de la stack.
 
+- name: Normaliser les contenus d'environnement Swarm compatibles shell + docker --env-file
+  ansible.builtin.set_fact:
+    betleague_swarm_backend_env_content_normalized: >-
+      {{
+        betleague_swarm_backend_env_content
+        | regex_replace('^\ufeff', '')
+        | regex_replace('\r', '')
+        | regex_replace('\n*$', '')
+      }}
+    betleague_swarm_migrations_env_content_normalized: >-
+      {{
+        betleague_swarm_migrations_env_content
+        | regex_replace('^\ufeff', '')
+        | regex_replace('\r', '')
+        | regex_replace('\n*$', '')
+      }}
+
+- name: Vérifier que backend.env et migrations.env utilisent une syntaxe KEY=value compatible
+  ansible.builtin.assert:
+    that:
+      - >-
+        (
+          item.content.split('\n')
+          | reject('equalto', '')
+          | reject('match', '^#')
+          | reject('match', '^[A-Za-z_][A-Za-z0-9_]*=.*$')
+          | list
+          | length
+        ) == 0
+    fail_msg: >-
+      Le fichier `{{ item.name }}` contient au moins une ligne incompatible avec `docker run --env-file`.
+      Utilise uniquement des lignes `KEY=value`, des commentaires commençant par `#` et des lignes vides.
+      Les syntaxes `KEY = value`, `export KEY=value`, l'indentation en début de ligne et les valeurs multilignes ne sont pas supportées.
+  loop:
+    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content_normalized }}" }
+    - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content_normalized }}" }
+  no_log: true
+
 - name: Créer l'arborescence de déploiement Swarm
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -71,8 +109,8 @@
     group: root
     mode: '0600'
   loop:
-    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content }}" }
-    - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content }}" }
+    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content_normalized }}" }
+    - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content_normalized }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
@@ -122,5 +160,6 @@
   changed_when: >-
     'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
     'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+
 
 
