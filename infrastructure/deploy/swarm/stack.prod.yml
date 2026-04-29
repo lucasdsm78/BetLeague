@@ -404,7 +404,7 @@ services:
       - edge
       - app
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).read()\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; req=urllib.request.Request('http://127.0.0.1:8000/ready', headers={'Host': '${BETLEAGUE_API_DOMAIN:?BETLEAGUE_API_DOMAIN is required}'}); urllib.request.urlopen(req, timeout=3).read()\""]
       interval: 5s
       timeout: 3s
       retries: 3

@@ -27,6 +27,7 @@
   environment:
     BETLEAGUE_BACKEND_IMAGE: "{{ betleague_swarm_backend_image }}"
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
+    BETLEAGUE_API_DOMAIN: "{{ betleague_swarm_api_domain }}"
     GUNICORN_WORKERS: "{{ betleague_swarm_gunicorn_workers | string }}"
     GUNICORN_FORWARDED_ALLOW_IPS: "{{ betleague_swarm_gunicorn_forwarded_allow_ips }}"
     BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION: "{{ betleague_swarm_update_failure_action }}"
