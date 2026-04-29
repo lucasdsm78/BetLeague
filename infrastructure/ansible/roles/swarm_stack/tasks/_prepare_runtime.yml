@@ -37,25 +37,34 @@
       }}
 
 - name: Vérifier que backend.env et migrations.env utilisent une syntaxe KEY=value compatible
+  ansible.builtin.set_fact:
+    betleague_swarm_env_validation_results: >-
+      {%- set ns = namespace(results=[]) -%}
+      {%- for env_file in [
+        {'name': 'backend.env', 'content': betleague_swarm_backend_env_content_normalized},
+        {'name': 'migrations.env', 'content': betleague_swarm_migrations_env_content_normalized}
+      ] -%}
+      {%- set invalid = namespace(lines=[]) -%}
+      {%- for line in env_file.content.split('\n') -%}
+      {%- if line != '' and not (line is match('^#')) and not (line is match('^[A-Za-z_][A-Za-z0-9_]*=.*$')) -%}
+      {%- set invalid.lines = invalid.lines + [loop.index] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {%- set ns.results = ns.results + [{'name': env_file.name, 'invalid_line_numbers': invalid.lines}] -%}
+      {%- endfor -%}
+      {{ ns.results }}
+  no_log: true
+
+- name: Vérifier que backend.env et migrations.env utilisent une syntaxe KEY=value compatible
   ansible.builtin.assert:
     that:
-      - >-
-        (
-          item.content.split('\n')
-          | reject('equalto', '')
-          | reject('match', '^#')
-          | reject('match', '^[A-Za-z_][A-Za-z0-9_]*=.*$')
-          | list
-          | length
-        ) == 0
+      - item.invalid_line_numbers | length == 0
     fail_msg: >-
-      Le fichier `{{ item.name }}` contient au moins une ligne incompatible avec `docker run --env-file`.
+      Le fichier `{{ item.name }}` contient des lignes incompatibles avec `docker run --env-file` :
+      {{ item.invalid_line_numbers | join(', ') }}.
       Utilise uniquement des lignes `KEY=value`, des commentaires commençant par `#` et des lignes vides.
       Les syntaxes `KEY = value`, `export KEY=value`, l'indentation en début de ligne et les valeurs multilignes ne sont pas supportées.
-  loop:
-    - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content_normalized }}" }
-    - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content_normalized }}" }
-  no_log: true
+  loop: "{{ betleague_swarm_env_validation_results }}"
 
 - name: Créer l'arborescence de déploiement Swarm
   ansible.builtin.file:
@@ -160,6 +169,8 @@
   changed_when: >-
     'Downloaded newer image' in betleague_swarm_frontend_pull.stdout or
     'Status: Downloaded newer image' in betleague_swarm_frontend_pull.stdout
+
+
 
 
 
