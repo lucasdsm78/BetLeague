@@ -267,6 +267,8 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `NATS_CLIENT_KEY`
 - `REGISTRY_PASSWORD` (optionnel si registre privé)
 
+`BACKEND_ENV` et `MIGRATIONS_ENV` doivent rester dans un format `.env` strict compatible à la fois avec `docker run --env-file` et avec le sourcing shell côté stack Swarm : lignes `KEY=value`, commentaires commençant par `#`, lignes vides. Évite `KEY = value`, `export KEY=value`, les retours chariot Windows `CRLF` et toute valeur multiligne.
+
 ### Déclenchement
 
 Deux chemins coexistent désormais.
