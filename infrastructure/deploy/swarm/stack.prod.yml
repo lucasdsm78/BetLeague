@@ -516,24 +516,34 @@ configs:
 
 secrets:
   backend_env:
+    name: ${BETLEAGUE_BACKEND_ENV_SECRET_NAME:?BETLEAGUE_BACKEND_ENV_SECRET_NAME is required}
     file: ./secrets/backend.env
   migrations_env:
+    name: ${BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME:?BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME is required}
     file: ./secrets/migrations.env
   redis_password:
+    name: ${BETLEAGUE_REDIS_PASSWORD_SECRET_NAME:?BETLEAGUE_REDIS_PASSWORD_SECRET_NAME is required}
     file: ./secrets/redis_password.txt
   nats_user:
+    name: ${BETLEAGUE_NATS_USER_SECRET_NAME:?BETLEAGUE_NATS_USER_SECRET_NAME is required}
     file: ./secrets/nats_user.txt
   nats_password:
+    name: ${BETLEAGUE_NATS_PASSWORD_SECRET_NAME:?BETLEAGUE_NATS_PASSWORD_SECRET_NAME is required}
     file: ./secrets/nats_password.txt
   nats_ca_cert:
+    name: ${BETLEAGUE_NATS_CA_CERT_SECRET_NAME:?BETLEAGUE_NATS_CA_CERT_SECRET_NAME is required}
     file: ./secrets/nats-ca-cert.pem
   nats_server_cert:
+    name: ${BETLEAGUE_NATS_SERVER_CERT_SECRET_NAME:?BETLEAGUE_NATS_SERVER_CERT_SECRET_NAME is required}
     file: ./secrets/nats-server-cert.pem
   nats_server_key:
+    name: ${BETLEAGUE_NATS_SERVER_KEY_SECRET_NAME:?BETLEAGUE_NATS_SERVER_KEY_SECRET_NAME is required}
     file: ./secrets/nats-server-key.pem
   nats_client_cert:
+    name: ${BETLEAGUE_NATS_CLIENT_CERT_SECRET_NAME:?BETLEAGUE_NATS_CLIENT_CERT_SECRET_NAME is required}
     file: ./secrets/nats-client-cert.pem
   nats_client_key:
+    name: ${BETLEAGUE_NATS_CLIENT_KEY_SECRET_NAME:?BETLEAGUE_NATS_CLIENT_KEY_SECRET_NAME is required}
     file: ./secrets/nats-client-key.pem
 
 
