@@ -17,8 +17,8 @@ locals {
     null
   )
 
-  vps_id           = local.manage_vps ? module.vps[0].id : lookup(data.ovh_vps.existing[0], "service_name", null)
-  vps_service_name = local.manage_vps ? module.vps[0].service_name : lookup(data.ovh_vps.existing[0], "service_name", null)
+  vps_id            = local.manage_vps ? module.vps[0].id : lookup(data.ovh_vps.existing[0], "service_name", null)
+  vps_service_name  = local.manage_vps ? module.vps[0].service_name : lookup(data.ovh_vps.existing[0], "service_name", null)
   vps_instance_name = local.manage_vps ? module.vps[0].instance_name : local.desired_instance_name
   vps_public_ipv4   = local.manage_vps ? module.vps[0].public_ipv4 : local.existing_vps_public_ipv4
 
