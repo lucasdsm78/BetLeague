@@ -60,7 +60,7 @@ def test_gunicorn_config_uses_secure_defaults(monkeypatch):
     assert module.limit_request_line == 4094
     assert module.limit_request_fields == 100
     assert module.limit_request_field_size == 8190
-    assert module.worker_tmp_dir == "/tmp"
+    assert module.worker_tmp_dir == "/dev/shm"
     assert module.accesslog == "-"
     assert module.errorlog == "-"
     assert module.loglevel == "info"
