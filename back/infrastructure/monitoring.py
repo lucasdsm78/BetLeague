@@ -54,12 +54,22 @@ def _route_path(scope: dict[str, Any]) -> str:
 
 
 class PrometheusMiddleware:
-    def __init__(self, app):
+    def __init__(self, app, *, settings: Any):
         self.app = app
+        self.settings = settings
 
     async def __call__(self, scope, receive, send):
         if scope.get("type") != "http":
             await self.app(scope, receive, send)
+            return
+
+        if scope.get("path") == "/metrics":
+            try:
+                _scrape_celery_queue_depth(self.settings)
+            except Exception:
+                pass
+            response = Response(content=_generate_metrics_payload(), media_type=CONTENT_TYPE_LATEST)
+            await response(scope, receive, send)
             return
 
         if scope.get("path") in METRICS_EXCLUDED_PATHS:
@@ -130,12 +140,4 @@ def _generate_metrics_payload() -> bytes:
 
 
 def register_monitoring(app: FastAPI, *, settings: Any) -> None:
-    app.add_middleware(PrometheusMiddleware)
-
-    @app.get("/metrics", include_in_schema=False)
-    async def metrics() -> Response:
-        try:
-            _scrape_celery_queue_depth(settings)
-        except Exception:
-            pass
-        return Response(content=_generate_metrics_payload(), media_type=CONTENT_TYPE_LATEST)
+    app.add_middleware(PrometheusMiddleware, settings=settings)

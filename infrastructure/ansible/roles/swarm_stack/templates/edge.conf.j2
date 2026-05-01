@@ -254,6 +254,10 @@ server {
         return 403;
     }
 
+    location = /metrics {
+        return 403;
+    }
+
     location / {
         limit_req zone=api_general burst=30 nodelay;
         limit_conn conn_limit 30;
