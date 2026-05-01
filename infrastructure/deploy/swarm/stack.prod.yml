@@ -96,6 +96,13 @@ x-secret-grafana-admin-password: &secret-grafana-admin-password
   gid: "0"
   mode: 0400
 
+x-secret-grafana-secret-key: &secret-grafana-secret-key
+  source: grafana_secret_key
+  target: grafana_secret_key
+  uid: "472"
+  gid: "0"
+  mode: 0400
+
 x-secret-monitoring-htpasswd: &secret-monitoring-htpasswd
   source: monitoring_htpasswd
   target: monitoring_htpasswd
@@ -213,7 +220,11 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${BETLEAGUE_PROMETHEUS_RETENTION_TIME:-7d}
+      - --storage.tsdb.retention.size=${BETLEAGUE_PROMETHEUS_RETENTION_SIZE:-4GB}
       - --storage.tsdb.wal-compression
+      - --query.timeout=30s
+      - --query.max-concurrency=10
+      - --web.max-connections=64
       - --web.console.libraries=/usr/share/prometheus/console_libraries
       - --web.console.templates=/usr/share/prometheus/consoles
     configs:
@@ -251,23 +262,32 @@ services:
     read_only: false
     environment:
       GF_SERVER_DOMAIN: ${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
+      GF_SERVER_ENFORCE_DOMAIN: "true"
       GF_SERVER_ROOT_URL: https://${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_SECRET_KEY__FILE: /run/secrets/grafana_secret_key
       GF_SECURITY_COOKIE_SECURE: "true"
       GF_SECURITY_COOKIE_SAMESITE: strict
       GF_SECURITY_STRICT_TRANSPORT_SECURITY: "true"
       GF_SECURITY_X_CONTENT_TYPE_OPTIONS: "true"
       GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_CONTENT_SECURITY_POLICY: "true"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_USERS_VIEWERS_CAN_EDIT: "false"
+      GF_USERS_EDITORS_CAN_ADMIN: "false"
       GF_EXPLORE_ENABLED: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_SNAPSHOTS_PUBLIC_MODE: "false"
       GF_SMTP_ENABLED: "false"
     secrets:
       - *secret-grafana-admin-password
+      - *secret-grafana-secret-key
     configs:
       - source: grafana_datasources
         target: /etc/grafana/provisioning/datasources/datasources.yml
@@ -605,6 +625,7 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
       GUNICORN_WORKER_TMP_DIR: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
       TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
       TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
       TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
@@ -813,6 +834,9 @@ secrets:
   grafana_admin_password:
     name: ${BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME:?BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME is required}
     file: ./secrets/grafana_admin_password.txt
+  grafana_secret_key:
+    name: ${BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME:?BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME is required}
+    file: ./secrets/grafana_secret_key.txt
   monitoring_htpasswd:
     name: ${BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME:?BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME is required}
     file: ./secrets/monitoring_htpasswd

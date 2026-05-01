@@ -1,91 +1,112 @@
 groups:
   - name: host-resources
-	interval: {{ betleague_swarm_prometheus_evaluation_interval }}
-	rules:
-	  - alert: HostMemoryUsageHighWarning
-		expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 75
-		for: 10m
-		labels:
-		  severity: warning
-		  category: host
-		annotations:
-		  summary: "RAM hôte élevée sur {{ '{{ $labels.instance }}' }}"
-		  description: "La RAM utilisée dépasse 75% depuis 10 minutes."
-	  - alert: HostMemoryUsageHighCritical
-		expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
-		for: 5m
-		labels:
-		  severity: critical
-		  category: host
-		annotations:
-		  summary: "RAM hôte critique sur {{ '{{ $labels.instance }}' }}"
-		  description: "La RAM utilisée dépasse 85% depuis 5 minutes."
-	  - alert: HostSwapUsageWarning
-		expr: node_memory_SwapTotal_bytes > 0 and ((node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes) * 100 > 5
-		for: 15m
-		labels:
-		  severity: warning
-		  category: host
-		annotations:
-		  summary: "Swap utilisée régulièrement sur {{ '{{ $labels.instance }}' }}"
-		  description: "La swap dépasse 5% depuis au moins 15 minutes."
-	  - alert: HostCPUUsageHighWarning
-		expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
-		for: 10m
-		labels:
-		  severity: warning
-		  category: host
-		annotations:
-		  summary: "CPU hôte élevée sur {{ '{{ $labels.instance }}' }}"
-		  description: "La CPU totale dépasse 80% depuis 10 minutes."
-	  - alert: HostCPUUsageHighCritical
-		expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 85
-		for: 5m
-		labels:
-		  severity: critical
-		  category: host
-		annotations:
-		  summary: "CPU hôte critique sur {{ '{{ $labels.instance }}' }}"
-		  description: "La CPU totale dépasse 85% depuis 5 minutes."
-	  - alert: HostDiskUsageHighWarning
-		expr: (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"})) * 100 > 80
-		for: 15m
-		labels:
-		  severity: warning
-		  category: host
-		annotations:
-		  summary: "Disque hôte élevé sur {{ '{{ $labels.instance }}' }}"
-		  description: "Le disque racine dépasse 80% d'utilisation."
-	  - alert: HostDiskUsageHighCritical
-		expr: (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"})) * 100 > 90
-		for: 5m
-		labels:
-		  severity: critical
-		  category: host
-		annotations:
-		  summary: "Disque hôte critique sur {{ '{{ $labels.instance }}' }}"
-		  description: "Le disque racine dépasse 90% d'utilisation."
+    interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+    rules:
+      - alert: HostMemoryUsageHighWarning
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 75
+        for: 10m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "RAM hôte élevée sur {{ '{{ $labels.instance }}' }}"
+          description: "La RAM utilisée dépasse 75% depuis 10 minutes."
+      - alert: HostMemoryUsageHighCritical
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "RAM hôte critique sur {{ '{{ $labels.instance }}' }}"
+          description: "La RAM utilisée dépasse 85% depuis 5 minutes."
+      - alert: HostSwapUsageWarning
+        expr: node_memory_SwapTotal_bytes > 0 and ((node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes) * 100 > 5
+        for: 15m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Swap utilisée régulièrement sur {{ '{{ $labels.instance }}' }}"
+          description: "La swap dépasse 5% depuis au moins 15 minutes."
+      - alert: HostCPUUsageHighWarning
+        expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "CPU hôte élevée sur {{ '{{ $labels.instance }}' }}"
+          description: "La CPU totale dépasse 80% depuis 10 minutes."
+      - alert: HostCPUUsageHighCritical
+        expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "CPU hôte critique sur {{ '{{ $labels.instance }}' }}"
+          description: "La CPU totale dépasse 85% depuis 5 minutes."
+      - alert: HostDiskUsageHighWarning
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"})) * 100 > 80
+        for: 15m
+        labels:
+          severity: warning
+          category: host
+        annotations:
+          summary: "Disque hôte élevé sur {{ '{{ $labels.instance }}' }}"
+          description: "Le disque racine dépasse 80% d'utilisation."
+      - alert: HostDiskUsageHighCritical
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|nsfs|tracefs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: host
+        annotations:
+          summary: "Disque hôte critique sur {{ '{{ $labels.instance }}' }}"
+          description: "Le disque racine dépasse 90% d'utilisation."
+
   - name: containers
-	interval: {{ betleague_swarm_prometheus_evaluation_interval }}
-	rules:
-	  - alert: ContainerRestartDetected
-		expr: changes(container_start_time_seconds{image!=""}[15m]) > 0
-		for: 1m
-		labels:
-		  severity: warning
-		  category: container
-		annotations:
-		  summary: "Redémarrage conteneur détecté"
-		  description: "Un conteneur a redémarré au cours des 15 dernières minutes (name={{ '{{ $labels.name }}' }}, instance={{ '{{ $labels.instance }}' }})."
-	  - alert: ContainerOOMKilled
-		expr: increase(container_oom_events_total{image!=""}[15m]) > 0
-		for: 1m
-		labels:
-		  severity: critical
-		  category: container
-		annotations:
-		  summary: "OOM kill détecté"
-		  description: "Un conteneur a subi un OOM kill au cours des 15 dernières minutes (name={{ '{{ $labels.name }}' }}, instance={{ '{{ $labels.instance }}' }})."
+    interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+    rules:
+      - alert: ContainerRestartDetected
+        expr: changes(container_start_time_seconds{image!=""}[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: container
+        annotations:
+          summary: "Redémarrage conteneur détecté"
+          description: "Un conteneur a redémarré au cours des 15 dernières minutes (name={{ '{{ $labels.name }}' }}, instance={{ '{{ $labels.instance }}' }})."
+      - alert: ContainerOOMKilled
+        expr: increase(container_oom_events_total{image!=""}[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: container
+        annotations:
+          summary: "OOM kill détecté"
+          description: "Un conteneur a subi un OOM kill au cours des 15 dernières minutes (name={{ '{{ $labels.name }}' }}, instance={{ '{{ $labels.instance }}' }})."
 
-
+  - name: monitoring-health
+    interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: monitoring
+        annotations:
+          summary: "Target Prometheus indisponible: {{ '{{ $labels.job }}' }}"
+          description: "La target {{ '{{ $labels.instance }}' }} du job {{ '{{ $labels.job }}' }} ne répond plus depuis 2 minutes."
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: monitoring
+        annotations:
+          summary: "Reload de configuration Prometheus échoué"
+          description: "Prometheus indique que le dernier chargement de configuration a échoué."
 

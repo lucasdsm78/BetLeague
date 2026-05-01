@@ -21,7 +21,12 @@ betleague_swarm_grafana_healthcheck_url: "https://{{ betleague_swarm_grafana_dom
 betleague_swarm_prometheus_healthcheck_url: "https://{{ betleague_swarm_prometheus_domain }}/-/ready"
 betleague_swarm_prometheus_scrape_interval: 30s
 betleague_swarm_prometheus_evaluation_interval: 30s
+betleague_swarm_prometheus_scrape_timeout: 10s
 betleague_swarm_prometheus_retention_time: 7d
+betleague_swarm_prometheus_retention_size: 4GB
+betleague_swarm_prometheus_sample_limit: 5000
+betleague_swarm_prometheus_label_limit: 40
+betleague_swarm_require_monitoring_allowlist: true
 betleague_swarm_monitoring_allowlist_cidrs: ""
 betleague_swarm_registry_server: ""
 betleague_swarm_registry_username: ""
@@ -29,6 +34,7 @@ betleague_swarm_registry_password: ""
 betleague_swarm_backend_env_content: ""
 betleague_swarm_migrations_env_content: ""
 betleague_swarm_grafana_admin_password: ""
+betleague_swarm_grafana_secret_key: ""
 betleague_swarm_monitoring_htpasswd: ""
 betleague_swarm_alertmanager_config_content: ""
 betleague_swarm_redis_password: ""

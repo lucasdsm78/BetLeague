@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
-from fastapi import FastAPI, Request, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from fastapi import FastAPI, Response
+from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest, multiprocess
 from redis import Redis
-from starlette.middleware.base import BaseHTTPMiddleware
 
 
 HTTP_REQUESTS_TOTAL = Counter(
@@ -25,73 +25,108 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
 HTTP_REQUESTS_IN_PROGRESS = Gauge(
     "betleague_http_requests_in_progress",
     "Nombre de requêtes HTTP actuellement en cours sur l'API BetLeague.",
+    multiprocess_mode="livesum",
 )
 
 CELERY_QUEUE_DEPTH = Gauge(
     "betleague_celery_queue_depth",
     "Nombre de messages en attente par queue Celery Redis.",
     ("queue",),
+    multiprocess_mode="livemostrecent",
 )
 
 CELERY_QUEUE_SCRAPE_SUCCESS = Gauge(
     "betleague_celery_queue_scrape_success",
     "Indique si le dernier relevé des queues Celery Redis a réussi (1) ou échoué (0).",
+    multiprocess_mode="livemostrecent",
 )
 
-METRICS_EXCLUDED_PATHS = frozenset({"/metrics"})
+METRICS_EXCLUDED_PATHS = frozenset({"/health", "/metrics", "/ready"})
+_last_celery_queue_scrape_at = 0.0
 
 
-def _route_path(request: Request) -> str:
-    route = request.scope.get("route")
+def _route_path(scope: dict[str, Any]) -> str:
+    route = scope.get("route")
     route_path = getattr(route, "path", None)
     if route_path:
         return route_path
-    return request.url.path or "/"
+    return "__unmatched__"
 
 
-class PrometheusMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        route = _route_path(request)
-        if route in METRICS_EXCLUDED_PATHS:
-            return await call_next(request)
+class PrometheusMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-        method = request.method.upper()
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        if scope.get("path") in METRICS_EXCLUDED_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "GET").upper()
         started_at = time.perf_counter()
+        status_code = "500"
+
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message.get("type") == "http.response.start":
+                status_code = str(message.get("status", 500))
+            await send(message)
+
         HTTP_REQUESTS_IN_PROGRESS.inc()
         try:
-            response = await call_next(request)
-        except Exception:
-            duration = time.perf_counter() - started_at
-            HTTP_REQUEST_DURATION_SECONDS.labels(method=method, route=route).observe(duration)
-            HTTP_REQUESTS_TOTAL.labels(method=method, route=route, status_code="500").inc()
-            raise
+            await self.app(scope, receive, send_wrapper)
         finally:
             HTTP_REQUESTS_IN_PROGRESS.dec()
-
-        duration = time.perf_counter() - started_at
-        HTTP_REQUEST_DURATION_SECONDS.labels(method=method, route=route).observe(duration)
-        HTTP_REQUESTS_TOTAL.labels(method=method, route=route, status_code=str(response.status_code)).inc()
-        return response
+            route = _route_path(scope)
+            duration = time.perf_counter() - started_at
+            HTTP_REQUEST_DURATION_SECONDS.labels(method=method, route=route).observe(duration)
+            HTTP_REQUESTS_TOTAL.labels(method=method, route=route, status_code=status_code).inc()
 
 
 def _scrape_celery_queue_depth(settings: Any) -> None:
+    global _last_celery_queue_scrape_at
+
+    if not bool(getattr(settings, "celery_metrics_enabled", True)):
+        CELERY_QUEUE_SCRAPE_SUCCESS.set(1)
+        return
+
+    now = time.monotonic()
+    min_interval = max(1.0, float(getattr(settings, "celery_metrics_scrape_interval_s", 15)))
+    if now - _last_celery_queue_scrape_at < min_interval:
+        return
+
     queues = getattr(settings, "celery_metrics_queues_list", None) or ["celery"]
     broker_url = getattr(settings, "celery_broker_url", "redis://localhost:6379/1")
+    timeout = max(0.1, float(getattr(settings, "celery_metrics_redis_timeout_s", 0.5)))
     client = Redis.from_url(
         broker_url,
         decode_responses=True,
-        socket_connect_timeout=2,
-        socket_timeout=2,
+        socket_connect_timeout=timeout,
+        socket_timeout=timeout,
     )
     try:
         for queue_name in queues:
             CELERY_QUEUE_DEPTH.labels(queue=queue_name).set(client.llen(queue_name))
         CELERY_QUEUE_SCRAPE_SUCCESS.set(1)
+        _last_celery_queue_scrape_at = now
     except Exception:
         CELERY_QUEUE_SCRAPE_SUCCESS.set(0)
         raise
     finally:
         client.close()
+
+
+def _generate_metrics_payload() -> bytes:
+    if not os.getenv("PROMETHEUS_MULTIPROC_DIR"):
+        return generate_latest()
+
+    registry = CollectorRegistry()
+    multiprocess.MultiProcessCollector(registry)
+    return generate_latest(registry)
 
 
 def register_monitoring(app: FastAPI, *, settings: Any) -> None:
@@ -103,5 +138,4 @@ def register_monitoring(app: FastAPI, *, settings: Any) -> None:
             _scrape_celery_queue_depth(settings)
         except Exception:
             pass
-        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
-
+        return Response(content=_generate_metrics_payload(), media_type=CONTENT_TYPE_LATEST)

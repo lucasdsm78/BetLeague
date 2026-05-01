@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 
 
@@ -34,6 +35,37 @@ proc_name = os.getenv("GUNICORN_PROC_NAME", "betleague-api")
 preload_app = False
 
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+
+
+def _prometheus_multiproc_dir() -> Path | None:
+    raw_path = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
+    if not raw_path:
+        return None
+
+    path = Path(raw_path).resolve()
+    if path == Path(path.anchor):
+        raise RuntimeError("PROMETHEUS_MULTIPROC_DIR must not point to a filesystem root")
+    return path
+
+
+def on_starting(_server):
+    prometheus_dir = _prometheus_multiproc_dir()
+    if prometheus_dir is None:
+        return
+
+    prometheus_dir.mkdir(parents=True, exist_ok=True)
+    for metrics_file in prometheus_dir.glob("*.db"):
+        if metrics_file.is_file():
+            metrics_file.unlink()
+
+
+def child_exit(_server, worker):
+    if _prometheus_multiproc_dir() is None:
+        return
+
+    from prometheus_client import multiprocess
+
+    multiprocess.mark_process_dead(worker.pid)
 
 
 
