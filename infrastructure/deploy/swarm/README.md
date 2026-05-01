@@ -74,6 +74,10 @@ Les entrées de déploiement sont désormais portées par :
 cd /Users/lucasdasilvamarques/BetLeague/infrastructure/deploy/swarm
 cp secrets/backend.env.example secrets/backend.env
 cp secrets/migrations.env.example secrets/migrations.env
+cp secrets/grafana_admin_password.txt.example secrets/grafana_admin_password.txt
+cp secrets/grafana_secret_key.txt.example secrets/grafana_secret_key.txt
+cp secrets/monitoring_htpasswd.example secrets/monitoring_htpasswd
+cp secrets/alertmanager.yml.example secrets/alertmanager.yml
 cp secrets/redis_password.txt.example secrets/redis_password.txt
 cp secrets/nats_user.txt.example secrets/nats_user.txt
 cp secrets/nats_password.txt.example secrets/nats_password.txt
@@ -234,9 +238,11 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `GUNICORN_WORKERS`
 - `GUNICORN_FORWARDED_ALLOW_IPS`
 - `PROMETHEUS_SCRAPE_INTERVAL` (optionnel, défaut `30s`)
+- `PROMETHEUS_SCRAPE_TIMEOUT` (optionnel, défaut `10s`)
 - `PROMETHEUS_EVALUATION_INTERVAL` (optionnel, défaut `30s`)
 - `PROMETHEUS_RETENTION_TIME` (optionnel, défaut `7d`)
-- `MONITORING_ALLOWLIST_CIDRS` (optionnel, recommandé pour limiter `grafana` / `prometheus` à vos IP/VPN)
+- `PROMETHEUS_RETENTION_SIZE` (optionnel, défaut `4GB`)
+- `MONITORING_ALLOWLIST_CIDRS` (**requis par défaut**) pour limiter `grafana` / `prometheus` à vos IP/VPN
 - `LETSENCRYPT_EMAIL`
 - `LETSENCRYPT_STAGING` (optionnel, `true` recommandé en environnement de développement public)
 - `LETSENCRYPT_PRODUCTION_ACK` (optionnel, requis uniquement si `LETSENCRYPT_STAGING=false` lors d'un `deploy_swarm.yml` en production)
@@ -264,6 +270,7 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `BACKEND_ENV`
 - `MIGRATIONS_ENV`
 - `GRAFANA_ADMIN_PASSWORD`
+- `GRAFANA_SECRET_KEY`
 - `MONITORING_HTPASSWD`
 - `ALERTMANAGER_CONFIG`
 - `REDIS_PASSWORD`
@@ -277,6 +284,10 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `REGISTRY_PASSWORD` (optionnel si registre privé)
 
 `MONITORING_HTPASSWD` doit contenir une ligne `htpasswd` bcrypt complète, par exemple générée avec `htpasswd -nBC 12 monitoring`.
+
+`GRAFANA_ADMIN_PASSWORD` doit être un secret long et aléatoire ; la validation Ansible impose au moins 24 caractères.
+
+`GRAFANA_SECRET_KEY` doit être un secret stable, long et aléatoire, distinct du mot de passe admin ; la validation Ansible impose au moins 32 caractères. Exemple de génération : `openssl rand -base64 48`.
 
 `ALERTMANAGER_CONFIG` doit contenir la configuration YAML complète des receivers/routes (email, webhook, Slack, etc.).
 
@@ -332,11 +343,22 @@ Le bundle monitoring expose notamment :
 - latence HTTP backend p95/p99 via histogramme Prometheus
 - profondeur des queues Celery Redis via `betleague_celery_queue_depth`
 
+Pour limiter la consommation RAM/disque sur un VPS, Prometheus est borné par défaut avec :
+
+- rétention temporelle `7d`
+- rétention taille `4GB`
+- timeout de requête `30s`
+- concurrence de requêtes `10`
+- limites de samples/labels par scrape côté configuration rendue
+
+Le backend FastAPI utilise aussi le mode multiprocess de `prometheus-client` avec Gunicorn, afin d’agréger correctement les métriques entre workers Uvicorn sans augmenter la cardinalité avec des labels dynamiques.
+
 ### Exemples de secrets monitoring fournis
 
 Sous `infrastructure/deploy/swarm/secrets/` :
 
 - `grafana_admin_password.txt.example`
+- `grafana_secret_key.txt.example`
 - `monitoring_htpasswd.example`
 - `alertmanager.yml.example`
 
@@ -407,7 +429,7 @@ sudo certbot renew --dry-run
 - Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
 - Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.
 - Premier bootstrap recommandé : `LETSENCRYPT_STAGING=true`, vérification HTTPS complète, puis second déploiement avec `LETSENCRYPT_STAGING=false` et `LETSENCRYPT_PRODUCTION_ACK=true` pour obtenir le certificat public final.
-- Pour un vrai niveau production avancé, il faudra ensuite ajouter : monitoring, rotation DNS-01 si wildcard/multi-nœud, sauvegardes et pipeline de build/release d'images.
+- Pour un vrai niveau production avancé, il faudra ensuite ajouter ou renforcer : sauvegardes restaurables testées, rotation DNS-01 si wildcard/multi-nœud, pipeline de build/release d'images par digest, et éventuellement une stratégie de rétention longue hors VPS pour les métriques.
 
 
 

@@ -49,6 +49,7 @@
     BETLEAGUE_BACKEND_ENV_SECRET_NAME: "{{ betleague_swarm_backend_env_secret_name }}"
     BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME: "{{ betleague_swarm_migrations_env_secret_name }}"
     BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME: "{{ betleague_swarm_grafana_admin_password_secret_name }}"
+    BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME: "{{ betleague_swarm_grafana_secret_key_secret_name }}"
     BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME: "{{ betleague_swarm_monitoring_htpasswd_secret_name }}"
     BETLEAGUE_ALERTMANAGER_CONFIG_SECRET_NAME: "{{ betleague_swarm_alertmanager_config_secret_name }}"
     BETLEAGUE_REDIS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_redis_password_secret_name }}"
@@ -60,6 +61,7 @@
     BETLEAGUE_NATS_CLIENT_CERT_SECRET_NAME: "{{ betleague_swarm_nats_client_cert_secret_name }}"
     BETLEAGUE_NATS_CLIENT_KEY_SECRET_NAME: "{{ betleague_swarm_nats_client_key_secret_name }}"
     BETLEAGUE_PROMETHEUS_RETENTION_TIME: "{{ betleague_swarm_prometheus_retention_time }}"
+    BETLEAGUE_PROMETHEUS_RETENTION_SIZE: "{{ betleague_swarm_prometheus_retention_size }}"
   register: betleague_swarm_deploy_result
   changed_when: >-
     'Updating service' in betleague_swarm_deploy_result.stdout or
