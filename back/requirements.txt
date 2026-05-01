@@ -33,3 +33,4 @@ greenlet>=3.0.0
 redis>=5.0.0
 pywebpush>=2.0.0
 nats-py>=2.9.0
+prometheus-client>=0.20.0

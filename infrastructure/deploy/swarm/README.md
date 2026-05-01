@@ -227,10 +227,16 @@ Dans chaque Environment GitHub (`development` et `production`), configure au min
 - `DEPLOY_COMPOSE_ROOT` (optionnel)
 - `APP_DOMAIN`
 - `API_DOMAIN`
+- `GRAFANA_DOMAIN`
+- `PROMETHEUS_DOMAIN`
 - `BETLEAGUE_BACKEND_IMAGE`
 - `BETLEAGUE_FRONTEND_IMAGE`
 - `GUNICORN_WORKERS`
 - `GUNICORN_FORWARDED_ALLOW_IPS`
+- `PROMETHEUS_SCRAPE_INTERVAL` (optionnel, défaut `30s`)
+- `PROMETHEUS_EVALUATION_INTERVAL` (optionnel, défaut `30s`)
+- `PROMETHEUS_RETENTION_TIME` (optionnel, défaut `7d`)
+- `MONITORING_ALLOWLIST_CIDRS` (optionnel, recommandé pour limiter `grafana` / `prometheus` à vos IP/VPN)
 - `LETSENCRYPT_EMAIL`
 - `LETSENCRYPT_STAGING` (optionnel, `true` recommandé en environnement de développement public)
 - `LETSENCRYPT_PRODUCTION_ACK` (optionnel, requis uniquement si `LETSENCRYPT_STAGING=false` lors d'un `deploy_swarm.yml` en production)
@@ -257,6 +263,9 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `SSH_KNOWN_HOSTS`
 - `BACKEND_ENV`
 - `MIGRATIONS_ENV`
+- `GRAFANA_ADMIN_PASSWORD`
+- `MONITORING_HTPASSWD`
+- `ALERTMANAGER_CONFIG`
 - `REDIS_PASSWORD`
 - `NATS_USER`
 - `NATS_PASSWORD`
@@ -266,6 +275,70 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `NATS_CLIENT_CERT`
 - `NATS_CLIENT_KEY`
 - `REGISTRY_PASSWORD` (optionnel si registre privé)
+
+`MONITORING_HTPASSWD` doit contenir une ligne `htpasswd` bcrypt complète, par exemple générée avec `htpasswd -nBC 12 monitoring`.
+
+`ALERTMANAGER_CONFIG` doit contenir la configuration YAML complète des receivers/routes (email, webhook, Slack, etc.).
+
+### Restreindre Grafana / Prometheus à une seule IP fixe
+
+Si tu veux un accès uniquement depuis **ta propre IP fixe**, définis :
+
+```text
+MONITORING_ALLOWLIST_CIDRS=<TON_IP_FIXE>/32
+```
+
+Exemple :
+
+```text
+MONITORING_ALLOWLIST_CIDRS=203.0.113.42/32
+```
+
+Avec la configuration Nginx fournie, cela impose :
+
+- IP source autorisée par `allow` / `deny`
+- **et** authentification `auth_basic`
+
+Donc même si quelqu’un connaît l’URL `grafana.<domaine>` ou `prometheus.<domaine>`, l’accès restera bloqué hors de cette IP.
+
+Si tu administres aussi le serveur depuis cette même IP fixe, garde en parallèle `SSH_TRUSTED_CIDRS=<TON_IP_FIXE>/32` dans l’Environment GitHub/infra pour éviter de te bloquer après hardening.
+
+### Monitoring intégré
+
+La stack Swarm inclut désormais :
+
+- `prometheus`
+- `grafana`
+- `alertmanager`
+- `node_exporter`
+- `cadvisor`
+
+Le design de sécurité appliqué est le suivant :
+
+- seules les entrées `80/443` restent exposées publiquement
+- `grafana` et `prometheus` passent uniquement par `edge` en HTTPS
+- protection supplémentaire par `auth_basic` côté Nginx via `MONITORING_HTPASSWD`
+- `MONITORING_ALLOWLIST_CIDRS` permet en plus une restriction IP/VPN
+- l’endpoint backend `/metrics` n’est pas exposé publiquement
+- les métriques applicatives restent à faible cardinalité (`method`, `route`, `status_code`, `queue`)
+
+Le bundle monitoring expose notamment :
+
+- usage mémoire hôte (`node_memory_MemAvailable_bytes`)
+- swap utilisée
+- CPU totale hôte et load average
+- mémoire/CPU par conteneur via `cadvisor`
+- redémarrages et OOM kills conteneurs
+- latence HTTP backend p95/p99 via histogramme Prometheus
+- profondeur des queues Celery Redis via `betleague_celery_queue_depth`
+
+### Exemples de secrets monitoring fournis
+
+Sous `infrastructure/deploy/swarm/secrets/` :
+
+- `grafana_admin_password.txt.example`
+- `monitoring_htpasswd.example`
+- `alertmanager.yml.example`
 
 `BACKEND_ENV` et `MIGRATIONS_ENV` doivent rester dans un format `.env` strict compatible à la fois avec `docker run --env-file` et avec le sourcing shell côté stack Swarm : lignes `KEY=value`, commentaires commençant par `#`, lignes vides. Évite `KEY = value`, `export KEY=value`, les retours chariot Windows `CRLF` et toute valeur multiligne. Pour les clés PEM applicatives comme `PRIVATE_KEY` / `PUBLIC_KEY`, utilise une seule ligne avec des retours à la ligne échappés (`\n`) ; le backend BetLeague les renormalise au démarrage.
 
@@ -305,6 +378,19 @@ Teste ensuite :
 
 - `https://app.<domaine>`
 - `https://api.<domaine>/health`
+- `https://grafana.<domaine>`
+- `https://prometheus.<domaine>/-/ready`
+
+Exemples de vérifications monitoring côté hôte :
+
+```bash
+docker stack services betleague
+docker service logs betleague_prometheus --follow
+docker service logs betleague_grafana --follow
+docker service logs betleague_alertmanager --follow
+curl -kI https://grafana.<domaine>
+curl -kI https://prometheus.<domaine>
+```
 
 Teste aussi le renouvellement à blanc sur l’hôte :
 

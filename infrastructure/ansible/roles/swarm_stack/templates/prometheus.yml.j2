@@ -1,0 +1,58 @@
+global:
+  scrape_interval: {{ betleague_swarm_prometheus_scrape_interval }}
+  evaluation_interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+  external_labels:
+    stack: {{ betleague_swarm_stack_name | to_json }}
+
+rule_files:
+  - /etc/prometheus/rules/prometheus-alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+  - job_name: alertmanager
+    static_configs:
+      - targets:
+          - alertmanager:9093
+
+  - job_name: backend
+    metrics_path: /metrics
+    dns_sd_configs:
+      - names:
+          - tasks.backend
+        type: A
+        port: 8000
+
+  - job_name: node-exporter
+    static_configs:
+      - targets:
+          - node_exporter:9100
+
+  - job_name: cadvisor
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - cadvisor:8080
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_(memory_working_set_bytes|cpu_usage_seconds_total|oom_events_total|start_time_seconds|last_seen|fs_usage_bytes|network_receive_bytes_total|network_transmit_bytes_total)'
+        action: keep
+      - source_labels: [image]
+        regex: ''
+        action: drop
+      - regex: 'container_label_.+'
+        action: labeldrop
+      - regex: 'id|image_id'
+        action: labeldrop
+
+
+

@@ -12,6 +12,9 @@
       - betleague_swarm_api_domain | trim != ''
       - betleague_swarm_backend_env_content | trim != ''
       - betleague_swarm_migrations_env_content | trim != ''
+      - betleague_swarm_grafana_admin_password | trim != ''
+      - betleague_swarm_monitoring_htpasswd | trim != ''
+      - betleague_swarm_alertmanager_config_content | trim != ''
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
@@ -38,11 +41,21 @@
         | regex_replace('\r', '')
         | regex_replace('\n*$', '')
       }}
+    betleague_swarm_alertmanager_config_content_normalized: >-
+      {{
+        betleague_swarm_alertmanager_config_content
+        | regex_replace('^\ufeff', '')
+        | regex_replace('\r', '')
+        | regex_replace('\n*$', '')
+      }}
 
 - name: Calculer les noms immuables des secrets Swarm depuis leur contenu
   ansible.builtin.set_fact:
     betleague_swarm_backend_env_secret_name: "{{ betleague_swarm_stack_name }}_backend_env_{{ ((betleague_swarm_backend_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_migrations_env_secret_name: "{{ betleague_swarm_stack_name }}_migrations_env_{{ ((betleague_swarm_migrations_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_grafana_admin_password_secret_name: "{{ betleague_swarm_stack_name }}_grafana_admin_password_{{ ((betleague_swarm_grafana_admin_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_monitoring_htpasswd_secret_name: "{{ betleague_swarm_stack_name }}_monitoring_htpasswd_{{ ((betleague_swarm_monitoring_htpasswd ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_alertmanager_config_secret_name: "{{ betleague_swarm_stack_name }}_alertmanager_config_{{ ((betleague_swarm_alertmanager_config_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_redis_password_secret_name: "{{ betleague_swarm_stack_name }}_redis_password_{{ ((betleague_swarm_redis_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_user_secret_name: "{{ betleague_swarm_stack_name }}_nats_user_{{ ((betleague_swarm_nats_user ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_password_secret_name: "{{ betleague_swarm_stack_name }}_nats_password_{{ ((betleague_swarm_nats_password ~ '\n') | hash('sha256'))[:12] }}"
@@ -175,6 +188,46 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Rendre la configuration Prometheus
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/prometheus.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre les règles d'alertes Prometheus
+  ansible.builtin.template:
+    src: prometheus-alerts.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/prometheus-alerts.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre la datasource Grafana provisionnée
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre le provider de dashboards Grafana
+  ansible.builtin.template:
+    src: grafana-dashboards.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboards.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre le dashboard système Grafana
+  ansible.builtin.template:
+    src: grafana-dashboard-system-overview.json.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
 - name: Calculer les checksums des configs Swarm immuables
   ansible.builtin.stat:
     path: "{{ item.path }}"
@@ -183,6 +236,11 @@
     - { key: 'edge_nginx_conf', path: "{{ betleague_swarm_deploy_path }}/generated/edge.conf" }
     - { key: 'redis_conf_template', path: "{{ betleague_swarm_deploy_path }}/redis.conf.template" }
     - { key: 'nats_server_conf', path: "{{ betleague_swarm_deploy_path }}/nats-server.conf" }
+    - { key: 'prometheus_conf', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus.yml" }
+    - { key: 'prometheus_alerts', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus-alerts.yml" }
+    - { key: 'grafana_datasources', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml" }
+    - { key: 'grafana_dashboards', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboards.yml" }
+    - { key: 'grafana_system_overview_dashboard', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json" }
   loop_control:
     label: "{{ item.key }}"
   register: betleague_swarm_config_stats
@@ -192,6 +250,11 @@
     betleague_swarm_edge_nginx_conf_config_name: "{{ betleague_swarm_stack_name }}_edge_nginx_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'edge_nginx_conf') | first).stat.checksum[:12] }}"
     betleague_swarm_redis_conf_template_config_name: "{{ betleague_swarm_stack_name }}_redis_conf_template_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'redis_conf_template') | first).stat.checksum[:12] }}"
     betleague_swarm_nats_server_conf_config_name: "{{ betleague_swarm_stack_name }}_nats_server_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'nats_server_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_prometheus_conf_config_name: "{{ betleague_swarm_stack_name }}_prometheus_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_prometheus_alerts_config_name: "{{ betleague_swarm_stack_name }}_prometheus_alerts_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_alerts') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_datasources_config_name: "{{ betleague_swarm_stack_name }}_grafana_datasources_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_datasources') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_dashboards_config_name: "{{ betleague_swarm_stack_name }}_grafana_dashboards_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_dashboards') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_system_overview_dashboard_config_name: "{{ betleague_swarm_stack_name }}_grafana_system_overview_dashboard_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_system_overview_dashboard') | first).stat.checksum[:12] }}"
 
 - name: Déployer les secrets de stack Swarm
   ansible.builtin.copy:
@@ -203,6 +266,9 @@
   loop:
     - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content_normalized }}" }
     - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content_normalized }}" }
+    - { name: 'grafana_admin_password.txt', content: "{{ betleague_swarm_grafana_admin_password }}" }
+    - { name: 'monitoring_htpasswd', content: "{{ betleague_swarm_monitoring_htpasswd }}" }
+    - { name: 'alertmanager.yml', content: "{{ betleague_swarm_alertmanager_config_content_normalized }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
