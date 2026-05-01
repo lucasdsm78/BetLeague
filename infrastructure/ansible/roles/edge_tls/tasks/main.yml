@@ -86,7 +86,7 @@
     -keyout {{ betleague_edge_tls_key_path }}
     -out {{ betleague_edge_tls_cert_path }}
     -subj /CN={{ betleague_swarm_api_domain }}
-    -addext subjectAltName=DNS:{{ betleague_swarm_app_domain }},DNS:{{ betleague_swarm_api_domain }}
+    -addext subjectAltName=DNS:{{ betleague_swarm_app_domain }},DNS:{{ betleague_swarm_api_domain }},DNS:{{ betleague_swarm_grafana_domain }},DNS:{{ betleague_swarm_prometheus_domain }}
   when:
     - betleague_letsencrypt_enabled | bool
     - (betleague_edge_runtime_cert_stats.results | selectattr('stat.exists', 'equalto', false) | list | length) > 0

@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     json_logs: bool | None = Field(default=None, validation_alias="JSON_LOGS")
     queue_logs_enabled: bool | None = Field(default=None, validation_alias="QUEUE_LOGGING_ENABLED")
     http_request_logging_enabled: bool = Field(default=True, validation_alias="HTTP_REQUEST_LOGGING_ENABLED")
-    http_request_logging_excluded_paths: str = Field(default="/health", validation_alias="HTTP_REQUEST_LOGGING_EXCLUDED_PATHS")
+    http_request_logging_excluded_paths: str = Field(default="/health,/metrics", validation_alias="HTTP_REQUEST_LOGGING_EXCLUDED_PATHS")
     http_slow_request_threshold_ms: int = Field(default=1000, validation_alias="HTTP_SLOW_REQUEST_THRESHOLD_MS")
+    internal_trusted_hosts: str = Field(default="backend,backend:8000,localhost,127.0.0.1", validation_alias="INTERNAL_TRUSTED_HOSTS")
     redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
     redis_socket_connect_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_CONNECT_TIMEOUT_S")
     redis_socket_timeout_s: int = Field(default=2, validation_alias="REDIS_SOCKET_TIMEOUT_S")
@@ -106,6 +107,7 @@ class Settings(BaseSettings):
     api_sports_league_ids: str = Field(default="39,61,78,135,140", validation_alias="API_SPORTS_LEAGUE_IDS")  # Top 5 European leagues
     celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", validation_alias="CELERY_RESULT_BACKEND")
+    celery_metrics_queues: str = Field(default="celery", validation_alias="CELERY_METRICS_QUEUES")
     password_reset_challenge_ttl_s: int = Field(default=600, validation_alias="PASSWORD_RESET_CHALLENGE_TTL_S")
     password_reset_token_ttl_s: int = Field(default=600, validation_alias="PASSWORD_RESET_TOKEN_TTL_S")
     password_reset_rate_limit_per_minute: int = Field(default=5, validation_alias="PASSWORD_RESET_RATE_LIMIT_PER_MINUTE")
@@ -187,6 +189,9 @@ class Settings(BaseSettings):
     @property
     def trusted_hosts_list(self) -> list[str]:
         hosts = self._split_csv(self.trusted_hosts)
+        for host in self._split_csv(self.internal_trusted_hosts):
+            if host not in hosts:
+                hosts.append(host)
         if self.environment != "prod":
             for host in ["localhost", "127.0.0.1"]:
                 if host not in hosts:
@@ -200,6 +205,10 @@ class Settings(BaseSettings):
     @property
     def http_request_logging_excluded_paths_list(self) -> list[str]:
         return self._split_csv(self.http_request_logging_excluded_paths)
+
+    @property
+    def celery_metrics_queues_list(self) -> list[str]:
+        return self._split_csv(self.celery_metrics_queues)
 
     @property
     def auth_refresh_cookie_secure_value(self) -> bool:
