@@ -331,6 +331,7 @@ Le design de sécurité appliqué est le suivant :
 - protection supplémentaire par `auth_basic` côté Nginx via `MONITORING_HTPASSWD`
 - `MONITORING_ALLOWLIST_CIDRS` permet en plus une restriction IP/VPN
 - l’endpoint backend `/metrics` n’est pas exposé publiquement
+- Prometheus scrape les replicas backend via `tasks.backend`; comme ces cibles sont des IPs de tasks Docker, le backend sert `/metrics` avant `TrustedHostMiddleware` pour éviter les rejets `Invalid host header`, tandis que Nginx bloque `/metrics` côté API publique
 - les métriques applicatives restent à faible cardinalité (`method`, `route`, `status_code`, `queue`)
 
 Le bundle monitoring expose notamment :
