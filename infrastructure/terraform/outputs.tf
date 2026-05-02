@@ -50,6 +50,7 @@ output "ansible_inventory_host" {
     hostname                   = local.vps_instance_name
     ansible_host               = local.vps_public_ipv4
     ansible_user               = var.admin_user
+    betleague_admin_user       = var.admin_user
     betleague_instance_name    = local.vps_instance_name
     betleague_environment      = var.environment
     betleague_compose_root     = var.compose_root

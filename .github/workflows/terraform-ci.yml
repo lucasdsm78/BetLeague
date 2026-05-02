@@ -388,13 +388,64 @@ jobs:
       - name: Build Ansible connection vars file
         env:
           SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_BOOTSTRAP_USER: ${{ vars.SSH_BOOTSTRAP_USER }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, subprocess
           runner_temp = pathlib.Path(os.environ["RUNNER_TEMP"])
           known_hosts = runner_temp / "ssh" / "known_hosts"
+          private_key = runner_temp / "ssh" / "id_ed25519"
+          terraform_outputs = runner_temp / "terraform-outputs" / "terraform-outputs.json"
+          ssh_port = int(os.environ.get("SSH_PORT") or "22")
+
+          outputs = json.loads(terraform_outputs.read_text())
+          inventory_output = outputs.get("ansible_inventory_host", {})
+          inventory_host = inventory_output.get("value", inventory_output)
+          ansible_host = inventory_host.get("ansible_host")
+          inventory_user = inventory_host.get("ansible_user")
+          bootstrap_user = os.environ.get("SSH_BOOTSTRAP_USER") or "ubuntu"
+
+          if not ansible_host:
+              raise SystemExit("Unable to resolve ansible_host from Terraform outputs")
+
+          candidates = []
+          for user in (inventory_user, bootstrap_user):
+              if user and user not in candidates:
+                  candidates.append(user)
+
+          resolved_user = None
+          for user in candidates:
+              result = subprocess.run(
+                  [
+                      "ssh",
+                      "-i", str(private_key),
+                      "-p", str(ssh_port),
+                      "-o", f"UserKnownHostsFile={known_hosts}",
+                      "-o", "StrictHostKeyChecking=yes",
+                      "-o", "BatchMode=yes",
+                      "-o", "NumberOfPasswordPrompts=0",
+                      "-o", "ConnectTimeout=8",
+                      f"{user}@{ansible_host}",
+                      "true",
+                  ],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              if result.returncode == 0:
+                  resolved_user = user
+                  break
+
+          if not resolved_user:
+              raise SystemExit(
+                  "Unable to connect with SSH users: " + ", ".join(candidates)
+                  + ". For a fresh OVH VPS, ensure SSH_PRIVATE_KEY matches TF_VAR_VPS_PUBLIC_SSH_KEY_* "
+                  + "and set SSH_BOOTSTRAP_USER if the image does not use ubuntu."
+              )
+
           payload = {
-              "ansible_port": int(os.environ.get("SSH_PORT") or "22"),
+              "ansible_port": ssh_port,
+              "ansible_user": resolved_user,
               "ansible_ssh_common_args": (
                   f"-o UserKnownHostsFile={known_hosts} "
                   "-o StrictHostKeyChecking=yes"
@@ -403,6 +454,7 @@ jobs:
           output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ansible-connection-vars.json"
           output.write_text(json.dumps(payload))
           output.chmod(0o600)
+          print(f"Resolved Ansible SSH user for hardening: {resolved_user}")
           print(output)
           PY
 
@@ -411,14 +463,40 @@ jobs:
           SSH_TRUSTED_CIDRS: ${{ vars.SSH_TRUSTED_CIDRS }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, re, subprocess
 
           raw = os.environ.get("SSH_TRUSTED_CIDRS", "")
           cidrs = [item.strip() for item in raw.replace(",", "\n").splitlines() if item.strip()]
           if not cidrs:
               raise SystemExit("SSH_TRUSTED_CIDRS must contain at least one trusted CIDR for harden_host.yml")
 
+          terraform_outputs = pathlib.Path(os.environ["RUNNER_TEMP"]) / "terraform-outputs" / "terraform-outputs.json"
+          outputs = json.loads(terraform_outputs.read_text())
+          inventory_output = outputs.get("ansible_inventory_host", {})
+          inventory_host = inventory_output.get("value", inventory_output)
+          admin_user_output = outputs.get("admin_user", {})
+          admin_user_value = admin_user_output.get("value") if isinstance(admin_user_output, dict) else admin_user_output
+          admin_user = (
+              (inventory_host.get("betleague_admin_user") or "").strip()
+              or ((admin_user_value or "").strip())
+              or (inventory_host.get("ansible_user") or "").strip()
+          )
+          if not re.match(r"^[a-z_][a-z0-9_-]{0,31}$", admin_user):
+              raise SystemExit(f"Unable to resolve a valid betleague_admin_user from Terraform outputs: {admin_user!r}")
+
+          key_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ssh" / "id_ed25519"
+          public_key = subprocess.run(
+              ["ssh-keygen", "-y", "-f", str(key_path)],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.strip()
+          if not public_key:
+              raise SystemExit("Unable to derive public key from SSH_PRIVATE_KEY")
+
           payload = {
+              "betleague_admin_user": admin_user,
+              "betleague_admin_authorized_public_keys": [public_key],
               "betleague_ssh_trusted_cidrs": cidrs,
               "betleague_public_tcp_ports": [80, 443],
           }
@@ -536,13 +614,64 @@ jobs:
       - name: Build Ansible connection vars file
         env:
           SSH_PORT: ${{ vars.SSH_PORT }}
+          SSH_BOOTSTRAP_USER: ${{ vars.SSH_BOOTSTRAP_USER }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, subprocess
           runner_temp = pathlib.Path(os.environ["RUNNER_TEMP"])
           known_hosts = runner_temp / "ssh" / "known_hosts"
+          private_key = runner_temp / "ssh" / "id_ed25519"
+          terraform_outputs = runner_temp / "terraform-outputs" / "terraform-outputs.json"
+          ssh_port = int(os.environ.get("SSH_PORT") or "22")
+
+          outputs = json.loads(terraform_outputs.read_text())
+          inventory_output = outputs.get("ansible_inventory_host", {})
+          inventory_host = inventory_output.get("value", inventory_output)
+          ansible_host = inventory_host.get("ansible_host")
+          inventory_user = inventory_host.get("ansible_user")
+          bootstrap_user = os.environ.get("SSH_BOOTSTRAP_USER") or "ubuntu"
+
+          if not ansible_host:
+              raise SystemExit("Unable to resolve ansible_host from Terraform outputs")
+
+          candidates = []
+          for user in (inventory_user, bootstrap_user):
+              if user and user not in candidates:
+                  candidates.append(user)
+
+          resolved_user = None
+          for user in candidates:
+              result = subprocess.run(
+                  [
+                      "ssh",
+                      "-i", str(private_key),
+                      "-p", str(ssh_port),
+                      "-o", f"UserKnownHostsFile={known_hosts}",
+                      "-o", "StrictHostKeyChecking=yes",
+                      "-o", "BatchMode=yes",
+                      "-o", "NumberOfPasswordPrompts=0",
+                      "-o", "ConnectTimeout=8",
+                      f"{user}@{ansible_host}",
+                      "true",
+                  ],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              if result.returncode == 0:
+                  resolved_user = user
+                  break
+
+          if not resolved_user:
+              raise SystemExit(
+                  "Unable to connect with SSH users: " + ", ".join(candidates)
+                  + ". For a fresh OVH VPS, ensure SSH_PRIVATE_KEY matches TF_VAR_VPS_PUBLIC_SSH_KEY_* "
+                  + "and set SSH_BOOTSTRAP_USER if the image does not use ubuntu."
+              )
+
           payload = {
-              "ansible_port": int(os.environ.get("SSH_PORT") or "22"),
+              "ansible_port": ssh_port,
+              "ansible_user": resolved_user,
               "ansible_ssh_common_args": (
                   f"-o UserKnownHostsFile={known_hosts} "
                   "-o StrictHostKeyChecking=yes"
@@ -551,6 +680,7 @@ jobs:
           output = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ansible-connection-vars.json"
           output.write_text(json.dumps(payload))
           output.chmod(0o600)
+          print(f"Resolved Ansible SSH user for hardening: {resolved_user}")
           print(output)
           PY
 
@@ -559,14 +689,40 @@ jobs:
           SSH_TRUSTED_CIDRS: ${{ vars.SSH_TRUSTED_CIDRS }}
         run: |
           python3 - <<'PY'
-          import json, os, pathlib
+          import json, os, pathlib, re, subprocess
 
           raw = os.environ.get("SSH_TRUSTED_CIDRS", "")
           cidrs = [item.strip() for item in raw.replace(",", "\n").splitlines() if item.strip()]
           if not cidrs:
               raise SystemExit("SSH_TRUSTED_CIDRS must contain at least one trusted CIDR for harden_host.yml")
 
+          terraform_outputs = pathlib.Path(os.environ["RUNNER_TEMP"]) / "terraform-outputs" / "terraform-outputs.json"
+          outputs = json.loads(terraform_outputs.read_text())
+          inventory_output = outputs.get("ansible_inventory_host", {})
+          inventory_host = inventory_output.get("value", inventory_output)
+          admin_user_output = outputs.get("admin_user", {})
+          admin_user_value = admin_user_output.get("value") if isinstance(admin_user_output, dict) else admin_user_output
+          admin_user = (
+              (inventory_host.get("betleague_admin_user") or "").strip()
+              or ((admin_user_value or "").strip())
+              or (inventory_host.get("ansible_user") or "").strip()
+          )
+          if not re.match(r"^[a-z_][a-z0-9_-]{0,31}$", admin_user):
+              raise SystemExit(f"Unable to resolve a valid betleague_admin_user from Terraform outputs: {admin_user!r}")
+
+          key_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ssh" / "id_ed25519"
+          public_key = subprocess.run(
+              ["ssh-keygen", "-y", "-f", str(key_path)],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.strip()
+          if not public_key:
+              raise SystemExit("Unable to derive public key from SSH_PRIVATE_KEY")
+
           payload = {
+              "betleague_admin_user": admin_user,
+              "betleague_admin_authorized_public_keys": [public_key],
               "betleague_ssh_trusted_cidrs": cidrs,
               "betleague_public_tcp_ports": [80, 443],
           }

@@ -25,12 +25,44 @@
       `betleague_public_tcp_ports` et `betleague_docker_public_tcp_target_ports` doivent contenir uniquement
       des ports TCP valides entre 1 et 65535.
 
+- name: Vérifier l'utilisateur administrateur SSH final
+  ansible.builtin.assert:
+    that:
+      - betleague_admin_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - betleague_admin_user != betleague_default_cloud_user
+      - >-
+        (ansible_user | default('')) == betleague_admin_user
+        or (betleague_admin_authorized_public_keys | length > 0)
+    fail_msg: >-
+      `betleague_admin_user` doit être un utilisateur dédié différent de `{{ betleague_default_cloud_user }}`.
+      Si Ansible se connecte encore avec un utilisateur bootstrap, fournis au moins une clé dans
+      `betleague_admin_authorized_public_keys` pour éviter tout lockout après `AllowUsers {{ betleague_admin_user }}`.
+
 - name: Installer les paquets de hardening
   ansible.builtin.apt:
     name: "{{ betleague_hardening_packages }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
+
+- name: Garantir la présence de l'utilisateur administrateur BetLeague
+  ansible.builtin.user:
+    name: "{{ betleague_admin_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups: sudo
+    append: true
+    password_lock: true
+
+- name: Autoriser sudo sans mot de passe pour l'administrateur BetLeague
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ betleague_admin_user }}"
+    content: "{{ betleague_admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+  when: betleague_admin_passwordless_sudo | bool
 
 - name: Garantir la présence du répertoire SSH de l'administrateur
   ansible.builtin.file:
