@@ -1,0 +1,78 @@
+---
+- name: Calculer le checksum de la configuration du proxy public edge
+  ansible.builtin.stat:
+    path: "{{ betleague_swarm_edge_public_proxy_config_path }}"
+    checksum_algorithm: sha256
+  register: betleague_swarm_edge_public_proxy_config_stat
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
+- name: Inspecter le proxy public edge stable existant
+  ansible.builtin.command: >-
+    docker inspect {{ betleague_swarm_edge_public_proxy_name }}
+    --format {% raw %}'{{.State.Running}} {{index .Config.Labels "betleague.edge_proxy.config_sha"}} {{index .Config.Labels "betleague.edge_proxy.network"}} {{.Config.Image}}'{% endraw %}
+  register: betleague_swarm_edge_public_proxy_inspect
+  changed_when: false
+  failed_when: false
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
+- name: Déterminer si le proxy public edge doit être recréé
+  ansible.builtin.set_fact:
+    betleague_swarm_edge_public_proxy_needs_recreate: >-
+      {{
+        betleague_swarm_edge_public_proxy_inspect.rc != 0
+        or not (betleague_swarm_edge_public_proxy_inspect.stdout is search('^true '))
+        or (betleague_swarm_edge_public_proxy_config_stat.stat.checksum not in betleague_swarm_edge_public_proxy_inspect.stdout)
+        or (betleague_swarm_edge_network_name not in betleague_swarm_edge_public_proxy_inspect.stdout)
+        or (betleague_swarm_edge_public_proxy_image not in betleague_swarm_edge_public_proxy_inspect.stdout)
+      }}
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
+- name: Supprimer l'ancien proxy public edge si sa configuration a changé
+  ansible.builtin.command: docker rm -f {{ betleague_swarm_edge_public_proxy_name }}
+  changed_when: true
+  failed_when: false
+  when:
+    - betleague_swarm_edge_public_proxy_enabled | bool
+    - betleague_swarm_edge_public_proxy_needs_recreate | bool
+    - betleague_swarm_edge_public_proxy_inspect.rc == 0
+
+- name: Démarrer le proxy public edge stable
+  ansible.builtin.command: >-
+    docker run -d
+    --name {{ betleague_swarm_edge_public_proxy_name }}
+    --restart unless-stopped
+    --network {{ betleague_swarm_edge_network_name }}
+    --publish 80:80
+    --publish 443:443
+    --pull never
+    --label betleague.edge_proxy=true
+    --label betleague.edge_proxy.config_sha={{ betleague_swarm_edge_public_proxy_config_stat.stat.checksum }}
+    --label betleague.edge_proxy.network={{ betleague_swarm_edge_network_name }}
+    --mount type=bind,src={{ betleague_swarm_edge_public_proxy_config_path }},dst=/usr/local/etc/haproxy/haproxy.cfg,ro
+    {{ betleague_swarm_edge_public_proxy_image }}
+  register: betleague_swarm_edge_public_proxy_run
+  retries: "{{ betleague_swarm_edge_public_proxy_cutover_retries }}"
+  delay: "{{ betleague_swarm_edge_public_proxy_cutover_delay }}"
+  until: betleague_swarm_edge_public_proxy_run.rc == 0
+  changed_when: true
+  when:
+    - betleague_swarm_edge_public_proxy_enabled | bool
+    - betleague_swarm_edge_public_proxy_needs_recreate | bool
+
+- name: Vérifier que le proxy public edge publie 80/443
+  ansible.builtin.command: >-
+    docker inspect {{ betleague_swarm_edge_public_proxy_name }}
+    --format {% raw %}'{{range $port, $bindings := .NetworkSettings.Ports}}{{println $port}}{{end}}'{% endraw %}
+  register: betleague_swarm_edge_public_proxy_ports
+  changed_when: false
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
+- name: Vérifier la publication du proxy public edge stable
+  ansible.builtin.assert:
+    that:
+      - "'80/tcp' in betleague_swarm_edge_public_proxy_ports.stdout_lines"
+      - "'443/tcp' in betleague_swarm_edge_public_proxy_ports.stdout_lines"
+    fail_msg: >-
+      Le proxy public edge stable `{{ betleague_swarm_edge_public_proxy_name }}` doit publier 80/tcp et 443/tcp.
+      Ports observés: {{ betleague_swarm_edge_public_proxy_ports.stdout_lines | join(', ') }}.
+  when: betleague_swarm_edge_public_proxy_enabled | bool
