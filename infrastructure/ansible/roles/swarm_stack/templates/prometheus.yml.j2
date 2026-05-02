@@ -59,7 +59,7 @@ scrape_configs:
           - cadvisor:8080
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: 'container_(memory_working_set_bytes|cpu_usage_seconds_total|oom_events_total|start_time_seconds|last_seen|fs_usage_bytes|network_receive_bytes_total|network_transmit_bytes_total)'
+        regex: 'container_(memory_working_set_bytes|cpu_usage_seconds_total|oom_events_total|start_time_seconds|last_seen)'
         action: keep
       - source_labels: [image]
         regex: ''
@@ -68,4 +68,3 @@ scrape_configs:
         action: labeldrop
       - regex: 'id|image_id'
         action: labeldrop
-
