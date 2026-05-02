@@ -193,6 +193,8 @@ Pour cette voie de release dédiée, le workflow appelle désormais le playbook 
 
 Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
 
+Grafana utilise le dashboard provisionné `BetLeague - System Overview` comme page d'accueil via `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. Cela évite de retomber sur un ancien Home dashboard persisté dans `grafana_data` qui peut référencer des panels legacy absents des images Grafana récentes (`welcome`, `gettingstarted`, `dashlist`, `news`). Toute modification de ce comportement nécessite un déploiement Swarm complet (`deploy_swarm.yml`) afin de mettre à jour le service `grafana`, pas seulement une release applicative (`release_swarm.yml`).
+
 Par défaut, ce rôle émet maintenant les certificats Let’s Encrypt en **ECDSA P-256** (`--key-type ecdsa --elliptic-curve secp256r1`) et aligne le certificat autosigné de bootstrap sur la même famille de clé (courbe OpenSSL `prime256v1`). Le fallback RSA reste possible si tu changes explicitement `betleague_letsencrypt_key_type`, avec une taille durcie à `4096` bits.
 
 Le rôle applique aussi un garde-fou anti rate-limit : tant que `betleague_letsencrypt_staging=true` n'a pas été validé de bout en bout, une émission directe Let’s Encrypt production est refusée sauf si tu assumes explicitement le risque avec `betleague_letsencrypt_acked_production=true`.
