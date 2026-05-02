@@ -8,11 +8,13 @@ global:
 rule_files:
   - /etc/prometheus/rules/prometheus-alerts.yml
 
+{% if betleague_swarm_alertmanager_enabled | default(false) %}
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
             - alertmanager:9093
+{% endif %}
 
 scrape_configs:
   - job_name: prometheus
@@ -22,12 +24,14 @@ scrape_configs:
       - targets:
           - prometheus:9090
 
+{% if betleague_swarm_alertmanager_enabled | default(false) %}
   - job_name: alertmanager
     sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
     label_limit: {{ betleague_swarm_prometheus_label_limit }}
     static_configs:
       - targets:
           - alertmanager:9093
+{% endif %}
 
   - job_name: backend
     metrics_path: /metrics
@@ -64,3 +68,4 @@ scrape_configs:
         action: labeldrop
       - regex: 'id|image_id'
         action: labeldrop
+

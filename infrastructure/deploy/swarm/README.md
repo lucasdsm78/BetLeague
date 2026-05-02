@@ -272,7 +272,7 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 - `GRAFANA_ADMIN_PASSWORD`
 - `GRAFANA_SECRET_KEY`
 - `MONITORING_HTPASSWD`
-- `ALERTMANAGER_CONFIG`
+- `ALERTMANAGER_CONFIG` (optionnel)
 - `REDIS_PASSWORD`
 - `NATS_USER`
 - `NATS_PASSWORD`
@@ -289,7 +289,7 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 
 `GRAFANA_SECRET_KEY` doit être un secret stable, long et aléatoire, distinct du mot de passe admin ; la validation Ansible impose au moins 32 caractères. Exemple de génération : `openssl rand -base64 48`.
 
-`ALERTMANAGER_CONFIG` doit contenir la configuration YAML complète des receivers/routes (email, webhook, Slack, etc.).
+`ALERTMANAGER_CONFIG`, lorsqu'il est défini, doit contenir la configuration YAML complète des receivers/routes (email, webhook, Slack, etc.). Si ce secret est absent, BetLeague génère une configuration neutre locale, ne démarre pas le service `alertmanager` et Prometheus n'envoie pas de notifications externes tant que tu ne fournis pas de vraie configuration.
 
 ### Restreindre Grafana / Prometheus à une seule IP fixe
 
@@ -320,7 +320,7 @@ La stack Swarm inclut désormais :
 
 - `prometheus`
 - `grafana`
-- `alertmanager`
+- `alertmanager` (optionnel)
 - `node_exporter`
 - `cadvisor`
 

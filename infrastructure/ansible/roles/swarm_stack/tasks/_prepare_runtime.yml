@@ -15,7 +15,6 @@
       - betleague_swarm_grafana_admin_password | trim != ''
       - betleague_swarm_grafana_secret_key | trim != ''
       - betleague_swarm_monitoring_htpasswd | trim != ''
-      - betleague_swarm_alertmanager_config_content | trim != ''
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
@@ -49,6 +48,24 @@
         | regex_replace('\r', '')
         | regex_replace('\n*$', '')
       }}
+
+- name: Déterminer si Alertmanager est activé et calculer la configuration effective
+  ansible.builtin.set_fact:
+    betleague_swarm_alertmanager_enabled: "{{ betleague_swarm_alertmanager_config_content_normalized | trim != '' }}"
+    betleague_swarm_alertmanager_config_content_effective: |
+      {% if betleague_swarm_alertmanager_config_content_normalized | trim != '' %}
+      {{ betleague_swarm_alertmanager_config_content_normalized }}
+      {% else %}
+      global:
+        resolve_timeout: 5m
+
+      route:
+        receiver: null
+
+      receivers:
+        - name: null
+      {% endif %}
+  no_log: true
 
 - name: Valider les paramètres de sécurité monitoring
   ansible.builtin.command:
@@ -141,7 +158,7 @@
     betleague_swarm_grafana_admin_password_secret_name: "{{ betleague_swarm_stack_name }}_grafana_admin_password_{{ ((betleague_swarm_grafana_admin_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_grafana_secret_key_secret_name: "{{ betleague_swarm_stack_name }}_grafana_secret_key_{{ ((betleague_swarm_grafana_secret_key ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_monitoring_htpasswd_secret_name: "{{ betleague_swarm_stack_name }}_monitoring_htpasswd_{{ ((betleague_swarm_monitoring_htpasswd ~ '\n') | hash('sha256'))[:12] }}"
-    betleague_swarm_alertmanager_config_secret_name: "{{ betleague_swarm_stack_name }}_alertmanager_config_{{ ((betleague_swarm_alertmanager_config_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_alertmanager_config_secret_name: "{{ betleague_swarm_stack_name }}_alertmanager_config_{{ ((betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_redis_password_secret_name: "{{ betleague_swarm_stack_name }}_redis_password_{{ ((betleague_swarm_redis_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_user_secret_name: "{{ betleague_swarm_stack_name }}_nats_user_{{ ((betleague_swarm_nats_user ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_password_secret_name: "{{ betleague_swarm_stack_name }}_nats_password_{{ ((betleague_swarm_nats_password ~ '\n') | hash('sha256'))[:12] }}"
@@ -355,7 +372,7 @@
     - { name: 'grafana_admin_password.txt', content: "{{ betleague_swarm_grafana_admin_password }}" }
     - { name: 'grafana_secret_key.txt', content: "{{ betleague_swarm_grafana_secret_key }}" }
     - { name: 'monitoring_htpasswd', content: "{{ betleague_swarm_monitoring_htpasswd }}" }
-    - { name: 'alertmanager.yml', content: "{{ betleague_swarm_alertmanager_config_content_normalized }}" }
+    - { name: 'alertmanager.yml', content: "{{ betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }
