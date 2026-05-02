@@ -133,6 +133,30 @@
   ansible.builtin.command: /usr/sbin/sshd -t
   changed_when: false
 
+- name: Lire la configuration SSHD effective après déploiement du drop-in BetLeague
+  ansible.builtin.command: /usr/sbin/sshd -T
+  changed_when: false
+  register: betleague_base_sshd_effective_config
+
+- name: Vérifier les directives SSHD critiques avant poursuite du hardening
+  ansible.builtin.assert:
+    that:
+      - >-
+        (betleague_base_sshd_effective_config.stdout_lines
+        | select('equalto', 'allowusers ' ~ betleague_admin_user)
+        | list
+        | length) == 1
+      - "'passwordauthentication no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'kbdinteractiveauthentication no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'permitrootlogin no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'pubkeyauthentication yes' in betleague_base_sshd_effective_config.stdout_lines"
+    fail_msg: >-
+      Le drop-in SSH BetLeague n'est pas prioritaire dans la configuration effective.
+      Vérifie l'ordre des fichiers dans `/etc/ssh/sshd_config.d/` et les directives observées:
+      {{ betleague_base_sshd_effective_config.stdout_lines
+      | select('search', '^(allowusers|passwordauthentication|kbdinteractiveauthentication|permitrootlogin|pubkeyauthentication)\s+')
+      | list | join('; ') }}
+
 - name: Déployer la configuration sysctl de hardening
   ansible.builtin.template:
     src: 99-betleague-hardening.conf.j2
