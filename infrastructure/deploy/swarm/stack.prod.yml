@@ -393,15 +393,15 @@ services:
       - --housekeeping_interval=30s
       - --max_housekeeping_interval=60s
       - --store_container_labels=false
-      - --disable_metrics=advtcp,app,cpu_topology,disk,diskIO,memory_numa,network_tcp,network_udp,percpu,process,referenced_memory,resctrl,sched,tcp,udp
+      - --disable_metrics=advtcp,app,cpu_topology,disk,diskIO,memory_numa,network,percpu,process,referenced_memory,resctrl,sched,tcp,udp
     volumes:
       - type: bind
         source: /
         target: /rootfs
         read_only: true
       - type: bind
-        source: /var/run
-        target: /var/run
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
         read_only: true
       - type: bind
         source: /sys
