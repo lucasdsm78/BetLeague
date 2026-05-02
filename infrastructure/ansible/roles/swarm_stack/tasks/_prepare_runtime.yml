@@ -328,13 +328,13 @@
             raise SystemExit(f"Bloc server Grafana introuvable pour {grafana_domain}")
         if "add_header Content-Security-Policy" in grafana_server:
             raise SystemExit("Le vhost Grafana ne doit pas définir add_header Content-Security-Policy")
-        required = [
+        forbidden = [
             "proxy_hide_header Content-Security-Policy;",
             "proxy_hide_header Content-Security-Policy-Report-Only;",
         ]
-        missing = [item for item in required if item not in grafana_server]
-        if missing:
-            raise SystemExit("Directives proxy_hide_header manquantes: " + ", ".join(missing))
+        present = [item for item in forbidden if item in grafana_server]
+        if present:
+            raise SystemExit("Le vhost Grafana ne doit pas masquer la CSP native Grafana: " + ", ".join(present))
       - "{{ betleague_swarm_deploy_path }}/generated/edge.conf"
       - "{{ betleague_swarm_grafana_domain }}"
   changed_when: false
