@@ -18,6 +18,8 @@ betleague_swarm_prometheus_domain: prometheus.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
 betleague_swarm_frontend_healthcheck_url: "https://{{ betleague_swarm_app_domain }}/"
 betleague_swarm_grafana_healthcheck_url: "https://{{ betleague_swarm_grafana_domain }}/login"
+betleague_swarm_grafana_admin_user: admin
+betleague_swarm_grafana_sync_admin_password: true
 betleague_swarm_prometheus_healthcheck_url: "https://{{ betleague_swarm_prometheus_domain }}/-/ready"
 betleague_swarm_prometheus_scrape_interval: 30s
 betleague_swarm_prometheus_evaluation_interval: 30s
