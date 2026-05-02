@@ -189,6 +189,23 @@
           `docker stack ps --no-trunc {{ betleague_swarm_stack_name }}` affichées juste avant pour identifier
           le service bloquant (image, healthcheck, crashloop, rollback ou dépendance indisponible).
 
+- name: Lire les configs montées par le service edge
+  ansible.builtin.command: >-
+    docker service inspect {{ betleague_swarm_stack_name }}_edge
+    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Configs}}{{println .ConfigName}}{{end}}'{% endraw %}
+  register: betleague_swarm_edge_config_names
+  changed_when: false
+
+- name: Vérifier que le service edge utilise la configuration Nginx attendue
+  ansible.builtin.assert:
+    that:
+      - betleague_swarm_edge_nginx_conf_config_name in betleague_swarm_edge_config_names.stdout_lines
+    fail_msg: >-
+      Le service `{{ betleague_swarm_stack_name }}_edge` n'utilise pas la config Nginx attendue
+      `{{ betleague_swarm_edge_nginx_conf_config_name }}`. Configs observées:
+      {{ betleague_swarm_edge_config_names.stdout_lines | join(', ') }}.
+      Relance `deploy_swarm.yml` pour remplacer l'ancien ConfigName Swarm immuable.
+
 - name: Synchroniser le mot de passe admin Grafana
   ansible.builtin.include_tasks: _sync_grafana_admin_password.yml
 
