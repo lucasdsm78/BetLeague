@@ -9,7 +9,7 @@
 - name: Inspecter le proxy public edge stable existant
   ansible.builtin.command: >-
     docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }}
-    --format {% raw %}'{{.State.Running}} {{index .Config.Labels "betleague.edge_proxy"}} {{index .Config.Labels "betleague.edge_proxy.config_sha"}} {{index .Config.Labels "betleague.edge_proxy.network"}} {{.Config.Image}}'{% endraw %}
+    --format {% raw %}'{{.State.Running}} {{index .Config.Labels "betleague.edge_proxy"}} {{index .Config.Labels "betleague.edge_proxy.config_sha"}} {{index .Config.Labels "betleague.edge_proxy.network"}} {{.Config.Image}} {{json .HostConfig.PortBindings}}'{% endraw %}
   register: betleague_swarm_edge_public_proxy_inspect
   changed_when: false
   failed_when: false
@@ -25,6 +25,8 @@
         or (betleague_swarm_edge_public_proxy_config_stat.stat.checksum not in betleague_swarm_edge_public_proxy_inspect.stdout)
         or (betleague_swarm_edge_network_name not in betleague_swarm_edge_public_proxy_inspect.stdout)
         or (betleague_swarm_edge_public_proxy_image not in betleague_swarm_edge_public_proxy_inspect.stdout)
+        or ('"80/tcp"' not in betleague_swarm_edge_public_proxy_inspect.stdout)
+        or ('"443/tcp"' not in betleague_swarm_edge_public_proxy_inspect.stdout)
       }}
   when: betleague_swarm_edge_public_proxy_enabled | bool
 
@@ -91,7 +93,7 @@
 - name: Vérifier que le proxy public edge publie 80/443
   ansible.builtin.command: >-
     docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }}
-    --format {% raw %}'{{range $port, $bindings := .NetworkSettings.Ports}}{{println $port}}{{end}}'{% endraw %}
+    --format {% raw %}'{{range $port, $bindings := .HostConfig.PortBindings}}{{println $port}}{{end}}'{% endraw %}
   register: betleague_swarm_edge_public_proxy_ports
   changed_when: false
   when: betleague_swarm_edge_public_proxy_enabled | bool
@@ -103,5 +105,5 @@
       - "'443/tcp' in betleague_swarm_edge_public_proxy_ports.stdout_lines"
     fail_msg: >-
       Le proxy public edge stable `{{ betleague_swarm_edge_public_proxy_name }}` doit publier 80/tcp et 443/tcp.
-      Ports observés: {{ betleague_swarm_edge_public_proxy_ports.stdout_lines | join(', ') }}.
+      Bindings hôte observés: {{ betleague_swarm_edge_public_proxy_ports.stdout_lines | join(', ') }}.
   when: betleague_swarm_edge_public_proxy_enabled | bool
