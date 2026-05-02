@@ -232,6 +232,45 @@
       `{{ betleague_swarm_edge_update_order.stdout | trim }}`. Ports observés:
       {{ betleague_swarm_edge_published_ports.stdout_lines | join(', ') }}.
 
+- name: Lire les configs montées par le service Grafana
+  ansible.builtin.command: >-
+    docker service inspect {{ betleague_swarm_stack_name }}_grafana
+    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Configs}}{{println .ConfigName}}{{end}}'{% endraw %}
+  register: betleague_swarm_grafana_config_names
+  changed_when: false
+
+- name: Vérifier que le service Grafana utilise les configs provisionnées attendues
+  ansible.builtin.assert:
+    that:
+      - betleague_swarm_grafana_datasources_config_name in betleague_swarm_grafana_config_names.stdout_lines
+      - betleague_swarm_grafana_dashboards_config_name in betleague_swarm_grafana_config_names.stdout_lines
+      - betleague_swarm_grafana_system_overview_dashboard_config_name in betleague_swarm_grafana_config_names.stdout_lines
+    fail_msg: >-
+      Le service `{{ betleague_swarm_stack_name }}_grafana` n'utilise pas les configs Grafana attendues.
+      Attendues: {{ [betleague_swarm_grafana_datasources_config_name, betleague_swarm_grafana_dashboards_config_name, betleague_swarm_grafana_system_overview_dashboard_config_name] | join(', ') }}.
+      Observées: {{ betleague_swarm_grafana_config_names.stdout_lines | join(', ') }}.
+
+- name: Lire l'environnement du service Grafana
+  ansible.builtin.command: >-
+    docker service inspect {{ betleague_swarm_stack_name }}_grafana
+    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}'{% endraw %}
+  register: betleague_swarm_grafana_env_lines
+  changed_when: false
+
+- name: Vérifier que Grafana sert une CSP native compatible
+  ansible.builtin.assert:
+    that:
+      - "'GF_SECURITY_CONTENT_SECURITY_POLICY=true' in betleague_swarm_grafana_env_lines.stdout_lines"
+      - >-
+        (betleague_swarm_grafana_env_lines.stdout_lines
+        | select('search', '^GF_SECURITY_CONTENT_SECURITY_POLICY_TEMPLATE=.*\\$NONCE')
+        | list
+        | length) == 1
+    fail_msg: >-
+      Le service `{{ betleague_swarm_stack_name }}_grafana` doit activer une CSP native Grafana explicite
+      contenant `$NONCE`. Variables Grafana observées: {{ betleague_swarm_grafana_env_lines.stdout_lines
+      | select('search', '^GF_SECURITY_CONTENT_SECURITY_POLICY') | list | join(', ') }}.
+
 - name: Synchroniser le mot de passe admin Grafana
   ansible.builtin.include_tasks: _sync_grafana_admin_password.yml
 

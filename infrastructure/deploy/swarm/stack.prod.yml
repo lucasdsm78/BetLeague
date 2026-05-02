@@ -281,6 +281,7 @@ services:
       GF_SECURITY_ALLOW_EMBEDDING: "false"
       GF_SECURITY_DISABLE_GRAVATAR: "true"
       GF_SECURITY_CONTENT_SECURITY_POLICY: "true"
+      GF_SECURITY_CONTENT_SECURITY_POLICY_TEMPLATE: "script-src 'self' 'unsafe-eval' 'unsafe-inline' 'strict-dynamic' $$NONCE; object-src 'none'; font-src 'self' data:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://grafana.com ws: wss:; manifest-src 'self'; media-src 'none'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
       GF_AUTH_BASIC_ENABLED: "true"
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
