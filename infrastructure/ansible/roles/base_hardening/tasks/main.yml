@@ -117,10 +117,16 @@
 - name: Durcir la configuration SSH
   ansible.builtin.template:
     src: sshd_config_hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/99-betleague-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-betleague-hardening.conf
     owner: root
     group: root
     mode: '0644'
+  notify: Restart ssh
+
+- name: Supprimer l'ancien drop-in SSH BetLeague chargé trop tard
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-betleague-hardening.conf
+    state: absent
   notify: Restart ssh
 
 - name: Valider la configuration SSH globale

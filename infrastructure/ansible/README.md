@@ -232,6 +232,8 @@ pubkeyauthentication yes
 
 Il vérifie aussi que l'utilisateur cloud par défaut (`ubuntu` par défaut) n'apparaît pas dans `allowusers` et que son mot de passe est verrouillé lorsque `betleague_lock_default_cloud_user_password=true`.
 
+Le hardening SSH est déployé dans `/etc/ssh/sshd_config.d/00-betleague-hardening.conf` afin d'être lu avant les éventuels drop-ins cloud-init, par exemple `/etc/ssh/sshd_config.d/50-cloud-init.conf`. C'est volontaire : OpenSSH conserve généralement la première valeur rencontrée pour les directives globales comme `PasswordAuthentication`, donc un fichier BetLeague en `99-...` pourrait arriver trop tard et laisser `passwordauthentication yes` effectif.
+
 ## Remarques sécurité
 
 - Ne stocke pas les secrets applicatifs dans Ansible en clair.
