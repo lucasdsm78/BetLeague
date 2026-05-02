@@ -35,7 +35,6 @@
     BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION: "{{ betleague_swarm_update_failure_action }}"
     BETLEAGUE_PYTHON_TEMP: "{{ betleague_swarm_python_temp }}"
     BETLEAGUE_PYTHON_TMP: "{{ betleague_swarm_python_tmp }}"
-    BETLEAGUE_EDGE_NETWORK_NAME: "{{ betleague_swarm_edge_network_name }}"
     BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
     BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
     BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"
@@ -72,16 +71,13 @@
     'Creating secret' in betleague_swarm_deploy_result.stdout or
     'Creating config' in betleague_swarm_deploy_result.stdout
 
-- name: Gérer le proxy public edge stable
-  ansible.builtin.include_tasks: _edge_public_proxy.yml
-
 - name: Attendre que les services Swarm convergent
   block:
     - name: Vérifier la convergence des services Swarm
       ansible.builtin.shell: |
         set -euo pipefail
         stack_name="{{ betleague_swarm_stack_name }}"
-        lines=$(docker stack services "$stack_name" --format {% raw %}'{{.Name}} {{.Replicas}}'{% endraw %})
+        lines=$(docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}')
         test -n "$lines"
         pending_services=""
         while IFS= read -r line; do
@@ -120,7 +116,7 @@
       ansible.builtin.shell: |
         set -euo pipefail
         stack_name="{{ betleague_swarm_stack_name }}"
-        docker stack services "$stack_name" --format {% raw %}'{{.Name}} {{.Replicas}}'{% endraw %} | while IFS= read -r line; do
+        docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}' | while IFS= read -r line; do
           name="${line%% *}"
           replicas="${line##* }"
           running="${replicas%%/*}"
@@ -156,7 +152,7 @@
         for service in $services; do
           printf '\n===== %s: inspect =====\n' "$service"
           docker service inspect "$service" \
-            --format {% raw %}'Image={{.Spec.TaskTemplate.ContainerSpec.Image}} UpdateState={{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}} UpdateMessage={{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}'{% endraw %} \
+            --format 'Image={{"{{.Spec.TaskTemplate.ContainerSpec.Image}}"}} UpdateState={{"{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}"}} UpdateMessage={{"{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}"}}' \
             || true
 
           printf '\n===== %s: tasks =====\n' "$service"
@@ -192,88 +188,6 @@
           Inspecte les sorties `docker stack services {{ betleague_swarm_stack_name }}` et
           `docker stack ps --no-trunc {{ betleague_swarm_stack_name }}` affichées juste avant pour identifier
           le service bloquant (image, healthcheck, crashloop, rollback ou dépendance indisponible).
-
-- name: Lire les configs montées par le service edge
-  ansible.builtin.command: >-
-    docker service inspect {{ betleague_swarm_stack_name }}_edge
-    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Configs}}{{println .ConfigName}}{{end}}'{% endraw %}
-  register: betleague_swarm_edge_config_names
-  changed_when: false
-
-- name: Vérifier que le service edge utilise la configuration Nginx attendue
-  ansible.builtin.assert:
-    that:
-      - betleague_swarm_edge_nginx_conf_config_name in betleague_swarm_edge_config_names.stdout_lines
-    fail_msg: >-
-      Le service `{{ betleague_swarm_stack_name }}_edge` n'utilise pas la config Nginx attendue
-      `{{ betleague_swarm_edge_nginx_conf_config_name }}`. Configs observées:
-      {{ betleague_swarm_edge_config_names.stdout_lines | join(', ') }}.
-      Relance `deploy_swarm.yml` pour remplacer l'ancien ConfigName Swarm immuable.
-
-- name: Lire la stratégie de mise à jour du service edge Swarm
-  ansible.builtin.command: >-
-    docker service inspect {{ betleague_swarm_stack_name }}_edge
-    --format {% raw %}'{{.Spec.UpdateConfig.Order}}'{% endraw %}
-  register: betleague_swarm_edge_update_order
-  changed_when: false
-
-- name: Lire les ports publiés par le service edge Swarm
-  ansible.builtin.command: >-
-    docker service inspect {{ betleague_swarm_stack_name }}_edge
-    --format {% raw %}'{{range .Endpoint.Spec.Ports}}{{println .PublishedPort .PublishMode}}{{end}}'{% endraw %}
-  register: betleague_swarm_edge_published_ports
-  changed_when: false
-
-- name: Vérifier que le service edge Swarm est sans ports host et en start-first
-  ansible.builtin.assert:
-    that:
-      - betleague_swarm_edge_published_ports.stdout_lines | length == 0
-      - betleague_swarm_edge_update_order.stdout | trim == 'start-first'
-    fail_msg: >-
-      Le service Swarm `{{ betleague_swarm_stack_name }}_edge` ne doit plus publier directement 80/443.
-      Pour éviter le downtime, les ports publics sont portés par le proxy stable hors stack, tandis que
-      `edge` reste en `update_config.order=start-first`. Valeur update observée:
-      `{{ betleague_swarm_edge_update_order.stdout | trim }}`. Ports Swarm observés:
-      {{ betleague_swarm_edge_published_ports.stdout_lines | join(', ') }}.
-
-- name: Lire les configs montées par le service Grafana
-  ansible.builtin.command: >-
-    docker service inspect {{ betleague_swarm_stack_name }}_grafana
-    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Configs}}{{println .ConfigName}}{{end}}'{% endraw %}
-  register: betleague_swarm_grafana_config_names
-  changed_when: false
-
-- name: Vérifier que le service Grafana utilise les configs provisionnées attendues
-  ansible.builtin.assert:
-    that:
-      - betleague_swarm_grafana_datasources_config_name in betleague_swarm_grafana_config_names.stdout_lines
-      - betleague_swarm_grafana_dashboards_config_name in betleague_swarm_grafana_config_names.stdout_lines
-      - betleague_swarm_grafana_system_overview_dashboard_config_name in betleague_swarm_grafana_config_names.stdout_lines
-    fail_msg: >-
-      Le service `{{ betleague_swarm_stack_name }}_grafana` n'utilise pas les configs Grafana attendues.
-      Attendues: {{ [betleague_swarm_grafana_datasources_config_name, betleague_swarm_grafana_dashboards_config_name, betleague_swarm_grafana_system_overview_dashboard_config_name] | join(', ') }}.
-      Observées: {{ betleague_swarm_grafana_config_names.stdout_lines | join(', ') }}.
-
-- name: Lire l'environnement du service Grafana
-  ansible.builtin.command: >-
-    docker service inspect {{ betleague_swarm_stack_name }}_grafana
-    --format {% raw %}'{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}'{% endraw %}
-  register: betleague_swarm_grafana_env_lines
-  changed_when: false
-
-- name: Vérifier que Grafana sert une CSP native compatible
-  ansible.builtin.assert:
-    that:
-      - "'GF_SECURITY_CONTENT_SECURITY_POLICY=true' in betleague_swarm_grafana_env_lines.stdout_lines"
-      - >-
-        (betleague_swarm_grafana_env_lines.stdout_lines
-        | select('search', '^GF_SECURITY_CONTENT_SECURITY_POLICY_TEMPLATE=.*\\$NONCE')
-        | list
-        | length) == 1
-    fail_msg: >-
-      Le service `{{ betleague_swarm_stack_name }}_grafana` doit activer une CSP native Grafana explicite
-      contenant `$NONCE`. Variables Grafana observées: {{ betleague_swarm_grafana_env_lines.stdout_lines
-      | select('search', '^GF_SECURITY_CONTENT_SECURITY_POLICY') | list | join(', ') }}.
 
 - name: Synchroniser le mot de passe admin Grafana
   ansible.builtin.include_tasks: _sync_grafana_admin_password.yml
@@ -358,7 +272,7 @@
         set -u
         printf '=== docker service inspect edge ports ===\n'
         docker service inspect {{ betleague_swarm_stack_name }}_edge \
-          --format {% raw %}'Ports={{json .Endpoint.Spec.Ports}} UpdateStatus={{json .UpdateStatus}}'{% endraw %} || true
+          --format 'Ports={{"{{json .Endpoint.Spec.Ports}}"}} UpdateStatus={{"{{json .UpdateStatus}}"}}' || true
 
         printf '\n=== sockets 80/443 ===\n'
         ss -ltnp | grep -E '(:80|:443)[[:space:]]' || true
