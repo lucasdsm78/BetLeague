@@ -20,6 +20,7 @@ limit_req_zone  $api_limit_key zone=api_realtime:10m rate=10r/m;
 limit_conn_zone $api_conn_key  zone=conn_limit:10m;
 
 resolver 127.0.0.11 valid=10s ipv6=off;
+real_ip_header proxy_protocol;
 
 map $request_method $app_method_allowed {
     default 0;
@@ -29,7 +30,7 @@ map $request_method $app_method_allowed {
 }
 
 server {
-    listen 8080;
+    listen 8080 proxy_protocol;
     server_name {{ betleague_swarm_app_domain }} {{ betleague_swarm_api_domain }} {{ betleague_swarm_grafana_domain }} {{ betleague_swarm_prometheus_domain }};
     server_tokens off;
 
@@ -45,7 +46,7 @@ server {
 }
 
 server {
-    listen 8080 default_server;
+    listen 8080 proxy_protocol default_server;
     server_name _;
     server_tokens off;
 
@@ -61,7 +62,23 @@ server {
 }
 
 server {
-    listen 8443 ssl;
+    listen 8081 default_server;
+    server_name _;
+    server_tokens off;
+
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 'ok';
+    }
+
+    location / {
+        return 444;
+    }
+}
+
+server {
+    listen 8443 ssl proxy_protocol;
     http2 on;
     server_name {{ betleague_swarm_app_domain }};
     server_tokens off;
@@ -124,7 +141,7 @@ server {
 }
 
 server {
-    listen 8443 ssl;
+    listen 8443 ssl proxy_protocol;
     http2 on;
     server_name {{ betleague_swarm_api_domain }};
     server_tokens off;
@@ -284,7 +301,7 @@ server {
 }
 
 server {
-    listen 8443 ssl;
+    listen 8443 ssl proxy_protocol;
     http2 on;
     server_name {{ betleague_swarm_grafana_domain }};
     server_tokens off;
@@ -356,7 +373,7 @@ server {
 }
 
 server {
-    listen 8443 ssl;
+    listen 8443 ssl proxy_protocol;
     http2 on;
     server_name {{ betleague_swarm_prometheus_domain }};
     server_tokens off;

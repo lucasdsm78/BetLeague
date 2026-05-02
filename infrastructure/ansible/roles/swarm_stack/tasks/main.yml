@@ -35,6 +35,7 @@
     BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION: "{{ betleague_swarm_update_failure_action }}"
     BETLEAGUE_PYTHON_TEMP: "{{ betleague_swarm_python_temp }}"
     BETLEAGUE_PYTHON_TMP: "{{ betleague_swarm_python_tmp }}"
+    BETLEAGUE_EDGE_NETWORK_NAME: "{{ betleague_swarm_edge_network_name }}"
     BETLEAGUE_EDGE_ACME_WEBROOT: "{{ betleague_swarm_edge_acme_webroot }}"
     BETLEAGUE_EDGE_TLS_DIR: "{{ betleague_swarm_edge_tls_dir }}"
     BETLEAGUE_EDGE_TLS_GID: "{{ betleague_swarm_edge_tls_gid | string }}"
@@ -70,6 +71,9 @@
     'Creating network' in betleague_swarm_deploy_result.stdout or
     'Creating secret' in betleague_swarm_deploy_result.stdout or
     'Creating config' in betleague_swarm_deploy_result.stdout
+
+- name: Gérer le proxy public edge stable
+  ansible.builtin.include_tasks: _edge_public_proxy.yml
 
 - name: Attendre que les services Swarm convergent
   block:
@@ -206,30 +210,30 @@
       {{ betleague_swarm_edge_config_names.stdout_lines | join(', ') }}.
       Relance `deploy_swarm.yml` pour remplacer l'ancien ConfigName Swarm immuable.
 
-- name: Lire la stratégie de mise à jour du service edge
+- name: Lire la stratégie de mise à jour du service edge Swarm
   ansible.builtin.command: >-
     docker service inspect {{ betleague_swarm_stack_name }}_edge
     --format {% raw %}'{{.Spec.UpdateConfig.Order}}'{% endraw %}
   register: betleague_swarm_edge_update_order
   changed_when: false
 
-- name: Lire les ports publiés par le service edge
+- name: Lire les ports publiés par le service edge Swarm
   ansible.builtin.command: >-
     docker service inspect {{ betleague_swarm_stack_name }}_edge
     --format {% raw %}'{{range .Endpoint.Spec.Ports}}{{println .PublishedPort .PublishMode}}{{end}}'{% endraw %}
   register: betleague_swarm_edge_published_ports
   changed_when: false
 
-- name: Vérifier que le service edge utilise stop-first
+- name: Vérifier que le service edge Swarm est sans ports host et en start-first
   ansible.builtin.assert:
     that:
-      - "'80 host' in betleague_swarm_edge_published_ports.stdout_lines"
-      - "'443 host' in betleague_swarm_edge_published_ports.stdout_lines"
-      - betleague_swarm_edge_update_order.stdout | trim == 'stop-first'
+      - betleague_swarm_edge_published_ports.stdout_lines | length == 0
+      - betleague_swarm_edge_update_order.stdout | trim == 'start-first'
     fail_msg: >-
-      Le service `{{ betleague_swarm_stack_name }}_edge` publie 80/443 en mode host et doit utiliser
-      `update_config.order=stop-first` sur un Swarm mono-node. Valeur observée:
-      `{{ betleague_swarm_edge_update_order.stdout | trim }}`. Ports observés:
+      Le service Swarm `{{ betleague_swarm_stack_name }}_edge` ne doit plus publier directement 80/443.
+      Pour éviter le downtime, les ports publics sont portés par le proxy stable hors stack, tandis que
+      `edge` reste en `update_config.order=start-first`. Valeur update observée:
+      `{{ betleague_swarm_edge_update_order.stdout | trim }}`. Ports Swarm observés:
       {{ betleague_swarm_edge_published_ports.stdout_lines | join(', ') }}.
 
 - name: Lire les configs montées par le service Grafana

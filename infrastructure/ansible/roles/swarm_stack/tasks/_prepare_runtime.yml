@@ -247,6 +247,32 @@
     stdin: "{{ betleague_swarm_backend_env_content_normalized }}"
   changed_when: false
 
+- name: Vérifier si le réseau edge public attachable existe
+  ansible.builtin.command: docker network inspect {{ betleague_swarm_edge_network_name }}
+  register: betleague_swarm_edge_network_inspect
+  changed_when: false
+  failed_when: false
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
+- name: Créer le réseau edge public attachable
+  ansible.builtin.command: >-
+    docker network create
+    --driver overlay
+    --attachable
+    {{ betleague_swarm_edge_network_name }}
+  changed_when: true
+  when:
+    - betleague_swarm_edge_public_proxy_enabled | bool
+    - betleague_swarm_edge_network_inspect.rc != 0
+
+- name: Précharger l'image du proxy public edge stable
+  ansible.builtin.command: docker pull {{ betleague_swarm_edge_public_proxy_image }}
+  register: betleague_swarm_edge_public_proxy_pull
+  changed_when: >-
+    'Downloaded newer image' in betleague_swarm_edge_public_proxy_pull.stdout or
+    'Status: Downloaded newer image' in betleague_swarm_edge_public_proxy_pull.stdout
+  when: betleague_swarm_edge_public_proxy_enabled | bool
+
 - name: Créer l'arborescence de déploiement Swarm
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -338,6 +364,15 @@
       - "{{ betleague_swarm_deploy_path }}/generated/edge.conf"
       - "{{ betleague_swarm_grafana_domain }}"
   changed_when: false
+
+- name: Rendre la configuration du proxy public edge stable
+  ansible.builtin.template:
+    src: edge-public-proxy-haproxy.j2
+    dest: "{{ betleague_swarm_edge_public_proxy_config_path }}"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+  when: betleague_swarm_edge_public_proxy_enabled | bool
 
 - name: Rendre la configuration Prometheus
   ansible.builtin.template:
