@@ -65,6 +65,9 @@
           `/usr/sbin/sshd -T` doit exposer `allowusers {{ betleague_admin_user }}` uniquement,
           ne doit pas autoriser `{{ betleague_default_cloud_user }}`, doit désactiver l'authentification
           par mot de passe et root, et doit conserver l'authentification par clé publique.
+          Directives effectives observées: {{ betleague_sshd_effective_config.stdout_lines
+          | select('search', '^(allowusers|passwordauthentication|kbdinteractiveauthentication|permitrootlogin|pubkeyauthentication)\s+')
+          | list | join('; ') }}
 
     - name: Lire l'état du mot de passe de l'utilisateur cloud par défaut
       ansible.builtin.command: "passwd -S {{ betleague_default_cloud_user }}"
