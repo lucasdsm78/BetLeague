@@ -52,26 +52,26 @@
   ansible.builtin.shell: |
     set -euo pipefail
 
-    existing_owner="$(docker inspect {{ betleague_swarm_edge_public_proxy_name }} --format '{{"{{index .Config.Labels \"betleague.edge_proxy\"}}"}}' 2>/dev/null || true)"
+    existing_owner="$(docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }} --format {% raw %}'{{ index .Config.Labels "betleague.edge_proxy" }}'{% endraw %} 2>/dev/null || true)"
     if [[ -n "$existing_owner" && "$existing_owner" != "true" ]]; then
       echo "Refus de supprimer un conteneur homonyme non géré: {{ betleague_swarm_edge_public_proxy_name }}" >&2
       exit 2
     fi
 
-    docker rm -f {{ betleague_swarm_edge_public_proxy_name }} >/dev/null 2>&1 || true
+    docker rm -f {{ betleague_swarm_edge_public_proxy_name | quote }} >/dev/null 2>&1 || true
 
     docker run -d \
-      --name {{ betleague_swarm_edge_public_proxy_name }} \
+      --name {{ betleague_swarm_edge_public_proxy_name | quote }} \
       --restart unless-stopped \
-      --network {{ betleague_swarm_edge_network_name }} \
+      --network {{ betleague_swarm_edge_network_name | quote }} \
       --publish 80:80 \
       --publish 443:443 \
       --pull never \
       --label betleague.edge_proxy=true \
-      --label betleague.edge_proxy.config_sha={{ betleague_swarm_edge_public_proxy_config_stat.stat.checksum }} \
-      --label betleague.edge_proxy.network={{ betleague_swarm_edge_network_name }} \
-      --mount type=bind,src={{ betleague_swarm_edge_public_proxy_config_path }},dst=/usr/local/etc/haproxy/haproxy.cfg,ro \
-      {{ betleague_swarm_edge_public_proxy_image }}
+      --label betleague.edge_proxy.config_sha={{ betleague_swarm_edge_public_proxy_config_stat.stat.checksum | quote }} \
+      --label betleague.edge_proxy.network={{ betleague_swarm_edge_network_name | quote }} \
+      --mount type=bind,src={{ betleague_swarm_edge_public_proxy_config_path | quote }},dst=/usr/local/etc/haproxy/haproxy.cfg,ro \
+      {{ betleague_swarm_edge_public_proxy_image | quote }}
   args:
     executable: /bin/bash
   register: betleague_swarm_edge_public_proxy_run
@@ -100,3 +100,4 @@
       Le proxy public edge stable `{{ betleague_swarm_edge_public_proxy_name }}` doit publier 80/tcp et 443/tcp.
       Ports observés: {{ betleague_swarm_edge_public_proxy_ports.stdout_lines | join(', ') }}.
   when: betleague_swarm_edge_public_proxy_enabled | bool
+
