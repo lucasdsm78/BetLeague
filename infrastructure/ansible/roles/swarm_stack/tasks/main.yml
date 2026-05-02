@@ -52,6 +52,7 @@
     BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME: "{{ betleague_swarm_grafana_secret_key_secret_name }}"
     BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME: "{{ betleague_swarm_monitoring_htpasswd_secret_name }}"
     BETLEAGUE_ALERTMANAGER_CONFIG_SECRET_NAME: "{{ betleague_swarm_alertmanager_config_secret_name }}"
+    BETLEAGUE_ALERTMANAGER_REPLICAS: "{{ (betleague_swarm_alertmanager_enabled | default(false)) | ternary('1', '0') }}"
     BETLEAGUE_REDIS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_redis_password_secret_name }}"
     BETLEAGUE_NATS_USER_SECRET_NAME: "{{ betleague_swarm_nats_user_secret_name }}"
     BETLEAGUE_NATS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_nats_password_secret_name }}"

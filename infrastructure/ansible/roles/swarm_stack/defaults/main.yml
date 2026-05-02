@@ -36,6 +36,8 @@ betleague_swarm_migrations_env_content: ""
 betleague_swarm_grafana_admin_password: ""
 betleague_swarm_grafana_secret_key: ""
 betleague_swarm_monitoring_htpasswd: ""
+# Laisser vide pour désactiver Alertmanager. Une configuration neutre est alors générée
+# et le service n'est pas démarré.
 betleague_swarm_alertmanager_config_content: ""
 betleague_swarm_redis_password: ""
 betleague_swarm_nats_user: ""
