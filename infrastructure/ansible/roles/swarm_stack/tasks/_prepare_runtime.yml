@@ -379,6 +379,33 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Vérifier le provisioning Grafana généré
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+        import json
+        import sys
+
+        datasources_text = Path(sys.argv[1]).read_text()
+        dashboard = json.loads(Path(sys.argv[2]).read_text())
+
+        if datasources_text.count("uid: betleague-prometheus") != 1:
+            raise SystemExit("La datasource Grafana uid=betleague-prometheus doit être provisionnée exactement une fois")
+        if "type: prometheus" not in datasources_text or "url: http://prometheus:9090" not in datasources_text:
+            raise SystemExit("La datasource betleague-prometheus doit pointer vers http://prometheus:9090")
+
+        serialized = json.dumps(dashboard)
+        if "-- Grafana --" in serialized:
+            raise SystemExit("Le dashboard ne doit plus référencer la datasource interne -- Grafana --")
+        if "betleague-prometheus" not in serialized:
+            raise SystemExit("Le dashboard doit référencer la datasource betleague-prometheus")
+      - "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml"
+      - "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json"
+  changed_when: false
+
 - name: Calculer les checksums des configs Swarm immuables
   ansible.builtin.stat:
     path: "{{ item.path }}"
