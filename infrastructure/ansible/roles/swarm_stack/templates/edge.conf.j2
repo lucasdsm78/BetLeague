@@ -312,9 +312,8 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    # Grafana génère son propre CSP avec les nonces/directives nécessaires au chargement
-    # de ses bundles frontend et plugins core. Un CSP Nginx additionnel trop strict peut
-    # casser les panels intégrés (`stat`, `timeseries`) avec "Panel plugin not found".
+    # Grafana sert sa propre CSP. Ne pas ajouter de CSP Nginx générique ici : une
+    # politique proxy trop stricte peut casser ses bundles frontend et plugins core.
 
     satisfy all;
     auth_basic "BetLeague Monitoring";
@@ -336,9 +335,6 @@ server {
     }
 
     location / {
-        proxy_hide_header Content-Security-Policy;
-        proxy_hide_header Content-Security-Policy-Report-Only;
-
         proxy_http_version 1.1;
         proxy_next_upstream error timeout http_502 http_503 http_504;
         proxy_next_upstream_tries 2;
