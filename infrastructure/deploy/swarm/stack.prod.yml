@@ -285,6 +285,7 @@ services:
       GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
       GF_SNAPSHOTS_PUBLIC_MODE: "false"
       GF_SMTP_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/system-overview.json
     secrets:
       - *secret-grafana-admin-password
       - *secret-grafana-secret-key
