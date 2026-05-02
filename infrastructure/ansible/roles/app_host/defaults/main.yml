@@ -1,6 +1,6 @@
 ---
-betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
-betleague_runtime_group: "{{ ansible_user | default('betleague') }}"
+betleague_runtime_user: "{{ betleague_admin_user | default('betleague') }}"
+betleague_runtime_group: "{{ betleague_admin_user | default('betleague') }}"
 betleague_compose_root: /opt/betleague
 betleague_directory_mode: '0750'
 betleague_app_directories:

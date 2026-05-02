@@ -28,6 +28,44 @@
     - role: app_host
 
   post_tasks:
+    - name: Vérifier que l'utilisateur administrateur BetLeague existe
+      ansible.builtin.command: "getent passwd {{ betleague_admin_user }}"
+      changed_when: false
+      register: betleague_admin_user_getent
+
+    - name: Vérifier le sudo non interactif de l'administrateur BetLeague
+      ansible.builtin.command: "sudo -n -u {{ betleague_admin_user }} sudo -n true"
+      changed_when: false
+      register: betleague_admin_user_sudo_check
+      when: betleague_admin_passwordless_sudo | bool
+
+    - name: Lire la configuration SSHD effective
+      ansible.builtin.command: /usr/sbin/sshd -T
+      changed_when: false
+      register: betleague_sshd_effective_config
+
+    - name: Vérifier les directives SSHD critiques effectives
+      ansible.builtin.assert:
+        that:
+          - >-
+            (betleague_sshd_effective_config.stdout_lines
+            | select('equalto', 'allowusers ' ~ betleague_admin_user)
+            | list
+            | length) == 1
+          - >-
+            (betleague_sshd_effective_config.stdout_lines
+            | select('search', '^allowusers\\s+.*(?:^|\\s)' ~ (betleague_default_cloud_user | regex_escape) ~ '(?:\\s|$)')
+            | list
+            | length) == 0
+          - "'passwordauthentication no' in betleague_sshd_effective_config.stdout_lines"
+          - "'kbdinteractiveauthentication no' in betleague_sshd_effective_config.stdout_lines"
+          - "'permitrootlogin no' in betleague_sshd_effective_config.stdout_lines"
+          - "'pubkeyauthentication yes' in betleague_sshd_effective_config.stdout_lines"
+        fail_msg: >-
+          `/usr/sbin/sshd -T` doit exposer `allowusers {{ betleague_admin_user }}` uniquement,
+          ne doit pas autoriser `{{ betleague_default_cloud_user }}`, doit désactiver l'authentification
+          par mot de passe et root, et doit conserver l'authentification par clé publique.
+
     - name: Lire l'état du mot de passe de l'utilisateur cloud par défaut
       ansible.builtin.command: "passwd -S {{ betleague_default_cloud_user }}"
       changed_when: false

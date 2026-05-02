@@ -1,5 +1,5 @@
 ---
-betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
+betleague_runtime_user: "{{ betleague_admin_user | default('betleague') }}"
 betleague_docker_engine_packages:
   - docker.io
 betleague_docker_compose_package_candidates:

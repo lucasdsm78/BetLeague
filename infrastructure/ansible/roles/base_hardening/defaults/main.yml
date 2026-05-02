@@ -1,6 +1,7 @@
 ---
-betleague_admin_user: "{{ ansible_user | default('betleague') }}"
+betleague_admin_user: betleague
 betleague_admin_authorized_public_keys: []
+betleague_admin_passwordless_sudo: true
 betleague_lock_default_cloud_user_password: true
 betleague_default_cloud_user: ubuntu
 betleague_enable_fail2ban: true
