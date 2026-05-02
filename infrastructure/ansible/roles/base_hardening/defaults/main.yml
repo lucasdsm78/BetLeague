@@ -1,6 +1,8 @@
 ---
 betleague_admin_user: "{{ ansible_user | default('betleague') }}"
 betleague_admin_authorized_public_keys: []
+betleague_lock_default_cloud_user_password: true
+betleague_default_cloud_user: ubuntu
 betleague_enable_fail2ban: true
 betleague_ssh_port: "{{ ansible_port | default(22) }}"
 betleague_fail2ban_backend: systemd

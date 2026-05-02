@@ -28,6 +28,24 @@
     - role: app_host
 
   post_tasks:
+    - name: Lire l'état du mot de passe de l'utilisateur cloud par défaut
+      ansible.builtin.command: "passwd -S {{ betleague_default_cloud_user }}"
+      changed_when: false
+      failed_when: false
+      register: betleague_default_cloud_user_passwd_status
+      when: betleague_lock_default_cloud_user_password | bool
+
+    - name: Vérifier que le mot de passe de l'utilisateur cloud par défaut est verrouillé
+      ansible.builtin.assert:
+        that:
+          - >-
+            betleague_default_cloud_user_passwd_status.rc != 0
+            or (betleague_default_cloud_user_passwd_status.stdout.split()[1] in ['L', 'LK'])
+        fail_msg: >-
+          Le mot de passe de `{{ betleague_default_cloud_user }}` n'est pas verrouillé.
+          Sortie: {{ betleague_default_cloud_user_passwd_status.stdout }}
+      when: betleague_lock_default_cloud_user_password | bool
+
     - name: Lire l'état UFW final
       ansible.builtin.command: ufw status verbose
       changed_when: false

@@ -50,6 +50,22 @@
   loop: "{{ betleague_admin_authorized_public_keys | unique }}"
   when: betleague_admin_authorized_public_keys | length > 0
 
+- name: Vérifier si l'utilisateur cloud par défaut existe
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ betleague_default_cloud_user }}"
+    fail_key: false
+  register: betleague_default_cloud_user_getent
+  when: betleague_lock_default_cloud_user_password | bool
+
+- name: Verrouiller le mot de passe de l'utilisateur cloud par défaut
+  ansible.builtin.user:
+    name: "{{ betleague_default_cloud_user }}"
+    password_lock: true
+  when:
+    - betleague_lock_default_cloud_user_password | bool
+    - betleague_default_cloud_user_getent.ansible_facts.getent_passwd[betleague_default_cloud_user] is defined
+
 - name: Configurer les mises à jour de sécurité automatiques
   ansible.builtin.template:
     src: 20auto-upgrades.j2
