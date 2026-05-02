@@ -1,0 +1,32 @@
+global
+    log stdout format raw local0
+    maxconn 4096
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    timeout connect 5s
+    timeout client 300s
+    timeout server 300s
+
+resolvers docker
+    nameserver docker 127.0.0.11:53
+    accepted_payload_size 8192
+    hold valid 5s
+
+frontend edge_http
+    bind *:80
+    default_backend swarm_edge_http
+
+backend swarm_edge_http
+    balance roundrobin
+    server-template edge 4 tasks.{{ betleague_swarm_stack_name }}_edge:8080 check send-proxy resolvers docker init-addr libc,none
+
+frontend edge_https
+    bind *:443
+    default_backend swarm_edge_https
+
+backend swarm_edge_https
+    balance roundrobin
+    server-template edge 4 tasks.{{ betleague_swarm_stack_name }}_edge:8443 check send-proxy resolvers docker init-addr libc,none
