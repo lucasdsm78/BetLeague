@@ -291,6 +291,54 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Vérifier que le vhost Grafana edge ne sert pas de CSP incompatible
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        from pathlib import Path
+        import re
+        import sys
+
+        edge_conf = Path(sys.argv[1]).read_text()
+        grafana_domain = sys.argv[2]
+
+        grafana_server = None
+        for match in re.finditer(r"server\s*\{", edge_conf):
+            start = match.start()
+            depth = 0
+            end = None
+            for index, char in enumerate(edge_conf[start:], start=start):
+                if char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = index + 1
+                        break
+            if end is None:
+                continue
+            block = edge_conf[start:end]
+            if re.search(r"server_name\s+" + re.escape(grafana_domain) + r";", block):
+                grafana_server = block
+                break
+
+        if grafana_server is None:
+            raise SystemExit(f"Bloc server Grafana introuvable pour {grafana_domain}")
+        if "add_header Content-Security-Policy" in grafana_server:
+            raise SystemExit("Le vhost Grafana ne doit pas définir add_header Content-Security-Policy")
+        required = [
+            "proxy_hide_header Content-Security-Policy;",
+            "proxy_hide_header Content-Security-Policy-Report-Only;",
+        ]
+        missing = [item for item in required if item not in grafana_server]
+        if missing:
+            raise SystemExit("Directives proxy_hide_header manquantes: " + ", ".join(missing))
+      - "{{ betleague_swarm_deploy_path }}/generated/edge.conf"
+      - "{{ betleague_swarm_grafana_domain }}"
+  changed_when: false
+
 - name: Rendre la configuration Prometheus
   ansible.builtin.template:
     src: prometheus.yml.j2
