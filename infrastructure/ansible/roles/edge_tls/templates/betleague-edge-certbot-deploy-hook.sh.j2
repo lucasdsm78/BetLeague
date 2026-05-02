@@ -14,7 +14,7 @@ test -f "$key_src" || exit 0
 install -o root -g {{ betleague_edge_tls_group }} -m 0444 "$cert_src" "$cert_dst"
 install -o root -g {{ betleague_edge_tls_group }} -m 0440 "$key_src" "$key_dst"
 
-container_id="$(docker ps --filter "label=com.docker.swarm.service.name=$service_name" --format '{{"{{.ID}}"}}' | head -n1)"
+container_id="$(docker ps --filter "label=com.docker.swarm.service.name=$service_name" --format {% raw %}'{{.ID}}'{% endraw %} | head -n1)"
 if [[ -n "$container_id" ]]; then
   docker exec "$container_id" nginx -s reload >/dev/null 2>&1 || true
 fi

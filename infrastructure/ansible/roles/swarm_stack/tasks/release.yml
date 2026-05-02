@@ -26,7 +26,7 @@
 - name: Attendre la fin des migrations one-shot
   ansible.builtin.shell: |
     set -euo pipefail
-    state="$(docker service ps {{ betleague_swarm_stack_name }}_migrations --no-trunc --format '{{"{{.CurrentState}}"}}' | head -n 1)"
+    state="$(docker service ps {{ betleague_swarm_stack_name }}_migrations --no-trunc --format {% raw %}'{{.CurrentState}}'{% endraw %} | head -n 1)"
     if [[ "$state" == Complete* ]]; then
       exit 0
     fi
@@ -65,7 +65,7 @@
 - name: Attendre la convergence du backend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_backend$ --format '{{"{{.Replicas}}"}}')"
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_backend$ --format {% raw %}'{{.Replicas}}'{% endraw %})"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"
@@ -97,7 +97,7 @@
 - name: Attendre la convergence des workers backend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_{{ item }}$ --format '{{"{{.Replicas}}"}}')"
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_{{ item }}$ --format {% raw %}'{{.Replicas}}'{% endraw %})"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"
@@ -129,7 +129,7 @@
 - name: Attendre la convergence du frontend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_frontend$ --format '{{"{{.Replicas}}"}}')"
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_frontend$ --format {% raw %}'{{.Replicas}}'{% endraw %})"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"

@@ -81,7 +81,7 @@
       ansible.builtin.shell: |
         set -euo pipefail
         stack_name="{{ betleague_swarm_stack_name }}"
-        lines=$(docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}')
+        lines=$(docker stack services "$stack_name" --format {% raw %}'{{.Name}} {{.Replicas}}'{% endraw %})
         test -n "$lines"
         pending_services=""
         while IFS= read -r line; do
@@ -120,7 +120,7 @@
       ansible.builtin.shell: |
         set -euo pipefail
         stack_name="{{ betleague_swarm_stack_name }}"
-        docker stack services "$stack_name" --format '{{"{{.Name}} {{.Replicas}}"}}' | while IFS= read -r line; do
+        docker stack services "$stack_name" --format {% raw %}'{{.Name}} {{.Replicas}}'{% endraw %} | while IFS= read -r line; do
           name="${line%% *}"
           replicas="${line##* }"
           running="${replicas%%/*}"
@@ -156,7 +156,7 @@
         for service in $services; do
           printf '\n===== %s: inspect =====\n' "$service"
           docker service inspect "$service" \
-            --format 'Image={{"{{.Spec.TaskTemplate.ContainerSpec.Image}}"}} UpdateState={{"{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}"}} UpdateMessage={{"{{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}"}}' \
+            --format {% raw %}'Image={{.Spec.TaskTemplate.ContainerSpec.Image}} UpdateState={{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}} UpdateMessage={{if .UpdateStatus}}{{.UpdateStatus.Message}}{{end}}'{% endraw %} \
             || true
 
           printf '\n===== %s: tasks =====\n' "$service"
@@ -358,7 +358,7 @@
         set -u
         printf '=== docker service inspect edge ports ===\n'
         docker service inspect {{ betleague_swarm_stack_name }}_edge \
-          --format 'Ports={{"{{json .Endpoint.Spec.Ports}}"}} UpdateStatus={{"{{json .UpdateStatus}}"}}' || true
+          --format {% raw %}'Ports={{json .Endpoint.Spec.Ports}} UpdateStatus={{json .UpdateStatus}}'{% endraw %} || true
 
         printf '\n=== sockets 80/443 ===\n'
         ss -ltnp | grep -E '(:80|:443)[[:space:]]' || true
