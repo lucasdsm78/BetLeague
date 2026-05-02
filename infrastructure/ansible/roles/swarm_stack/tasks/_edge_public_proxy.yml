@@ -8,7 +8,7 @@
 
 - name: Inspecter le proxy public edge stable existant
   ansible.builtin.command: >-
-    docker inspect {{ betleague_swarm_edge_public_proxy_name }}
+    docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }}
     --format {% raw %}'{{.State.Running}} {{index .Config.Labels "betleague.edge_proxy"}} {{index .Config.Labels "betleague.edge_proxy.config_sha"}} {{index .Config.Labels "betleague.edge_proxy.network"}} {{.Config.Image}}'{% endraw %}
   register: betleague_swarm_edge_public_proxy_inspect
   changed_when: false
@@ -39,7 +39,7 @@
     - "' true ' not in betleague_swarm_edge_public_proxy_inspect.stdout"
 
 - name: Supprimer l'ancien proxy public edge si sa configuration a changé
-  ansible.builtin.command: docker rm -f {{ betleague_swarm_edge_public_proxy_name }}
+  ansible.builtin.command: docker rm -f {{ betleague_swarm_edge_public_proxy_name | quote }}
   changed_when: true
   failed_when: false
   when:
@@ -52,16 +52,21 @@
   ansible.builtin.shell: |
     set -euo pipefail
 
-    existing_owner="$(docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }} --format {% raw %}'{{ index .Config.Labels "betleague.edge_proxy" }}'{% endraw %} 2>/dev/null || true)"
+    proxy_name={{ betleague_swarm_edge_public_proxy_name | quote }}
+    existing_owner=""
+    if existing_json="$(docker inspect "$proxy_name" 2>/dev/null)"; then
+      existing_owner="$(printf '%s' "$existing_json" | python3 -c 'import json, sys; data = json.load(sys.stdin); print(((data[0].get("Config") or {}).get("Labels") or {}).get("betleague.edge_proxy", ""))')"
+    fi
+
     if [[ -n "$existing_owner" && "$existing_owner" != "true" ]]; then
-      echo "Refus de supprimer un conteneur homonyme non géré: {{ betleague_swarm_edge_public_proxy_name }}" >&2
+      echo "Refus de supprimer un conteneur homonyme non géré: $proxy_name" >&2
       exit 2
     fi
 
-    docker rm -f {{ betleague_swarm_edge_public_proxy_name | quote }} >/dev/null 2>&1 || true
+    docker rm -f "$proxy_name" >/dev/null 2>&1 || true
 
     docker run -d \
-      --name {{ betleague_swarm_edge_public_proxy_name | quote }} \
+      --name "$proxy_name" \
       --restart unless-stopped \
       --network {{ betleague_swarm_edge_network_name | quote }} \
       --publish 80:80 \
@@ -85,7 +90,7 @@
 
 - name: Vérifier que le proxy public edge publie 80/443
   ansible.builtin.command: >-
-    docker inspect {{ betleague_swarm_edge_public_proxy_name }}
+    docker inspect {{ betleague_swarm_edge_public_proxy_name | quote }}
     --format {% raw %}'{{range $port, $bindings := .NetworkSettings.Ports}}{{println $port}}{{end}}'{% endraw %}
   register: betleague_swarm_edge_public_proxy_ports
   changed_when: false
@@ -100,4 +105,3 @@
       Le proxy public edge stable `{{ betleague_swarm_edge_public_proxy_name }}` doit publier 80/tcp et 443/tcp.
       Ports observés: {{ betleague_swarm_edge_public_proxy_ports.stdout_lines | join(', ') }}.
   when: betleague_swarm_edge_public_proxy_enabled | bool
-
