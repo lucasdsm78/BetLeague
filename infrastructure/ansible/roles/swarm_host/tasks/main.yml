@@ -1,10 +1,10 @@
 ---
 - name: Vérifier Docker CLI disponible
-  ansible.builtin.command: docker version --format {% raw %}'{{.Server.Version}}'{% endraw %}
+  ansible.builtin.command: docker version --format '{{"{{.Server.Version}}"}}'
   changed_when: false
 
 - name: Lire l'état Swarm local
-  ansible.builtin.command: docker info --format {% raw %}'{{.Swarm.LocalNodeState}}'{% endraw %}
+  ansible.builtin.command: docker info --format '{{"{{.Swarm.LocalNodeState}}"}}'
   changed_when: false
   register: betleague_swarm_state
 
@@ -13,7 +13,7 @@
   when: betleague_swarm_state.stdout.strip() != 'active'
 
 - name: Récupérer l'identifiant du noeud local
-  ansible.builtin.command: docker info --format {% raw %}'{{.Swarm.NodeID}}'{% endraw %}
+  ansible.builtin.command: docker info --format '{{"{{.Swarm.NodeID}}"}}'
   changed_when: false
   register: betleague_swarm_node_id
 
