@@ -3,6 +3,8 @@ venv
 .env
 private_key.pem
 public_key.pem
+jwt_private_key.pem
+jwt_public_key.pem
 back/nats/certs/
 __pycache__/
 .DS_Store

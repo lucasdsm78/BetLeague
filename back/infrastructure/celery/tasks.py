@@ -190,7 +190,13 @@ async def _fetch_daily_matches_async(*, task=None):
             league_ids_count=len(league_ids),
         ),
     )
-    fetch_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
+    odds_date_to = date.today() + timedelta(days=settings.api_sports_fetch_odds_days_ahead)
+    fetch_service = ApiSportsFootballFetchService(
+        client=client,
+        league_ids=league_ids,
+        fetch_odds_until=odds_date_to,
+        max_odds_fixtures=settings.api_sports_fetch_odds_max_fixtures_per_run,
+    )
     usecase = MatchFetchUseCaseImpl(
         match_fetch_api=fetch_service,
         session_factory=session_factory,
@@ -265,8 +271,9 @@ def check_match_scores(self):
         _touch_score_check_failed(now_epoch=int(time.time()), error=str(e))
         logger.exception("celery.task.check_match_scores.failed", extra=_task_extra(self))
         raise
-    finally:
+    else:
         _touch_score_check_finished(now_epoch=int(time.time()))
+    finally:
         logger.info("celery.task.check_match_scores.finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
@@ -324,7 +331,11 @@ async def _check_match_scores_async(*, task=None):
         api_key=settings.api_sports_key,
     )
 
-    score_api = ApiSportsScoreService(client=client)
+    score_api = ApiSportsScoreService(
+        client=client,
+        fallback_enabled=settings.api_sports_score_by_id_fallback_enabled,
+        fallback_max_fixtures=settings.api_sports_score_by_id_fallback_max_fixtures,
+    )
 
     usecase = MatchCommandUseCaseImpl(
         match_score_api=score_api,

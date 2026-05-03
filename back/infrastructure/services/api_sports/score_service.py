@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from typing import List, Set
 
 from domain.services.match_score_api.match_score_api import MatchScoreApi
@@ -10,10 +10,21 @@ logger = logging.getLogger(__name__)
 _LIVE_AND_FINISHED = "1H-HT-2H-ET-BT-P-SUSP-INT-FT-AET-PEN-AWD-WO"
 
 
+def _utc_today_isoformat() -> str:
+    return datetime.now(UTC).date().isoformat()
+
+
 class ApiSportsScoreService(MatchScoreApi):
 
-    def __init__(self, client: ApiSportsBaseClient):
+    def __init__(
+            self,
+            client: ApiSportsBaseClient,
+            fallback_enabled: bool = False,
+            fallback_max_fixtures: int = 0,
+    ):
         self._client = client
+        self._fallback_enabled = bool(fallback_enabled)
+        self._fallback_max_fixtures = max(0, int(fallback_max_fixtures))
 
     async def get_matches_finished(
             self,
@@ -73,7 +84,7 @@ class ApiSportsScoreService(MatchScoreApi):
         # Fallback to per-fixture fetches only for IDs still missing from the batch response.
         results_by_id: dict[int, dict] = {}
 
-        today = datetime.utcnow().date().isoformat()
+        today = _utc_today_isoformat()
         logger.info(
             "api_sports.score.batch_started",
             extra={
@@ -140,123 +151,86 @@ class ApiSportsScoreService(MatchScoreApi):
             },
         )
 
-        import asyncio
+        fallback_enabled = self._fallback_enabled
+        fallback_max = self._fallback_max_fixtures
 
-        # Low concurrency to respect rate limits and connection pool constraints.
-        # Keep in sync with Httpx client max_connections (defaults to 5).
-        concurrency = 4
-        sem = asyncio.Semaphore(concurrency)
+        if missing_ids and fallback_enabled and fallback_max > 0:
+            import asyncio
 
-        async def _fetch_one(fid: int) -> None:
-            async with sem:
-                data = await self._client.get(
-                    "/fixtures",
-                    params={"id": str(fid)},
-                )
-                resp = data.get("response")
-                if not isinstance(resp, list) or not resp:
-                    return
+            ids_to_fetch = sorted(missing_ids)[:fallback_max]
+            # Low concurrency to respect rate limits and connection pool constraints.
+            # Keep in sync with Httpx client max_connections (defaults to 5).
+            concurrency = min(4, fallback_max)
+            sem = asyncio.Semaphore(concurrency)
 
-                for fixture in resp:
-                    f = fixture.get("fixture", {})
-                    goals = fixture.get("goals", {})
+            async def _fetch_one(fid: int) -> None:
+                async with sem:
+                    data = await self._client.get(
+                        "/fixtures",
+                        params={"id": str(fid)},
+                    )
+                    resp = data.get("response")
+                    if not isinstance(resp, list) or not resp:
+                        return
 
-                    fixture_id = f.get("id")
-                    if not fixture_id:
-                        continue
-                    try:
-                        fixture_id_int = int(fixture_id)
-                    except Exception:
-                        continue
+                    for fixture in resp:
+                        f = fixture.get("fixture", {})
+                        goals = fixture.get("goals", {})
 
-                    if fixture_id_int != fid:
-                        continue
+                        fixture_id = f.get("id")
+                        if not fixture_id:
+                            continue
+                        try:
+                            fixture_id_int = int(fixture_id)
+                        except Exception:
+                            continue
 
-                    status_short = f.get("status", {}).get("short", "NS")
-                    gh = goals.get("home")
-                    ga = goals.get("away")
+                        if fixture_id_int != fid:
+                            continue
 
-                    winner = None
-                    if gh is not None and ga is not None:
-                        if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                            if gh > ga:
-                                winner = "HOME_TEAM"
-                            elif ga > gh:
-                                winner = "AWAY_TEAM"
-                            else:
-                                winner = "DRAW"
+                        status_short = f.get("status", {}).get("short", "NS")
+                        gh = goals.get("home")
+                        ga = goals.get("away")
 
-                    results_by_id[fid] = {
-                        "api_fixture_id": fixture_id_int,
-                        "score_home": gh,
-                        "score_away": ga,
-                        "status": status_short,
-                        "winner": winner,
-                    }
+                        winner = None
+                        if gh is not None and ga is not None:
+                            if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
+                                if gh > ga:
+                                    winner = "HOME_TEAM"
+                                elif ga > gh:
+                                    winner = "AWAY_TEAM"
+                                else:
+                                    winner = "DRAW"
 
-        if missing_ids:
-            logger.info("api_sports.score.by_ids_started", extra={"fixture_ids_count": len(missing_ids)})
-            tasks = [asyncio.create_task(_fetch_one(fid)) for fid in sorted(missing_ids)]
-            await asyncio.gather(*tasks)
+                        results_by_id[fid] = {
+                            "api_fixture_id": fixture_id_int,
+                            "score_home": gh,
+                            "score_away": ga,
+                            "status": status_short,
+                            "winner": winner,
+                        }
 
-        results = list(results_by_id.values())
-
-        # Last-resort fallback if batch+targeted-by-id still yielded nothing.
-        if not results:
-            logger.info(
-                "api_sports.score.fallback_started",
+            logger.warning(
+                "api_sports.score.by_ids_started",
                 extra={
-                    "date": today,
-                    "status": _LIVE_AND_FINISHED,
-                    "fixture_ids_count": len(fixture_id_set),
+                    "fixture_ids_count": len(ids_to_fetch),
+                    "missing_count": len(missing_ids),
+                    "fallback_max": fallback_max,
                 },
             )
-            data = await self._client.get(
-                "/fixtures",
-                params={
-                    "date": today,
-                    "status": _LIVE_AND_FINISHED,
-                }
+            tasks = [asyncio.create_task(_fetch_one(fid)) for fid in ids_to_fetch]
+            await asyncio.gather(*tasks)
+        elif missing_ids:
+            logger.info(
+                "api_sports.score.by_ids_skipped",
+                extra={
+                    "missing_count": len(missing_ids),
+                    "fallback_enabled": fallback_enabled,
+                    "fallback_max": fallback_max,
+                },
             )
-            resp = data.get("response")
-            if not isinstance(resp, list):
-                resp = []
 
-            for fixture in resp:
-                f = fixture.get("fixture", {})
-                goals = fixture.get("goals", {})
-
-                fixture_id = f.get("id")
-                if not fixture_id:
-                    continue
-                try:
-                    fixture_id_int = int(fixture_id)
-                except Exception:
-                    continue
-                if fixture_id_int not in fixture_id_set:
-                    continue
-
-                status_short = f.get("status", {}).get("short", "NS")
-                gh = goals.get("home")
-                ga = goals.get("away")
-
-                winner = None
-                if gh is not None and ga is not None:
-                    if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                        if gh > ga:
-                            winner = "HOME_TEAM"
-                        elif ga > gh:
-                            winner = "AWAY_TEAM"
-                        else:
-                            winner = "DRAW"
-
-                results.append({
-                    "api_fixture_id": fixture_id_int,
-                    "score_home": gh,
-                    "score_away": ga,
-                    "status": status_short,
-                    "winner": winner,
-                })
+        results = list(results_by_id.values())
 
         logger.info("api_sports.score.loaded", extra={"results_count": len(results), "requested_count": len(fixture_id_set)})
         return results
