@@ -698,6 +698,7 @@ services:
     secrets:
       - *secret-backend-env
     networks:
+      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -770,6 +771,7 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
+      - edge
       - app
     deploy:
       <<: *deploy-defaults

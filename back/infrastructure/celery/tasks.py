@@ -202,6 +202,7 @@ async def _fetch_daily_matches_async(*, task=None):
     sports_to_fetch = [Sport.FOOTBALL]
     total_fetched = 0
     failed_sports: list[str] = []
+    first_failure: Exception | None = None
 
     for sport in sports_to_fetch:
         try:
@@ -215,18 +216,27 @@ async def _fetch_daily_matches_async(*, task=None):
                 "celery.task.fetch_daily_matches.sport_finished",
                 extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
             )
-        except Exception:
+        except Exception as exc:
             logger.exception(
                 "celery.task.fetch_daily_matches.sport_failed",
-                extra=_task_extra(task, sport=sport.value),
+                extra=_task_extra(
+                    task,
+                    sport=sport.value,
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                ),
             )
+            if first_failure is None:
+                first_failure = exc
             failed_sports.append(sport.value)
 
     await client.close()
     await engine.dispose()
 
     if failed_sports:
-        raise RuntimeError(f"fetch_daily_matches failed for sports: {', '.join(failed_sports)}")
+        raise RuntimeError(
+            f"fetch_daily_matches failed for sports: {', '.join(failed_sports)}"
+        ) from first_failure
 
     logger.info(
         "celery.task.fetch_daily_matches.completed",
