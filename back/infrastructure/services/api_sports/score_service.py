@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 _LIVE_AND_FINISHED = "1H-HT-2H-ET-BT-P-SUSP-INT-FT-AET-PEN-AWD-WO"
 _FINISHED_STATUSES = frozenset({"FT", "AET", "PEN", "AWD", "WO"})
+_MAX_FALLBACK_FIXTURES = 8
 
 
 def _utc_today_isoformat() -> str:
@@ -37,6 +38,27 @@ def _coerce_score(value):
     except (TypeError, ValueError):
         return None
     return score if score >= 0 else None
+
+
+def _has_api_errors(data: dict) -> bool:
+    if not isinstance(data, dict):
+        return True
+    errors = data.get("errors")
+    if isinstance(errors, dict):
+        return bool(errors)
+    if isinstance(errors, list):
+        return bool(errors)
+    return errors is not None
+
+
+def _normalize_fallback_max_fixtures(value: int) -> int:
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        normalized = 0
+    if normalized <= 0:
+        return 0
+    return min(normalized, _MAX_FALLBACK_FIXTURES)
 
 
 def _score_from_fixture(fixture: dict) -> dict | None:
@@ -94,7 +116,16 @@ class ApiSportsScoreService(MatchScoreApi):
     ):
         self._client = client
         self._fallback_enabled = bool(fallback_enabled)
-        self._fallback_max_fixtures = max(0, int(fallback_max_fixtures))
+        self._fallback_max_fixtures = _normalize_fallback_max_fixtures(fallback_max_fixtures)
+        if self._fallback_enabled and self._fallback_max_fixtures != max(0, int(fallback_max_fixtures or 0)):
+            logger.warning(
+                "api_sports.score.fallback_max_clamped",
+                extra={
+                    "configured_fallback_max": fallback_max_fixtures,
+                    "effective_fallback_max": self._fallback_max_fixtures,
+                    "hard_cap": _MAX_FALLBACK_FIXTURES,
+                },
+            )
 
     async def get_matches_finished(
             self,
@@ -168,6 +199,7 @@ class ApiSportsScoreService(MatchScoreApi):
                 "status": _LIVE_AND_FINISHED,
             }
         )
+        batch_has_errors = _has_api_errors(data)
         resp = data.get("response")
         if not isinstance(resp, list):
             resp = []
@@ -196,7 +228,16 @@ class ApiSportsScoreService(MatchScoreApi):
         fallback_enabled = self._fallback_enabled
         fallback_max = self._fallback_max_fixtures
 
-        if missing_ids and fallback_enabled and fallback_max > 0:
+        if missing_ids and batch_has_errors:
+            logger.warning(
+                "api_sports.score.by_ids_skipped_after_batch_error",
+                extra={
+                    "missing_count": len(missing_ids),
+                    "fallback_enabled": fallback_enabled,
+                    "fallback_max": fallback_max,
+                },
+            )
+        elif missing_ids and fallback_enabled and fallback_max > 0:
             import asyncio
 
             ids_to_fetch = sorted(missing_ids)[:fallback_max]

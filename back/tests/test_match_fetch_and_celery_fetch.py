@@ -343,6 +343,72 @@ async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.M
     assert str(exc_info.value.__cause__) == "db boom"
 
 
+@pytest.mark.asyncio
+async def test_fetch_daily_matches_async_clamps_aggressive_odds_configuration(monkeypatch: pytest.MonkeyPatch):
+    captured_kwargs: dict[str, object] = {}
+
+    class FakeEngine:
+        async def dispose(self):
+            return None
+
+    class FakeSettings:
+        api_sports_football_url = "https://v3.football.api-sports.io"
+        api_sports_key = "test-key"
+        api_sports_league_ids_set = frozenset({39})
+        api_sports_fetch_odds_days_ahead = 999
+        api_sports_fetch_odds_max_fixtures_per_run = 999
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def close(self):
+            return None
+
+    class FakeFetchService:
+        def __init__(self, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+
+    class FakeUseCase:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def fetch_and_store_matches(self, *args, **kwargs):
+            return 0
+
+    fake_sport = types.SimpleNamespace(value="football")
+    fake_sport_module = types.ModuleType("domain.match.model.sport")
+    fake_sport_module.Sport = types.SimpleNamespace(FOOTBALL=fake_sport)
+
+    fake_models_module = types.ModuleType("infrastructure.postgresql.models")
+
+    fake_config_module = types.ModuleType("infrastructure.config")
+    fake_config_module.Settings = FakeSettings
+
+    fake_client_module = types.ModuleType("infrastructure.services.api_sports.base_client")
+    fake_client_module.ApiSportsBaseClient = FakeClient
+
+    fake_fetch_module = types.ModuleType("infrastructure.services.api_sports.football_fetch_service")
+    fake_fetch_module.ApiSportsFootballFetchService = FakeFetchService
+
+    fake_usecase_module = types.ModuleType("application.match.match_fetch_usecase")
+    fake_usecase_module.MatchFetchUseCaseImpl = FakeUseCase
+
+    monkeypatch.setattr(celery_tasks_module, "_make_session_factory", lambda: (FakeEngine(), lambda: None))
+    monkeypatch.setitem(sys.modules, "infrastructure.postgresql.models", fake_models_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.config", fake_config_module)
+    monkeypatch.setitem(sys.modules, "domain.match.model.sport", fake_sport_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.base_client", fake_client_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.football_fetch_service", fake_fetch_module)
+    monkeypatch.setitem(sys.modules, "application.match.match_fetch_usecase", fake_usecase_module)
+
+    await celery_tasks_module._fetch_daily_matches_async()
+
+    assert captured_kwargs["max_odds_fixtures"] == celery_tasks_module._MAX_FETCH_ODDS_FIXTURES_PER_RUN
+    assert captured_kwargs["fetch_odds_until"] == date.today() + timedelta(days=celery_tasks_module._MAX_FETCH_ODDS_DAYS_AHEAD)
+
+
+
 
 
 
