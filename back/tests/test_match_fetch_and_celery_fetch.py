@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
+import logging
 
+import httpx
 import pytest
 
 from application.match.match_fetch_usecase import MatchFetchUseCaseImpl
@@ -7,6 +9,8 @@ from domain.match.model.match import Match
 from domain.match.model.sport import Sport
 from infrastructure.celery import celery_app as celery_app_module
 from infrastructure.config import Settings
+from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
+from infrastructure.services.api_sports.football_fetch_service import ApiSportsFootballFetchService
 
 
 class FakeTransaction:
@@ -138,5 +142,85 @@ def test_settings_api_sports_league_ids_trims_spaces():
     )
 
     assert settings.api_sports_league_ids_set == frozenset({39, 61, 78})
+
+
+@pytest.mark.asyncio
+async def test_api_sports_base_client_request_error_logs_network_context(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
+    client = ApiSportsBaseClient(
+        base_url="https://v3.football.api-sports.io",
+        api_key="test-key",
+        timeout=12.0,
+    )
+
+    request = httpx.Request("GET", "https://v3.football.api-sports.io/fixtures?date=2026-05-03")
+
+    async def fake_get(*args, **kwargs):
+        raise httpx.ConnectError("dns failed", request=request)
+
+    monkeypatch.setattr(client._client, "get", fake_get)
+
+    try:
+        with caplog.at_level(logging.ERROR, logger="infrastructure.services.api_sports.base_client"):
+            data = await client.get("/fixtures", params={"date": "2026-05-03"})
+    finally:
+        await client.close()
+
+    assert data == {"response": [], "errors": ["request_error"]}
+    record = next(record for record in caplog.records if record.getMessage() == "api_sports.client.request_error")
+    assert record.api_host == "v3.football.api-sports.io"
+    assert record.path == "/fixtures"
+    assert record.error_type == "ConnectError"
+    assert record.timeout_s == 12.0
+
+
+@pytest.mark.asyncio
+async def test_football_fetch_service_raises_when_primary_fixtures_fetch_fails():
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            assert endpoint == "/fixtures"
+            return {"response": [], "errors": ["request_error"]}
+
+    service = ApiSportsFootballFetchService(client=FakeClient(), league_ids=frozenset({39}))
+
+    with pytest.raises(RuntimeError, match="fixtures fetch failed"):
+        await service.get_upcoming_matches(
+            sport=Sport.FOOTBALL,
+            date_from=date(2026, 5, 3),
+            date_to=date(2026, 5, 3),
+        )
+
+
+@pytest.mark.asyncio
+async def test_football_fetch_service_keeps_match_when_odds_fetch_fails():
+    fixture_payload = {
+        "fixture": {"id": 98765, "date": "2026-05-03T20:00:00Z", "status": {"short": "NS"}},
+        "league": {"id": 39, "name": "Premier League", "season": 2026},
+        "teams": {
+            "home": {"name": "Arsenal", "logo": "home.png"},
+            "away": {"name": "Chelsea", "logo": "away.png"},
+        },
+        "goals": {"home": None, "away": None},
+    }
+
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            if endpoint == "/fixtures":
+                return {"response": [fixture_payload], "errors": []}
+            if endpoint == "/odds":
+                return {"response": [], "errors": ["request_error"]}
+            raise AssertionError(f"Unexpected endpoint: {endpoint}")
+
+    service = ApiSportsFootballFetchService(client=FakeClient(), league_ids=frozenset({39}))
+    pairs = await service.get_upcoming_matches(
+        sport=Sport.FOOTBALL,
+        date_from=date(2026, 5, 3),
+        date_to=date(2026, 5, 3),
+    )
+
+    assert len(pairs) == 1
+    match, odds = pairs[0]
+    assert match.api_fixture_id == 98765
+    assert odds == []
+
 
 
