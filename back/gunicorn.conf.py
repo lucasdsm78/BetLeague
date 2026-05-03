@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 
@@ -48,12 +49,58 @@ def _prometheus_multiproc_dir() -> Path | None:
     return path
 
 
+def _prometheus_multiproc_fallback_dir() -> Path:
+    base_dir = Path(worker_tmp_dir).resolve()
+    if base_dir == Path(base_dir.anchor):
+        raise RuntimeError("GUNICORN_WORKER_TMP_DIR must not point to a filesystem root when used for Prometheus multiprocess metrics")
+    return base_dir / "prometheus-multiproc"
+
+
+def _ensure_prometheus_dir_is_writable(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / ".betleague-prometheus-write-test"
+    probe.touch(exist_ok=True)
+    probe.unlink(missing_ok=True)
+
+
+def _resolve_prometheus_multiproc_dir_for_startup() -> Path | None:
+    configured_dir = _prometheus_multiproc_dir()
+    if configured_dir is None:
+        return None
+
+    try:
+        _ensure_prometheus_dir_is_writable(configured_dir)
+        return configured_dir
+    except OSError as configured_error:
+        fallback_dir = _prometheus_multiproc_fallback_dir()
+        if fallback_dir == configured_dir:
+            raise RuntimeError(
+                f"PROMETHEUS_MULTIPROC_DIR '{configured_dir}' is not writable and no distinct fallback is available"
+            ) from configured_error
+
+        try:
+            _ensure_prometheus_dir_is_writable(fallback_dir)
+        except OSError as fallback_error:
+            raise RuntimeError(
+                f"PROMETHEUS_MULTIPROC_DIR '{configured_dir}' is not writable and fallback '{fallback_dir}' also failed"
+            ) from fallback_error
+
+        os.environ["PROMETHEUS_MULTIPROC_DIR"] = str(fallback_dir)
+        print(
+            (
+                f"[betleague] PROMETHEUS_MULTIPROC_DIR '{configured_dir}' is not writable; "
+                f"falling back to '{fallback_dir}'."
+            ),
+            file=sys.stderr,
+        )
+        return fallback_dir
+
+
 def on_starting(_server):
-    prometheus_dir = _prometheus_multiproc_dir()
+    prometheus_dir = _resolve_prometheus_multiproc_dir_for_startup()
     if prometheus_dir is None:
         return
 
-    prometheus_dir.mkdir(parents=True, exist_ok=True)
     for metrics_file in prometheus_dir.glob("*.db"):
         if metrics_file.is_file():
             metrics_file.unlink()

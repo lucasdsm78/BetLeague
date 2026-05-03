@@ -33,6 +33,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - hardening hôte avec `ufw` Docker-aware: seuls SSH restreint + `80/443` sont censés rester exposables publiquement
 - Nginx edge/frontend durci : `server_tokens off`, headers de sécurité, CSP distinctes app/API, redirection HTTPS stricte, timeouts bornés, méthodes limitées côté app SPA, rate limiting ciblé sur l’API, deny défensif des routes FastAPI de documentation et cache explicite sur `index.html`
 - backend prod servi par Gunicorn + workers Uvicorn, avec timeouts, `max_requests` et logs stdout adaptés au déploiement conteneurisé
+- métriques Prometheus multiprocess backend écrites sur le tmp runtime writable (`BETLEAGUE_PYTHON_TMP`, par défaut `/dev/shm`) pour rester compatibles avec les conteneurs `read_only`
 - releases applicatives backend/frontend en rolling update `start-first`, avec migrations DB exécutées avant le déploiement de la nouvelle révision backend
 - déploiement convergent via Ansible
 
