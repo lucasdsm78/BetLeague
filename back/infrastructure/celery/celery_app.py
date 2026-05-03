@@ -21,6 +21,9 @@ _ENABLE_UTC = os.getenv("CELERY_ENABLE_UTC", "0").strip() in {"1", "true", "True
 _ENABLE_CATCHUP = os.getenv("CELERY_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
 _CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_CATCHUP_THRESHOLD_SECONDS", "900"))
 
+_ENABLE_FETCH_MATCHES_CATCHUP = os.getenv("CELERY_FETCH_MATCHES_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
+_FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS", str(18 * 3600)))
+
 # Redis state storage (independent from broker)
 _STATE_REDIS_URL = os.getenv("CELERY_STATE_REDIS_URL") or CELERY_BROKER_URL
 _STATE_PREFIX = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
@@ -28,6 +31,10 @@ _STATE_TTL_SECONDS = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7
 
 _CATCHUP_LOCK_KEY = os.getenv("CELERY_CATCHUP_LOCK_KEY", "betleague:celery:score_check:catchup_lock")
 _CATCHUP_LOCK_SECONDS = int(os.getenv("CELERY_CATCHUP_LOCK_SECONDS", "60"))
+
+_FETCH_MATCHES_STATE_PREFIX = os.getenv("CELERY_FETCH_MATCHES_STATE_PREFIX", "betleague:celery:fetch_matches")
+_FETCH_MATCHES_CATCHUP_LOCK_KEY = os.getenv("CELERY_FETCH_MATCHES_CATCHUP_LOCK_KEY", "betleague:celery:fetch_matches:catchup_lock")
+_FETCH_MATCHES_CATCHUP_LOCK_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_LOCK_SECONDS", "60"))
 
 # Backward-compat: old single key name (unused after migration)
 _LAST_RUN_KEY = os.getenv("CELERY_LAST_SCORE_CHECK_KEY", "betleague:celery:last_check_match_scores_at")
@@ -105,6 +112,21 @@ def _read_last_finished_epoch() -> int | None:
         return None
 
 
+def _read_fetch_matches_last_finished_epoch() -> int | None:
+    try:
+        r = _redis_state_client()
+        try:
+            raw = r.get(f"{_FETCH_MATCHES_STATE_PREFIX}:last_finished_at")
+        finally:
+            r.close()
+        if not raw:
+            return None
+        return int(float(raw))
+    except Exception:
+        logger.exception("celery.beat.fetch_matches.catchup.read_last_finished_failed")
+        return None
+
+
 def _acquire_catchup_lock() -> bool:
     try:
         r = _redis_state_client()
@@ -119,41 +141,87 @@ def _acquire_catchup_lock() -> bool:
         return False
 
 
+def _acquire_fetch_matches_catchup_lock() -> bool:
+    try:
+        r = _redis_state_client()
+        try:
+            return bool(r.set(_FETCH_MATCHES_CATCHUP_LOCK_KEY, "1", nx=True, ex=_FETCH_MATCHES_CATCHUP_LOCK_SECONDS))
+        finally:
+            r.close()
+    except Exception:
+        logger.exception(
+            "celery.beat.fetch_matches.catchup.lock_failed",
+            extra={"lock_ttl_s": _FETCH_MATCHES_CATCHUP_LOCK_SECONDS},
+        )
+        return False
+
+
 @beat_init.connect
 def _beat_catchup_on_start(*_args, **_kwargs) -> None:
+    now = int(time.time())
+
     if not _ENABLE_CATCHUP:
         logger.info("celery.beat.catchup.disabled")
+    else:
+        if not _acquire_catchup_lock():
+            logger.info("celery.beat.catchup.lock_skipped")
+        else:
+            last = _read_last_finished_epoch()
+
+            # Premier demarrage (pas de last_finished): on force un run immediat.
+            if last is None:
+                logger.info("celery.beat.catchup.first_run_dispatched")
+                celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
+            else:
+                age = now - last
+                if age >= _CATCHUP_THRESHOLD_SECONDS:
+                    logger.warning(
+                        "celery.beat.catchup.dispatched",
+                        extra={
+                            "age_s": age,
+                            "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+                        },
+                    )
+                    celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
+                else:
+                    logger.info(
+                        "celery.beat.catchup.skipped_recent",
+                        extra={
+                            "age_s": age,
+                            "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+                        },
+                    )
+
+    if not _ENABLE_FETCH_MATCHES_CATCHUP:
+        logger.info("celery.beat.fetch_matches.catchup.disabled")
         return
 
-    if not _acquire_catchup_lock():
-        logger.info("celery.beat.catchup.lock_skipped")
+    if not _acquire_fetch_matches_catchup_lock():
+        logger.info("celery.beat.fetch_matches.catchup.lock_skipped")
         return
 
-    now = int(time.time())
-    last = _read_last_finished_epoch()
-
-    # Premier demarrage (pas de last_finished): on force un run immediat.
-    if last is None:
-        logger.info("celery.beat.catchup.first_run_dispatched")
-        celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
+    last_fetch = _read_fetch_matches_last_finished_epoch()
+    if last_fetch is None:
+        logger.info("celery.beat.fetch_matches.catchup.first_run_dispatched")
+        celery_app.send_task("infrastructure.celery.tasks.fetch_daily_matches")
         return
 
-    age = now - last
-    if age >= _CATCHUP_THRESHOLD_SECONDS:
+    fetch_age = now - last_fetch
+    if fetch_age >= _FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS:
         logger.warning(
-            "celery.beat.catchup.dispatched",
+            "celery.beat.fetch_matches.catchup.dispatched",
             extra={
-                "age_s": age,
-                "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+                "age_s": fetch_age,
+                "threshold_s": _FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS,
             },
         )
-        celery_app.send_task("infrastructure.celery.tasks.check_match_scores")
+        celery_app.send_task("infrastructure.celery.tasks.fetch_daily_matches")
     else:
         logger.info(
-            "celery.beat.catchup.skipped_recent",
+            "celery.beat.fetch_matches.catchup.skipped_recent",
             extra={
-                "age_s": age,
-                "threshold_s": _CATCHUP_THRESHOLD_SECONDS,
+                "age_s": fetch_age,
+                "threshold_s": _FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS,
             },
         )
 
