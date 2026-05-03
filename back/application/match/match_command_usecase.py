@@ -32,8 +32,8 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
     async def check_scores_v2(self):
         async with self._uow_factory() as uow:
             to_update = []
-            events: list[MatchResultResolvedEvent] = []
             finished_scores: Dict[int, tuple] = {}
+            resolved_match_ids: set[int] = set()
 
             finished_no_winner = await uow.match_repo.find_finished_without_winner()
             logger.info("match.score_check.finished_without_winner_loaded", extra={"matches_count": len(finished_no_winner)})
@@ -49,7 +49,7 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                     })
                     finished_scores[match.id] = (match.score_home, match.score_away)
                     if match.winner != new_winner:
-                        events.append(MatchResultResolvedEvent(match_id=match.id))
+                        resolved_match_ids.add(match.id)
 
             fixture_ids = await uow.match_repo.find_active_fixture_ids()
             logger.info("match.score_check.active_fixture_ids_loaded", extra={"fixture_ids_count": len(fixture_ids)})
@@ -91,36 +91,47 @@ class MatchCommandUseCaseImpl(MatchCommandUseCase):
                     if match.status.is_finished() and new_winner:
                         finished_scores[match.id] = (match.score_home, match.score_away)
                         if match.winner != new_winner:
-                            events.append(MatchResultResolvedEvent(match_id=match.id))
+                            resolved_match_ids.add(match.id)
             else:
                 logger.info("match.score_check.api_results_loaded", extra={"fixture_ids_count": 0, "api_results_count": 0})
 
-            logger.info("match.score_check.updates_prepared", extra={"to_update_count": len(to_update), "resolved_events_count": len(events), "finished_scores_count": len(finished_scores)})
+            logger.info("match.score_check.updates_prepared", extra={"to_update_count": len(to_update), "resolved_events_count": len(resolved_match_ids), "finished_scores_count": len(finished_scores)})
 
             if to_update:
                 await uow.match_repo.bulk_update_scores(to_update)
 
             if finished_scores:
-                pending_odds = await uow.match_odd_repo.find_pending_by_match_ids(list(finished_scores.keys()))
-                if pending_odds:
+                odds = await uow.match_odd_repo.find_by_match_ids(list(finished_scores.keys()))
+                if odds:
                     odd_updates = []
-                    for odd in pending_odds:
+                    odd_changed_match_ids: set[int] = set()
+                    for odd in odds:
                         scores = finished_scores.get(odd.match_id)
                         if scores is None or scores[0] is None or scores[1] is None:
                             continue
                         result_val = calculate_result(odd.bet_type, odd.value, scores[0], scores[1])
+                        if odd.result == result_val:
+                            continue
                         odd_updates.append({"id": odd.id, "result": result_val})
+                        odd_changed_match_ids.add(odd.match_id)
                     if odd_updates:
                         await uow.match_odd_repo.bulk_update_results(odd_updates)
-                        logger.info("match.score_check.odds_resolved", extra={"odd_updates_count": len(odd_updates)})
+                        resolved_match_ids.update(odd_changed_match_ids)
+                        logger.info(
+                            "match.score_check.odds_resolved",
+                            extra={
+                                "odd_updates_count": len(odd_updates),
+                                "affected_matches_count": len(odd_changed_match_ids),
+                            },
+                        )
 
-            for ev in events:
-                await uow.outbox_bus.publish(ev)
+            for match_id in sorted(resolved_match_ids):
+                await uow.outbox_bus.publish(MatchResultResolvedEvent(match_id=match_id))
 
             await uow.commit()
 
             if to_update or finished_scores:
-                logger.info("match.score_check.completed", extra={"updated_matches_count": len(to_update), "finished_scores_count": len(finished_scores), "published_events_count": len(events)})
+                logger.info("match.score_check.completed", extra={"updated_matches_count": len(to_update), "finished_scores_count": len(finished_scores), "published_events_count": len(resolved_match_ids)})
                 return MatchScoreUpdatedResponse()
 
             logger.info("match.score_check.noop")
