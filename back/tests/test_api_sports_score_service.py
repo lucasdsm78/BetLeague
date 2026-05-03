@@ -161,3 +161,28 @@ async def test_get_live_scores_keeps_batch_results_when_fallback_call_fails():
         }
     ]
     assert calls[1:] == [("/fixtures", {"id": "202"})]
+
+
+@pytest.mark.asyncio
+async def test_get_live_scores_skips_fallback_when_batch_request_itself_fails():
+    calls: list[tuple[str, dict | None]] = []
+
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            calls.append((endpoint, params))
+            if endpoint == "/fixtures" and params and params.get("status"):
+                return {"response": [], "errors": ["request_error"]}
+            raise AssertionError(f"Unexpected call: {endpoint} {params}")
+
+    service = ApiSportsScoreService(client=FakeClient(), fallback_enabled=True, fallback_max_fixtures=5)
+
+    results = await service.get_live_scores([101, 202])
+
+    assert results == []
+    assert calls == [
+        (
+            "/fixtures",
+            {"date": _utc_today_isoformat(), "status": "1H-HT-2H-ET-BT-P-SUSP-INT-FT-AET-PEN-AWD-WO"},
+        )
+    ]
+

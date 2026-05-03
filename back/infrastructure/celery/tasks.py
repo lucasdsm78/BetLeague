@@ -17,6 +17,9 @@ from infrastructure.celery.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+_MAX_FETCH_ODDS_DAYS_AHEAD = 7
+_MAX_FETCH_ODDS_FIXTURES_PER_RUN = 30
+
 # Redis client lazy (process-level) for state updates
 _redis_state_client_singleton = None
 
@@ -116,6 +119,17 @@ def _run_async(coro):
         loop.close()
 
 
+def _bounded_non_negative_int(value, *, default: int = 0, hard_cap: int | None = None) -> int:
+    try:
+        normalized = int(value)
+    except (TypeError, ValueError):
+        normalized = default
+    normalized = max(0, normalized)
+    if hard_cap is not None:
+        normalized = min(normalized, hard_cap)
+    return normalized
+
+
 def _make_session_factory():
     """Create a fresh engine + session factory for each task invocation.
 
@@ -191,12 +205,22 @@ async def _fetch_daily_matches_async(*, task=None):
                 league_ids_count=len(league_ids),
             ),
         )
-        odds_date_to = date.today() + timedelta(days=settings.api_sports_fetch_odds_days_ahead)
+        odds_days_ahead = _bounded_non_negative_int(
+            getattr(settings, "api_sports_fetch_odds_days_ahead", 1),
+            default=1,
+            hard_cap=_MAX_FETCH_ODDS_DAYS_AHEAD,
+        )
+        max_odds_fixtures = _bounded_non_negative_int(
+            getattr(settings, "api_sports_fetch_odds_max_fixtures_per_run", 0),
+            default=0,
+            hard_cap=_MAX_FETCH_ODDS_FIXTURES_PER_RUN,
+        )
+        odds_date_to = date.today() + timedelta(days=odds_days_ahead)
         fetch_service = ApiSportsFootballFetchService(
             client=client,
             league_ids=league_ids,
             fetch_odds_until=odds_date_to,
-            max_odds_fixtures=settings.api_sports_fetch_odds_max_fixtures_per_run,
+            max_odds_fixtures=max_odds_fixtures,
         )
         usecase = MatchFetchUseCaseImpl(
             match_fetch_api=fetch_service,

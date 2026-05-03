@@ -218,8 +218,10 @@ def _api_sports_football_client() -> ApiSportsBaseClient:
     )
 
 
-def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+@lru_cache()
+def _api_sports_match_fetch_router() -> MatchFetchApi:
     client = _api_sports_football_client()
+    settings = get_settings()
     league_ids = settings.api_sports_league_ids_set
     football_service = ApiSportsFootballFetchService(
         client=client,
@@ -234,13 +236,23 @@ def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetc
     })
 
 
-def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+    return _api_sports_match_fetch_router()
+
+
+@lru_cache()
+def _api_sports_score_service() -> MatchScoreApi:
     client = _api_sports_football_client()
+    settings = get_settings()
     return ApiSportsScoreService(
         client=client,
         fallback_enabled=settings.api_sports_score_by_id_fallback_enabled,
         fallback_max_fixtures=settings.api_sports_score_by_id_fallback_max_fixtures,
     )
+
+
+def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+    return _api_sports_score_service()
 
 
 def match_fetch_usecase_dep(
