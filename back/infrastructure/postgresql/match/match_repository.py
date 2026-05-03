@@ -189,9 +189,11 @@ class MatchRepositoryImpl(MatchRepository):
                     & (DBMatch.time <= score_poll_until)
                     & DBMatch.status.notin_(finished_statuses),
                     DBMatch.status.in_(live_statuses),
-                    # Any score-resolvable finished match with no winner yet.
-                    DBMatch.status.in_(resolvable_finished_statuses)
-                    & (DBMatch.winner.is_(None)),
+                    # Keep today's resolvable finished matches in the polling set
+                    # even when a winner already exists, so upstream score corrections
+                    # can repair stale odd results without manual intervention.
+                    (DBMatch.time >= start_of_day)
+                    & DBMatch.status.in_(resolvable_finished_statuses),
                 ),
             )
         )
