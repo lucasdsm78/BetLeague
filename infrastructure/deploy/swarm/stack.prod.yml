@@ -1,6 +1,10 @@
 x-service-defaults: &service-defaults
   init: true
   read_only: true
+  dns:
+    - 1.1.1.1
+    - 1.0.0.1
+    - 8.8.8.8
   cap_drop:
     - ALL
   stop_grace_period: 15s
