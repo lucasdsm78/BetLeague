@@ -179,75 +179,82 @@ async def _fetch_daily_matches_async(*, task=None):
         api_key=settings.api_sports_key,
     )
 
-    league_ids = settings.api_sports_league_ids_set
-    logger.info(
-        "celery.task.fetch_daily_matches.api_client_config",
-        extra=_task_extra(
-            task,
-            api_base_url=settings.api_sports_football_url,
-            api_host=urlsplit(settings.api_sports_football_url).hostname,
-            api_key_configured=bool((settings.api_sports_key or "").strip()),
-            league_ids_count=len(league_ids),
-        ),
-    )
-    odds_date_to = date.today() + timedelta(days=settings.api_sports_fetch_odds_days_ahead)
-    fetch_service = ApiSportsFootballFetchService(
-        client=client,
-        league_ids=league_ids,
-        fetch_odds_until=odds_date_to,
-        max_odds_fixtures=settings.api_sports_fetch_odds_max_fixtures_per_run,
-    )
-    usecase = MatchFetchUseCaseImpl(
-        match_fetch_api=fetch_service,
-        session_factory=session_factory,
-    )
+    try:
+        league_ids = settings.api_sports_league_ids_set
+        logger.info(
+            "celery.task.fetch_daily_matches.api_client_config",
+            extra=_task_extra(
+                task,
+                api_base_url=settings.api_sports_football_url,
+                api_host=urlsplit(settings.api_sports_football_url).hostname,
+                api_key_configured=bool((settings.api_sports_key or "").strip()),
+                league_ids_count=len(league_ids),
+            ),
+        )
+        odds_date_to = date.today() + timedelta(days=settings.api_sports_fetch_odds_days_ahead)
+        fetch_service = ApiSportsFootballFetchService(
+            client=client,
+            league_ids=league_ids,
+            fetch_odds_until=odds_date_to,
+            max_odds_fixtures=settings.api_sports_fetch_odds_max_fixtures_per_run,
+        )
+        usecase = MatchFetchUseCaseImpl(
+            match_fetch_api=fetch_service,
+            session_factory=session_factory,
+        )
 
-    date_from = date.today()
-    date_to = date.today() + timedelta(days=7)
+        date_from = date.today()
+        date_to = date.today() + timedelta(days=7)
 
-    sports_to_fetch = [Sport.FOOTBALL]
-    total_fetched = 0
-    failed_sports: list[str] = []
-    first_failure: Exception | None = None
+        sports_to_fetch = [Sport.FOOTBALL]
+        total_fetched = 0
+        failed_sports: list[str] = []
+        first_failure: Exception | None = None
 
-    for sport in sports_to_fetch:
+        for sport in sports_to_fetch:
+            try:
+                count = await usecase.fetch_and_store_matches(
+                    sport=sport,
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+                total_fetched += int(count)
+                logger.info(
+                    "celery.task.fetch_daily_matches.sport_finished",
+                    extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
+                )
+            except Exception as exc:
+                logger.exception(
+                    "celery.task.fetch_daily_matches.sport_failed",
+                    extra=_task_extra(
+                        task,
+                        sport=sport.value,
+                        error_type=type(exc).__name__,
+                        error=str(exc),
+                    ),
+                )
+                if first_failure is None:
+                    first_failure = exc
+                failed_sports.append(sport.value)
+
+        if failed_sports:
+            raise RuntimeError(
+                f"fetch_daily_matches failed for sports: {', '.join(failed_sports)}"
+            ) from first_failure
+
+        logger.info(
+            "celery.task.fetch_daily_matches.completed",
+            extra=_task_extra(task, sports_count=len(sports_to_fetch), total_fetched_count=total_fetched),
+        )
+    finally:
         try:
-            count = await usecase.fetch_and_store_matches(
-                sport=sport,
-                date_from=date_from,
-                date_to=date_to,
-            )
-            total_fetched += int(count)
-            logger.info(
-                "celery.task.fetch_daily_matches.sport_finished",
-                extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
-            )
-        except Exception as exc:
-            logger.exception(
-                "celery.task.fetch_daily_matches.sport_failed",
-                extra=_task_extra(
-                    task,
-                    sport=sport.value,
-                    error_type=type(exc).__name__,
-                    error=str(exc),
-                ),
-            )
-            if first_failure is None:
-                first_failure = exc
-            failed_sports.append(sport.value)
-
-    await client.close()
-    await engine.dispose()
-
-    if failed_sports:
-        raise RuntimeError(
-            f"fetch_daily_matches failed for sports: {', '.join(failed_sports)}"
-        ) from first_failure
-
-    logger.info(
-        "celery.task.fetch_daily_matches.completed",
-        extra=_task_extra(task, sports_count=len(sports_to_fetch), total_fetched_count=total_fetched),
-    )
+            await client.close()
+        except Exception:
+            logger.warning("celery.task.fetch_daily_matches.client_close_failed", exc_info=True)
+        try:
+            await engine.dispose()
+        except Exception:
+            logger.warning("celery.task.fetch_daily_matches.engine_dispose_failed", exc_info=True)
 
 
 @celery_app.task(
@@ -352,8 +359,14 @@ async def _check_match_scores_async(*, task=None):
         logger.exception("celery.task.check_match_scores.async_failed", extra=_task_extra(task))
         raise
     finally:
-        await client.close()
-        await engine.dispose()
+        try:
+            await client.close()
+        except Exception:
+            logger.warning("celery.task.check_match_scores.client_close_failed", exc_info=True)
+        try:
+            await engine.dispose()
+        except Exception:
+            logger.warning("celery.task.check_match_scores.engine_dispose_failed", exc_info=True)
 
 
 async def _process_weekly_league_payouts_async(*, task=None):
