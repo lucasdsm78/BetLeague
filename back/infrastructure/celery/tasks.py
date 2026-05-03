@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from datetime import date, timedelta, datetime
+from urllib.parse import urlsplit
 
 from redis import Redis
 
@@ -179,6 +180,16 @@ async def _fetch_daily_matches_async(*, task=None):
     )
 
     league_ids = settings.api_sports_league_ids_set
+    logger.info(
+        "celery.task.fetch_daily_matches.api_client_config",
+        extra=_task_extra(
+            task,
+            api_base_url=settings.api_sports_football_url,
+            api_host=urlsplit(settings.api_sports_football_url).hostname,
+            api_key_configured=bool((settings.api_sports_key or "").strip()),
+            league_ids_count=len(league_ids),
+        ),
+    )
     fetch_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
     usecase = MatchFetchUseCaseImpl(
         match_fetch_api=fetch_service,

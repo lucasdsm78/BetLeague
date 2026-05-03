@@ -65,6 +65,18 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                 "/fixtures",
                 params={"date": current.isoformat()}
             )
+            fixture_errors = self._extract_errors(data)
+            if fixture_errors:
+                logger.error(
+                    "api_sports.football.fixtures_fetch_failed",
+                    extra={
+                        "date": current.isoformat(),
+                        "errors": fixture_errors,
+                    },
+                )
+                raise RuntimeError(
+                    f"API-Sports fixtures fetch failed for {current.isoformat()}: {', '.join(fixture_errors)}"
+                )
 
             day_matches: List[Match] = []
             for fixture in data.get("response", []):
@@ -112,6 +124,16 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             "/odds",
             params={"fixture": str(fixture_id)},
         )
+        odds_errors = self._extract_errors(data)
+        if odds_errors:
+            logger.warning(
+                "api_sports.football.fixture_odds_fetch_failed",
+                extra={
+                    "fixture_id": fixture_id,
+                    "errors": odds_errors,
+                },
+            )
+            return []
 
         all_odds: List[MatchOdd] = []
 
@@ -148,6 +170,17 @@ class ApiSportsFootballFetchService(MatchFetchApi):
 
         logger.info("api_sports.football.fixture_odds_loaded", extra={"fixture_id": fixture_id, "odds_count": len(all_odds)})
         return all_odds
+
+    @staticmethod
+    def _extract_errors(data: dict) -> List[str]:
+        errors = data.get("errors")
+        if not errors:
+            return []
+        if isinstance(errors, dict):
+            return [f"{key}:{value}" for key, value in errors.items()]
+        if isinstance(errors, list):
+            return [str(item) for item in errors]
+        return [str(errors)]
 
     @staticmethod
     def _parse_fixture(fixture: dict) -> Optional[Match]:
