@@ -229,7 +229,11 @@ def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetc
 
 def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
     client = _api_sports_football_client()
-    return ApiSportsScoreService(client=client)
+    return ApiSportsScoreService(
+        client=client,
+        fallback_enabled=settings.api_sports_score_by_id_fallback_enabled,
+        fallback_max_fixtures=settings.api_sports_score_by_id_fallback_max_fixtures,
+    )
 
 
 def match_fetch_usecase_dep(

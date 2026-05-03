@@ -36,6 +36,7 @@ _ENABLE_UTC = os.getenv("CELERY_ENABLE_UTC", "0").strip() in {"1", "true", "True
 
 _ENABLE_CATCHUP = os.getenv("CELERY_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
 _CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_CATCHUP_THRESHOLD_SECONDS", "900"))
+_CHECK_MATCH_SCORES_INTERVAL_SECONDS = float(os.getenv("CELERY_CHECK_MATCH_SCORES_INTERVAL_SECONDS", "900"))
 
 _ENABLE_FETCH_MATCHES_CATCHUP = os.getenv("CELERY_FETCH_MATCHES_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
 _FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS", str(18 * 3600)))
@@ -50,7 +51,7 @@ _CATCHUP_LOCK_SECONDS = int(os.getenv("CELERY_CATCHUP_LOCK_SECONDS", "60"))
 
 _FETCH_MATCHES_STATE_PREFIX = os.getenv("CELERY_FETCH_MATCHES_STATE_PREFIX", "betleague:celery:fetch_matches")
 _FETCH_MATCHES_CATCHUP_LOCK_KEY = os.getenv("CELERY_FETCH_MATCHES_CATCHUP_LOCK_KEY", "betleague:celery:fetch_matches:catchup_lock")
-_FETCH_MATCHES_CATCHUP_LOCK_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_LOCK_SECONDS", "60"))
+_FETCH_MATCHES_CATCHUP_LOCK_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_LOCK_SECONDS", "21600"))
 
 # Backward-compat: old single key name (unused after migration)
 _LAST_RUN_KEY = os.getenv("CELERY_LAST_SCORE_CHECK_KEY", "betleague:celery:last_check_match_scores_at")
@@ -96,7 +97,7 @@ celery_app.conf.update(
         },
         "check-match-scores": {
             "task": "infrastructure.celery.tasks.check_match_scores",
-            "schedule": 300.0,
+            "schedule": _CHECK_MATCH_SCORES_INTERVAL_SECONDS,
         },
     },
 )

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import logging
 import sys
 import types
@@ -13,6 +13,7 @@ from infrastructure.celery import celery_app as celery_app_module
 from infrastructure.celery import tasks as celery_tasks_module
 from infrastructure.config import Settings
 from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
+from infrastructure.services.api_sports import football_fetch_service as football_fetch_service_module
 from infrastructure.services.api_sports.football_fetch_service import ApiSportsFootballFetchService
 
 
@@ -71,7 +72,7 @@ async def test_fetch_usecase_persists_matches_even_without_odds(monkeypatch: pyt
         uuid="match-without-odds",
         home_team="PSG",
         away_team="OM",
-        time=datetime.utcnow() + timedelta(days=1),
+        time=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1),
         api_fixture_id=12345,
     )
 
@@ -213,7 +214,12 @@ async def test_football_fetch_service_keeps_match_when_odds_fetch_fails():
                 return {"response": [], "errors": ["request_error"]}
             raise AssertionError(f"Unexpected endpoint: {endpoint}")
 
-    service = ApiSportsFootballFetchService(client=FakeClient(), league_ids=frozenset({39}))
+    service = ApiSportsFootballFetchService(
+        client=FakeClient(),
+        league_ids=frozenset({39}),
+        fetch_odds_until=date(2026, 5, 3),
+        max_odds_fixtures=1,
+    )
     pairs = await service.get_upcoming_matches(
         sport=Sport.FOOTBALL,
         date_from=date(2026, 5, 3),
@@ -227,6 +233,53 @@ async def test_football_fetch_service_keeps_match_when_odds_fetch_fails():
 
 
 @pytest.mark.asyncio
+async def test_football_fetch_service_caps_odds_requests_per_run(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(football_fetch_service_module, "_REQUEST_DELAY", 0)
+
+    fixture_payloads = [
+        {
+            "fixture": {"id": fixture_id, "date": f"2026-05-03T{hour:02d}:00:00Z", "status": {"short": "NS"}},
+            "league": {"id": 39, "name": "Premier League", "season": 2026},
+            "teams": {
+                "home": {"name": f"Home {fixture_id}", "logo": "home.png"},
+                "away": {"name": f"Away {fixture_id}", "logo": "away.png"},
+            },
+            "goals": {"home": None, "away": None},
+        }
+        for hour, fixture_id in enumerate([1001, 1002, 1003], start=12)
+    ]
+    calls: list[tuple[str, dict | None]] = []
+
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            calls.append((endpoint, params))
+            if endpoint == "/fixtures":
+                return {"response": fixture_payloads, "errors": []}
+            if endpoint == "/odds":
+                return {"response": [], "errors": []}
+            raise AssertionError(f"Unexpected endpoint: {endpoint}")
+
+    service = ApiSportsFootballFetchService(
+        client=FakeClient(),
+        league_ids=frozenset({39}),
+        fetch_odds_until=date(2026, 5, 3),
+        max_odds_fixtures=2,
+    )
+
+    pairs = await service.get_upcoming_matches(
+        sport=Sport.FOOTBALL,
+        date_from=date(2026, 5, 3),
+        date_to=date(2026, 5, 3),
+    )
+
+    assert len(pairs) == 3
+    assert [call for call in calls if call[0] == "/odds"] == [
+        ("/odds", {"fixture": "1001"}),
+        ("/odds", {"fixture": "1002"}),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.MonkeyPatch):
     class FakeEngine:
         async def dispose(self):
@@ -236,6 +289,8 @@ async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.M
         api_sports_football_url = "https://v3.football.api-sports.io"
         api_sports_key = "test-key"
         api_sports_league_ids_set = frozenset({39})
+        api_sports_fetch_odds_days_ahead = 1
+        api_sports_fetch_odds_max_fixtures_per_run = 2
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
@@ -286,6 +341,9 @@ async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.M
 
     assert isinstance(exc_info.value.__cause__, ValueError)
     assert str(exc_info.value.__cause__) == "db boom"
+
+
+
 
 
 

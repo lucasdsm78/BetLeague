@@ -46,9 +46,13 @@ class ApiSportsFootballFetchService(MatchFetchApi):
         self,
         client: ApiSportsBaseClient,
         league_ids: FrozenSet[int] = DEFAULT_LEAGUE_IDS,
+        fetch_odds_until: date | None = None,
+        max_odds_fixtures: int = 30,
     ):
         self._client = client
         self._league_ids = league_ids
+        self._fetch_odds_until = fetch_odds_until
+        self._max_odds_fixtures = max(0, int(max_odds_fixtures))
 
     async def get_upcoming_matches(
             self,
@@ -58,6 +62,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
     ) -> List[Tuple[Match, List[MatchOdd]]]:
         results: List[Tuple[Match, List[MatchOdd]]] = []
         current = date_from
+        odds_requests_count = 0
 
         while current <= date_to:
             # 1. Fetch fixtures for this day, keep only target leagues
@@ -90,11 +95,19 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             # 2. Fetch odds sequentially (respect 10 req/min rate limit)
             day_matches_with_odds = 0
             for i, m in enumerate(day_matches):
-                all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                should_fetch_odds = (
+                    self._fetch_odds_until is not None
+                    and m.time.date() <= self._fetch_odds_until
+                    and odds_requests_count < self._max_odds_fixtures
+                )
+                all_odds = []
+                if should_fetch_odds:
+                    all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                    odds_requests_count += 1
                 results.append((m, all_odds))
                 if all_odds:
                     day_matches_with_odds += 1
-                if i < len(day_matches) - 1:
+                if should_fetch_odds and i < len(day_matches) - 1 and odds_requests_count < self._max_odds_fixtures:
                     await asyncio.sleep(_REQUEST_DELAY)
 
             logger.info(
@@ -105,6 +118,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                     "fixtures_with_odds_count": day_matches_with_odds,
                     "persisted_matches_count": len(day_matches),
                     "persisted_total_count": len(results),
+                    "odds_requests_total_count": odds_requests_count,
                 },
             )
             current = current + timedelta(days=1)
