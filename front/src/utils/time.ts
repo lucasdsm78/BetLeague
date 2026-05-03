@@ -15,17 +15,24 @@ export function addHours(date: Date, hours: number): Date {
 
 /**
  * Parse any ISO-like date string safely.
+ * Historical backend payloads stored UTC datetimes without an explicit offset;
+ * interpret those naïve strings as UTC for backward compatibility.
  * Returns null if invalid.
  */
 export function safeParseDate(value: string | Date): Date | null {
-  const d = value instanceof Date ? value : new Date(value);
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const normalized = /T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?$/.test(value) ? `${value}Z` : value;
+  const d = new Date(normalized);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export type TimeZoneName = Intl.DateTimeFormatOptions['timeZone'];
 
 /**
- * Format a match datetime with a global +1h offset (business requirement).
+ * Format a match datetime using the timestamp as-is.
  */
 export function formatMatchDateTime(
   dateValue: string | Date,
@@ -38,9 +45,8 @@ export function formatMatchDateTime(
   if (!d) return '';
 
   const { locale = 'fr-FR', timeZone } = options ?? {};
-  const shifted = addHours(d, 1);
 
-  return shifted.toLocaleString(locale, {
+  return d.toLocaleString(locale, {
     ...(timeZone ? { timeZone } : {}),
     day: '2-digit',
     month: '2-digit',
@@ -61,9 +67,8 @@ export function formatMatchTime(
   if (!d) return '';
 
   const { locale = 'fr-FR', timeZone } = options ?? {};
-  const shifted = addHours(d, 1);
 
-  return shifted.toLocaleTimeString(locale, {
+  return d.toLocaleTimeString(locale, {
     ...(timeZone ? { timeZone } : {}),
     hour: '2-digit',
     minute: '2-digit',
@@ -81,7 +86,6 @@ export function formatMatchDayLabel(
   if (!d) return '';
 
   const { locale = 'fr-FR', timeZone } = options ?? {};
-  const shifted = addHours(d, 1);
 
   // Compare day keys in the chosen timezone (or local timezone when undefined)
   const fmt = new Intl.DateTimeFormat(locale, {
@@ -91,7 +95,7 @@ export function formatMatchDayLabel(
     day: '2-digit',
   });
 
-  const dayKey = fmt.format(shifted);
+  const dayKey = fmt.format(d);
 
   const today = new Date();
   const tomorrow = new Date();
@@ -103,7 +107,7 @@ export function formatMatchDayLabel(
   if (dayKey === todayKey) return "Aujourd'hui";
   if (dayKey === tomorrowKey) return 'Demain';
 
-  return shifted.toLocaleDateString(locale, {
+  return d.toLocaleDateString(locale, {
     ...(timeZone ? { timeZone } : {}),
     weekday: 'short',
     month: 'short',
