@@ -108,10 +108,10 @@ class Settings(BaseSettings):
     api_sports_hockey_url: str = Field(default="https://v1.hockey.api-sports.io", validation_alias="API_SPORTS_HOCKEY_URL")
     api_sports_baseball_url: str = Field(default="https://v1.baseball.api-sports.io", validation_alias="API_SPORTS_BASEBALL_URL")
     api_sports_league_ids: str = Field(default=DEFAULT_API_SPORTS_LEAGUE_IDS, validation_alias="API_SPORTS_LEAGUE_IDS")  # Top 5 European leagues
-    api_sports_fetch_odds_days_ahead: int = Field(default=1, validation_alias="API_SPORTS_FETCH_ODDS_DAYS_AHEAD")
-    api_sports_fetch_odds_max_fixtures_per_run: int = Field(default=30, validation_alias="API_SPORTS_FETCH_ODDS_MAX_FIXTURES_PER_RUN")
+    api_sports_fetch_odds_days_ahead: int = Field(default=0, validation_alias="API_SPORTS_FETCH_ODDS_DAYS_AHEAD")
+    api_sports_fetch_odds_max_fixtures_per_run: int = Field(default=5, validation_alias="API_SPORTS_FETCH_ODDS_MAX_FIXTURES_PER_RUN")
     api_sports_score_by_id_fallback_enabled: bool = Field(default=False, validation_alias="API_SPORTS_SCORE_BY_ID_FALLBACK_ENABLED")
-    api_sports_score_by_id_fallback_max_fixtures: int = Field(default=0, validation_alias="API_SPORTS_SCORE_BY_ID_FALLBACK_MAX_FIXTURES")
+    api_sports_score_by_id_fallback_max_fixtures: int = Field(default=2, validation_alias="API_SPORTS_SCORE_BY_ID_FALLBACK_MAX_FIXTURES")
     celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", validation_alias="CELERY_RESULT_BACKEND")
     celery_metrics_queues: str = Field(default="celery", validation_alias="CELERY_METRICS_QUEUES")
