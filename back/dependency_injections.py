@@ -255,6 +255,19 @@ def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScore
     return _api_sports_score_service()
 
 
+async def shutdown_api_sports_clients() -> None:
+    try:
+        client = _api_sports_football_client() if _api_sports_football_client.cache_info().currsize > 0 else None
+        if client is not None:
+            await client.close()
+    except Exception:
+        logging.getLogger(__name__).warning("api_sports.client.close_failed", exc_info=True)
+    finally:
+        _api_sports_score_service.cache_clear()
+        _api_sports_match_fetch_router.cache_clear()
+        _api_sports_football_client.cache_clear()
+
+
 def match_fetch_usecase_dep(
         match_fetch_api_dependency: MatchFetchApi = Depends(match_fetch_api_dep),
         session_factory: Callable[[], AsyncSession] = Depends(get_session_factory),

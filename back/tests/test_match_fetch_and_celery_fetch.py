@@ -405,12 +405,5 @@ async def test_fetch_daily_matches_async_clamps_aggressive_odds_configuration(mo
     await celery_tasks_module._fetch_daily_matches_async()
 
     assert captured_kwargs["max_odds_fixtures"] == celery_tasks_module._MAX_FETCH_ODDS_FIXTURES_PER_RUN
-    assert captured_kwargs["fetch_odds_until"] == date.today() + timedelta(days=celery_tasks_module._MAX_FETCH_ODDS_DAYS_AHEAD)
-
-
-
-
-
-
-
+    assert captured_kwargs["fetch_odds_until"] == datetime.now(UTC).date() + timedelta(days=celery_tasks_module._MAX_FETCH_ODDS_DAYS_AHEAD)
 

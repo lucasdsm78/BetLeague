@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import time
-from datetime import date, timedelta, datetime
+from datetime import UTC, date, timedelta, datetime
 from urllib.parse import urlsplit
 
 from redis import Redis
@@ -130,6 +130,14 @@ def _bounded_non_negative_int(value, *, default: int = 0, hard_cap: int | None =
     return normalized
 
 
+def _utc_today() -> date:
+    return datetime.now(UTC).date()
+
+
+def _utc_now_naive() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 def _make_session_factory():
     """Create a fresh engine + session factory for each task invocation.
 
@@ -215,7 +223,8 @@ async def _fetch_daily_matches_async(*, task=None):
             default=0,
             hard_cap=_MAX_FETCH_ODDS_FIXTURES_PER_RUN,
         )
-        odds_date_to = date.today() + timedelta(days=odds_days_ahead)
+        today = _utc_today()
+        odds_date_to = today + timedelta(days=odds_days_ahead)
         fetch_service = ApiSportsFootballFetchService(
             client=client,
             league_ids=league_ids,
@@ -227,8 +236,8 @@ async def _fetch_daily_matches_async(*, task=None):
             session_factory=session_factory,
         )
 
-        date_from = date.today()
-        date_to = date.today() + timedelta(days=7)
+        date_from = today
+        date_to = today + timedelta(days=7)
 
         sports_to_fetch = [Sport.FOOTBALL]
         total_fetched = 0
@@ -399,7 +408,7 @@ async def _process_weekly_league_payouts_async(*, task=None):
 
     engine, session_factory = _make_session_factory()
     scheduler = LeaguePayoutSchedulerImpl(session_factory=session_factory)
-    run_at = datetime.utcnow()
+    run_at = _utc_now_naive()
 
     try:
         logger.info(
@@ -427,7 +436,7 @@ async def _process_tournaments_scheduler_async(*, task=None):
 
     engine, session_factory = _make_session_factory()
     scheduler = TournamentSchedulerImpl(session_factory=session_factory)
-    run_at = datetime.utcnow()
+    run_at = _utc_now_naive()
 
     try:
         logger.info(
