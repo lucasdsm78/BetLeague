@@ -117,7 +117,11 @@ class ApiSportsScoreService(MatchScoreApi):
         self._client = client
         self._fallback_enabled = bool(fallback_enabled)
         self._fallback_max_fixtures = _normalize_fallback_max_fixtures(fallback_max_fixtures)
-        if self._fallback_enabled and self._fallback_max_fixtures != max(0, int(fallback_max_fixtures or 0)):
+        try:
+            configured_fallback_max = max(0, int(fallback_max_fixtures or 0))
+        except (TypeError, ValueError):
+            configured_fallback_max = 0
+        if self._fallback_enabled and self._fallback_max_fixtures != configured_fallback_max:
             logger.warning(
                 "api_sports.score.fallback_max_clamped",
                 extra={
