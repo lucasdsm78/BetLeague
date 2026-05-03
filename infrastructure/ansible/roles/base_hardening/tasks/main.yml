@@ -45,6 +45,25 @@
     update_cache: true
     cache_valid_time: 3600
 
+- name: Garantir la présence du répertoire de drop-ins systemd-resolved
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: betleague_systemd_resolved_manage | bool
+
+- name: Déployer la configuration DNS système BetLeague
+  ansible.builtin.template:
+    src: systemd-resolved-betleague.conf.j2
+    dest: /etc/systemd/resolved.conf.d/99-betleague-dns.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart systemd-resolved
+  when: betleague_systemd_resolved_manage | bool
+
 - name: Garantir la présence de l'utilisateur administrateur BetLeague
   ansible.builtin.user:
     name: "{{ betleague_admin_user }}"

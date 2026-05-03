@@ -4,6 +4,16 @@ betleague_admin_authorized_public_keys: []
 betleague_admin_passwordless_sudo: true
 betleague_lock_default_cloud_user_password: true
 betleague_default_cloud_user: ubuntu
+betleague_systemd_resolved_manage: true
+betleague_systemd_resolved_dns_servers:
+  - 1.1.1.1
+  - 1.0.0.1
+  - 8.8.8.8
+betleague_systemd_resolved_fallback_dns_servers:
+  - 9.9.9.9
+  - 8.8.4.4
+betleague_systemd_resolved_domains:
+  - '~.'
 betleague_enable_fail2ban: true
 betleague_ssh_port: "{{ ansible_port | default(22) }}"
 betleague_fail2ban_backend: systemd

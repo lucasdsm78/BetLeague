@@ -17,5 +17,10 @@
     name: fail2ban
     state: reloaded
 
+- name: Restart systemd-resolved
+  ansible.builtin.service:
+    name: systemd-resolved
+    state: restarted
+
 
 
