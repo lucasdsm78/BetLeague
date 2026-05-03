@@ -69,11 +69,76 @@ class ApiSportsScoreService(MatchScoreApi):
         if not fixture_id_set:
             return []
 
-        # Prefer fetching by explicit fixture IDs (more reliable than filtering by date/status).
-        # API-Sports v3 expects a single integer for `id`, so we query multiple IDs with bounded concurrency.
+        # Prefer a single batch fetch by date/status to minimize request volume.
+        # Fallback to per-fixture fetches only for IDs still missing from the batch response.
         results_by_id: dict[int, dict] = {}
 
-        logger.info("api_sports.score.by_ids_started", extra={"fixture_ids_count": len(fixture_id_set)})
+        today = datetime.utcnow().date().isoformat()
+        logger.info(
+            "api_sports.score.batch_started",
+            extra={
+                "date": today,
+                "status": _LIVE_AND_FINISHED,
+                "fixture_ids_count": len(fixture_id_set),
+            },
+        )
+
+        data = await self._client.get(
+            "/fixtures",
+            params={
+                "date": today,
+                "status": _LIVE_AND_FINISHED,
+            }
+        )
+        resp = data.get("response")
+        if not isinstance(resp, list):
+            resp = []
+
+        for fixture in resp:
+            f = fixture.get("fixture", {})
+            goals = fixture.get("goals", {})
+
+            fixture_id = f.get("id")
+            if not fixture_id:
+                continue
+            try:
+                fixture_id_int = int(fixture_id)
+            except Exception:
+                continue
+            if fixture_id_int not in fixture_id_set:
+                continue
+
+            status_short = f.get("status", {}).get("short", "NS")
+            gh = goals.get("home")
+            ga = goals.get("away")
+
+            winner = None
+            if gh is not None and ga is not None and status_short in ("FT", "AET", "PEN", "AWD", "WO"):
+                if gh > ga:
+                    winner = "HOME_TEAM"
+                elif ga > gh:
+                    winner = "AWAY_TEAM"
+                else:
+                    winner = "DRAW"
+
+            results_by_id[fixture_id_int] = {
+                "api_fixture_id": fixture_id_int,
+                "score_home": gh,
+                "score_away": ga,
+                "status": status_short,
+                "winner": winner,
+            }
+
+        missing_ids = fixture_id_set.difference(results_by_id.keys())
+        logger.info(
+            "api_sports.score.batch_loaded",
+            extra={
+                "date": today,
+                "requested_count": len(fixture_id_set),
+                "loaded_count": len(results_by_id),
+                "missing_count": len(missing_ids),
+            },
+        )
 
         import asyncio
 
@@ -129,15 +194,15 @@ class ApiSportsScoreService(MatchScoreApi):
                         "winner": winner,
                     }
 
-        # Fire bounded-concurrency tasks
-        tasks = [asyncio.create_task(_fetch_one(fid)) for fid in sorted(fixture_id_set)]
-        await asyncio.gather(*tasks)
+        if missing_ids:
+            logger.info("api_sports.score.by_ids_started", extra={"fixture_ids_count": len(missing_ids)})
+            tasks = [asyncio.create_task(_fetch_one(fid)) for fid in sorted(missing_ids)]
+            await asyncio.gather(*tasks)
 
         results = list(results_by_id.values())
 
-        # Fallback for plans that don't support `id` effectively or if we retrieved nothing.
+        # Last-resort fallback if batch+targeted-by-id still yielded nothing.
         if not results:
-            today = date.today().isoformat()
             logger.info(
                 "api_sports.score.fallback_started",
                 extra={
