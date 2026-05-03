@@ -12,6 +12,10 @@ betleague_docker_daemon_config:
   log-opts:
     max-size: 10m
     max-file: '5'
+  dns:
+    - 1.1.1.1
+    - 1.0.0.1
+    - 8.8.8.8
   userland-proxy: false
   icc: false
   no-new-privileges: true
