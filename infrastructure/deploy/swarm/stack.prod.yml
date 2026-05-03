@@ -784,6 +784,41 @@ services:
         reservations:
           memory: 160M
 
+  jetstream_consumer:
+    <<: *service-defaults
+    image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
+    environment:
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
+    command:
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - python
+      - jetstream_consumer_main.py
+    secrets:
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
+    networks:
+      - edge
+      - app
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+          pids: 200
+        reservations:
+          memory: 128M
+
 networks:
   edge:
     driver: overlay
