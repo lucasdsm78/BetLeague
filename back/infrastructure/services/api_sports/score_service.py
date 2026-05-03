@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime, date
+from datetime import UTC, datetime
 from typing import List, Set
 
 from domain.services.match_score_api.match_score_api import MatchScoreApi
@@ -8,10 +8,80 @@ from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
 logger = logging.getLogger(__name__)
 
 _LIVE_AND_FINISHED = "1H-HT-2H-ET-BT-P-SUSP-INT-FT-AET-PEN-AWD-WO"
+_FINISHED_STATUSES = frozenset({"FT", "AET", "PEN", "AWD", "WO"})
 
 
 def _utc_today_isoformat() -> str:
     return datetime.now(UTC).date().isoformat()
+
+
+def _normalize_fixture_ids(fixture_ids: List[int] | None) -> Set[int]:
+    normalized: Set[int] = set()
+    if not fixture_ids:
+        return normalized
+    for raw_id in fixture_ids:
+        try:
+            fixture_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if fixture_id > 0:
+            normalized.add(fixture_id)
+    return normalized
+
+
+def _coerce_score(value):
+    if value is None:
+        return None
+    try:
+        score = int(value)
+    except (TypeError, ValueError):
+        return None
+    return score if score >= 0 else None
+
+
+def _score_from_fixture(fixture: dict) -> dict | None:
+    if not isinstance(fixture, dict):
+        return None
+
+    f = fixture.get("fixture", {})
+    if not isinstance(f, dict):
+        return None
+
+    fixture_id = f.get("id")
+    if not fixture_id:
+        return None
+    try:
+        fixture_id_int = int(fixture_id)
+    except (TypeError, ValueError):
+        return None
+    if fixture_id_int <= 0:
+        return None
+
+    status = f.get("status", {})
+    status_short = status.get("short", "NS") if isinstance(status, dict) else "NS"
+
+    goals = fixture.get("goals", {})
+    if not isinstance(goals, dict):
+        goals = {}
+    gh = _coerce_score(goals.get("home"))
+    ga = _coerce_score(goals.get("away"))
+
+    winner = None
+    if gh is not None and ga is not None and status_short in _FINISHED_STATUSES:
+        if gh > ga:
+            winner = "HOME_TEAM"
+        elif ga > gh:
+            winner = "AWAY_TEAM"
+        else:
+            winner = "DRAW"
+
+    return {
+        "api_fixture_id": fixture_id_int,
+        "score_home": gh,
+        "score_away": ga,
+        "status": status_short,
+        "winner": winner,
+    }
 
 
 class ApiSportsScoreService(MatchScoreApi):
@@ -73,10 +143,7 @@ class ApiSportsScoreService(MatchScoreApi):
             self,
             fixture_ids: List[int],
     ) -> list[dict]:
-        if not fixture_ids:
-            return []
-
-        fixture_id_set: Set[int] = set(int(x) for x in fixture_ids if x)
+        fixture_id_set = _normalize_fixture_ids(fixture_ids)
         if not fixture_id_set:
             return []
 
@@ -106,39 +173,14 @@ class ApiSportsScoreService(MatchScoreApi):
             resp = []
 
         for fixture in resp:
-            f = fixture.get("fixture", {})
-            goals = fixture.get("goals", {})
+            score = _score_from_fixture(fixture)
+            if score is None:
+                continue
 
-            fixture_id = f.get("id")
-            if not fixture_id:
-                continue
-            try:
-                fixture_id_int = int(fixture_id)
-            except Exception:
-                continue
+            fixture_id_int = score["api_fixture_id"]
             if fixture_id_int not in fixture_id_set:
                 continue
-
-            status_short = f.get("status", {}).get("short", "NS")
-            gh = goals.get("home")
-            ga = goals.get("away")
-
-            winner = None
-            if gh is not None and ga is not None and status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                if gh > ga:
-                    winner = "HOME_TEAM"
-                elif ga > gh:
-                    winner = "AWAY_TEAM"
-                else:
-                    winner = "DRAW"
-
-            results_by_id[fixture_id_int] = {
-                "api_fixture_id": fixture_id_int,
-                "score_home": gh,
-                "score_away": ga,
-                "status": status_short,
-                "winner": winner,
-            }
+            results_by_id[fixture_id_int] = score
 
         missing_ids = fixture_id_set.difference(results_by_id.keys())
         logger.info(
@@ -160,55 +202,37 @@ class ApiSportsScoreService(MatchScoreApi):
             ids_to_fetch = sorted(missing_ids)[:fallback_max]
             # Low concurrency to respect rate limits and connection pool constraints.
             # Keep in sync with Httpx client max_connections (defaults to 5).
-            concurrency = min(4, fallback_max)
+            concurrency = min(4, len(ids_to_fetch))
             sem = asyncio.Semaphore(concurrency)
 
             async def _fetch_one(fid: int) -> None:
                 async with sem:
-                    data = await self._client.get(
-                        "/fixtures",
-                        params={"id": str(fid)},
-                    )
+                    try:
+                        data = await self._client.get(
+                            "/fixtures",
+                            params={"id": str(fid)},
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "api_sports.score.by_id_failed",
+                            extra={"fixture_id": fid, "error_type": type(exc).__name__},
+                        )
+                        return
+
                     resp = data.get("response")
                     if not isinstance(resp, list) or not resp:
                         return
 
                     for fixture in resp:
-                        f = fixture.get("fixture", {})
-                        goals = fixture.get("goals", {})
-
-                        fixture_id = f.get("id")
-                        if not fixture_id:
-                            continue
-                        try:
-                            fixture_id_int = int(fixture_id)
-                        except Exception:
+                        score = _score_from_fixture(fixture)
+                        if score is None:
                             continue
 
+                        fixture_id_int = score["api_fixture_id"]
                         if fixture_id_int != fid:
                             continue
-
-                        status_short = f.get("status", {}).get("short", "NS")
-                        gh = goals.get("home")
-                        ga = goals.get("away")
-
-                        winner = None
-                        if gh is not None and ga is not None:
-                            if status_short in ("FT", "AET", "PEN", "AWD", "WO"):
-                                if gh > ga:
-                                    winner = "HOME_TEAM"
-                                elif ga > gh:
-                                    winner = "AWAY_TEAM"
-                                else:
-                                    winner = "DRAW"
-
-                        results_by_id[fid] = {
-                            "api_fixture_id": fixture_id_int,
-                            "score_home": gh,
-                            "score_away": ga,
-                            "status": status_short,
-                            "winner": winner,
-                        }
+                        results_by_id[fid] = score
+                        return
 
             logger.warning(
                 "api_sports.score.by_ids_started",
@@ -230,7 +254,7 @@ class ApiSportsScoreService(MatchScoreApi):
                 },
             )
 
-        results = list(results_by_id.values())
+        results = [results_by_id[fixture_id] for fixture_id in sorted(results_by_id)]
 
         logger.info("api_sports.score.loaded", extra={"results_count": len(results), "requested_count": len(fixture_id_set)})
         return results

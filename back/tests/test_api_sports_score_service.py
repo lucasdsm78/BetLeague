@@ -77,6 +77,18 @@ async def test_get_live_scores_skips_missing_fixture_ids_by_default():
 
 
 @pytest.mark.asyncio
+async def test_get_live_scores_ignores_invalid_fixture_ids_without_api_call():
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            raise AssertionError(f"Unexpected call: {endpoint} {params}")
+
+    service = ApiSportsScoreService(client=FakeClient())
+
+    assert await service.get_live_scores([0, -1, None, "bad"]) == []
+    assert await service.get_live_scores(None) == []
+
+
+@pytest.mark.asyncio
 async def test_get_live_scores_fetches_only_missing_fixture_ids_when_fallback_enabled():
     calls: list[tuple[str, dict | None]] = []
 
@@ -115,5 +127,37 @@ async def test_get_live_scores_fetches_only_missing_fixture_ids_when_fallback_en
     assert calls[1:] == [("/fixtures", {"id": "202"})]
 
 
+@pytest.mark.asyncio
+async def test_get_live_scores_keeps_batch_results_when_fallback_call_fails():
+    calls: list[tuple[str, dict | None]] = []
 
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            calls.append((endpoint, params))
+            if endpoint == "/fixtures" and params and params.get("status"):
+                return {
+                    "response": [
+                        {
+                            "fixture": {"id": 101, "status": {"short": "FT"}},
+                            "goals": {"home": "2", "away": "1"},
+                        },
+                    ]
+                }
+            if endpoint == "/fixtures" and params and params.get("id") == "202":
+                raise RuntimeError("network boom")
+            raise AssertionError(f"Unexpected call: {endpoint} {params}")
 
+    service = ApiSportsScoreService(client=FakeClient(), fallback_enabled=True, fallback_max_fixtures=1)
+
+    results = await service.get_live_scores([101, 202])
+
+    assert results == [
+        {
+            "api_fixture_id": 101,
+            "score_home": 2,
+            "score_away": 1,
+            "status": "FT",
+            "winner": "HOME_TEAM",
+        }
+    ]
+    assert calls[1:] == [("/fixtures", {"id": "202"})]

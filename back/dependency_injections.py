@@ -221,7 +221,14 @@ def _api_sports_football_client() -> ApiSportsBaseClient:
 def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
     client = _api_sports_football_client()
     league_ids = settings.api_sports_league_ids_set
-    football_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
+    football_service = ApiSportsFootballFetchService(
+        client=client,
+        league_ids=league_ids,
+        # Fast/secure admin HTTP path: fetch fixtures only.
+        # Odds are fetched by the scheduled Celery path with explicit caps.
+        fetch_odds_until=None,
+        max_odds_fixtures=0,
+    )
     return MultiSportMatchFetchRouter(services={
         Sport.FOOTBALL: football_service,
     })
