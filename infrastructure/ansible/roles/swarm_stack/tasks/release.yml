@@ -9,9 +9,6 @@
     label: "{{ item }}"
   changed_when: false
 
-- name: Synchroniser le mot de passe admin Grafana
-  ansible.builtin.include_tasks: _sync_grafana_admin_password.yml
-
 - name: Lancer le service one-shot de migrations avec la nouvelle image backend
   ansible.builtin.command: >-
     docker service update

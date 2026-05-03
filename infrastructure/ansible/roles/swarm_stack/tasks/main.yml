@@ -189,9 +189,6 @@
           `docker stack ps --no-trunc {{ betleague_swarm_stack_name }}` affichées juste avant pour identifier
           le service bloquant (image, healthcheck, crashloop, rollback ou dépendance indisponible).
 
-- name: Synchroniser le mot de passe admin Grafana
-  ansible.builtin.include_tasks: _sync_grafana_admin_password.yml
-
 - name: Vérifier la santé de l'API après déploiement de la stack
   block:
     - name: Vérifier la santé de l'API après déploiement de la stack

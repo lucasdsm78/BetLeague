@@ -263,8 +263,7 @@ services:
     environment:
       GF_SERVER_DOMAIN: ${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
       GF_SERVER_ENFORCE_DOMAIN: "true"
-      GF_SERVER_ROOT_URL: https://${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}/
-      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+      GF_SERVER_ROOT_URL: https://${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
       GF_SECURITY_SECRET_KEY__FILE: /run/secrets/grafana_secret_key
