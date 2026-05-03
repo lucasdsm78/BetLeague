@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
+
+import pytest
 
 
 GUNICORN_CONF_PATH = Path(__file__).resolve().parents[1] / "gunicorn.conf.py"
@@ -91,6 +94,60 @@ def test_gunicorn_forwarded_allow_ips_supports_explicit_env(monkeypatch):
     module = _load_gunicorn_conf(monkeypatch, GUNICORN_FORWARDED_ALLOW_IPS="10.0.0.10,10.0.0.11")
 
     assert module.forwarded_allow_ips == "10.0.0.10,10.0.0.11"
+
+
+def test_prometheus_multiproc_dir_uses_configured_writable_path(monkeypatch, tmp_path):
+    metrics_dir = tmp_path / "metrics"
+    module = _load_gunicorn_conf(monkeypatch, PROMETHEUS_MULTIPROC_DIR=str(metrics_dir))
+
+    resolved = module._resolve_prometheus_multiproc_dir_for_startup()
+
+    assert resolved == metrics_dir.resolve()
+    assert metrics_dir.is_dir()
+    assert os.environ["PROMETHEUS_MULTIPROC_DIR"] == str(metrics_dir)
+
+
+def test_prometheus_multiproc_dir_falls_back_to_worker_tmp_dir_when_configured_path_is_read_only(monkeypatch, tmp_path):
+    configured_dir = tmp_path / "configured-metrics"
+    fallback_base = tmp_path / "worker-tmp"
+    module = _load_gunicorn_conf(
+        monkeypatch,
+        PROMETHEUS_MULTIPROC_DIR=str(configured_dir),
+        GUNICORN_WORKER_TMP_DIR=str(fallback_base),
+    )
+
+    real_ensure = module._ensure_prometheus_dir_is_writable
+
+    def fake_ensure(path: Path) -> None:
+        if path == configured_dir.resolve():
+            raise OSError(30, "Read-only file system")
+        real_ensure(path)
+
+    monkeypatch.setattr(module, "_ensure_prometheus_dir_is_writable", fake_ensure)
+
+    resolved = module._resolve_prometheus_multiproc_dir_for_startup()
+
+    assert resolved == (fallback_base.resolve() / "prometheus-multiproc")
+    assert resolved.is_dir()
+    assert os.environ["PROMETHEUS_MULTIPROC_DIR"] == str(resolved)
+
+
+def test_prometheus_multiproc_dir_raises_when_configured_and_fallback_paths_are_both_unwritable(monkeypatch, tmp_path):
+    configured_dir = tmp_path / "configured-metrics"
+    fallback_base = tmp_path / "worker-tmp"
+    module = _load_gunicorn_conf(
+        monkeypatch,
+        PROMETHEUS_MULTIPROC_DIR=str(configured_dir),
+        GUNICORN_WORKER_TMP_DIR=str(fallback_base),
+    )
+
+    def always_fail(_path: Path) -> None:
+        raise OSError(30, "Read-only file system")
+
+    monkeypatch.setattr(module, "_ensure_prometheus_dir_is_writable", always_fail)
+
+    with pytest.raises(RuntimeError, match="fallback"):
+        module._resolve_prometheus_multiproc_dir_for_startup()
 
 
 
