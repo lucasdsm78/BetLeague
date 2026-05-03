@@ -76,12 +76,12 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                     logger.warning("api_sports.football.fixture_parse_failed", extra={"error": str(e), "date": current.isoformat()})
 
             # 2. Fetch odds sequentially (respect 10 req/min rate limit)
-            day_kept = 0
+            day_matches_with_odds = 0
             for i, m in enumerate(day_matches):
                 all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                results.append((m, all_odds))
                 if all_odds:
-                    results.append((m, all_odds))
-                    day_kept += 1
+                    day_matches_with_odds += 1
                 if i < len(day_matches) - 1:
                     await asyncio.sleep(_REQUEST_DELAY)
 
@@ -90,8 +90,9 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                 extra={
                     "date": current.isoformat(),
                     "fixtures_count": len(day_matches),
-                    "fixtures_with_odds_count": day_kept,
-                    "kept_total_count": len(results),
+                    "fixtures_with_odds_count": day_matches_with_odds,
+                    "persisted_matches_count": len(day_matches),
+                    "persisted_total_count": len(results),
                 },
             )
             current = current + timedelta(days=1)
@@ -101,7 +102,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             extra={
                 "date_from": date_from.isoformat(),
                 "date_to": date_to.isoformat(),
-                "fixtures_count": len(results),
+                "persisted_matches_count": len(results),
             },
         )
         return results

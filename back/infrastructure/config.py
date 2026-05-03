@@ -3,6 +3,9 @@ from pydantic import Field, field_validator
 from urllib.parse import urlsplit
 
 
+DEFAULT_API_SPORTS_LEAGUE_IDS = "39,61,78,135,140"
+
+
 def strip_optional_wrapping_quotes(value: str) -> str:
     normalized = value.strip()
     if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {'"', "'"}:
@@ -104,7 +107,7 @@ class Settings(BaseSettings):
     api_sports_rugby_url: str = Field(default="https://v1.rugby.api-sports.io", validation_alias="API_SPORTS_RUGBY_URL")
     api_sports_hockey_url: str = Field(default="https://v1.hockey.api-sports.io", validation_alias="API_SPORTS_HOCKEY_URL")
     api_sports_baseball_url: str = Field(default="https://v1.baseball.api-sports.io", validation_alias="API_SPORTS_BASEBALL_URL")
-    api_sports_league_ids: str = Field(default="39,61,78,135,140", validation_alias="API_SPORTS_LEAGUE_IDS")  # Top 5 European leagues
+    api_sports_league_ids: str = Field(default=DEFAULT_API_SPORTS_LEAGUE_IDS, validation_alias="API_SPORTS_LEAGUE_IDS")  # Top 5 European leagues
     celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(default="redis://localhost:6379/2", validation_alias="CELERY_RESULT_BACKEND")
     celery_metrics_queues: str = Field(default="celery", validation_alias="CELERY_METRICS_QUEUES")
@@ -158,6 +161,18 @@ class Settings(BaseSettings):
         normalized = normalized.replace("\\r\\n", "\\n").replace("\\n", "\n")
         return normalized
 
+    @field_validator("api_sports_league_ids", mode="before")
+    @classmethod
+    def normalize_api_sports_league_ids(cls, value: str | None) -> str:
+        if value is None:
+            return DEFAULT_API_SPORTS_LEAGUE_IDS
+        if not isinstance(value, str):
+            return value
+        normalized = strip_optional_wrapping_quotes(value)
+        if not normalized.strip():
+            return DEFAULT_API_SPORTS_LEAGUE_IDS
+        return normalized
+
     @staticmethod
     def _split_csv(raw: str) -> list[str]:
         return [item.strip() for item in (raw or "").split(",") if item.strip()]
@@ -188,6 +203,10 @@ class Settings(BaseSettings):
             if origin not in unique:
                 unique.append(origin)
         return unique
+
+    @property
+    def api_sports_league_ids_set(self) -> frozenset[int]:
+        return frozenset(int(item) for item in self._split_csv(self.api_sports_league_ids))
 
     @property
     def trusted_hosts_list(self) -> list[str]:

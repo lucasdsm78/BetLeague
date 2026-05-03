@@ -79,6 +79,33 @@ def _touch_score_check_failed(*, now_epoch: int, error: str) -> None:
         logger.warning(f"[Celery] Unable to persist score_check last_failed_at/last_error: {e}")
 
 
+def _fetch_state_prefix_and_ttl() -> tuple[str, int]:
+    base = os.getenv("CELERY_FETCH_MATCHES_STATE_PREFIX", "betleague:celery:fetch_matches")
+    ttl = int(os.getenv("CELERY_FETCH_MATCHES_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
+    return base, ttl
+
+
+def _touch_fetch_matches_started(*, now_epoch: int) -> None:
+    base, ttl = _fetch_state_prefix_and_ttl()
+    _safe_set(f"{base}:last_started_at", str(now_epoch), ex=ttl)
+
+
+def _touch_fetch_matches_finished(*, now_epoch: int) -> None:
+    base, ttl = _fetch_state_prefix_and_ttl()
+    _safe_set(f"{base}:last_finished_at", str(now_epoch), ex=ttl)
+
+
+def _touch_fetch_matches_failed(*, now_epoch: int, error: str) -> None:
+    base, ttl = _fetch_state_prefix_and_ttl()
+    try:
+        pipe = _redis_state().pipeline()
+        pipe.set(f"{base}:last_failed_at", str(now_epoch), ex=ttl)
+        pipe.set(f"{base}:last_error", (error or "")[:500], ex=ttl)
+        pipe.execute()
+    except Exception as e:
+        logger.warning(f"[Celery] Unable to persist fetch_matches last_failed_at/last_error: {e}")
+
+
 def _run_async(coro):
     """Run an async coroutine in a dedicated event loop (Celery task context)."""
     loop = asyncio.new_event_loop()
@@ -121,8 +148,18 @@ def _make_session_factory():
 def fetch_daily_matches(self):
     logger.info("celery.task.fetch_daily_matches.started", extra=_task_extra(self))
     started = time.time()
-    _run_async(_fetch_daily_matches_async(task=self))
-    logger.info("celery.task.fetch_daily_matches.finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
+    _touch_fetch_matches_started(now_epoch=int(started))
+
+    try:
+        _run_async(_fetch_daily_matches_async(task=self))
+    except Exception as e:
+        _touch_fetch_matches_failed(now_epoch=int(time.time()), error=str(e))
+        logger.exception("celery.task.fetch_daily_matches.failed", extra=_task_extra(self))
+        raise
+    else:
+        _touch_fetch_matches_finished(now_epoch=int(time.time()))
+    finally:
+        logger.info("celery.task.fetch_daily_matches.finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 
 async def _fetch_daily_matches_async(*, task=None):
@@ -141,7 +178,7 @@ async def _fetch_daily_matches_async(*, task=None):
         api_key=settings.api_sports_key,
     )
 
-    league_ids = frozenset(int(x) for x in settings.api_sports_league_ids.split(","))
+    league_ids = settings.api_sports_league_ids_set
     fetch_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
     usecase = MatchFetchUseCaseImpl(
         match_fetch_api=fetch_service,
@@ -153,6 +190,7 @@ async def _fetch_daily_matches_async(*, task=None):
 
     sports_to_fetch = [Sport.FOOTBALL]
     total_fetched = 0
+    failed_sports: list[str] = []
 
     for sport in sports_to_fetch:
         try:
@@ -171,9 +209,14 @@ async def _fetch_daily_matches_async(*, task=None):
                 "celery.task.fetch_daily_matches.sport_failed",
                 extra=_task_extra(task, sport=sport.value),
             )
+            failed_sports.append(sport.value)
 
     await client.close()
     await engine.dispose()
+
+    if failed_sports:
+        raise RuntimeError(f"fetch_daily_matches failed for sports: {', '.join(failed_sports)}")
+
     logger.info(
         "celery.task.fetch_daily_matches.completed",
         extra=_task_extra(task, sports_count=len(sports_to_fetch), total_fetched_count=total_fetched),
