@@ -26,6 +26,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - secrets Docker Swarm pour les données sensibles
 - configs Docker Swarm pour les fichiers non sensibles
 - réseau `overlay` interne dédié à l'application
+- le réseau `app` reste `internal: true`; tout service ayant besoin d’egress vers des dépendances managées/externe (ex. Neon, API-Sports) doit aussi être rattaché au réseau `edge`
 - publication publique limitée au reverse proxy `edge`
 - `read_only`, `tmpfs`, `cap_drop: ALL`, utilisateurs non-root, permissions strictes sur les secrets Docker (`0400`)
 - healthchecks, limites mémoire/CPU/PIDs, rolling updates avec rollback, `stop_grace_period` explicites pour les services sensibles

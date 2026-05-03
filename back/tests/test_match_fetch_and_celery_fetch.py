@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 import logging
+import sys
+import types
 
 import httpx
 import pytest
@@ -8,6 +10,7 @@ from application.match.match_fetch_usecase import MatchFetchUseCaseImpl
 from domain.match.model.match import Match
 from domain.match.model.sport import Sport
 from infrastructure.celery import celery_app as celery_app_module
+from infrastructure.celery import tasks as celery_tasks_module
 from infrastructure.config import Settings
 from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
 from infrastructure.services.api_sports.football_fetch_service import ApiSportsFootballFetchService
@@ -221,6 +224,69 @@ async def test_football_fetch_service_keeps_match_when_odds_fetch_fails():
     match, odds = pairs[0]
     assert match.api_fixture_id == 98765
     assert odds == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.MonkeyPatch):
+    class FakeEngine:
+        async def dispose(self):
+            return None
+
+    class FakeSettings:
+        api_sports_football_url = "https://v3.football.api-sports.io"
+        api_sports_key = "test-key"
+        api_sports_league_ids_set = frozenset({39})
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def close(self):
+            return None
+
+    class FakeFetchService:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class FakeUseCase:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def fetch_and_store_matches(self, *args, **kwargs):
+            raise ValueError("db boom")
+
+    fake_sport = types.SimpleNamespace(value="football")
+    fake_sport_module = types.ModuleType("domain.match.model.sport")
+    fake_sport_module.Sport = types.SimpleNamespace(FOOTBALL=fake_sport)
+
+    fake_models_module = types.ModuleType("infrastructure.postgresql.models")
+
+    fake_config_module = types.ModuleType("infrastructure.config")
+    fake_config_module.Settings = FakeSettings
+
+    fake_client_module = types.ModuleType("infrastructure.services.api_sports.base_client")
+    fake_client_module.ApiSportsBaseClient = FakeClient
+
+    fake_fetch_module = types.ModuleType("infrastructure.services.api_sports.football_fetch_service")
+    fake_fetch_module.ApiSportsFootballFetchService = FakeFetchService
+
+    fake_usecase_module = types.ModuleType("application.match.match_fetch_usecase")
+    fake_usecase_module.MatchFetchUseCaseImpl = FakeUseCase
+
+    monkeypatch.setattr(celery_tasks_module, "_make_session_factory", lambda: (FakeEngine(), lambda: None))
+    monkeypatch.setitem(sys.modules, "infrastructure.postgresql.models", fake_models_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.config", fake_config_module)
+    monkeypatch.setitem(sys.modules, "domain.match.model.sport", fake_sport_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.base_client", fake_client_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.football_fetch_service", fake_fetch_module)
+    monkeypatch.setitem(sys.modules, "application.match.match_fetch_usecase", fake_usecase_module)
+
+    with pytest.raises(RuntimeError, match="fetch_daily_matches failed for sports: football") as exc_info:
+        await celery_tasks_module._fetch_daily_matches_async()
+
+    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert str(exc_info.value.__cause__) == "db boom"
+
 
 
 
