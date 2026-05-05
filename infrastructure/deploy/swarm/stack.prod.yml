@@ -184,6 +184,12 @@ services:
     deploy:
       <<: *deploy-defaults
       replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: ${BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION:-pause}
+        monitor: 30s
+        order: stop-first
       resources:
         limits:
           cpus: "0.50"
