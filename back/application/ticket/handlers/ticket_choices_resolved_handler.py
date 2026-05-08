@@ -53,7 +53,7 @@ class OnTicketChoicesResolvedCheckStatus:
 
                     if updated:
                         is_win = wrong == 0
-                        before_ranking = []
+                        ranking_entries = []
                         league_name = ""
 
                         if is_win:
@@ -63,7 +63,7 @@ class OnTicketChoicesResolvedCheckStatus:
 
                         if ticket.league_id is not None:
                             if is_win:
-                                before_ranking = await league_players_repo.get_league_ranking_entries(ticket.league_id)
+                                ranking_entries = await league_players_repo.get_league_ranking_entries(ticket.league_id)
                                 league = await league_repo.find_by_id(ticket.league_id)
                                 league_name = league.name if league is not None else ""
                                 await league_players_repo.apply_ticket_win(
@@ -71,14 +71,13 @@ class OnTicketChoicesResolvedCheckStatus:
                                     ticket.user.id,
                                     ticket.gain,
                                 )
-                                after_ranking = await league_players_repo.get_league_ranking_entries(ticket.league_id)
                                 for overtaken_event in build_overtaken_events(
-                                    before_entries=before_ranking,
-                                    after_entries=after_ranking,
+                                    ranking_entries=ranking_entries,
                                     league_id=ticket.league_id,
                                     league_name=league_name,
                                     overtaken_by_user_id=ticket.user.id,
                                     overtaken_by_pseudo=ticket.user.pseudo,
+                                    gain=float(ticket.gain or 0),
                                 ):
                                     await outbox_bus.publish(overtaken_event)
                             else:

@@ -26,6 +26,7 @@ class DBNotification(Base):
     user_id: Union[int, Column] = Column(BigInteger, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
 
     type: Union[str, Column] = Column(String(80), nullable=False, index=True)
+    dedupe_key: Union[Optional[str], Column] = Column(String(200), nullable=True)
     title: Union[str, Column] = Column(String(150), nullable=False)
     message: Union[str, Column] = Column(String(600), nullable=False)
     data: Union[dict[str, Any], Column] = Column(JSONB, nullable=False, default=dict)
@@ -58,6 +59,8 @@ class DBNotification(Base):
         db.id = notification.id
         db.user_id = notification.user_id
         db.type = str(notification.type)
+        dedupe_key = notification.data.get("dedupe_key") if notification.data else None
+        db.dedupe_key = str(dedupe_key).strip() if dedupe_key else None
         db.title = notification.title
         db.message = notification.message
         db.data = dict(notification.data)

@@ -5,7 +5,7 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.notification.notification_command_usecase import NotificationCommandUseCase
+from application.notification.notification_command_usecase import NotificationCommandUseCase, NotificationCreateCommand
 from domain.notification.model.notification import Notification, NotificationType
 from domain.notification.repository.notification_repository import NotificationRepository
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
@@ -50,22 +50,6 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
         effective_dedupe_key = (dedupe_key or str(payload.get("dedupe_key") or "")).strip()
         if effective_dedupe_key:
             payload.setdefault("dedupe_key", effective_dedupe_key)
-            existing = await self._notification_repository.find_by_dedupe_key(
-                user_id=user_id,
-                type=type,
-                dedupe_key=effective_dedupe_key,
-            )
-            if existing is not None:
-                logger.info(
-                    "notification.deduplicated",
-                    extra={
-                        "notification_id": existing.id,
-                        "user_id": user_id,
-                        "type": str(type),
-                        "dedupe_key": effective_dedupe_key,
-                    },
-                )
-                return existing
 
         created_at = _now_ms()
         notification = Notification(
@@ -79,7 +63,19 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             read_at=None,
         )
 
-        created = await self._notification_repository.create(notification)
+        created, inserted = await self._notification_repository.create_or_get(notification)
+        if not inserted:
+            logger.info(
+                "notification.deduplicated",
+                extra={
+                    "notification_id": created.id,
+                    "user_id": user_id,
+                    "type": str(type),
+                    "dedupe_key": effective_dedupe_key,
+                },
+            )
+            return created
+
         logger.info(
             "notification.created",
             extra={
@@ -117,6 +113,86 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
                 logger.warning("notification.push_failed", extra={"error": str(e), "user_id": user_id, "notification_id": created.id})
 
         return created
+
+    async def create_many(
+        self,
+        *,
+        items: list[NotificationCreateCommand],
+    ) -> list[Notification]:
+        if not items:
+            return []
+
+        notifications: list[Notification] = []
+        for item in items:
+            payload = dict(item.data)
+            effective_dedupe_key = (item.dedupe_key or str(payload.get("dedupe_key") or "")).strip()
+            if effective_dedupe_key:
+                payload.setdefault("dedupe_key", effective_dedupe_key)
+            notifications.append(
+                Notification(
+                    id=None,
+                    user_id=item.user_id,
+                    type=item.type,
+                    title=item.title,
+                    message=item.message,
+                    data=payload,
+                    created_at=_now_ms(),
+                    read_at=None,
+                )
+            )
+
+        persisted = await self._notification_repository.create_many(notifications)
+        created_notifications: list[Notification] = []
+        for created, inserted in persisted:
+            created_notifications.append(created)
+            if not inserted:
+                logger.info(
+                    "notification.deduplicated",
+                    extra={
+                        "notification_id": created.id,
+                        "user_id": created.user_id,
+                        "type": str(created.type),
+                        "dedupe_key": str(created.data.get("dedupe_key") or ""),
+                    },
+                )
+                continue
+
+            logger.info(
+                "notification.created",
+                extra={
+                    "notification_id": created.id,
+                    "user_id": created.user_id,
+                    "type": str(created.type),
+                },
+            )
+
+            try:
+                await self._realtime_publisher.publish_to_user(created.user_id, created)
+                logger.info("notification.realtime_published", extra={"notification_id": created.id, "user_id": created.user_id})
+            except Exception:
+                logger.exception("notification.realtime_publish_failed", extra={"notification_id": created.id, "user_id": created.user_id})
+
+            if self._push_uc is not None:
+                try:
+                    await self._push_uc.send_to_user(
+                        user_id=created.user_id,
+                        title=created.title,
+                        body=created.message,
+                        icon="/icons/notification-icon.svg",
+                        badge="/icons/badge-icon.svg",
+                        tag=f"notification-{created.id}",
+                        data={
+                            "notification_id": created.id,
+                            "type": str(created.type),
+                            **dict(created.data),
+                        },
+                        url="/notifications",
+                    )
+                    logger.info("notification.push_dispatched", extra={"notification_id": created.id, "user_id": created.user_id})
+                except Exception as e:
+                    logger.warning("notification.push_failed", extra={"error": str(e), "user_id": created.user_id, "notification_id": created.id})
+
+        return created_notifications
 
     async def mark_read(self, *, user_id: int, notification_id: int) -> None:
         read_at = _now_ms()

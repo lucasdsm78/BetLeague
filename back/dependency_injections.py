@@ -363,13 +363,15 @@ def notification_repository_dependency(session: AsyncSession = Depends(get_async
                 async with s.begin():
                     return await NotificationRepositoryImpl(s).create(notification)
 
-        async def find_by_dedupe_key(self, *, user_id: int, type, dedupe_key: str):
+        async def create_or_get(self, notification):
             async with sf() as s:
-                return await NotificationRepositoryImpl(s).find_by_dedupe_key(
-                    user_id=user_id,
-                    type=type,
-                    dedupe_key=dedupe_key,
-                )
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).create_or_get(notification)
+
+        async def create_many(self, notifications):
+            async with sf() as s:
+                async with s.begin():
+                    return await NotificationRepositoryImpl(s).create_many(notifications)
 
         async def list_by_user(self, user_id: int, limit: int, cursor):
             async with sf() as s:
@@ -496,13 +498,15 @@ class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
             async with session.begin():
                 return await NotificationRepositoryImpl(session).create(notification)
 
-    async def find_by_dedupe_key(self, *, user_id: int, type, dedupe_key: str):
+    async def create_or_get(self, notification):
         async with self._session_factory() as session:
-            return await NotificationRepositoryImpl(session).find_by_dedupe_key(
-                user_id=user_id,
-                type=type,
-                dedupe_key=dedupe_key,
-            )
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).create_or_get(notification)
+
+    async def create_many(self, notifications):
+        async with self._session_factory() as session:
+            async with session.begin():
+                return await NotificationRepositoryImpl(session).create_many(notifications)
 
     async def list_by_user(self, user_id: int, limit: int, cursor):
         async with self._session_factory() as session:

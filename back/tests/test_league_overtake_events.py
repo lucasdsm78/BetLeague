@@ -26,12 +26,12 @@ def test_build_overtaken_events_returns_event_for_each_user_passed_by_actor() ->
     ]
 
     events = build_overtaken_events(
-        before_entries=before,
-        after_entries=after,
+        ranking_entries=before,
         league_id=9,
         league_name="Ligue 1",
         overtaken_by_user_id=3,
         overtaken_by_pseudo="Lucas",
+        gain=60,
     )
 
     assert [(event.overtaken_user_id, event.previous_position, event.new_position) for event in events] == [
@@ -51,13 +51,37 @@ def test_build_overtaken_events_returns_empty_list_when_actor_does_not_improve_p
     ]
 
     events = build_overtaken_events(
-        before_entries=before,
-        after_entries=after,
+        ranking_entries=before,
         league_id=9,
         league_name="Ligue 1",
         overtaken_by_user_id=2,
         overtaken_by_pseudo="Lucas",
+        gain=10,
     )
 
     assert events == []
+
+
+def test_build_overtaken_events_emits_event_when_actor_breaks_a_tie_and_goes_ahead() -> None:
+    before = [
+        _entry(user_id=1, pseudo="Alice", position=2, nb_btl=100),
+        _entry(user_id=2, pseudo="Lucas", position=2, nb_btl=100),
+        _entry(user_id=3, pseudo="Bob", position=1, nb_btl=110),
+    ]
+
+    events = build_overtaken_events(
+        ranking_entries=before,
+        league_id=9,
+        league_name="Ligue 1",
+        overtaken_by_user_id=2,
+        overtaken_by_pseudo="Lucas",
+        gain=5,
+    )
+
+    assert [(event.overtaken_user_id, event.previous_position, event.new_position) for event in events] == [
+        (1, 2, 3),
+    ]
+
+
+
 
