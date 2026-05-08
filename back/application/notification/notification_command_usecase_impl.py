@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _now_ms() -> int:
     import datetime
 
-    return int(datetime.datetime.utcnow().timestamp() * 1000)
+    return int(datetime.datetime.now(datetime.UTC).timestamp() * 1000)
 
 
 class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
@@ -44,7 +44,29 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
         title: str,
         message: str,
         data: Mapping[str, Any],
+        dedupe_key: Optional[str] = None,
     ) -> Notification:
+        payload = dict(data)
+        effective_dedupe_key = (dedupe_key or str(payload.get("dedupe_key") or "")).strip()
+        if effective_dedupe_key:
+            payload.setdefault("dedupe_key", effective_dedupe_key)
+            existing = await self._notification_repository.find_by_dedupe_key(
+                user_id=user_id,
+                type=type,
+                dedupe_key=effective_dedupe_key,
+            )
+            if existing is not None:
+                logger.info(
+                    "notification.deduplicated",
+                    extra={
+                        "notification_id": existing.id,
+                        "user_id": user_id,
+                        "type": str(type),
+                        "dedupe_key": effective_dedupe_key,
+                    },
+                )
+                return existing
+
         created_at = _now_ms()
         notification = Notification(
             id=None,
@@ -52,7 +74,7 @@ class NotificationCommandUseCaseImpl(NotificationCommandUseCase):
             type=type,
             title=title,
             message=message,
-            data=dict(data),
+            data=payload,
             created_at=created_at,
             read_at=None,
         )
