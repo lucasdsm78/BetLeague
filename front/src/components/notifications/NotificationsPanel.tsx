@@ -137,6 +137,8 @@ function getNotificationIcon(type: NotificationType): React.FC<IconProps> {
       return FlagIcon;
     case 'league_ended':
       return CheckCircleIcon;
+    case 'league_overtaken':
+      return UserIcon;
     case 'system_announcement':
       return MegaphoneIcon;
     case 'account_update':
@@ -165,6 +167,7 @@ function getNotificationStyle(type: NotificationType): string {
       return styles.typeMatch;
     case 'league_started':
     case 'league_ended':
+    case 'league_overtaken':
       return styles.typeLeague;
     case 'system_announcement':
       return styles.typeSystem;

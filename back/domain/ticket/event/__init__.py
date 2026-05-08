@@ -1,1 +1,2 @@
+from .ticket_resolved_event import TicketResolvedEvent
 from .tickets_resolved_event import TicketsResolvedEvent

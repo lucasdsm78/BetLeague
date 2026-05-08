@@ -3,12 +3,22 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from domain.notification.model.notification import Notification
+from domain.notification.model.notification import Notification, NotificationType
 
 
 class NotificationRepository(ABC):
     @abstractmethod
     async def create(self, notification: Notification) -> Notification:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_dedupe_key(
+        self,
+        *,
+        user_id: int,
+        type: NotificationType,
+        dedupe_key: str,
+    ) -> Optional[Notification]:
         raise NotImplementedError
 
     @abstractmethod

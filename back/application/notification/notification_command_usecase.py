@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 from domain.notification.model.notification import Notification, NotificationType
 
@@ -16,6 +16,7 @@ class NotificationCommandUseCase(ABC):
         title: str,
         message: str,
         data: Mapping[str, Any],
+        dedupe_key: Optional[str] = None,
     ) -> Notification:
         raise NotImplementedError
 

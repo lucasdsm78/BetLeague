@@ -130,12 +130,19 @@ from application.events.event_bus import InProcessDomainEventBus, DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_ended import LeagueEnded
+from domain.league.events.league_user_overtaken import LeagueUserOvertaken
 from domain.league.events.league_started import LeagueStarted
 from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
 from application.notification.handlers.league_invitation_accepted_notification_handler import OnLeagueInvitationAcceptedCreateNotification
 from application.notification.handlers.league_invitation_refused_notification_handler import OnLeagueInvitationRefusedCreateNotification
+from application.notification.handlers.league_ended_notification_handler import OnLeagueEndedCreateNotification
+from application.notification.handlers.league_user_overtaken_notification_handler import OnLeagueUserOvertakenCreateNotification
 from application.notification.handlers.league_started_notification_handler import OnLeagueStartedCreateNotification
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from domain.ticket.event.ticket_resolved_event import TicketResolvedEvent
+from application.notification.handlers.ticket_choice_result_notification_handler import OnTicketChoicesResolvedCreateNotification
+from application.notification.handlers.ticket_resolved_notification_handler import OnTicketResolvedCreateNotification
 from application.ticket.handlers.ticket_choices_resolved_handler import OnTicketChoicesResolvedCheckStatus
 from domain.services.notification.notification_realtime_publisher import NotificationRealtimePublisher
 from application.events.outbox_event_bus import OutboxDomainEventBus
@@ -356,6 +363,14 @@ def notification_repository_dependency(session: AsyncSession = Depends(get_async
                 async with s.begin():
                     return await NotificationRepositoryImpl(s).create(notification)
 
+        async def find_by_dedupe_key(self, *, user_id: int, type, dedupe_key: str):
+            async with sf() as s:
+                return await NotificationRepositoryImpl(s).find_by_dedupe_key(
+                    user_id=user_id,
+                    type=type,
+                    dedupe_key=dedupe_key,
+                )
+
         async def list_by_user(self, user_id: int, limit: int, cursor):
             async with sf() as s:
                 return await NotificationRepositoryImpl(s).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
@@ -481,6 +496,14 @@ class _OutOfFastAPINotificationRepositoryProxy(NotificationRepository):
             async with session.begin():
                 return await NotificationRepositoryImpl(session).create(notification)
 
+    async def find_by_dedupe_key(self, *, user_id: int, type, dedupe_key: str):
+        async with self._session_factory() as session:
+            return await NotificationRepositoryImpl(session).find_by_dedupe_key(
+                user_id=user_id,
+                type=type,
+                dedupe_key=dedupe_key,
+            )
+
     async def list_by_user(self, user_id: int, limit: int, cursor):
         async with self._session_factory() as session:
             return await NotificationRepositoryImpl(session).list_by_user(user_id=user_id, limit=limit, cursor=cursor)
@@ -548,8 +571,24 @@ def outbox_handler_bus_dependency(
             OnLeagueStartedCreateNotification(notification_uc, session_factory=sf),
         )
         bus.subscribe(
+            LeagueEnded,
+            OnLeagueEndedCreateNotification(notification_uc, session_factory=sf),
+        )
+        bus.subscribe(
+            LeagueUserOvertaken,
+            OnLeagueUserOvertakenCreateNotification(notification_uc),
+        )
+        bus.subscribe(
             TicketChoicesResolvedEvent,
             OnTicketChoicesResolvedCheckStatus(session_factory=sf),
+        )
+        bus.subscribe(
+            TicketChoicesResolvedEvent,
+            OnTicketChoicesResolvedCreateNotification(notification_uc, session_factory=sf),
+        )
+        bus.subscribe(
+            TicketResolvedEvent,
+            OnTicketResolvedCreateNotification(notification_uc),
         )
         bus.subscribe(
             MatchResultResolvedEvent,
