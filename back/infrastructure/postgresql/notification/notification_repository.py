@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import desc, select, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.notification.model.notification import Notification
+from domain.notification.model.notification import Notification, NotificationType
 from domain.notification.repository.notification_repository import NotificationRepository
 from infrastructure.postgresql.notification.db_notification import DBNotification
 
@@ -36,6 +36,26 @@ class NotificationRepositoryImpl(NotificationRepository):
         await self._session.flush()
         await self._session.refresh(db)
         return db.to_entity()
+
+    async def find_by_dedupe_key(
+        self,
+        *,
+        user_id: int,
+        type: NotificationType,
+        dedupe_key: str,
+    ) -> Optional[Notification]:
+        stmt = (
+            select(DBNotification)
+            .where(
+                DBNotification.user_id == user_id,
+                DBNotification.type == str(type),
+                DBNotification.data["dedupe_key"].astext == dedupe_key,
+            )
+            .order_by(desc(DBNotification.created_at), desc(DBNotification.id))
+            .limit(1)
+        )
+        row = (await self._session.execute(stmt)).scalar_one_or_none()
+        return row.to_entity() if row is not None else None
 
     async def list_by_user(
         self, user_id: int, limit: int, cursor: Optional[str]

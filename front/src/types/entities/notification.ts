@@ -29,6 +29,7 @@ export type NotificationType =
   // Evenements de ligue
   | 'league_started'
   | 'league_ended'
+  | 'league_overtaken'
   // Systeme
   | 'system_announcement'
   | 'account_update'

@@ -43,6 +43,17 @@ class TicketRepositoryImpl(TicketRepository):
             raise TicketNotFoundError
         return ticket_db.to_entity()
 
+    async def find_all_by_ids(self, ticket_ids: List[int]) -> List[Ticket]:
+        if not ticket_ids:
+            return []
+        q = (
+            select(DBTicket)
+            .options(joinedload(DBTicket.user))
+            .where(DBTicket.id.in_(ticket_ids))
+        )
+        result = await self.session.execute(q)
+        return [row.to_entity() for row in result.scalars().all()]
+
     async def find_by_id_for_update(self, ticket_id: int) -> Ticket:
         q = (
             select(DBTicket)
