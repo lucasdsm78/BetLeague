@@ -1,4 +1,17 @@
-// Entites UI - Notification
+// DTO API - Notification
+
+export interface NotificationDto {
+  readonly id: number;
+  readonly user_id: number;
+  readonly type: NotificationType;
+  readonly title: string;
+  readonly message: string;
+  readonly data?: Record<string, unknown>;
+  readonly created_at: number;
+  readonly read_at: number | null;
+}
+
+// Entité UI - Notification
 
 export interface Notification {
   readonly id: number;
@@ -29,6 +42,7 @@ export type NotificationType =
   // Evenements de ligue
   | 'league_started'
   | 'league_ended'
+  | 'league_overtaken'
   // Systeme
   | 'system_announcement'
   | 'account_update'
