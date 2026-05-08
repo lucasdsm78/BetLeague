@@ -5,6 +5,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.league.exception.league_exception import LeagueParticipantNotFoundError
+from domain.league.model.league_ranking_entry import LeagueRankingEntry
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
 from infrastructure.postgresql.league.db_league_players import DBLeaguePlayers, unixtimestamp
@@ -36,9 +37,24 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         await self.session.execute(stmt)
 
     async def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
+        entries = await self.get_league_ranking_entries(league_id)
+        return [
+            {
+                "user_id": entry.user_id,
+                "nb_btl": entry.nb_btl,
+                "nb_win": entry.nb_win,
+                "nb_lose": entry.nb_lose,
+                "pseudo": entry.pseudo,
+                "position": entry.position,
+            }
+            for entry in entries
+        ]
+
+    async def get_league_ranking_entries(self, league_id: int) -> List[LeagueRankingEntry]:
         try:
             query = (
                 select(
+                    DBLeaguePlayers.user_id.label("user_id"),
                     DBLeaguePlayers.btl_from_tickets.label("nb_btl"),
                     DBLeaguePlayers.nb_win.label("nb_win"),
                     DBLeaguePlayers.nb_lose.label("nb_lose"),
@@ -56,17 +72,24 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
             ranking_result = result.all()
 
             return [
-                {
-                    "nb_btl": row.nb_btl,
-                    "nb_win": row.nb_win,
-                    "nb_lose": row.nb_lose,
-                    "pseudo": row.pseudo,
-                    "position": row.position
-                }
+                LeagueRankingEntry(
+                    user_id=int(row.user_id),
+                    nb_btl=float(row.nb_btl or 0),
+                    nb_win=int(row.nb_win or 0),
+                    nb_lose=int(row.nb_lose or 0),
+                    pseudo=str(row.pseudo),
+                    position=int(row.position or 0),
+                )
                 for row in ranking_result
             ]
         except:
             raise
+
+    async def list_user_ids_by_league_id(self, league_id: int) -> List[int]:
+        result = await self.session.execute(
+            select(DBLeaguePlayers.user_id).where(DBLeaguePlayers.league_id == league_id)
+        )
+        return [int(user_id) for user_id in result.scalars().all()]
 
     async def unregister_league(self, league_players_id: int):
         try:

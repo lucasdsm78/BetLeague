@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 
+from domain.league.model.league_ranking_entry import LeagueRankingEntry
 from domain.league.model.league_players import LeaguePlayers
 
 
@@ -12,6 +13,14 @@ class LeaguePlayersRepository(ABC):
 
     @abstractmethod
     async def get_league_rank(self, league_id: int) -> List[Dict[str, any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_league_ranking_entries(self, league_id: int) -> List[LeagueRankingEntry]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_user_ids_by_league_id(self, league_id: int) -> List[int]:
         raise NotImplementedError
 
     @abstractmethod
