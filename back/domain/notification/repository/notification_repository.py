@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from domain.notification.model.notification import Notification, NotificationType
+from domain.notification.model.notification import Notification
 
 
 class NotificationRepository(ABC):
@@ -12,13 +12,11 @@ class NotificationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_dedupe_key(
-        self,
-        *,
-        user_id: int,
-        type: NotificationType,
-        dedupe_key: str,
-    ) -> Optional[Notification]:
+    async def create_or_get(self, notification: Notification) -> tuple[Notification, bool]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_many(self, notifications: list[Notification]) -> list[tuple[Notification, bool]]:
         raise NotImplementedError
 
     @abstractmethod

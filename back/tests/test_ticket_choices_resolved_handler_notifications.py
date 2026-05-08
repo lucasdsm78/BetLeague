@@ -38,6 +38,7 @@ class _League:
 async def test_ticket_choices_resolved_handler_applies_win_and_publishes_ticket_and_overtake_events(monkeypatch):
     published_events: list[object] = []
     calls: list[str] = []
+    ranking_reads: list[int] = []
 
     class FakeTicketRepository:
         def __init__(self, session):
@@ -71,13 +72,12 @@ async def test_ticket_choices_resolved_handler_applies_win_and_publishes_ticket_
 
     class FakeLeaguePlayersRepository:
         def __init__(self, session):
-            self._calls = 0
+            self.calls = 0
 
         async def get_league_ranking_entries(self, league_id: int):
-            self._calls += 1
-            if self._calls == 1:
-                return ["before"]
-            return ["after"]
+            self.calls += 1
+            ranking_reads.append(league_id)
+            return ["ranking"]
 
         async def apply_ticket_win(self, league_id: int, user_id: int, gain: float):
             calls.append(f"league_win:{league_id}:{user_id}:{gain}")
@@ -100,9 +100,11 @@ async def test_ticket_choices_resolved_handler_applies_win_and_publishes_ticket_
             published_events.append(event)
 
     def fake_build_overtaken_events(**kwargs):
+        assert kwargs["ranking_entries"] == ["ranking"]
         assert kwargs["league_id"] == 3
         assert kwargs["league_name"] == "League Elite"
         assert kwargs["overtaken_by_user_id"] == 8
+        assert kwargs["gain"] == 44.5
         return [
             LeagueUserOvertaken(
                 league_id=3,
@@ -134,6 +136,9 @@ async def test_ticket_choices_resolved_handler_applies_win_and_publishes_ticket_
         "user_win:8:44.5",
         "league_win:3:8:44.5",
     ]
+    assert ranking_reads == [3]
     assert any(isinstance(event, TicketResolvedEvent) and event.ticket_id == 17 for event in published_events)
     assert any(isinstance(event, LeagueUserOvertaken) and event.overtaken_user_id == 9 for event in published_events)
+
+
 

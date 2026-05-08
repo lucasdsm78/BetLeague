@@ -20,8 +20,7 @@ class OnLeagueUserOvertakenCreateNotification:
                 type=NotificationType.LEAGUE_OVERTAKEN,
                 title="Classement mis à jour",
                 message=(
-                    f"{event.overtaken_by_pseudo} est passé devant toi dans la ligue {event.league_name}. "
-                    f"Tu passes de la position {event.previous_position} à {event.new_position}."
+                    f"{event.overtaken_by_pseudo} est passé devant toi dans la ligue {event.league_name}."
                 ),
                 data={
                     "league_id": event.league_id,
@@ -37,4 +36,6 @@ class OnLeagueUserOvertakenCreateNotification:
         except Exception:
             logger.exception("[OnLeagueUserOvertakenCreateNotification] Erreur notification")
             raise
+
+
 

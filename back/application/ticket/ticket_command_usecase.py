@@ -521,7 +521,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             if resolved:
                 is_win = wrong == 0
                 league_name = ""
-                before_ranking = []
+                ranking_entries = []
                 if is_win:
                     await uow.user_repo.apply_ticket_win(ticket.user.id, ticket.gain)
                 else:
@@ -529,20 +529,19 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 if ticket.league_id is not None:
                     if is_win:
-                        before_ranking = await uow.league_players_repo.get_league_ranking_entries(ticket.league_id)
+                        ranking_entries = await uow.league_players_repo.get_league_ranking_entries(ticket.league_id)
                         league = await uow.league_repo.find_by_id(ticket.league_id)
                         league_name = league.name if league else ""
                         await uow.league_players_repo.apply_ticket_win(
                             ticket.league_id, ticket.user.id, ticket.gain
                         )
-                        after_ranking = await uow.league_players_repo.get_league_ranking_entries(ticket.league_id)
                         for overtaken_event in build_overtaken_events(
-                            before_entries=before_ranking,
-                            after_entries=after_ranking,
+                            ranking_entries=ranking_entries,
                             league_id=ticket.league_id,
                             league_name=league_name,
                             overtaken_by_user_id=ticket.user.id,
                             overtaken_by_pseudo=ticket.user.pseudo,
+                            gain=float(ticket.gain or 0),
                         ):
                             await uow.outbox_bus.publish(overtaken_event)
                     else:

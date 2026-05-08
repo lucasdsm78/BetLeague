@@ -470,7 +470,7 @@ export const NotificationsPanel = memo(function NotificationsPanel({
           <NotificationRow
             key={n.id}
             id={n.id}
-            type={n.type as NotificationType}
+            type={n.type}
             title={n.title}
             message={n.message}
             createdAt={n.created_at}
