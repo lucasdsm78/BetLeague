@@ -173,22 +173,27 @@ class MatchRepositoryImpl(MatchRepository):
     async def find_active_fixture_ids(self) -> List[int]:
         now = datetime.utcnow()
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_day = start_of_day + timedelta(days=1)
+        score_poll_until = now + timedelta(minutes=15)
 
         finished_statuses = ('FT', 'AET', 'AP', 'AWD', 'WO', 'CANC', 'ABD', 'PST')
+        live_statuses = ('1H', 'HT', '2H', 'ET', 'BT', 'P', 'PEN', 'SUSP', 'INT', 'LIVE')
+        resolvable_finished_statuses = ('FT', 'AET', 'AP', 'PEN', 'AWD', 'WO')
 
         result = await self.session.execute(
             select(DBMatch.api_fixture_id)
             .where(
                 DBMatch.api_fixture_id.isnot(None),
                 or_(
-                    # Today's matches that are not yet finished (live or upcoming)
+                    # Today's live matches, plus very near upcoming matches.
                     (DBMatch.time >= start_of_day)
-                    & (DBMatch.time <= end_of_day)
+                    & (DBMatch.time <= score_poll_until)
                     & DBMatch.status.notin_(finished_statuses),
-                    # Any finished match with no winner yet
-                    DBMatch.status.in_(finished_statuses)
-                    & (DBMatch.winner.is_(None)),
+                    DBMatch.status.in_(live_statuses),
+                    # Keep today's resolvable finished matches in the polling set
+                    # even when a winner already exists, so upstream score corrections
+                    # can repair stale odd results without manual intervention.
+                    (DBMatch.time >= start_of_day)
+                    & DBMatch.status.in_(resolvable_finished_statuses),
                 ),
             )
         )

@@ -218,18 +218,54 @@ def _api_sports_football_client() -> ApiSportsBaseClient:
     )
 
 
-def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+@lru_cache()
+def _api_sports_match_fetch_router() -> MatchFetchApi:
     client = _api_sports_football_client()
-    league_ids = frozenset(int(x) for x in settings.api_sports_league_ids.split(","))
-    football_service = ApiSportsFootballFetchService(client=client, league_ids=league_ids)
+    settings = get_settings()
+    league_ids = settings.api_sports_league_ids_set
+    football_service = ApiSportsFootballFetchService(
+        client=client,
+        league_ids=league_ids,
+        # Fast/secure admin HTTP path: fetch fixtures only.
+        # Odds are fetched by the scheduled Celery path with explicit caps.
+        fetch_odds_until=None,
+        max_odds_fixtures=0,
+    )
     return MultiSportMatchFetchRouter(services={
         Sport.FOOTBALL: football_service,
     })
 
 
-def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+def match_fetch_api_dep(settings: Settings = Depends(get_settings)) -> MatchFetchApi:
+    return _api_sports_match_fetch_router()
+
+
+@lru_cache()
+def _api_sports_score_service() -> MatchScoreApi:
     client = _api_sports_football_client()
-    return ApiSportsScoreService(client=client)
+    settings = get_settings()
+    return ApiSportsScoreService(
+        client=client,
+        fallback_enabled=settings.api_sports_score_by_id_fallback_enabled,
+        fallback_max_fixtures=settings.api_sports_score_by_id_fallback_max_fixtures,
+    )
+
+
+def match_score_api_v2(settings: Settings = Depends(get_settings)) -> MatchScoreApi:
+    return _api_sports_score_service()
+
+
+async def shutdown_api_sports_clients() -> None:
+    try:
+        client = _api_sports_football_client() if _api_sports_football_client.cache_info().currsize > 0 else None
+        if client is not None:
+            await client.close()
+    except Exception:
+        logging.getLogger(__name__).warning("api_sports.client.close_failed", exc_info=True)
+    finally:
+        _api_sports_score_service.cache_clear()
+        _api_sports_match_fetch_router.cache_clear()
+        _api_sports_football_client.cache_clear()
 
 
 def match_fetch_usecase_dep(

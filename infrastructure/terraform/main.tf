@@ -35,6 +35,18 @@ locals {
       fieldtype = "A"
       ttl       = var.dns_default_ttl
     }
+    grafana = {
+      subdomain = var.grafana_subdomain
+      target    = local.vps_public_ipv4
+      fieldtype = "A"
+      ttl       = var.dns_default_ttl
+    }
+    prometheus = {
+      subdomain = var.prometheus_subdomain
+      target    = local.vps_public_ipv4
+      fieldtype = "A"
+      ttl       = var.dns_default_ttl
+    }
   } : {}
 }
 

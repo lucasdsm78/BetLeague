@@ -13,13 +13,32 @@ betleague_swarm_edge_tls_dir: "{{ betleague_compose_root }}/shared/tls/edge"
 betleague_swarm_edge_tls_gid: 940
 betleague_swarm_app_domain: app.betleague.app
 betleague_swarm_api_domain: api.betleague.app
+betleague_swarm_grafana_domain: grafana.betleague.app
+betleague_swarm_prometheus_domain: prometheus.betleague.app
 betleague_swarm_api_healthcheck_url: "https://{{ betleague_swarm_api_domain }}/health"
 betleague_swarm_frontend_healthcheck_url: "https://{{ betleague_swarm_app_domain }}/"
+betleague_swarm_grafana_healthcheck_url: "https://{{ betleague_swarm_grafana_domain }}/login"
+betleague_swarm_prometheus_healthcheck_url: "https://{{ betleague_swarm_prometheus_domain }}/-/ready"
+betleague_swarm_prometheus_scrape_interval: 30s
+betleague_swarm_prometheus_evaluation_interval: 30s
+betleague_swarm_prometheus_scrape_timeout: 10s
+betleague_swarm_prometheus_retention_time: 7d
+betleague_swarm_prometheus_retention_size: 4GB
+betleague_swarm_prometheus_sample_limit: 5000
+betleague_swarm_prometheus_label_limit: 40
+betleague_swarm_require_monitoring_allowlist: true
+betleague_swarm_monitoring_allowlist_cidrs: ""
 betleague_swarm_registry_server: ""
 betleague_swarm_registry_username: ""
 betleague_swarm_registry_password: ""
 betleague_swarm_backend_env_content: ""
 betleague_swarm_migrations_env_content: ""
+betleague_swarm_grafana_admin_password: ""
+betleague_swarm_grafana_secret_key: ""
+betleague_swarm_monitoring_htpasswd: ""
+# Laisser vide pour désactiver Alertmanager. Une configuration neutre est alors générée
+# et le service n'est pas démarré.
+betleague_swarm_alertmanager_config_content: ""
 betleague_swarm_redis_password: ""
 betleague_swarm_nats_user: ""
 betleague_swarm_nats_password: ""
@@ -32,6 +51,7 @@ betleague_swarm_release_worker_services:
   - celery_worker
   - celery_beat
   - outbox_worker
+  - jetstream_consumer
 betleague_swarm_update_failure_action: pause
 betleague_swarm_wait_timeout_seconds: 180
 betleague_swarm_wait_sleep_seconds: 5

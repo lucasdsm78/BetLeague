@@ -46,9 +46,13 @@ class ApiSportsFootballFetchService(MatchFetchApi):
         self,
         client: ApiSportsBaseClient,
         league_ids: FrozenSet[int] = DEFAULT_LEAGUE_IDS,
+        fetch_odds_until: date | None = None,
+        max_odds_fixtures: int = 30,
     ):
         self._client = client
         self._league_ids = league_ids
+        self._fetch_odds_until = fetch_odds_until
+        self._max_odds_fixtures = max(0, int(max_odds_fixtures))
 
     async def get_upcoming_matches(
             self,
@@ -58,6 +62,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
     ) -> List[Tuple[Match, List[MatchOdd]]]:
         results: List[Tuple[Match, List[MatchOdd]]] = []
         current = date_from
+        odds_requests_count = 0
 
         while current <= date_to:
             # 1. Fetch fixtures for this day, keep only target leagues
@@ -65,6 +70,18 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                 "/fixtures",
                 params={"date": current.isoformat()}
             )
+            fixture_errors = self._extract_errors(data)
+            if fixture_errors:
+                logger.error(
+                    "api_sports.football.fixtures_fetch_failed",
+                    extra={
+                        "date": current.isoformat(),
+                        "errors": fixture_errors,
+                    },
+                )
+                raise RuntimeError(
+                    f"API-Sports fixtures fetch failed for {current.isoformat()}: {', '.join(fixture_errors)}"
+                )
 
             day_matches: List[Match] = []
             for fixture in data.get("response", []):
@@ -76,13 +93,21 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                     logger.warning("api_sports.football.fixture_parse_failed", extra={"error": str(e), "date": current.isoformat()})
 
             # 2. Fetch odds sequentially (respect 10 req/min rate limit)
-            day_kept = 0
+            day_matches_with_odds = 0
             for i, m in enumerate(day_matches):
-                all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                should_fetch_odds = (
+                    self._fetch_odds_until is not None
+                    and m.time.date() <= self._fetch_odds_until
+                    and odds_requests_count < self._max_odds_fixtures
+                )
+                all_odds = []
+                if should_fetch_odds:
+                    all_odds = await self._fetch_odds_for_fixture(m.api_fixture_id)
+                    odds_requests_count += 1
+                results.append((m, all_odds))
                 if all_odds:
-                    results.append((m, all_odds))
-                    day_kept += 1
-                if i < len(day_matches) - 1:
+                    day_matches_with_odds += 1
+                if should_fetch_odds and i < len(day_matches) - 1 and odds_requests_count < self._max_odds_fixtures:
                     await asyncio.sleep(_REQUEST_DELAY)
 
             logger.info(
@@ -90,8 +115,10 @@ class ApiSportsFootballFetchService(MatchFetchApi):
                 extra={
                     "date": current.isoformat(),
                     "fixtures_count": len(day_matches),
-                    "fixtures_with_odds_count": day_kept,
-                    "kept_total_count": len(results),
+                    "fixtures_with_odds_count": day_matches_with_odds,
+                    "persisted_matches_count": len(day_matches),
+                    "persisted_total_count": len(results),
+                    "odds_requests_total_count": odds_requests_count,
                 },
             )
             current = current + timedelta(days=1)
@@ -101,7 +128,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             extra={
                 "date_from": date_from.isoformat(),
                 "date_to": date_to.isoformat(),
-                "fixtures_count": len(results),
+                "persisted_matches_count": len(results),
             },
         )
         return results
@@ -111,6 +138,16 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             "/odds",
             params={"fixture": str(fixture_id)},
         )
+        odds_errors = self._extract_errors(data)
+        if odds_errors:
+            logger.warning(
+                "api_sports.football.fixture_odds_fetch_failed",
+                extra={
+                    "fixture_id": fixture_id,
+                    "errors": odds_errors,
+                },
+            )
+            return []
 
         all_odds: List[MatchOdd] = []
 
@@ -147,6 +184,17 @@ class ApiSportsFootballFetchService(MatchFetchApi):
 
         logger.info("api_sports.football.fixture_odds_loaded", extra={"fixture_id": fixture_id, "odds_count": len(all_odds)})
         return all_odds
+
+    @staticmethod
+    def _extract_errors(data: dict) -> List[str]:
+        errors = data.get("errors")
+        if not errors:
+            return []
+        if isinstance(errors, dict):
+            return [f"{key}:{value}" for key, value in errors.items()]
+        if isinstance(errors, list):
+            return [str(item) for item in errors]
+        return [str(errors)]
 
     @staticmethod
     def _parse_fixture(fixture: dict) -> Optional[Match]:

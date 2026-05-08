@@ -16,6 +16,8 @@ betleague_edge_tls_bootstrap_openssl_curve: "{{ (betleague_letsencrypt_ecdsa_cur
 betleague_letsencrypt_domains:
   - "{{ betleague_swarm_app_domain }}"
   - "{{ betleague_swarm_api_domain }}"
+  - "{{ betleague_swarm_grafana_domain }}"
+  - "{{ betleague_swarm_prometheus_domain }}"
 betleague_edge_acme_webroot: "{{ betleague_compose_root }}/shared/acme-challenge"
 betleague_edge_tls_dir: "{{ betleague_compose_root }}/shared/tls/edge"
 betleague_edge_tls_cert_path: "{{ betleague_edge_tls_dir }}/fullchain.pem"

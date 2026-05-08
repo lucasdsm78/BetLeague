@@ -10,6 +10,7 @@ import { useTournamentPlayerBalanceQuery, useUserTournamentMatchesQuery } from '
 import { useMatchesInfiniteQuery } from '../../hooks/queries/useMatchesInfiniteQuery';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useGlobalToast } from '../../toast/ToastProvider';
+import { getEpochMs } from '../../utils/time';
 
 import FilterBar from './matches/FilterBar';
 import MatchCard, { type UiMatch } from './matches/MatchCard';
@@ -26,22 +27,17 @@ interface MatchesSectionProps {
 const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
     const kickoffIso = m.time;
     const now = Date.now();
-    const startTs = new Date(kickoffIso).getTime();
+    const startTs = getEpochMs(kickoffIso) ?? 0;
 
     const statusFromApi = (m.status || '').toUpperCase();
     const isFinishedByApi = ['FT', 'AET', 'PEN', 'AWD', 'WO'].includes(statusFromApi);
     const isLiveByApi = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(statusFromApi);
 
-    // UI requirement: affichage kickoff + 1h pour tout le monde.
-    // Donc, tant que kickoff+1h est dans le futur, on considère le match comme 'upcoming'
-    // (sauf si l'API dit explicitement live/finished).
-    const startTsDisplay = startTs + 60 * 60 * 1000;
-
     const status: UiMatch['status'] = isFinishedByApi
         ? 'finished'
         : isLiveByApi
             ? 'live'
-            : startTsDisplay > now
+            : startTs > now
                 ? 'upcoming'
                 : 'finished';
 
