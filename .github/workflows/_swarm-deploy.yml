@@ -233,12 +233,20 @@ jobs:
           STACK_NAME: ${{ vars.STACK_NAME }}
           APP_DOMAIN: ${{ vars.APP_DOMAIN }}
           API_DOMAIN: ${{ vars.API_DOMAIN }}
+          GRAFANA_DOMAIN: ${{ vars.GRAFANA_DOMAIN }}
+          PROMETHEUS_DOMAIN: ${{ vars.PROMETHEUS_DOMAIN }}
           API_HEALTHCHECK_URL: ${{ vars.API_HEALTHCHECK_URL }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
           BETLEAGUE_BACKEND_IMAGE: ${{ inputs.backend_image != '' && inputs.backend_image || vars.BETLEAGUE_BACKEND_IMAGE }}
           BETLEAGUE_FRONTEND_IMAGE: ${{ inputs.frontend_image != '' && inputs.frontend_image || vars.BETLEAGUE_FRONTEND_IMAGE }}
           GUNICORN_WORKERS: ${{ vars.GUNICORN_WORKERS }}
           GUNICORN_FORWARDED_ALLOW_IPS: ${{ vars.GUNICORN_FORWARDED_ALLOW_IPS }}
+          PROMETHEUS_SCRAPE_INTERVAL: ${{ vars.PROMETHEUS_SCRAPE_INTERVAL }}
+          PROMETHEUS_SCRAPE_TIMEOUT: ${{ vars.PROMETHEUS_SCRAPE_TIMEOUT }}
+          PROMETHEUS_EVALUATION_INTERVAL: ${{ vars.PROMETHEUS_EVALUATION_INTERVAL }}
+          PROMETHEUS_RETENTION_TIME: ${{ vars.PROMETHEUS_RETENTION_TIME }}
+          PROMETHEUS_RETENTION_SIZE: ${{ vars.PROMETHEUS_RETENTION_SIZE }}
+          MONITORING_ALLOWLIST_CIDRS: ${{ vars.MONITORING_ALLOWLIST_CIDRS }}
           LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
           LETSENCRYPT_STAGING: ${{ vars.LETSENCRYPT_STAGING }}
           LETSENCRYPT_PRODUCTION_ACK: ${{ vars.LETSENCRYPT_PRODUCTION_ACK }}
@@ -247,6 +255,10 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
           MIGRATIONS_ENV: ${{ secrets.MIGRATIONS_ENV }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          GRAFANA_SECRET_KEY: ${{ secrets.GRAFANA_SECRET_KEY }}
+          MONITORING_HTPASSWD: ${{ secrets.MONITORING_HTPASSWD }}
+          ALERTMANAGER_CONFIG: ${{ secrets.ALERTMANAGER_CONFIG }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           NATS_USER: ${{ secrets.NATS_USER }}
           NATS_PASSWORD: ${{ secrets.NATS_PASSWORD }}
@@ -266,11 +278,16 @@ jobs:
               "STACK_NAME": os.environ.get("STACK_NAME", "").strip(),
               "APP_DOMAIN": os.environ.get("APP_DOMAIN", "").strip(),
               "API_DOMAIN": os.environ.get("API_DOMAIN", "").strip(),
+              "GRAFANA_DOMAIN": os.environ.get("GRAFANA_DOMAIN", "").strip(),
+              "PROMETHEUS_DOMAIN": os.environ.get("PROMETHEUS_DOMAIN", "").strip(),
               "BETLEAGUE_BACKEND_IMAGE": os.environ.get("BETLEAGUE_BACKEND_IMAGE", "").strip(),
               "BETLEAGUE_FRONTEND_IMAGE": os.environ.get("BETLEAGUE_FRONTEND_IMAGE", "").strip(),
               "LETSENCRYPT_EMAIL": os.environ.get("LETSENCRYPT_EMAIL", "").strip(),
               "BACKEND_ENV": os.environ.get("BACKEND_ENV", "").strip(),
               "MIGRATIONS_ENV": os.environ.get("MIGRATIONS_ENV", "").strip(),
+              "GRAFANA_ADMIN_PASSWORD": os.environ.get("GRAFANA_ADMIN_PASSWORD", "").strip(),
+              "GRAFANA_SECRET_KEY": os.environ.get("GRAFANA_SECRET_KEY", "").strip(),
+              "MONITORING_HTPASSWD": os.environ.get("MONITORING_HTPASSWD", "").strip(),
               "REDIS_PASSWORD": os.environ.get("REDIS_PASSWORD", "").strip(),
               "NATS_USER": os.environ.get("NATS_USER", "").strip(),
               "NATS_PASSWORD": os.environ.get("NATS_PASSWORD", "").strip(),
@@ -314,12 +331,24 @@ jobs:
               "betleague_letsencrypt_acked_production": letsencrypt_prod_ack,
               "betleague_swarm_app_domain": required["APP_DOMAIN"],
               "betleague_swarm_api_domain": api_domain,
+              "betleague_swarm_grafana_domain": required["GRAFANA_DOMAIN"],
+              "betleague_swarm_prometheus_domain": required["PROMETHEUS_DOMAIN"],
               "betleague_swarm_api_healthcheck_url": os.environ.get("API_HEALTHCHECK_URL") or f"https://{api_domain}/health",
+              "betleague_swarm_prometheus_scrape_interval": os.environ.get("PROMETHEUS_SCRAPE_INTERVAL") or "30s",
+              "betleague_swarm_prometheus_scrape_timeout": os.environ.get("PROMETHEUS_SCRAPE_TIMEOUT") or "10s",
+              "betleague_swarm_prometheus_evaluation_interval": os.environ.get("PROMETHEUS_EVALUATION_INTERVAL") or os.environ.get("PROMETHEUS_SCRAPE_INTERVAL") or "30s",
+              "betleague_swarm_prometheus_retention_time": os.environ.get("PROMETHEUS_RETENTION_TIME") or "7d",
+              "betleague_swarm_prometheus_retention_size": os.environ.get("PROMETHEUS_RETENTION_SIZE") or "4GB",
+              "betleague_swarm_monitoring_allowlist_cidrs": os.environ.get("MONITORING_ALLOWLIST_CIDRS", ""),
               "betleague_swarm_registry_server": os.environ.get("REGISTRY_SERVER", ""),
               "betleague_swarm_registry_username": os.environ.get("REGISTRY_USERNAME", ""),
               "betleague_swarm_registry_password": os.environ.get("REGISTRY_PASSWORD", ""),
               "betleague_swarm_backend_env_content": required["BACKEND_ENV"],
               "betleague_swarm_migrations_env_content": required["MIGRATIONS_ENV"],
+              "betleague_swarm_grafana_admin_password": required["GRAFANA_ADMIN_PASSWORD"],
+              "betleague_swarm_grafana_secret_key": required["GRAFANA_SECRET_KEY"],
+              "betleague_swarm_monitoring_htpasswd": required["MONITORING_HTPASSWD"],
+              "betleague_swarm_alertmanager_config_content": os.environ.get("ALERTMANAGER_CONFIG", "").strip(),
               "betleague_swarm_redis_password": required["REDIS_PASSWORD"],
               "betleague_swarm_nats_user": required["NATS_USER"],
               "betleague_swarm_nats_password": required["NATS_PASSWORD"],

@@ -152,7 +152,7 @@ variable "compose_root" {
 }
 
 variable "create_dns_records" {
-  description = "Crée les enregistrements DNS app/api dans la zone OVH."
+  description = "Crée les enregistrements DNS app/api/grafana/prometheus dans la zone OVH."
   type        = bool
   default     = true
 }
@@ -184,6 +184,18 @@ variable "api_subdomain" {
   description = "Sous-domaine backend."
   type        = string
   default     = "api"
+}
+
+variable "grafana_subdomain" {
+  description = "Sous-domaine Grafana."
+  type        = string
+  default     = "grafana"
+}
+
+variable "prometheus_subdomain" {
+  description = "Sous-domaine Prometheus."
+  type        = string
+  default     = "prometheus"
 }
 
 

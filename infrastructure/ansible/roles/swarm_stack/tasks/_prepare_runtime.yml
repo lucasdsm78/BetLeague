@@ -12,6 +12,9 @@
       - betleague_swarm_api_domain | trim != ''
       - betleague_swarm_backend_env_content | trim != ''
       - betleague_swarm_migrations_env_content | trim != ''
+      - betleague_swarm_grafana_admin_password | trim != ''
+      - betleague_swarm_grafana_secret_key | trim != ''
+      - betleague_swarm_monitoring_htpasswd | trim != ''
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
@@ -38,11 +41,124 @@
         | regex_replace('\r', '')
         | regex_replace('\n*$', '')
       }}
+    betleague_swarm_alertmanager_config_content_normalized: >-
+      {{
+        betleague_swarm_alertmanager_config_content
+        | regex_replace('^\ufeff', '')
+        | regex_replace('\r', '')
+        | regex_replace('\n*$', '')
+      }}
+
+- name: Déterminer si Alertmanager est activé et calculer la configuration effective
+  ansible.builtin.set_fact:
+    betleague_swarm_alertmanager_enabled: "{{ betleague_swarm_alertmanager_config_content_normalized | trim != '' }}"
+    betleague_swarm_alertmanager_config_content_effective: |
+      {% if betleague_swarm_alertmanager_config_content_normalized | trim != '' %}
+      {{ betleague_swarm_alertmanager_config_content_normalized }}
+      {% else %}
+      global:
+        resolve_timeout: 5m
+
+      route:
+        receiver: null
+
+      receivers:
+        - name: null
+      {% endif %}
+  no_log: true
+
+- name: Valider les paramètres de sécurité monitoring
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import ipaddress
+        import re
+        import sys
+
+        require_allowlist = sys.argv[1].lower() == "true"
+        raw_cidrs = sys.argv[2]
+        htpasswd = sys.argv[3].strip()
+        grafana_password = sys.argv[4]
+        grafana_secret_key = sys.argv[5]
+        scrape_interval = sys.argv[6]
+        scrape_timeout = sys.argv[7]
+        retention_time = sys.argv[8]
+        retention_size = sys.argv[9]
+        sample_limit = int(sys.argv[10])
+        label_limit = int(sys.argv[11])
+
+        errors = []
+
+        def duration_seconds(value: str) -> float:
+            match = re.match(r"^([1-9][0-9]*)(ms|s|m|h|d)$", value)
+            if not match:
+                raise ValueError(value)
+            amount = int(match.group(1))
+            unit = match.group(2)
+            factors = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400}
+            return amount * factors[unit]
+
+        cidrs = [item.strip() for item in raw_cidrs.replace("\r", "").replace("\n", ",").split(",") if item.strip()]
+        if require_allowlist and not cidrs:
+            errors.append("MONITORING_ALLOWLIST_CIDRS est requis quand betleague_swarm_require_monitoring_allowlist=true")
+        for cidr in cidrs:
+            try:
+                ipaddress.ip_network(cidr, strict=False)
+            except ValueError as exc:
+                errors.append(f"CIDR monitoring invalide: {cidr} ({exc})")
+
+        if not re.match(r"^[^:\s]+:\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$", htpasswd):
+            errors.append("MONITORING_HTPASSWD doit contenir une ligne htpasswd bcrypt, ex: htpasswd -nBC 12 monitoring")
+        if len(grafana_password) < 24:
+            errors.append("GRAFANA_ADMIN_PASSWORD doit faire au moins 24 caractères")
+        if len(grafana_secret_key) < 32:
+            errors.append("GRAFANA_SECRET_KEY doit faire au moins 32 caractères aléatoires")
+        if not re.match(r"^[1-9][0-9]*(ms|s|m|h)$", scrape_interval):
+            errors.append("PROMETHEUS_SCRAPE_INTERVAL invalide")
+        if not re.match(r"^[1-9][0-9]*(ms|s|m|h)$", scrape_timeout):
+            errors.append("PROMETHEUS_SCRAPE_TIMEOUT invalide")
+        try:
+            if duration_seconds(scrape_timeout) > duration_seconds(scrape_interval):
+                errors.append("PROMETHEUS_SCRAPE_TIMEOUT doit être inférieur ou égal à PROMETHEUS_SCRAPE_INTERVAL")
+        except ValueError:
+            pass
+        if not re.match(r"^[1-9][0-9]*(d|h|m)$", retention_time):
+            errors.append("PROMETHEUS_RETENTION_TIME invalide")
+        if not re.match(r"^[1-9][0-9]*(KB|MB|GB|TB|KiB|MiB|GiB|TiB|B)$", retention_size):
+            errors.append("PROMETHEUS_RETENTION_SIZE invalide")
+        if sample_limit < 100 or sample_limit > 10000:
+            errors.append("betleague_swarm_prometheus_sample_limit doit être entre 100 et 10000")
+        if label_limit < 10 or label_limit > 100:
+            errors.append("betleague_swarm_prometheus_label_limit doit être entre 10 et 100")
+
+        if errors:
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            raise SystemExit(1)
+      - "{{ betleague_swarm_require_monitoring_allowlist | bool | ternary('true', 'false') }}"
+      - "{{ betleague_swarm_monitoring_allowlist_cidrs }}"
+      - "{{ betleague_swarm_monitoring_htpasswd }}"
+      - "{{ betleague_swarm_grafana_admin_password }}"
+      - "{{ betleague_swarm_grafana_secret_key }}"
+      - "{{ betleague_swarm_prometheus_scrape_interval }}"
+      - "{{ betleague_swarm_prometheus_scrape_timeout }}"
+      - "{{ betleague_swarm_prometheus_retention_time }}"
+      - "{{ betleague_swarm_prometheus_retention_size }}"
+      - "{{ betleague_swarm_prometheus_sample_limit | string }}"
+      - "{{ betleague_swarm_prometheus_label_limit | string }}"
+  changed_when: false
+  no_log: true
 
 - name: Calculer les noms immuables des secrets Swarm depuis leur contenu
   ansible.builtin.set_fact:
     betleague_swarm_backend_env_secret_name: "{{ betleague_swarm_stack_name }}_backend_env_{{ ((betleague_swarm_backend_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_migrations_env_secret_name: "{{ betleague_swarm_stack_name }}_migrations_env_{{ ((betleague_swarm_migrations_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_grafana_admin_password_secret_name: "{{ betleague_swarm_stack_name }}_grafana_admin_password_{{ ((betleague_swarm_grafana_admin_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_grafana_secret_key_secret_name: "{{ betleague_swarm_stack_name }}_grafana_secret_key_{{ ((betleague_swarm_grafana_secret_key ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_monitoring_htpasswd_secret_name: "{{ betleague_swarm_stack_name }}_monitoring_htpasswd_{{ ((betleague_swarm_monitoring_htpasswd ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_alertmanager_config_secret_name: "{{ betleague_swarm_stack_name }}_alertmanager_config_{{ ((betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_redis_password_secret_name: "{{ betleague_swarm_stack_name }}_redis_password_{{ ((betleague_swarm_redis_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_user_secret_name: "{{ betleague_swarm_stack_name }}_nats_user_{{ ((betleague_swarm_nats_user ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_password_secret_name: "{{ betleague_swarm_stack_name }}_nats_password_{{ ((betleague_swarm_nats_password ~ '\n') | hash('sha256'))[:12] }}"
@@ -175,6 +291,46 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Rendre la configuration Prometheus
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/prometheus.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre les règles d'alertes Prometheus
+  ansible.builtin.template:
+    src: prometheus-alerts.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/prometheus-alerts.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre la datasource Grafana provisionnée
+  ansible.builtin.template:
+    src: grafana-datasources.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre le provider de dashboards Grafana
+  ansible.builtin.template:
+    src: grafana-dashboards.yml.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboards.yml"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
+- name: Rendre le dashboard système Grafana
+  ansible.builtin.template:
+    src: grafana-dashboard-system-overview.json.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
 - name: Calculer les checksums des configs Swarm immuables
   ansible.builtin.stat:
     path: "{{ item.path }}"
@@ -183,6 +339,11 @@
     - { key: 'edge_nginx_conf', path: "{{ betleague_swarm_deploy_path }}/generated/edge.conf" }
     - { key: 'redis_conf_template', path: "{{ betleague_swarm_deploy_path }}/redis.conf.template" }
     - { key: 'nats_server_conf', path: "{{ betleague_swarm_deploy_path }}/nats-server.conf" }
+    - { key: 'prometheus_conf', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus.yml" }
+    - { key: 'prometheus_alerts', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus-alerts.yml" }
+    - { key: 'grafana_datasources', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml" }
+    - { key: 'grafana_dashboards', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboards.yml" }
+    - { key: 'grafana_system_overview_dashboard', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json" }
   loop_control:
     label: "{{ item.key }}"
   register: betleague_swarm_config_stats
@@ -192,6 +353,11 @@
     betleague_swarm_edge_nginx_conf_config_name: "{{ betleague_swarm_stack_name }}_edge_nginx_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'edge_nginx_conf') | first).stat.checksum[:12] }}"
     betleague_swarm_redis_conf_template_config_name: "{{ betleague_swarm_stack_name }}_redis_conf_template_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'redis_conf_template') | first).stat.checksum[:12] }}"
     betleague_swarm_nats_server_conf_config_name: "{{ betleague_swarm_stack_name }}_nats_server_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'nats_server_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_prometheus_conf_config_name: "{{ betleague_swarm_stack_name }}_prometheus_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_prometheus_alerts_config_name: "{{ betleague_swarm_stack_name }}_prometheus_alerts_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_alerts') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_datasources_config_name: "{{ betleague_swarm_stack_name }}_grafana_datasources_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_datasources') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_dashboards_config_name: "{{ betleague_swarm_stack_name }}_grafana_dashboards_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_dashboards') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_system_overview_dashboard_config_name: "{{ betleague_swarm_stack_name }}_grafana_system_overview_dashboard_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_system_overview_dashboard') | first).stat.checksum[:12] }}"
 
 - name: Déployer les secrets de stack Swarm
   ansible.builtin.copy:
@@ -203,6 +369,10 @@
   loop:
     - { name: 'backend.env', content: "{{ betleague_swarm_backend_env_content_normalized }}" }
     - { name: 'migrations.env', content: "{{ betleague_swarm_migrations_env_content_normalized }}" }
+    - { name: 'grafana_admin_password.txt', content: "{{ betleague_swarm_grafana_admin_password }}" }
+    - { name: 'grafana_secret_key.txt', content: "{{ betleague_swarm_grafana_secret_key }}" }
+    - { name: 'monitoring_htpasswd', content: "{{ betleague_swarm_monitoring_htpasswd }}" }
+    - { name: 'alertmanager.yml', content: "{{ betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }

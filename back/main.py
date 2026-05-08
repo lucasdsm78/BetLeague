@@ -5,10 +5,11 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 import logging
 from contextlib import asynccontextmanager
 
-from dependency_injections import get_settings, token_blacklist_singleton
+from dependency_injections import get_settings, shutdown_api_sports_clients, token_blacklist_singleton
 from infrastructure.http_exception_handlers import register_exception_handlers
 from infrastructure.logging_config import setup_logging, shutdown_logging
 from infrastructure.logging_middleware import RequestLoggingMiddleware
+from infrastructure.monitoring import register_monitoring
 from infrastructure.readiness import readiness_report
 from infrastructure.services.authentication.token_blacklist_impl import shutdown_token_blacklist_service, start_token_blacklist_service
 
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("app.lifecycle.stopping")
+    await shutdown_api_sports_clients()
     await shutdown_token_blacklist_service(blacklist_service)
     logger.info("app.lifecycle.stopped")
     shutdown_logging()
@@ -118,6 +120,7 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestLoggingMiddleware, settings=settings)
+register_monitoring(app, settings=settings)
 
 # Health check endpoint
 @app.get("/health")

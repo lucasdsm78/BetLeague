@@ -1,0 +1,70 @@
+global:
+  scrape_interval: {{ betleague_swarm_prometheus_scrape_interval }}
+  scrape_timeout: {{ betleague_swarm_prometheus_scrape_timeout }}
+  evaluation_interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+  external_labels:
+    stack: {{ betleague_swarm_stack_name | to_json }}
+
+rule_files:
+  - /etc/prometheus/rules/prometheus-alerts.yml
+
+{% if betleague_swarm_alertmanager_enabled | default(false) %}
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+{% endif %}
+
+scrape_configs:
+  - job_name: prometheus
+    sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
+    label_limit: {{ betleague_swarm_prometheus_label_limit }}
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+{% if betleague_swarm_alertmanager_enabled | default(false) %}
+  - job_name: alertmanager
+    sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
+    label_limit: {{ betleague_swarm_prometheus_label_limit }}
+    static_configs:
+      - targets:
+          - alertmanager:9093
+{% endif %}
+
+  - job_name: backend
+    metrics_path: /metrics
+    sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
+    label_limit: {{ betleague_swarm_prometheus_label_limit }}
+    dns_sd_configs:
+      - names:
+          - tasks.backend
+        type: A
+        port: 8000
+
+  - job_name: node-exporter
+    sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
+    label_limit: {{ betleague_swarm_prometheus_label_limit }}
+    static_configs:
+      - targets:
+          - node_exporter:9100
+
+  - job_name: cadvisor
+    scrape_interval: 30s
+    sample_limit: {{ betleague_swarm_prometheus_sample_limit }}
+    label_limit: {{ betleague_swarm_prometheus_label_limit }}
+    static_configs:
+      - targets:
+          - cadvisor:8080
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_(memory_working_set_bytes|cpu_usage_seconds_total|oom_events_total|start_time_seconds|last_seen)'
+        action: keep
+      - source_labels: [image]
+        regex: ''
+        action: drop
+      - regex: 'container_label_.+'
+        action: labeldrop
+      - regex: 'id|image_id'
+        action: labeldrop

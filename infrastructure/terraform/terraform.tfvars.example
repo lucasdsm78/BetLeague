@@ -12,8 +12,10 @@ vps_pricing_mode   = "default"
 admin_user         = "betleague"
 compose_root       = "/opt/betleague"
 
-dns_zone      = "betleague.app"
-app_subdomain = "app"
-api_subdomain = "api"
+dns_zone             = "betleague.app"
+app_subdomain        = "app"
+api_subdomain        = "api"
+grafana_subdomain    = "grafana"
+prometheus_subdomain = "prometheus"
 
 

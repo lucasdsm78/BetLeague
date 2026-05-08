@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Any, Optional
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -13,6 +14,9 @@ _RATE_LIMIT_WAIT = 61  # seconds — wait a full minute window
 class ApiSportsBaseClient:
 
     def __init__(self, base_url: str, api_key: str, timeout: float = 15.0):
+        self._base_url = base_url.rstrip("/")
+        self._base_url_parts = urlsplit(base_url)
+        self._timeout = timeout
         self._client = httpx.AsyncClient(
             base_url=base_url,
             headers={
@@ -26,6 +30,51 @@ class ApiSportsBaseClient:
                 keepalive_expiry=30.0,
             ),
         )
+        if not (api_key or "").strip():
+            logger.warning(
+                "api_sports.client.api_key_missing",
+                extra={
+                    "base_url": self._base_url,
+                    "api_host": self._base_url_parts.hostname,
+                },
+            )
+
+    def _request_context(
+        self,
+        endpoint: str,
+        params: Optional[dict],
+        *,
+        attempt: int,
+        request: httpx.Request | None = None,
+    ) -> dict[str, Any]:
+        host = self._base_url_parts.hostname
+        scheme = self._base_url_parts.scheme
+        port = self._base_url_parts.port
+        url = f"{self._base_url}{endpoint}"
+        path = endpoint
+
+        if request is not None:
+            host = request.url.host or host
+            scheme = request.url.scheme or scheme
+            port = request.url.port or port
+            url = str(request.url)
+            path = request.url.path
+
+        extra: dict[str, Any] = {
+            "method": "GET",
+            "endpoint": endpoint,
+            "path": path,
+            "url": url,
+            "params": params,
+            "api_host": host,
+            "api_scheme": scheme,
+            "attempt": attempt + 1,
+            "max_attempts": _RATE_LIMIT_RETRIES + 1,
+            "timeout_s": self._timeout,
+        }
+        if port is not None:
+            extra["api_port"] = port
+        return extra
 
     async def get(self, endpoint: str, params: Optional[dict] = None) -> dict[str, Any]:
         for attempt in range(_RATE_LIMIT_RETRIES + 1):
@@ -33,13 +82,13 @@ class ApiSportsBaseClient:
                 resp = await self._client.get(endpoint, params=params)
                 resp.raise_for_status()
                 data = resp.json()
+                request_context = self._request_context(endpoint, params, attempt=attempt, request=resp.request)
 
                 if not isinstance(data, dict):
                     logger.error(
                         "api_sports.client.unexpected_format",
                         extra={
-                            "endpoint": endpoint,
-                            "params": params,
+                            **request_context,
                             "response_type": type(data).__name__,
                         },
                     )
@@ -51,30 +100,53 @@ class ApiSportsBaseClient:
                         logger.warning(
                             "api_sports.client.rate_limited",
                             extra={
-                                "endpoint": endpoint,
-                                "params": params,
+                                **request_context,
                                 "wait_s": _RATE_LIMIT_WAIT,
-                                "attempt": attempt + 1,
-                                "max_attempts": _RATE_LIMIT_RETRIES + 1,
                             },
                         )
                         await asyncio.sleep(_RATE_LIMIT_WAIT)
                         continue
-                    logger.error("api_sports.client.api_error", extra={"endpoint": endpoint, "params": params, "errors": errors})
+                    logger.error("api_sports.client.api_error", extra={**request_context, "errors": errors})
                     return {"response": [], "errors": errors}
                 if isinstance(errors, list) and errors:
-                    logger.error("api_sports.client.api_error", extra={"endpoint": endpoint, "params": params, "errors": errors})
+                    logger.error("api_sports.client.api_error", extra={**request_context, "errors": errors})
                     return {"response": [], "errors": errors}
 
                 return data
             except httpx.HTTPStatusError as e:
-                logger.error("api_sports.client.http_error", extra={"status_code": e.response.status_code, "endpoint": endpoint, "params": params})
+                response_preview = None
+                try:
+                    response_preview = e.response.text[:200]
+                except Exception:
+                    response_preview = None
+                logger.error(
+                    "api_sports.client.http_error",
+                    extra={
+                        **self._request_context(endpoint, params, attempt=attempt, request=e.request),
+                        "status_code": e.response.status_code,
+                        "error_type": type(e).__name__,
+                        "response_preview": response_preview,
+                        "retry_after": e.response.headers.get("Retry-After"),
+                    },
+                )
                 return {"response": [], "errors": [f"http_{e.response.status_code}"]}
             except httpx.RequestError as e:
-                logger.error("api_sports.client.request_error", extra={"endpoint": endpoint, "params": params, "error": str(e)})
+                cause = e.__cause__ or e.__context__
+                extra = {
+                    **self._request_context(endpoint, params, attempt=attempt, request=e.request),
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                }
+                if cause is not None:
+                    extra["cause_type"] = type(cause).__name__
+                    extra["cause"] = str(cause)
+                logger.error("api_sports.client.request_error", extra=extra)
                 return {"response": [], "errors": ["request_error"]}
 
-        logger.error("api_sports.client.rate_limit_retries_exhausted", extra={"endpoint": endpoint, "params": params, "max_attempts": _RATE_LIMIT_RETRIES + 1})
+        logger.error(
+            "api_sports.client.rate_limit_retries_exhausted",
+            extra=self._request_context(endpoint, params, attempt=_RATE_LIMIT_RETRIES),
+        )
         return {"response": [], "errors": ["rate_limit_retries_exhausted"]}
 
     async def close(self):

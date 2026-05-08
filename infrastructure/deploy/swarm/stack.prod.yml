@@ -1,6 +1,10 @@
 x-service-defaults: &service-defaults
   init: true
   read_only: true
+  dns:
+    - 1.1.1.1
+    - 1.0.0.1
+    - 8.8.8.8
   cap_drop:
     - ALL
   stop_grace_period: 15s
@@ -89,6 +93,34 @@ x-secret-migrations-env: &secret-migrations-env
   gid: "1000"
   mode: 0400
 
+x-secret-grafana-admin-password: &secret-grafana-admin-password
+  source: grafana_admin_password
+  target: grafana_admin_password
+  uid: "472"
+  gid: "0"
+  mode: 0400
+
+x-secret-grafana-secret-key: &secret-grafana-secret-key
+  source: grafana_secret_key
+  target: grafana_secret_key
+  uid: "472"
+  gid: "0"
+  mode: 0400
+
+x-secret-monitoring-htpasswd: &secret-monitoring-htpasswd
+  source: monitoring_htpasswd
+  target: monitoring_htpasswd
+  uid: "101"
+  gid: "101"
+  mode: 0400
+
+x-secret-alertmanager-config: &secret-alertmanager-config
+  source: alertmanager_config
+  target: alertmanager.yml
+  uid: "65534"
+  gid: "65534"
+  mode: 0400
+
 x-secret-nats-ca-cert-client: &secret-nats-ca-cert-client
   source: nats_ca_cert
   target: ca-cert.pem
@@ -138,8 +170,11 @@ services:
         source: ${BETLEAGUE_EDGE_TLS_DIR:?BETLEAGUE_EDGE_TLS_DIR is required}
         target: /etc/nginx/tls
         read_only: true
+    secrets:
+      - *secret-monitoring-htpasswd
     networks:
       - edge
+      - monitoring
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]
       interval: 30s
@@ -149,6 +184,12 @@ services:
     deploy:
       <<: *deploy-defaults
       replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: ${BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION:-pause}
+        monitor: 30s
+        order: stop-first
       resources:
         limits:
           cpus: "0.50"
@@ -173,6 +214,219 @@ services:
     deploy:
       <<: *deploy-defaults
       replicas: 2
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+          pids: 200
+        reservations:
+          memory: 64M
+
+  prometheus:
+    <<: *service-defaults
+    image: prom/prometheus:v2.54.1
+    read_only: false
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${BETLEAGUE_PROMETHEUS_RETENTION_TIME:-7d}
+      - --storage.tsdb.retention.size=${BETLEAGUE_PROMETHEUS_RETENTION_SIZE:-4GB}
+      - --storage.tsdb.wal-compression
+      - --query.timeout=30s
+      - --query.max-concurrency=10
+      - --web.max-connections=64
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    configs:
+      - source: prometheus_conf
+        target: /etc/prometheus/prometheus.yml
+        mode: 0444
+      - source: prometheus_alerts
+        target: /etc/prometheus/rules/prometheus-alerts.yml
+        mode: 0444
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      - app
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9090/-/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1024M
+          pids: 200
+        reservations:
+          memory: 256M
+
+  grafana:
+    <<: *service-defaults
+    image: grafana/grafana:11.1.4
+    read_only: false
+    environment:
+      GF_SERVER_DOMAIN: ${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+      GF_SERVER_ROOT_URL: https://${BETLEAGUE_GRAFANA_DOMAIN:?BETLEAGUE_GRAFANA_DOMAIN is required}
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_SECRET_KEY__FILE: /run/secrets/grafana_secret_key
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_STRICT_TRANSPORT_SECURITY: "true"
+      GF_SECURITY_X_CONTENT_TYPE_OPTIONS: "true"
+      GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_CONTENT_SECURITY_POLICY: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_USERS_VIEWERS_CAN_EDIT: "false"
+      GF_USERS_EDITORS_CAN_ADMIN: "false"
+      GF_EXPLORE_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_SNAPSHOTS_PUBLIC_MODE: "false"
+      GF_SMTP_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/system-overview.json
+    secrets:
+      - *secret-grafana-admin-password
+      - *secret-grafana-secret-key
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+        mode: 0444
+      - source: grafana_dashboards
+        target: /etc/grafana/provisioning/dashboards/default.yml
+        mode: 0444
+      - source: grafana_system_overview_dashboard
+        target: /etc/grafana/provisioning/dashboards/system-overview.json
+        mode: 0444
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+          pids: 200
+        reservations:
+          memory: 128M
+
+  alertmanager:
+    <<: *service-defaults
+    image: prom/alertmanager:v0.27.0
+    read_only: false
+    command:
+      - --config.file=/run/secrets/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=
+    secrets:
+      - *secret-alertmanager-config
+    volumes:
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9093/-/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      <<: *deploy-defaults
+      replicas: ${BETLEAGUE_ALERTMANAGER_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 192M
+          pids: 200
+        reservations:
+          memory: 64M
+
+  node_exporter:
+    <<: *service-defaults
+    image: prom/node-exporter:v1.8.2
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+|run/docker/netns/.+)($$|/)
+    volumes:
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+      - type: bind
+        source: /sys
+        target: /host/sys
+        read_only: true
+      - type: bind
+        source: /
+        target: /host/root
+        read_only: true
+    networks:
+      - monitoring
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+          pids: 200
+        reservations:
+          memory: 32M
+
+  cadvisor:
+    <<: *service-defaults
+    image: gcr.io/cadvisor/cadvisor:v0.49.2
+    read_only: false
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --max_housekeeping_interval=60s
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,app,cpu_topology,disk,diskIO,memory_numa,network,percpu,process,referenced_memory,resctrl,sched,tcp,udp
+    volumes:
+      - type: bind
+        source: /
+        target: /rootfs
+        read_only: true
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+      - type: bind
+        source: /sys
+        target: /sys
+        read_only: true
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+        read_only: true
+    networks:
+      - monitoring
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
       resources:
         limits:
           cpus: "0.50"
@@ -382,6 +636,7 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS-}
       GUNICORN_FORWARDED_ALLOW_IPS: ${GUNICORN_FORWARDED_ALLOW_IPS-*}
       GUNICORN_WORKER_TMP_DIR: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
+      PROMETHEUS_MULTIPROC_DIR: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}/prometheus-multiproc
       TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
       TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
       TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
@@ -449,6 +704,7 @@ services:
     secrets:
       - *secret-backend-env
     networks:
+      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -521,6 +777,7 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
+      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -533,6 +790,41 @@ services:
         reservations:
           memory: 160M
 
+  jetstream_consumer:
+    <<: *service-defaults
+    image: ${BETLEAGUE_BACKEND_IMAGE:?BETLEAGUE_BACKEND_IMAGE is required}
+    user: "1000:1000"
+    stop_grace_period: 20s
+    environment:
+      TMPDIR: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TEMP: ${BETLEAGUE_PYTHON_TEMP:?BETLEAGUE_PYTHON_TEMP is required}
+      TMP: ${BETLEAGUE_PYTHON_TMP:?BETLEAGUE_PYTHON_TMP is required}
+    command:
+      - python
+      - scripts/run_with_env_files.py
+      - /run/secrets/backend_env
+      - --
+      - python
+      - jetstream_consumer_main.py
+    secrets:
+      - *secret-backend-env
+      - *secret-nats-ca-cert-client
+      - *secret-nats-client-cert
+      - *secret-nats-client-key
+    networks:
+      - edge
+      - app
+    deploy:
+      <<: *deploy-defaults
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+          pids: 200
+        reservations:
+          memory: 128M
+
 networks:
   edge:
     driver: overlay
@@ -541,11 +833,18 @@ networks:
     driver: overlay
     attachable: false
     internal: true
+  monitoring:
+    driver: overlay
+    attachable: false
+    internal: true
 
 volumes:
   redis_data:
   nats_data:
   celery_beat_schedule:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
 
 configs:
   edge_nginx_conf:
@@ -557,6 +856,21 @@ configs:
   nats_server_conf:
     name: ${BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME:?BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME is required}
     file: ./nats-server.conf
+  prometheus_conf:
+    name: ${BETLEAGUE_PROMETHEUS_CONF_CONFIG_NAME:?BETLEAGUE_PROMETHEUS_CONF_CONFIG_NAME is required}
+    file: ./generated/prometheus.yml
+  prometheus_alerts:
+    name: ${BETLEAGUE_PROMETHEUS_ALERTS_CONFIG_NAME:?BETLEAGUE_PROMETHEUS_ALERTS_CONFIG_NAME is required}
+    file: ./generated/prometheus-alerts.yml
+  grafana_datasources:
+    name: ${BETLEAGUE_GRAFANA_DATASOURCES_CONFIG_NAME:?BETLEAGUE_GRAFANA_DATASOURCES_CONFIG_NAME is required}
+    file: ./generated/grafana-datasources.yml
+  grafana_dashboards:
+    name: ${BETLEAGUE_GRAFANA_DASHBOARDS_CONFIG_NAME:?BETLEAGUE_GRAFANA_DASHBOARDS_CONFIG_NAME is required}
+    file: ./generated/grafana-dashboards.yml
+  grafana_system_overview_dashboard:
+    name: ${BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME:?BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME is required}
+    file: ./generated/grafana-dashboard-system-overview.json
 
 secrets:
   backend_env:
@@ -565,6 +879,18 @@ secrets:
   migrations_env:
     name: ${BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME:?BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME is required}
     file: ./secrets/migrations.env
+  grafana_admin_password:
+    name: ${BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME:?BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME is required}
+    file: ./secrets/grafana_admin_password.txt
+  grafana_secret_key:
+    name: ${BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME:?BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME is required}
+    file: ./secrets/grafana_secret_key.txt
+  monitoring_htpasswd:
+    name: ${BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME:?BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME is required}
+    file: ./secrets/monitoring_htpasswd
+  alertmanager_config:
+    name: ${BETLEAGUE_ALERTMANAGER_CONFIG_SECRET_NAME:?BETLEAGUE_ALERTMANAGER_CONFIG_SECRET_NAME is required}
+    file: ./secrets/alertmanager.yml
   redis_password:
     name: ${BETLEAGUE_REDIS_PASSWORD_SECRET_NAME:?BETLEAGUE_REDIS_PASSWORD_SECRET_NAME is required}
     file: ./secrets/redis_password.txt

@@ -11,7 +11,7 @@ source = "git::ssh://git@github.com/lucasdsm78/terraform-ovh-vps.git?ref=b2edc34
 ```
 
 - un OVH VPS-3
-- des enregistrements DNS `app` / `api`
+- des enregistrements DNS `app` / `api` / `grafana` / `prometheus`
 - des outputs dédiés pour générer l’inventaire Ansible de l’hôte
 
 Le DNS OVH reste géré via le module Git dédié déjà pinné sur un commit immuable.

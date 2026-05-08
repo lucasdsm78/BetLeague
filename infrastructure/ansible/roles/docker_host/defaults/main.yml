@@ -1,5 +1,5 @@
 ---
-betleague_runtime_user: "{{ ansible_user | default('betleague') }}"
+betleague_runtime_user: "{{ betleague_admin_user | default('betleague') }}"
 betleague_docker_engine_packages:
   - docker.io
 betleague_docker_compose_package_candidates:
@@ -12,6 +12,10 @@ betleague_docker_daemon_config:
   log-opts:
     max-size: 10m
     max-file: '5'
+  dns:
+    - 1.1.1.1
+    - 1.0.0.1
+    - 8.8.8.8
   userland-proxy: false
   icc: false
   no-new-privileges: true

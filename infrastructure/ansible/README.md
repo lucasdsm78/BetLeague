@@ -8,7 +8,7 @@ Cette couche Ansible complète Terraform pour durcir l'hôte BetLeague après pr
 - restriction UFW de SSH aux CIDR de confiance
 - application d'une politique UFW compatible Docker/Swarm via `DOCKER-USER`, pour éviter l'exposition accidentelle de ports publiés
 - activation de `fail2ban`, `auditd` et `unattended-upgrades`
-- vérifications post-hardening automatisées sur `ufw status verbose` et la prison `fail2ban` `sshd`
+- vérifications post-hardening automatisées sur la configuration SSH effective, `ufw status verbose` et la prison `fail2ban` `sshd`
 - configuration Docker avec options runtime durcies
 - préparation d'une arborescence runtime stricte sous `/opt/betleague`
 
@@ -43,6 +43,12 @@ ansible/
 - Terraform déjà appliqué dans `../terraform`
 - accès SSH par clé sur l'hôte
 - au moins un CIDR de confiance à autoriser pour SSH
+
+Sur un VPS OVH neuf, l'image Ubuntu peut exposer uniquement l'utilisateur cloud `ubuntu` au premier démarrage. Il n'est pas nécessaire de créer l'utilisateur admin final manuellement : le playbook `harden_host.yml` se connecte d'abord avec un utilisateur bootstrap joignable, crée ensuite l'utilisateur admin configuré (`betleague` par défaut), installe sa clé SSH, puis applique `AllowUsers` sur cet utilisateur.
+
+En CI Terraform, le job de hardening résout l'utilisateur admin final depuis les outputs Terraform (`ansible_inventory_host.betleague_admin_user`, puis `admin_user`, puis `ansible_user` pour compatibilité), teste automatiquement cet utilisateur, puis `SSH_BOOTSTRAP_USER` si cette variable GitHub Environment est définie, sinon `ubuntu`. Cela permet de fonctionner à la fois sur un VPS déjà durci et sur un VPS OVH from scratch, sans hardcoder `betleague` dans le workflow.
+
+La clé privée `SSH_PRIVATE_KEY` doit correspondre à la clé publique injectée par OVH au provisioning initial (`TF_VAR_VPS_PUBLIC_SSH_KEY_DEV` / `TF_VAR_VPS_PUBLIC_SSH_KEY_PROD`) et sera aussi dérivée en clé publique pour `~betleague/.ssh/authorized_keys`.
 
 ## Génération de l'inventaire
 
@@ -107,6 +113,20 @@ ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
 ```
 
 Ainsi, la clé publique CI est ajoutée de façon idempotente dans `~{{ betleague_admin_user }}/.ssh/authorized_keys` par le rôle `base_hardening`, sans manipulation manuelle sur l'hôte.
+
+Pour un bootstrap manuel hors CI sur un VPS neuf où seul `ubuntu` est joignable, force simplement l'utilisateur de connexion Ansible à `ubuntu` au premier passage, tout en gardant `betleague_admin_user` positionné sur l'utilisateur final voulu (`betleague` par défaut) :
+
+```bash
+cd infrastructure/ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
+  -i inventories/prod/hosts.yml \
+  --private-key "$HOME/.ssh/ta-cle-provisioning-ovh" \
+  -e ansible_user=ubuntu \
+  -e @/tmp/ci-public-key-vars.json \
+  playbooks/harden_host.yml
+```
+
+Après ce premier hardening, les déploiements applicatifs doivent se connecter avec l'utilisateur admin final configuré.
 
 ## Installation des collections
 
@@ -173,6 +193,8 @@ Pour cette voie de release dédiée, le workflow appelle désormais le playbook 
 
 Le playbook `deploy_swarm.yml` prépare aussi le TLS edge sur l’hôte via le rôle `edge_tls` : installation de `certbot`, certificat autosigné de bootstrap, webroot ACME, émission/renouvellement Let’s Encrypt et hook de reload Nginx pour le service Swarm `edge`.
 
+Grafana utilise le dashboard provisionné `BetLeague - System Overview` comme page d'accueil via `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. Cela évite de retomber sur un ancien Home dashboard persisté dans `grafana_data` qui peut référencer des panels legacy absents des images Grafana récentes (`welcome`, `gettingstarted`, `dashlist`, `news`). Toute modification de ce comportement nécessite un déploiement Swarm complet (`deploy_swarm.yml`) afin de mettre à jour le service `grafana`, pas seulement une release applicative (`release_swarm.yml`).
+
 Par défaut, ce rôle émet maintenant les certificats Let’s Encrypt en **ECDSA P-256** (`--key-type ecdsa --elliptic-curve secp256r1`) et aligne le certificat autosigné de bootstrap sur la même famille de clé (courbe OpenSSL `prime256v1`). Le fallback RSA reste possible si tu changes explicitement `betleague_letsencrypt_key_type`, avec une taille durcie à `4096` bits.
 
 Le rôle applique aussi un garde-fou anti rate-limit : tant que `betleague_letsencrypt_staging=true` n'a pas été validé de bout en bout, une émission directe Let’s Encrypt production est refusée sauf si tu assumes explicitement le risque avec `betleague_letsencrypt_acked_production=true`.
@@ -199,6 +221,20 @@ Attention : `harden-host-dev` / `deploy-swarm-dev` et `harden-host-prod` / `depl
 cd infrastructure/ansible
 ansible-playbook -i inventories/prod/hosts.yml playbooks/harden_host.yml
 ```
+
+Le playbook relit ensuite la configuration SSH effective avec `/usr/sbin/sshd -T` et échoue si les garanties critiques ne sont pas présentes :
+
+```text
+allowusers betleague
+passwordauthentication no
+kbdinteractiveauthentication no
+permitrootlogin no
+pubkeyauthentication yes
+```
+
+Il vérifie aussi que l'utilisateur cloud par défaut (`ubuntu` par défaut) n'apparaît pas dans `allowusers` et que son mot de passe est verrouillé lorsque `betleague_lock_default_cloud_user_password=true`.
+
+Le hardening SSH est déployé dans `/etc/ssh/sshd_config.d/00-betleague-hardening.conf` afin d'être lu avant les éventuels drop-ins cloud-init, par exemple `/etc/ssh/sshd_config.d/50-cloud-init.conf`. C'est volontaire : OpenSSH conserve généralement la première valeur rencontrée pour les directives globales comme `PasswordAuthentication`, donc un fichier BetLeague en `99-...` pourrait arriver trop tard et laisser `passwordauthentication yes` effectif.
 
 ## Remarques sécurité
 

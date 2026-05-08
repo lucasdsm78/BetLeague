@@ -9,5 +9,8 @@ secrets/nats-server-cert.pem
 secrets/nats-server-key.pem
 secrets/nats-client-cert.pem
 secrets/nats-client-key.pem
+secrets/grafana_admin_password.txt
+secrets/monitoring_htpasswd
+secrets/alertmanager.yml
 
 

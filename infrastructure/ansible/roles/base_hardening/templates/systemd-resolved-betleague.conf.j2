@@ -1,0 +1,6 @@
+[Resolve]
+DNS={{ betleague_systemd_resolved_dns_servers | join(' ') }}
+FallbackDNS={{ betleague_systemd_resolved_fallback_dns_servers | join(' ') }}
+Domains={{ betleague_systemd_resolved_domains | join(' ') }}
+DNSStubListener=yes
+

@@ -25,12 +25,63 @@
       `betleague_public_tcp_ports` et `betleague_docker_public_tcp_target_ports` doivent contenir uniquement
       des ports TCP valides entre 1 et 65535.
 
+- name: Vérifier l'utilisateur administrateur SSH final
+  ansible.builtin.assert:
+    that:
+      - betleague_admin_user is match('^[a-z_][a-z0-9_-]{0,31}$')
+      - betleague_admin_user != betleague_default_cloud_user
+      - >-
+        (ansible_user | default('')) == betleague_admin_user
+        or (betleague_admin_authorized_public_keys | length > 0)
+    fail_msg: >-
+      `betleague_admin_user` doit être un utilisateur dédié différent de `{{ betleague_default_cloud_user }}`.
+      Si Ansible se connecte encore avec un utilisateur bootstrap, fournis au moins une clé dans
+      `betleague_admin_authorized_public_keys` pour éviter tout lockout après `AllowUsers {{ betleague_admin_user }}`.
+
 - name: Installer les paquets de hardening
   ansible.builtin.apt:
     name: "{{ betleague_hardening_packages }}"
     state: present
     update_cache: true
     cache_valid_time: 3600
+
+- name: Garantir la présence du répertoire de drop-ins systemd-resolved
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: betleague_systemd_resolved_manage | bool
+
+- name: Déployer la configuration DNS système BetLeague
+  ansible.builtin.template:
+    src: systemd-resolved-betleague.conf.j2
+    dest: /etc/systemd/resolved.conf.d/99-betleague-dns.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart systemd-resolved
+  when: betleague_systemd_resolved_manage | bool
+
+- name: Garantir la présence de l'utilisateur administrateur BetLeague
+  ansible.builtin.user:
+    name: "{{ betleague_admin_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups: sudo
+    append: true
+    password_lock: true
+
+- name: Autoriser sudo sans mot de passe pour l'administrateur BetLeague
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ betleague_admin_user }}"
+    content: "{{ betleague_admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+  when: betleague_admin_passwordless_sudo | bool
 
 - name: Garantir la présence du répertoire SSH de l'administrateur
   ansible.builtin.file:
@@ -49,6 +100,22 @@
     manage_dir: false
   loop: "{{ betleague_admin_authorized_public_keys | unique }}"
   when: betleague_admin_authorized_public_keys | length > 0
+
+- name: Vérifier si l'utilisateur cloud par défaut existe
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ betleague_default_cloud_user }}"
+    fail_key: false
+  register: betleague_default_cloud_user_getent
+  when: betleague_lock_default_cloud_user_password | bool
+
+- name: Verrouiller le mot de passe de l'utilisateur cloud par défaut
+  ansible.builtin.user:
+    name: "{{ betleague_default_cloud_user }}"
+    password_lock: true
+  when:
+    - betleague_lock_default_cloud_user_password | bool
+    - betleague_default_cloud_user_getent.ansible_facts.getent_passwd[betleague_default_cloud_user] is defined
 
 - name: Configurer les mises à jour de sécurité automatiques
   ansible.builtin.template:
@@ -69,15 +136,45 @@
 - name: Durcir la configuration SSH
   ansible.builtin.template:
     src: sshd_config_hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/99-betleague-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-betleague-hardening.conf
     owner: root
     group: root
     mode: '0644'
   notify: Restart ssh
 
+- name: Supprimer l'ancien drop-in SSH BetLeague chargé trop tard
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-betleague-hardening.conf
+    state: absent
+  notify: Restart ssh
+
 - name: Valider la configuration SSH globale
   ansible.builtin.command: /usr/sbin/sshd -t
   changed_when: false
+
+- name: Lire la configuration SSHD effective après déploiement du drop-in BetLeague
+  ansible.builtin.command: /usr/sbin/sshd -T
+  changed_when: false
+  register: betleague_base_sshd_effective_config
+
+- name: Vérifier les directives SSHD critiques avant poursuite du hardening
+  ansible.builtin.assert:
+    that:
+      - >-
+        (betleague_base_sshd_effective_config.stdout_lines
+        | select('equalto', 'allowusers ' ~ betleague_admin_user)
+        | list
+        | length) == 1
+      - "'passwordauthentication no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'kbdinteractiveauthentication no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'permitrootlogin no' in betleague_base_sshd_effective_config.stdout_lines"
+      - "'pubkeyauthentication yes' in betleague_base_sshd_effective_config.stdout_lines"
+    fail_msg: >-
+      Le drop-in SSH BetLeague n'est pas prioritaire dans la configuration effective.
+      Vérifie l'ordre des fichiers dans `/etc/ssh/sshd_config.d/` et les directives observées:
+      {{ betleague_base_sshd_effective_config.stdout_lines
+      | select('search', '^(allowusers|passwordauthentication|kbdinteractiveauthentication|permitrootlogin|pubkeyauthentication)\s+')
+      | list | join('; ') }}
 
 - name: Déployer la configuration sysctl de hardening
   ansible.builtin.template:
