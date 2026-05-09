@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI, Response
@@ -41,8 +42,21 @@ CELERY_QUEUE_SCRAPE_SUCCESS = Gauge(
     multiprocess_mode="livemostrecent",
 )
 
+OVERDUE_LEAGUES = Gauge(
+    "betleague_overdue_leagues",
+    "Nombre de ligues dont le payout est en retard au-delà du seuil configuré.",
+    multiprocess_mode="livemostrecent",
+)
+
+OVERDUE_LEAGUES_SCRAPE_SUCCESS = Gauge(
+    "betleague_overdue_leagues_scrape_success",
+    "Indique si le dernier relevé des ligues overdue a réussi (1) ou échoué (0).",
+    multiprocess_mode="livemostrecent",
+)
+
 METRICS_EXCLUDED_PATHS = frozenset({"/health", "/metrics", "/ready"})
 _last_celery_queue_scrape_at = 0.0
+_last_overdue_leagues_scrape_at = 0.0
 
 
 def _route_path(scope: dict[str, Any]) -> str:
@@ -66,6 +80,10 @@ class PrometheusMiddleware:
         if scope.get("path") == "/metrics":
             try:
                 _scrape_celery_queue_depth(self.settings)
+            except Exception:
+                pass
+            try:
+                await _scrape_overdue_leagues(self.settings)
             except Exception:
                 pass
             response = Response(content=_generate_metrics_payload(), media_type=CONTENT_TYPE_LATEST)
@@ -128,6 +146,40 @@ def _scrape_celery_queue_depth(settings: Any) -> None:
         raise
     finally:
         client.close()
+
+
+async def _count_overdue_leagues(settings: Any) -> int:
+    from infrastructure.postgresql.database import AsyncSessionLocal
+    from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
+
+    threshold_minutes = max(0, int(getattr(settings, "league_payout_overdue_threshold_minutes", 15)))
+    overdue_before = datetime.now(UTC) - timedelta(minutes=threshold_minutes)
+
+    async with AsyncSessionLocal() as session:
+        repo = LeagueRepositoryImpl(session)
+        return await repo.count_overdue_payouts(overdue_before)
+
+
+async def _scrape_overdue_leagues(settings: Any) -> None:
+    global _last_overdue_leagues_scrape_at
+
+    if not bool(getattr(settings, "league_payout_metrics_enabled", True)):
+        OVERDUE_LEAGUES_SCRAPE_SUCCESS.set(1)
+        OVERDUE_LEAGUES.set(0)
+        return
+
+    now = time.monotonic()
+    min_interval = max(1.0, float(getattr(settings, "league_payout_metrics_scrape_interval_s", 30)))
+    if now - _last_overdue_leagues_scrape_at < min_interval:
+        return
+
+    try:
+        OVERDUE_LEAGUES.set(await _count_overdue_leagues(settings))
+        OVERDUE_LEAGUES_SCRAPE_SUCCESS.set(1)
+        _last_overdue_leagues_scrape_at = now
+    except Exception:
+        OVERDUE_LEAGUES_SCRAPE_SUCCESS.set(0)
+        raise
 
 
 def _generate_metrics_payload() -> bytes:
