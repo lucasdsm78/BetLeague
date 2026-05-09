@@ -15,6 +15,27 @@ load_dotenv(override=False)
 logger = logging.getLogger(__name__)
 
 
+def _positive_schedule_seconds(env_name: str, default: float) -> float:
+    raw = os.getenv(env_name)
+    if raw is None or not str(raw).strip():
+        return float(default)
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        logger.warning(
+            "celery.schedule.invalid_seconds_fallback",
+            extra={"env_name": env_name, "raw_value": raw, "default": default},
+        )
+        return float(default)
+    if value <= 0:
+        logger.warning(
+            "celery.schedule.non_positive_seconds_fallback",
+            extra={"env_name": env_name, "raw_value": raw, "default": default},
+        )
+        return float(default)
+    return float(value)
+
+
 @celery_setup_logging.connect
 def _configure_celery_logging(*_args, **_kwargs) -> None:
     environment = os.getenv("ENVIRONMENT", "dev")
@@ -37,6 +58,10 @@ _ENABLE_UTC = os.getenv("CELERY_ENABLE_UTC", "0").strip() in {"1", "true", "True
 _ENABLE_CATCHUP = os.getenv("CELERY_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
 _CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_CATCHUP_THRESHOLD_SECONDS", "900"))
 _CHECK_MATCH_SCORES_INTERVAL_SECONDS = float(os.getenv("CELERY_CHECK_MATCH_SCORES_INTERVAL_SECONDS", "900"))
+_LEAGUE_PAYOUT_INTERVAL_SECONDS = _positive_schedule_seconds(
+    "CELERY_LEAGUE_PAYOUT_INTERVAL_SECONDS",
+    300,
+)
 
 _ENABLE_FETCH_MATCHES_CATCHUP = os.getenv("CELERY_FETCH_MATCHES_ENABLE_CATCHUP", "1").strip() in {"1", "true", "True"}
 _FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS = int(os.getenv("CELERY_FETCH_MATCHES_CATCHUP_THRESHOLD_SECONDS", str(18 * 3600)))
@@ -87,9 +112,11 @@ celery_app.conf.update(
             "task": "infrastructure.celery.tasks.fetch_daily_matches",
             "schedule": crontab(hour=3, minute=0),
         },
-        "process-weekly-league-payouts": {
+        "process-due-league-payouts": {
+            # Historic task name kept for Celery message compatibility during rolling deploys.
+            # Execution frequency is now controlled by CELERY_LEAGUE_PAYOUT_INTERVAL_SECONDS.
             "task": "infrastructure.celery.tasks.process_weekly_league_payouts",
-            "schedule": crontab(day_of_week=1, hour=9, minute=0),
+            "schedule": _LEAGUE_PAYOUT_INTERVAL_SECONDS,
         },
         "process-tournaments-scheduler": {
             "task": "infrastructure.celery.tasks.process_tournaments_scheduler",
