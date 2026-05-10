@@ -309,6 +309,9 @@ services:
       - source: grafana_system_overview_dashboard
         target: /etc/grafana/provisioning/dashboards/system-overview.json
         mode: 0444
+      - source: grafana_league_payout_overdue_dashboard
+        target: /etc/grafana/provisioning/dashboards/league-payout-overdue.json
+        mode: 0444
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -871,6 +874,9 @@ configs:
   grafana_system_overview_dashboard:
     name: ${BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME:?BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME is required}
     file: ./generated/grafana-dashboard-system-overview.json
+  grafana_league_payout_overdue_dashboard:
+    name: ${BETLEAGUE_GRAFANA_LEAGUE_PAYOUT_OVERDUE_DASHBOARD_CONFIG_NAME:?BETLEAGUE_GRAFANA_LEAGUE_PAYOUT_OVERDUE_DASHBOARD_CONFIG_NAME is required}
+    file: ./generated/grafana-dashboard-league-payout-overdue.json
 
 secrets:
   backend_env:
