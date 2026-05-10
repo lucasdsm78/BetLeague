@@ -5,6 +5,7 @@ import pytest
 import application.league.league_payout_usecase as payout_module
 from application.league.league_payout_usecase import LeaguePayoutUseCaseImpl
 from infrastructure.scheduler.league_payout_scheduler import LeaguePayoutSchedulerImpl
+from domain.league.events.league_ended import LeagueEnded
 from domain.league.model.league import League, LeagueStatus
 from domain.user.model.email import Email
 from domain.user.model.user_summary import UserSummary
@@ -56,6 +57,17 @@ class FakeUserRepository:
     async def credit_btl(self, user_id: int, amount: float):
         self.session.credits.append((user_id, amount))
 
+    async def find_by_id(self, user_id: int):
+        return self.session.users_by_id.get(user_id)
+
+
+class FakeOutboxBus:
+    def __init__(self, session):
+        self.session = session
+
+    async def publish(self, event):
+        self.session.published_events.append(event)
+
 
 class FakeLeagueRepository:
     def __init__(self, session):
@@ -86,9 +98,12 @@ async def test_process_league_payout_closes_free_league_and_credits_fixed_reward
     session.players_count = {10: 16}
     session.credits = []
     session.updated_leagues = []
+    session.published_events = []
+    session.users_by_id = {77: UserSummary(id=77, email=Email("winner@example.com"), pseudo="winner77")}
 
     monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
     monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "OutboxDomainEventBus", FakeOutboxBus)
 
     usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
@@ -107,6 +122,7 @@ async def test_process_league_payout_closes_free_league_and_credits_fixed_reward
     assert updated_league.rewarded_amount == 200.0
     assert updated_league.reward_paid_at is not None
     assert updated_league.closed_at is not None
+    assert any(isinstance(event, LeagueEnded) and event.league_id == 10 for event in session.published_events)
 
 
 @pytest.mark.asyncio
@@ -118,9 +134,12 @@ async def test_process_league_payout_closes_paid_league_and_credits_prize_pool(m
     session.players_count = {11: 12}
     session.credits = []
     session.updated_leagues = []
+    session.published_events = []
+    session.users_by_id = {91: UserSummary(id=91, email=Email("winner91@example.com"), pseudo="winner91")}
 
     monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
     monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "OutboxDomainEventBus", FakeOutboxBus)
 
     usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
@@ -132,6 +151,7 @@ async def test_process_league_payout_closes_paid_league_and_credits_prize_pool(m
     updated_league = session.updated_leagues[0]
     assert updated_league.status == LeagueStatus.CLOSED
     assert updated_league.rewarded_amount == 300.0
+    assert any(isinstance(event, LeagueEnded) and event.league_id == 11 for event in session.published_events)
 
 
 @pytest.mark.asyncio
@@ -145,9 +165,12 @@ async def test_process_league_payout_is_idempotent_for_closed_league(monkeypatch
     session.players_count = {12: 16}
     session.credits = []
     session.updated_leagues = []
+    session.published_events = []
+    session.users_by_id = {42: UserSummary(id=42, email=Email("winner42@example.com"), pseudo="winner42")}
 
     monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
     monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "OutboxDomainEventBus", FakeOutboxBus)
 
     usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
@@ -157,6 +180,7 @@ async def test_process_league_payout_is_idempotent_for_closed_league(monkeypatch
 
     assert session.credits == []
     assert session.updated_leagues == []
+    assert session.published_events == []
 
 
 @pytest.mark.asyncio
@@ -168,9 +192,12 @@ async def test_process_league_payout_does_not_close_league_when_winner_is_missin
     session.players_count = {13: 3}
     session.credits = []
     session.updated_leagues = []
+    session.published_events = []
+    session.users_by_id = {}
 
     monkeypatch.setattr(payout_module, "UserRepositoryImpl", FakeUserRepository)
     monkeypatch.setattr(payout_module, "LeagueRepositoryImpl", FakeLeagueRepository)
+    monkeypatch.setattr(payout_module, "OutboxDomainEventBus", FakeOutboxBus)
 
     usecase = LeaguePayoutUseCaseImpl(
         session_factory=lambda: session,
@@ -180,6 +207,7 @@ async def test_process_league_payout_does_not_close_league_when_winner_is_missin
 
     assert session.credits == []
     assert session.updated_leagues == []
+    assert session.published_events == []
 
 
 @pytest.mark.asyncio

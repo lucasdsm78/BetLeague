@@ -22,6 +22,11 @@ class DBLeague(Base):
     __table_args__ = (
         Index('ix_league_is_started', 'is_started'),
         Index('ix_league_status_end_date', 'status', 'end_date'),
+        Index(
+            'ix_league_due_payout',
+            'end_date',
+            postgresql_where=text("status = 'IN_PROGRESS' AND closed_at IS NULL"),
+        ),
         Index('ix_league_user_created_at', 'user_id', 'created_at'),
         Index(
             'ix_league_public_open_joinable_created_at_desc',

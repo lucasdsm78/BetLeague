@@ -46,6 +46,7 @@
     BETLEAGUE_GRAFANA_DATASOURCES_CONFIG_NAME: "{{ betleague_swarm_grafana_datasources_config_name }}"
     BETLEAGUE_GRAFANA_DASHBOARDS_CONFIG_NAME: "{{ betleague_swarm_grafana_dashboards_config_name }}"
     BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME: "{{ betleague_swarm_grafana_system_overview_dashboard_config_name }}"
+    BETLEAGUE_GRAFANA_LEAGUE_PAYOUT_OVERDUE_DASHBOARD_CONFIG_NAME: "{{ betleague_swarm_grafana_league_payout_overdue_dashboard_config_name }}"
     BETLEAGUE_BACKEND_ENV_SECRET_NAME: "{{ betleague_swarm_backend_env_secret_name }}"
     BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME: "{{ betleague_swarm_migrations_env_secret_name }}"
     BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME: "{{ betleague_swarm_grafana_admin_password_secret_name }}"
