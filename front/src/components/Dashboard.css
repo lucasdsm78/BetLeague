@@ -34,22 +34,14 @@
 .header-left .logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.logo-icon {
-  font-size: 1.5rem;
-}
-
-.logo-text {
-  font-size: 1.25rem;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 800;
+.header-left .logo .logo-image {
+  height: 40px;
+  width: auto;
+  display: block;
 }
 
 .header-center {
