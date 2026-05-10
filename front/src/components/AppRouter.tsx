@@ -13,6 +13,8 @@ import LoginForm from 'components/LoginForm';
 import RegisterForm from 'components/RegisterForm';
 import DashboardLayout from 'components/DashboardLayout';
 import TwoFactorPage from 'components/TwoFactorPage';
+import TermsPage from 'pages/legal/TermsPage';
+import PrivacyPage from 'pages/legal/PrivacyPage';
 
 // Forgot password (lazy)
 const ForgotPasswordRequestPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordRequestPage'));
@@ -39,7 +41,7 @@ const LoadingSpinner = () => (
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getSessionTimeRemaining, initializationComplete } = useEnhancedAuth();
+  const { isAuthenticated, user, getSessionTimeRemaining, initializationComplete } = useEnhancedAuth();
 
   // Attendre la fin de l'initialisation globale
   if (!initializationComplete) {
@@ -226,6 +228,16 @@ const AppRouter: React.FC = () => {
               <SharedTicketSection />
             </Suspense>
           }
+        />
+
+        <Route
+          path="/cgu"
+          element={<TermsPage />}
+        />
+
+        <Route
+          path="/confidentialite"
+          element={<PrivacyPage />}
         />
 
         {/* Protected Dashboard routes */}
