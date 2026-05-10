@@ -56,6 +56,10 @@ class LeagueRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def count_overdue_payouts(self, as_of: datetime) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_id_for_update(self, league_id: int) -> Optional[League]:
         raise NotImplementedError
 

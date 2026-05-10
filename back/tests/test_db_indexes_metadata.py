@@ -101,6 +101,14 @@ def test_league_discovery_partial_index_is_declared() -> None:
     assert str(index.dialect_options["postgresql"]["where"]) == "is_private = false AND status = 'OPEN' AND nb_players_remaining > 0"
 
 
+def test_league_due_payout_partial_index_is_declared() -> None:
+    index = _index_by_name(DBLeague.__table__, "ix_league_due_payout")
+
+    assert index is not None
+    assert [column.name for column in index.columns] == ["end_date"]
+    assert str(index.dialect_options["postgresql"]["where"]) == "status = 'IN_PROGRESS' AND closed_at IS NULL"
+
+
 def test_tournament_discovery_partial_index_is_declared() -> None:
     index = _index_by_name(DBTournament.__table__, "ix_tournament_public_pending_joinable_created_at_desc")
 

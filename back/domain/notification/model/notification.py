@@ -14,6 +14,7 @@ class NotificationType(StrEnum):
     MATCH_RESULT = "match_result"
     LEAGUE_STARTED = "league_started"
     LEAGUE_ENDED = "league_ended"
+    LEAGUE_OVERTAKEN = "league_overtaken"
     SYSTEM_ANNOUNCEMENT = "system_announcement"
     ACCOUNT_UPDATE = "account_update"
     TICKET_CREATED = "ticket_created"

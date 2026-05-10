@@ -110,3 +110,25 @@ groups:
           summary: "Reload de configuration Prometheus échoué"
           description: "Prometheus indique que le dernier chargement de configuration a échoué."
 
+  - name: betleague-business
+    interval: {{ betleague_swarm_prometheus_evaluation_interval }}
+    rules:
+      - alert: BetLeagueOverdueLeaguesDetected
+        expr: betleague_overdue_leagues > 0
+        for: 10m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "Ligues BetLeague en retard de payout détectées"
+          description: "Au moins une ligue BetLeague est overdue pour le payout depuis plus de 10 minutes (valeur courante={{ '{{ $value }}' }})."
+      - alert: BetLeagueOverdueLeaguesMetricsScrapeFailed
+        expr: betleague_overdue_leagues_scrape_success == 0
+        for: 10m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "Scrape métrique overdue leagues en échec"
+          description: "La collecte de la métrique `betleague_overdue_leagues` échoue depuis plus de 10 minutes."
+

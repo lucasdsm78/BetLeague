@@ -1,15 +1,7 @@
 import http from '../http';
+import type { NotificationDto } from '../../types/entities/notification';
 
-export type NotificationItem = {
-  id: number;
-  user_id: number;
-  type: string;
-  title: string;
-  message: string;
-  data: Record<string, unknown>;
-  created_at: number;
-  read_at: number | null;
-};
+export type NotificationItem = NotificationDto;
 
 export type NotificationsListResponse = {
   items: NotificationItem[];

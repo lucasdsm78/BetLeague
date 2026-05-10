@@ -7,6 +7,8 @@ from typing import Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from application.events.outbox_event_bus import OutboxDomainEventBus
+from domain.league.events.league_ended import LeagueEnded
 from domain.league.model.league import LeagueStatus
 from infrastructure.postgresql.league.league_repository import LeagueRepositoryImpl
 from infrastructure.postgresql.user.user_repository import UserRepositoryImpl
@@ -73,6 +75,7 @@ class LeaguePayoutUseCaseImpl(LeaguePayoutUseCase):
                 async with session.begin():
                     user_repo = UserRepositoryImpl(session)
                     league_repo = LeagueRepositoryImpl(session)
+                    outbox_bus = OutboxDomainEventBus(session)
 
                     league = await league_repo.find_by_id_for_update(league_id)
                     if league is None:
@@ -165,6 +168,7 @@ class LeaguePayoutUseCaseImpl(LeaguePayoutUseCase):
                         return
 
                     await user_repo.credit_btl(winner_id, reward_amount)
+                    winner = await user_repo.find_by_id(winner_id)
                     logger.info(
                         "league_payout.reward_credited",
                         extra={
@@ -185,6 +189,15 @@ class LeaguePayoutUseCaseImpl(LeaguePayoutUseCase):
                         rewarded_amount=reward_amount,
                     )
                     await league_repo.update(league)
+                    await outbox_bus.publish(
+                        LeagueEnded(
+                            league_id=league.id,
+                            league_name=league.name,
+                            winner_id=winner_id,
+                            winner_pseudo=winner.pseudo if winner is not None else "",
+                            rewarded_amount=float(reward_amount),
+                        )
+                    )
                     logger.info(
                         "league_payout.closed",
                         extra={

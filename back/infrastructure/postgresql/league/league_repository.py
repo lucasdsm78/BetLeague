@@ -193,6 +193,20 @@ class LeagueRepositoryImpl(LeagueRepository):
         result = await self.session.execute(q)
         return [int(league_id) for league_id in result.scalars().all()]
 
+    async def count_overdue_payouts(self, as_of: datetime) -> int:
+        as_of_ms = int(as_of.timestamp() * 1000)
+        q = (
+            select(func.count())
+            .select_from(DBLeague)
+            .where(
+                DBLeague.end_date <= as_of_ms,
+                DBLeague.status == LeagueStatus.IN_PROGRESS.value,
+                DBLeague.closed_at.is_(None),
+            )
+        )
+        result = await self.session.execute(q)
+        return int(result.scalar_one() or 0)
+
     async def find_by_id_for_update(self, league_id: int) -> Optional[League]:
         q = (
             select(DBLeague)
