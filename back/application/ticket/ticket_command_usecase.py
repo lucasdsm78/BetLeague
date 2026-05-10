@@ -8,8 +8,10 @@ from typing import List, Callable
 import shortuuid
 
 from application.match.match_command_model import MatchChoiceUpdatedResponse, NoMatchChoiceUpdatedResponse
+from application.league.league_overtake_events import build_overtaken_events
 from application.ticket.ticket_command_model import TicketCreateModel, TicketCreateResponse, TicketRemoveResponse, \
     TicketUpdateResponse, MatchChoiceData, TicketUpdateModel, NoTicketUpdatedResponse, TicketUpdatedResponse
+from domain.ticket.event.ticket_resolved_event import TicketResolvedEvent
 from domain.league.exception.league_exception import LeagueNotFoundError, \
     NbBTLHasReached0, LeagueNotStartedError
 from domain.match.exception.match_exception import MatchNotFoundError
@@ -518,6 +520,8 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
             if resolved:
                 is_win = wrong == 0
+                league_name = ""
+                ranking_entries = []
                 if is_win:
                     await uow.user_repo.apply_ticket_win(ticket.user.id, ticket.gain)
                 else:
@@ -525,13 +529,35 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
 
                 if ticket.league_id is not None:
                     if is_win:
+                        ranking_entries = await uow.league_players_repo.get_league_ranking_entries(ticket.league_id)
+                        league = await uow.league_repo.find_by_id(ticket.league_id)
+                        league_name = league.name if league else ""
                         await uow.league_players_repo.apply_ticket_win(
                             ticket.league_id, ticket.user.id, ticket.gain
                         )
+                        for overtaken_event in build_overtaken_events(
+                            ranking_entries=ranking_entries,
+                            league_id=ticket.league_id,
+                            league_name=league_name,
+                            overtaken_by_user_id=ticket.user.id,
+                            overtaken_by_pseudo=ticket.user.pseudo,
+                            gain=float(ticket.gain or 0),
+                        ):
+                            await uow.outbox_bus.publish(overtaken_event)
                     else:
                         await uow.league_players_repo.apply_ticket_lose(
                             ticket.league_id, ticket.user.id
                         )
+
+                await uow.outbox_bus.publish(
+                    TicketResolvedEvent(
+                        ticket_id=ticket.id,
+                        user_id=ticket.user.id,
+                        league_id=ticket.league_id,
+                        is_win=is_win,
+                        gain=float(ticket.gain or 0),
+                    )
+                )
 
             await uow.commit()
             if resolved:

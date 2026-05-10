@@ -7,9 +7,12 @@ from typing import Any, Callable
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_ended import LeagueEnded
 from domain.league.events.league_started import LeagueStarted
+from domain.league.events.league_user_overtaken import LeagueUserOvertaken
 from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
+from domain.ticket.event.ticket_resolved_event import TicketResolvedEvent
 from domain.ticket.event.tickets_resolved_event import TicketsResolvedEvent
 from domain.utils.domain_event import DomainEvent
 
@@ -54,9 +57,32 @@ _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
         league_id=int(p["league_id"]),
         league_name=str(p.get("league_name", "")),
     ),
+    "league.ended": lambda p: LeagueEnded(
+        league_id=int(p["league_id"]),
+        league_name=str(p.get("league_name", "")),
+        winner_id=int(p["winner_id"]),
+        winner_pseudo=str(p.get("winner_pseudo", "")),
+        rewarded_amount=float(p.get("rewarded_amount") or 0),
+    ),
+    "league.user.overtaken": lambda p: LeagueUserOvertaken(
+        league_id=int(p["league_id"]),
+        league_name=str(p.get("league_name", "")),
+        overtaken_user_id=int(p["overtaken_user_id"]),
+        overtaken_by_user_id=int(p["overtaken_by_user_id"]),
+        overtaken_by_pseudo=str(p.get("overtaken_by_pseudo", "")),
+        previous_position=int(p["previous_position"]),
+        new_position=int(p["new_position"]),
+    ),
     "ticket.choices.resolved": lambda p: TicketChoicesResolvedEvent(
         ticket_id=int(p["ticket_id"]),
         match_id=int(p["match_id"]),
+    ),
+    "ticket.resolved": lambda p: TicketResolvedEvent(
+        ticket_id=int(p["ticket_id"]),
+        user_id=int(p["user_id"]),
+        league_id=int(p["league_id"]) if p.get("league_id") is not None else None,
+        is_win=bool(p["is_win"]),
+        gain=float(p.get("gain") or 0),
     ),
     "match.result.resolved": lambda p: MatchResultResolvedEvent(
         match_id=int(p["match_id"]),

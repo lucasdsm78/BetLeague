@@ -19,7 +19,13 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "title": "League Payout Overdue",
+      "type": "link",
+      "url": "/d/betleague-league-payout-overdue"
+    }
+  ],
   "panels": [
     {
       "datasource": {
@@ -413,6 +419,51 @@
       ],
       "title": "Backlog Celery",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "betleague-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 32 },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "betleague_overdue_leagues",
+          "refId": "A"
+        }
+      ],
+      "title": "Ligues overdue",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
@@ -430,6 +481,6 @@
   "timezone": "browser",
   "title": "BetLeague - System Overview",
   "uid": "betleague-system-overview",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }

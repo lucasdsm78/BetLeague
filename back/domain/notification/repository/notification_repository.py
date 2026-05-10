@@ -12,6 +12,14 @@ class NotificationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def create_or_get(self, notification: Notification) -> tuple[Notification, bool]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_many(self, notifications: list[Notification]) -> list[tuple[Notification, bool]]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def list_by_user(self, user_id: int, limit: int, cursor: Optional[str]) -> tuple[list[Notification], Optional[str]]:
         raise NotImplementedError
 

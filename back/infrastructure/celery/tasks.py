@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import time
+import uuid
 from datetime import UTC, date, timedelta, datetime
 from urllib.parse import urlsplit
 
@@ -19,6 +20,12 @@ logger = logging.getLogger(__name__)
 
 _MAX_FETCH_ODDS_DAYS_AHEAD = 7
 _MAX_FETCH_ODDS_FIXTURES_PER_RUN = 30
+_LEAGUE_PAYOUT_LOCK_RELEASE_LUA = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    return redis.call('del', KEYS[1])
+end
+return 0
+"""
 
 # Redis client lazy (process-level) for state updates
 _redis_state_client_singleton = None
@@ -53,6 +60,13 @@ def _state_prefix_and_ttl() -> tuple[str, int]:
     base = os.getenv("CELERY_SCORE_CHECK_STATE_PREFIX", "betleague:celery:score_check")
     ttl = int(os.getenv("CELERY_SCORE_CHECK_STATE_TTL_SECONDS", str(7 * 24 * 3600)))
     return base, ttl
+
+
+def _league_payout_lock_key_and_ttl() -> tuple[str, int]:
+    key = os.getenv("CELERY_LEAGUE_PAYOUT_LOCK_KEY", "betleague:celery:league_payout:lock")
+    ttl_raw = os.getenv("CELERY_LEAGUE_PAYOUT_LOCK_SECONDS", "540")
+    ttl = _bounded_non_negative_int(ttl_raw, default=540)
+    return key, max(1, ttl)
 
 
 def _safe_set(key: str, value: str, *, ex: int) -> None:
@@ -108,6 +122,29 @@ def _touch_fetch_matches_failed(*, now_epoch: int, error: str) -> None:
         pipe.execute()
     except Exception as e:
         logger.warning(f"[Celery] Unable to persist fetch_matches last_failed_at/last_error: {e}")
+
+
+def _acquire_league_payout_task_lock(*, owner_token: str) -> bool | None:
+    lock_key, lock_ttl_s = _league_payout_lock_key_and_ttl()
+    try:
+        return bool(_redis_state().set(lock_key, owner_token, nx=True, ex=lock_ttl_s))
+    except Exception:
+        logger.exception(
+            "league_payout.task_lock_acquire_failed",
+            extra={"lock_key": lock_key, "lock_ttl_s": lock_ttl_s},
+        )
+        return None
+
+
+def _release_league_payout_task_lock(*, owner_token: str) -> None:
+    lock_key, lock_ttl_s = _league_payout_lock_key_and_ttl()
+    try:
+        _redis_state().eval(_LEAGUE_PAYOUT_LOCK_RELEASE_LUA, 1, lock_key, owner_token)
+    except Exception:
+        logger.exception(
+            "league_payout.task_lock_release_failed",
+            extra={"lock_key": lock_key, "lock_ttl_s": lock_ttl_s},
+        )
 
 
 def _run_async(coro):
@@ -327,12 +364,26 @@ def check_match_scores(self):
     retry_backoff_max=900,
 )
 def process_weekly_league_payouts(self):
+    lock_key, lock_ttl_s = _league_payout_lock_key_and_ttl()
+    owner_token = f"{os.getpid()}:{uuid.uuid4().hex}"
     logger.info(
         "league_payout.task_started",
-        extra=_task_extra(self),
+        extra=_task_extra(self, lock_key=lock_key, lock_ttl_s=lock_ttl_s),
     )
     started = time.time()
-    _run_async(_process_weekly_league_payouts_async(task=self))
+    acquired = _acquire_league_payout_task_lock(owner_token=owner_token)
+    if acquired is not True:
+        logger.info(
+            "league_payout.task_skipped_lock_unavailable" if acquired is None else "league_payout.task_skipped_lock_held",
+            extra=_task_extra(self, lock_key=lock_key, lock_ttl_s=lock_ttl_s),
+        )
+        return
+
+    try:
+        _run_async(_process_weekly_league_payouts_async(task=self))
+    finally:
+        _release_league_payout_task_lock(owner_token=owner_token)
+
     logger.info("league_payout.task_finished", extra=_task_extra(self, duration_ms=round((time.time() - started) * 1000, 2)))
 
 

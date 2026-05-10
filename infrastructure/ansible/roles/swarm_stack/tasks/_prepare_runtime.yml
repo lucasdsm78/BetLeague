@@ -331,6 +331,14 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Rendre le dashboard Grafana des ligues overdue
+  ansible.builtin.template:
+    src: grafana-dashboard-league-payout-overdue.json.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-league-payout-overdue.json"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
 - name: Calculer les checksums des configs Swarm immuables
   ansible.builtin.stat:
     path: "{{ item.path }}"
@@ -344,6 +352,7 @@
     - { key: 'grafana_datasources', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml" }
     - { key: 'grafana_dashboards', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboards.yml" }
     - { key: 'grafana_system_overview_dashboard', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-system-overview.json" }
+    - { key: 'grafana_league_payout_overdue_dashboard', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-dashboard-league-payout-overdue.json" }
   loop_control:
     label: "{{ item.key }}"
   register: betleague_swarm_config_stats
@@ -358,6 +367,7 @@
     betleague_swarm_grafana_datasources_config_name: "{{ betleague_swarm_stack_name }}_grafana_datasources_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_datasources') | first).stat.checksum[:12] }}"
     betleague_swarm_grafana_dashboards_config_name: "{{ betleague_swarm_stack_name }}_grafana_dashboards_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_dashboards') | first).stat.checksum[:12] }}"
     betleague_swarm_grafana_system_overview_dashboard_config_name: "{{ betleague_swarm_stack_name }}_grafana_system_overview_dashboard_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_system_overview_dashboard') | first).stat.checksum[:12] }}"
+    betleague_swarm_grafana_league_payout_overdue_dashboard_config_name: "{{ betleague_swarm_stack_name }}_grafana_league_payout_overdue_dashboard_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_league_payout_overdue_dashboard') | first).stat.checksum[:12] }}"
 
 - name: Déployer les secrets de stack Swarm
   ansible.builtin.copy:

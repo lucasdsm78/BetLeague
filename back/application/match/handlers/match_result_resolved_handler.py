@@ -6,11 +6,10 @@ from typing import Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.match.event.match_result_resolved_event import MatchResultResolvedEvent
-from domain.ticket.event.tickets_resolved_event import TicketsResolvedEvent
+from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
 from application.events.outbox_event_bus import OutboxDomainEventBus
 from infrastructure.postgresql.match.match_repository import MatchRepositoryImpl
 from infrastructure.postgresql.ticket.match_choices_repository import MatchChoicesRepositoryImpl
-from infrastructure.postgresql.ticket.ticket_repository import TicketRepositoryImpl
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,6 @@ class OnMatchResultResolvedCheckChoices:
                 async with session.begin():
                     match_repo = MatchRepositoryImpl(session)
                     mc_repo = MatchChoicesRepositoryImpl(session)
-                    ticket_repo = TicketRepositoryImpl(session)
                     outbox_bus = OutboxDomainEventBus(session)
 
                     match = await match_repo.find_by_id(event.match_id)
@@ -39,12 +37,10 @@ class OnMatchResultResolvedCheckChoices:
                         logger.info(f"[MatchHandler] Aucun choix résoluble pour match {event.match_id}.")
                         return
 
-                    updated_ticket_ids = await ticket_repo.bulk_resolve_status(impacted_ticket_ids)
-
-                    if updated_ticket_ids:
+                    for ticket_id in sorted(set(impacted_ticket_ids)):
                         await outbox_bus.publish(
-                            TicketsResolvedEvent(
-                                ticket_ids=tuple(updated_ticket_ids),
+                            TicketChoicesResolvedEvent(
+                                ticket_id=ticket_id,
                                 match_id=event.match_id,
                             )
                         )
@@ -52,7 +48,7 @@ class OnMatchResultResolvedCheckChoices:
                     logger.info(
                         f"[MatchHandler] Match {event.match_id}: "
                         f"{len(impacted_ticket_ids)} tickets impactés, "
-                        f"{len(updated_ticket_ids)} tickets résolus."
+                        f"{len(set(impacted_ticket_ids))} événements ticket.choices.resolved publiés."
                     )
         except Exception:
             logger.exception(f"[MatchHandler] Erreur lors du traitement du match {event.match_id}")

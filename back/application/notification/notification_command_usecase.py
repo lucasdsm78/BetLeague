@@ -1,9 +1,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Mapping
+from dataclasses import dataclass
+from typing import Any, Mapping, Optional
 
 from domain.notification.model.notification import Notification, NotificationType
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationCreateCommand:
+    user_id: int
+    type: NotificationType
+    title: str
+    message: str
+    data: Mapping[str, Any]
+    dedupe_key: Optional[str] = None
 
 
 class NotificationCommandUseCase(ABC):
@@ -16,7 +27,16 @@ class NotificationCommandUseCase(ABC):
         title: str,
         message: str,
         data: Mapping[str, Any],
+        dedupe_key: Optional[str] = None,
     ) -> Notification:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_many(
+        self,
+        *,
+        items: list[NotificationCreateCommand],
+    ) -> list[Notification]:
         raise NotImplementedError
 
     @abstractmethod
