@@ -48,10 +48,8 @@ const HomeScreen = memo(() => (
       </div>
 
       <div className="logo">
-        <div className="logo-ball">
-          <span className="logo-icon" role="img" aria-label="Football">⚽</span>
-        </div>
-        <h1>BetLeague</h1>
+        <img src="/betleague-logo.png" alt="BetLeague" className="logo-image" />
+        <h1 className="sr-only">BetLeague</h1>
       </div>
 
       <p className="tagline">

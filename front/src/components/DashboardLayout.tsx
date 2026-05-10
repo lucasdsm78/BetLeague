@@ -422,8 +422,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         <div className="header-content">
           <div className="header-left">
             <div className="logo">
-              <span className="logo-icon">⚽</span>
-              <span className="logo-text">BetLeague</span>
+              <img src="/betleague-logo.png" alt="BetLeague" className="logo-image" />
             </div>
           </div>
 
