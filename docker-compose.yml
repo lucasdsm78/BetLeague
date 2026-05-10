@@ -38,7 +38,7 @@ services:
     volumes:
       - nats_data:/data
       - ./back/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
-      - ./back/nats/certs:/etc/nats/certs:ro
+      - ./back/nats/certs:/run/secrets:ro
 
   jetstream_provision:
     build:
@@ -147,10 +147,9 @@ services:
       context: back
       dockerfile: Dockerfile
     container_name: celery_beat
-    command: celery -A infrastructure.celery.celery_app beat --loglevel=info --schedule /var/lib/celery/celerybeat-schedule
+    command: celery -A infrastructure.celery.celery_app beat --loglevel=info --schedule /tmp/celerybeat-schedule
     volumes:
       - ./back:/app
-      - celery_beat_schedule:/var/lib/celery
     env_file:
       - back/.env
     environment:
@@ -268,4 +267,3 @@ services:
 volumes:
   db_data:
   nats_data:
-  celery_beat_schedule:
