@@ -98,8 +98,22 @@ const TermsPage: React.FC = () => {
         <h2>7. Propriété intellectuelle</h2>
         <p>
           Les éléments de l’application, notamment l’interface, le design, les textes, le logo,
-          l’architecture, les composants et les contenus propres à BetLeague sont protégés. Sauf accord
-          exprès, toute reproduction, adaptation, extraction ou réutilisation est interdite.
+          l’architecture, les composants et les contenus propres à BetLeague sont protégés par le
+          Code de la propriété intellectuelle et par le droit d’auteur. Ils demeurent la propriété
+          exclusive de l’éditeur.
+        </p>
+        <p>
+          L’Utilisateur dispose d’un droit d’usage personnel et non commercial des contenus mis à
+          disposition, à des fins strictement individuelles et privées. À ce titre, il peut
+          consulter le service, partager son propre parcours (classement personnel, captures
+          d’écran de ses pronostics ou résultats) à titre privé ou sur les réseaux sociaux,
+          uniquement à des fins non lucratives.
+        </p>
+        <p>
+          Toute autre utilisation, notamment la reproduction, l’adaptation, l’extraction, la
+          rediffusion ou l’exploitation commerciale, publicitaire ou de masse, est interdite sans
+          accord exprès et préalable de l’éditeur. Toute infraction engage la responsabilité de
+          l’Utilisateur.
         </p>
       </section>
 
@@ -117,9 +131,26 @@ const TermsPage: React.FC = () => {
         <h2>9. Responsabilité</h2>
         <p>
           BetLeague est fourni « tel quel » dans une logique de divertissement. Dans les limites
-          autorisées par la loi applicable, BetLeague ne pourra être tenu responsable des dommages
+          autorisées par la loi applicable, l’éditeur ne pourra être tenu responsable des dommages
           indirects, pertes de données, pertes d’usage ou conséquences liées à une indisponibilité
           temporaire du service.
+        </p>
+        <p>
+          L’éditeur ne saurait être tenu pour responsable en cas de <strong>force majeure</strong>{' '}
+          ou du fait imprévisible et insurmontable d’un tiers, notamment toute panne du réseau
+          internet public, des opérateurs de télécommunication, des plateformes d’hébergement ou
+          des fournisseurs de données sportives.
+        </p>
+        <p>
+          L’éditeur décline toute responsabilité concernant les éventuels{' '}
+          <strong>virus, logiciels malveillants ou dysfonctionnements</strong> pouvant affecter le
+          matériel informatique ou mobile de l’Utilisateur à l’occasion de l’utilisation du service,
+          étant précisé que l’Utilisateur est tenu de maintenir son équipement à jour et protégé.
+        </p>
+        <p>
+          Les <strong>frais d’accès au service</strong> (équipement informatique ou mobile,
+          abonnement internet, données mobiles, frais d’itinérance) restent à la charge exclusive
+          de l’Utilisateur.
         </p>
       </section>
 
@@ -168,8 +199,100 @@ const TermsPage: React.FC = () => {
         </p>
       </section>
 
+      <section className="legal-section">
+        <h2>13. Cookies et traceurs</h2>
+        <p>
+          BetLeague peut utiliser des cookies et technologies similaires strictement nécessaires au
+          fonctionnement du service, notamment pour assurer l’authentification, la sécurité des
+          sessions, la mémorisation des préférences et la prévention des abus. Ces cookies sont
+          exemptés de consentement préalable conformément aux recommandations de la CNIL.
+        </p>
+        <p>
+          Si des cookies non strictement nécessaires (statistiques renforcées, mesure d’audience
+          ou autres) venaient à être utilisés, un mécanisme de recueil du consentement préalable
+          conforme aux exigences de la CNIL serait mis en place. L’utilisateur conserve la
+          possibilité de configurer son navigateur pour refuser tout ou partie des cookies, étant
+          précisé que cela peut affecter la disponibilité de certaines fonctionnalités.
+        </p>
+        <p>
+          Les détails relatifs aux données collectées et à leur traitement figurent dans la{' '}
+          <a href="/confidentialite">Politique de confidentialité</a>.
+        </p>
+      </section>
+
+      <section className="legal-section">
+        <h2>14. Liens hypertextes</h2>
+        <p>
+          Le service peut contenir des liens hypertextes pointant vers des sites ou services
+          opérés par des tiers (par exemple, sites institutionnels, autorités compétentes,
+          réseaux sociaux, prestataires techniques ou fournisseurs de données sportives).
+        </p>
+        <p>
+          L’éditeur n’exerce aucun contrôle sur le contenu, la disponibilité, les pratiques ni les
+          politiques de ces sites tiers. Le fait de cliquer sur un lien hypertexte fait sortir
+          l’utilisateur du périmètre de BetLeague et l’éditeur ne peut être tenu responsable
+          du contenu, des produits ou des services accessibles via ces liens, ni de tout dommage
+          résultant directement ou indirectement de leur consultation.
+        </p>
+      </section>
+
+      <section className="legal-section">
+        <h2>15. Contenus publiés par l’utilisateur</h2>
+        <p>
+          Dans le cadre de son utilisation du service, l’utilisateur est susceptible de publier
+          des contenus, notamment un pseudonyme, des noms de ligues, des invitations, des
+          réactions ou tout autre élément rendu visible aux autres utilisateurs.
+        </p>
+        <ul>
+          <li>
+            L’utilisateur s’engage à publier des contenus respectueux des lois en vigueur et de
+            la <strong>Netiquette</strong> : pas d’injures, pas de propos discriminatoires, pas
+            d’incitation à la haine, à la violence ou à la fraude, pas de contenus à caractère
+            sexuel, pas d’usurpation d’identité, pas de contenu contraire à l’ordre public.
+          </li>
+          <li>
+            L’utilisateur garantit qu’il dispose des droits nécessaires sur les contenus qu’il
+            publie et qu’ils ne portent pas atteinte aux droits de tiers (vie privée, droit à
+            l’image, propriété intellectuelle, marque, etc.).
+          </li>
+          <li>
+            L’utilisateur est seul responsable des contenus qu’il publie. Toute procédure
+            engagée à l’encontre de l’éditeur du fait d’un contenu publié par un utilisateur
+            sera prise en charge par ce dernier.
+          </li>
+        </ul>
+        <p>
+          En publiant un contenu sur le service, l’utilisateur concède à l’éditeur une{' '}
+          <strong>licence non exclusive, gratuite, mondiale et pour la durée de protection
+          légale des droits de propriété intellectuelle</strong> de reproduire, afficher,
+          adapter techniquement et distribuer ce contenu, dans la stricte mesure nécessaire au
+          fonctionnement du service (notamment pour rendre visibles les pseudos, classements
+          et noms de ligues aux autres participants).
+        </p>
+        <p>
+          L’éditeur se réserve le droit de modérer, refuser ou retirer à tout moment tout
+          contenu qui contreviendrait aux présentes CGU ou à la loi, sans préavis ni
+          justification, et de suspendre ou résilier le compte de l’utilisateur concerné.
+        </p>
+      </section>
+
+      <section className="legal-section">
+        <h2>16. Durée du contrat</h2>
+        <p>
+          Les présentes Conditions Générales d’Utilisation sont conclues pour une{' '}
+          <strong>durée indéterminée</strong>. Le commencement de l’utilisation du service par
+          l’utilisateur marque l’entrée en vigueur du contrat à son égard.
+        </p>
+        <p>
+          L’utilisateur peut à tout moment mettre fin au contrat en demandant la suppression de
+          son compte, conformément à la section consacrée à la suppression du compte. L’éditeur
+          peut, de son côté, suspendre ou résilier le contrat en cas de manquement aux présentes
+          CGU, conformément aux dispositions ci-dessus.
+        </p>
+      </section>
+
       <section className="legal-section legal-section--notice">
-        <h2>13. Rappel essentiel</h2>
+        <h2>17. Rappel essentiel</h2>
         <p>
           BetLeague est un environnement de jeu gratuit et fictif. Les BTL servent uniquement à jouer
           pour le plaisir. Ils ne constituent ni une monnaie, ni un actif, ni un droit à une valeur, ni
