@@ -6,8 +6,8 @@
 import React, { useState, memo, useEffect } from 'react';
 import { initializeServices } from './services';
 import { initializeStores } from './store';
-import SecurityUtils from './utils/security';
 import { InstallPrompt } from './components/pwa/InstallPrompt';
+import LegalLinks from './components/legal/LegalLinks';
 import './styles/App.css';
 
 
@@ -44,7 +44,7 @@ const HomeScreen = memo(() => (
     <section className="hero-section">
       <div className="hero-badge">
         <span className="badge-icon">⚡</span>
-        <span>La référence des paris entre amis</span>
+        <span>La référence des pronostics entre amis</span>
       </div>
 
       <div className="logo">
@@ -106,7 +106,7 @@ const HomeScreen = memo(() => (
             <span className="feature-icon" role="img" aria-label="Mobile">📱</span>
           </div>
           <h3>100% Mobile</h3>
-          <p>Pariez où vous voulez, quand vous voulez depuis votre smartphone</p>
+          <p>Pronostiquez où vous voulez, quand vous voulez, depuis votre smartphone</p>
         </div>
       </div>
     </section>
@@ -140,6 +140,15 @@ const HomeScreen = memo(() => (
         <span className="note-icon">🔒</span>
         Inscription gratuite • Sans carte bancaire • Données sécurisées
       </p>
+
+      <div className="legal-teaser">
+        <p className="legal-teaser__title">BetLeague reste un jeu social 100 % gratuit</p>
+        <p className="legal-teaser__text">
+          Les BTL sont des points fictifs sans valeur monétaire. Aucun retrait, aucun gain en
+          argent et aucun lot matériel ne sont proposés dans l’application.
+        </p>
+        <LegalLinks />
+      </div>
     </section>
   </div>
 ));

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from '../hooks/useAuth.enhanced';
 import { AuthError } from '../services/authService.enhanced';
 import { useGlobalToast } from '../toast/ToastProvider';
@@ -22,6 +22,7 @@ interface FormData {
   email: string;
   password: string;
   confirmPassword: string;
+  acceptTerms: boolean;
 }
 
 interface FormErrors {
@@ -29,6 +30,7 @@ interface FormErrors {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  acceptTerms?: string;
   general?: string;
 }
 
@@ -226,7 +228,8 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
     pseudo: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    acceptTerms: false,
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -287,6 +290,14 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
     return undefined;
   }, []);
 
+  const validateAcceptTerms = useCallback((acceptTerms: boolean): string | undefined => {
+    if (!acceptTerms) {
+      return 'Vous devez accepter les CGU pour créer un compte';
+    }
+
+    return undefined;
+  }, []);
+
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
 
@@ -294,21 +305,24 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
     const emailError = validateEmail(formData.email);
     const passwordError = validatePassword(formData.password);
     const confirmPasswordError = validateConfirmPassword(formData.confirmPassword, formData.password);
+    const acceptTermsError = validateAcceptTerms(formData.acceptTerms);
 
     if (pseudoError) newErrors.pseudo = pseudoError;
     if (emailError) newErrors.email = emailError;
     if (passwordError) newErrors.password = passwordError;
     if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
+    if (acceptTermsError) newErrors.acceptTerms = acceptTermsError;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword]);
+  }, [formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword, validateAcceptTerms]);
 
   // Event handlers
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    const nextValue = type === 'checkbox' ? checked : value;
 
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
 
     // Validation en temps réel pour effacer les erreurs
     if (errors[name as keyof FormErrors]) {
@@ -316,23 +330,26 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
 
       switch (name) {
         case 'pseudo':
-          error = validatePseudo(value);
+          error = validatePseudo(String(nextValue));
           break;
         case 'email':
-          error = validateEmail(value);
+          error = validateEmail(String(nextValue));
           break;
         case 'password':
-          error = validatePassword(value);
+          error = validatePassword(String(nextValue));
           // Revalider confirmPassword si nécessaire
           if (formData.confirmPassword && errors.confirmPassword) {
             setErrors(prev => ({
               ...prev,
-              confirmPassword: validateConfirmPassword(formData.confirmPassword, value)
+              confirmPassword: validateConfirmPassword(formData.confirmPassword, String(nextValue))
             }));
           }
           break;
         case 'confirmPassword':
-          error = validateConfirmPassword(value, formData.password);
+          error = validateConfirmPassword(String(nextValue), formData.password);
+          break;
+        case 'acceptTerms':
+          error = validateAcceptTerms(Boolean(nextValue));
           break;
       }
 
@@ -341,7 +358,7 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
         [name]: error
       }));
     }
-  }, [errors, formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword]);
+  }, [errors, formData, validatePseudo, validateEmail, validatePassword, validateConfirmPassword, validateAcceptTerms]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -358,7 +375,7 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
         email: formData.email,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
-        acceptTerms: true
+        acceptTerms: formData.acceptTerms,
       });
 
       if (result && onRegister) {
@@ -395,7 +412,7 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
 
   const handleBackClick = useCallback(() => {
     // Reset form state when going back
-    setFormData({ pseudo: '', email: '', password: '', confirmPassword: '' });
+    setFormData({ pseudo: '', email: '', password: '', confirmPassword: '', acceptTerms: false });
     setErrors({});
     onBack();
   }, [onBack]);
@@ -414,7 +431,7 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
       <div className="form-header">
         <h2 className="form-title">Inscription</h2>
         <p className="form-subtitle">
-          Rejoignez la communauté BetLeague et créez vos propres ligues de paris !
+          Rejoignez la communauté BetLeague et créez vos propres ligues de pronostics !
         </p>
       </div>
 
@@ -494,6 +511,36 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
           showPasswordToggle
         />
 
+        <div className={`terms-checkbox ${errors.acceptTerms ? 'terms-checkbox--error' : ''}`}>
+          <input
+            id="acceptTerms"
+            name="acceptTerms"
+            type="checkbox"
+            className="terms-checkbox__input"
+            checked={formData.acceptTerms}
+            onChange={handleChange}
+            disabled={isLoading}
+            aria-invalid={errors.acceptTerms ? 'true' : 'false'}
+            aria-describedby={errors.acceptTerms ? 'acceptTerms-error' : 'acceptTerms-hint'}
+          />
+          <div className="terms-checkbox__content">
+            <label htmlFor="acceptTerms" className="terms-checkbox__label">
+              J’accepte les <Link to="/cgu" className="form-link">CGU</Link> et je reconnais que
+              BetLeague est une application <strong>100 % gratuite</strong> : les BTL sont des points
+              fictifs, sans valeur monétaire, non retirables, non transférables et non convertibles.
+            </label>
+            <p id="acceptTerms-hint" className="terms-checkbox__hint">
+              Aucun gain réel, aucun bien matériel et aucune somme d’argent ne sont attribués.
+            </p>
+            {errors.acceptTerms && (
+              <div className="form-error" id="acceptTerms-error" role="alert">
+                <span className="error-icon">⚠️</span>
+                {errors.acceptTerms}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Submit Button */}
         <div className="form-actions">
           <FormButton
@@ -527,13 +574,13 @@ const RegisterForm = memo<RegisterFormProps>(({ onBack, onSwitchToLogin, onRegis
       <div className="legal-notice">
         <p>
           En créant un compte, vous acceptez nos{' '}
-          <a href="#" className="form-link" onClick={(e) => e.preventDefault()}>
+          <Link to="/cgu" className="form-link">
             conditions d'utilisation
-          </a>{' '}
+          </Link>{' '}
           et notre{' '}
-          <a href="#" className="form-link" onClick={(e) => e.preventDefault()}>
+          <Link to="/confidentialite" className="form-link">
             politique de confidentialité
-          </a>.
+          </Link>.
         </p>
       </div>
 

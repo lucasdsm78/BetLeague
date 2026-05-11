@@ -13,6 +13,7 @@ import { useGlobalToast } from '../toast/ToastProvider';
 import { createLogger } from '../utils/logger';
 import LogoutModal from './auth/LogoutModal';
 import { NotificationsHeaderButton } from './notifications/NotificationsHeaderButton';
+import LegalLinks from './legal/LegalLinks';
 import './Dashboard.css';
 
 const logger = createLogger('DashboardLayout');
@@ -553,6 +554,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               </button>
             ))}
           </div>
+
+          <div className="dashboard-legal-links desktop-only">
+            <LegalLinks compact showDisclaimer={false} />
+          </div>
         </nav>
 
         {/* Main Content with error boundary */}
@@ -622,6 +627,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               <span className="menu-icon">🚪</span>
               <span className="menu-label">Déconnexion</span>
             </button>
+
+            <div className="dashboard-legal-links">
+              <LegalLinks compact showDisclaimer={false} />
+            </div>
           </div>
         </div>
       </nav>
