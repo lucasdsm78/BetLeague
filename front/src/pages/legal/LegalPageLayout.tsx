@@ -18,6 +18,14 @@ const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
   children,
 }) => {
   const navigate = useNavigate();
+  const handleBack = () => {
+	if (window.history.length > 1) {
+	  navigate(-1);
+	  return;
+	}
+
+	navigate('/');
+  };
 
   return (
 	<div className="legal-page">
@@ -27,7 +35,7 @@ const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
 		  <button
 			type="button"
 			className="legal-page__back"
-			onClick={() => navigate(-1)}
+			onClick={handleBack}
 			aria-label="Revenir à la page précédente"
 		  >
 			← Retour
@@ -61,4 +69,5 @@ const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
 };
 
 export default LegalPageLayout;
+
 
