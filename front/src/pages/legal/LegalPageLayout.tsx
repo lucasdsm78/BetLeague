@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import '../../styles/App.css';
 import '../../styles/legal.css';
 
 interface LegalPageLayoutProps {
@@ -41,10 +42,10 @@ const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
 			← Retour
 		  </button>
 
-		  <div className="legal-page__quick-links" aria-label="Navigation rapide">
-			<Link to="/" className="legal-page__quick-link">Accueil</Link>
-			<Link to="/login" className="legal-page__quick-link">Connexion</Link>
-			<Link to="/register" className="legal-page__quick-link legal-page__quick-link--primary">
+		  <div className="legal-page__quick-links auth-buttons" aria-label="Navigation rapide">
+			<Link to="/" className="legal-page__quick-link btn btn-secondary btn-lg">Accueil</Link>
+			<Link to="/login" className="legal-page__quick-link btn btn-secondary btn-lg">Connexion</Link>
+			<Link to="/register" className="legal-page__quick-link btn btn-primary btn-lg btn-glow">
 			  Créer un compte
 			</Link>
 		  </div>
@@ -69,5 +70,7 @@ const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
 };
 
 export default LegalPageLayout;
+
+
 
 
