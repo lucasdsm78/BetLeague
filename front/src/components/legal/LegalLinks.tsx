@@ -15,6 +15,8 @@ const LegalLinks = memo<LegalLinksProps>(({ compact = false, className = '', sho
         <Link to="/cgu" className="legal-links__link">CGU</Link>
         <span className="legal-links__separator" aria-hidden="true">•</span>
         <Link to="/confidentialite" className="legal-links__link">Confidentialité</Link>
+        <span className="legal-links__separator" aria-hidden="true">•</span>
+        <Link to="/mentions-legales" className="legal-links__link">Mentions légales</Link>
       </div>
 
       {showDisclaimer && (

@@ -15,6 +15,7 @@ import DashboardLayout from 'components/DashboardLayout';
 import TwoFactorPage from 'components/TwoFactorPage';
 import TermsPage from 'pages/legal/TermsPage';
 import PrivacyPage from 'pages/legal/PrivacyPage';
+import LegalNoticePage from 'pages/legal/LegalNoticePage';
 
 // Forgot password (lazy)
 const ForgotPasswordRequestPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordRequestPage'));
@@ -238,6 +239,11 @@ const AppRouter: React.FC = () => {
         <Route
           path="/confidentialite"
           element={<PrivacyPage />}
+        />
+
+        <Route
+          path="/mentions-legales"
+          element={<LegalNoticePage />}
         />
 
         {/* Protected Dashboard routes */}
