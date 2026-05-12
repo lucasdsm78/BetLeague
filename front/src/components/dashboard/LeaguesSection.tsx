@@ -1,10 +1,12 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import secureApiClient from '../../services/secureApiClient';
-import { getLeagueDetails } from '../../services/api/leagues';
+import { getCreatedLeaguesPage, getLeagueDetails } from '../../services/api/leagues';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
+import { leaguesKeys } from '../../hooks/queries/leaguesKeys';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
@@ -293,6 +295,7 @@ interface LeaguesSectionProps {}
 
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const { showSuccess, showError } = useGlobalToast();
+    const queryClient = useQueryClient();
 
     const profileQuery = useProfileMeQuery();
     const profile = profileQuery.data;
@@ -349,13 +352,25 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const navigate = useNavigate();
 
     // Handle league creation success
-    const handleCreateLeague = useCallback((_leagueData: any, message: string) => {
+    const handleCreateLeague = useCallback(async (_leagueData: any, message: string) => {
         setIsCreateModalOpen(false);
+        setActiveTab('myLeagues');
         showSuccess('Ligue créée', message || 'Ligue créée avec succès !');
-        // Rafraîchir les données via React Query
-        createdQuery.refetch();
-        availableQuery.refetch();
-    }, [showSuccess, createdQuery, availableQuery]);
+
+        secureApiClient.clearCache();
+
+        await Promise.allSettled([
+            queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+            queryClient.fetchQuery({
+                queryKey: leaguesKeys.list('created', 1, 10),
+                queryFn: async () => {
+                    const pageData = await getCreatedLeaguesPage(1, 10);
+                    return pageData.leagues;
+                },
+            }),
+            Promise.resolve(refetchProfile()).then(() => undefined),
+        ]);
+    }, [showSuccess, queryClient, refetchProfile]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {

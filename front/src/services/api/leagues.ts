@@ -37,19 +37,19 @@ export async function createLeague(payload: ApiLeagueCreateRequest): Promise<Api
 
 export async function getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/created?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/created?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/participated?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/participated?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
