@@ -90,6 +90,37 @@ jest.mock('../../hooks/queries/useLeaguesQueries', () => ({
       refetch: jest.fn().mockResolvedValue({ data: [] }),
     };
   },
+  useLeagueCountQuery: (tab: string) => {
+    if (tab === 'participatedLeagues') {
+      return {
+        data: mockParticipatedLeaguesData.length,
+        isLoading: false,
+        isFetching: false,
+      };
+    }
+
+    if (tab === 'myLeagues') {
+      return {
+        data: mockCreatedLeaguesData.length,
+        isLoading: false,
+        isFetching: false,
+      };
+    }
+
+    if (tab === 'availableLeagues') {
+      return {
+        data: mockAvailableLeaguesData.length,
+        isLoading: false,
+        isFetching: false,
+      };
+    }
+
+    return {
+      data: 0,
+      isLoading: false,
+      isFetching: false,
+    };
+  },
   useJoinLeagueMutation: () => ({
     mutateAsync: (...args: unknown[]) => mockMutateAsync(...args),
   }),
@@ -205,6 +236,39 @@ describe('LeaguesSection', () => {
     expect(mockGetCreatedLeaguesPage).toHaveBeenCalledWith(1, 10);
   });
 
+  it('affiche les compteurs participées et disponibles dès le chargement de la page', async () => {
+    mockParticipatedLeaguesData = [
+      {
+        id: 31,
+        name: 'Ligue déjà rejointe',
+        is_free: true,
+        max_players: 10,
+        nb_players_remaining: 6,
+        status: 'OPEN',
+        current_total_pot: null,
+      },
+    ];
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveTextContent('Participées1');
+      expect(screen.getByRole('button', { name: /ligues disponibles/i })).toHaveTextContent('Disponibles1');
+    });
+  });
+
   it('affiche immédiatement la ligue rejointe dans l’onglet Participées', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -234,6 +298,7 @@ describe('LeaguesSection', () => {
     expect(mockGetParticipatedLeaguesPage).toHaveBeenCalledWith(1, 10);
   });
 });
+
 
 
 
