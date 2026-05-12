@@ -54,7 +54,7 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
 
         setIsJoining(true);
         try {
-            const _ = await joinLeague(leagueData.id);
+            await joinLeague(leagueData.id);
             await loadLeagueDetails(true);
         } catch (err: any) {
             setError('Erreur lors de la tentative de rejoindre la ligue');
@@ -324,15 +324,6 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                         </div>
                     )}
 
-                    {leagueData.uuid && (
-                        <div className="stat-card">
-                            <div className="stat-icon">🔗</div>
-                            <div className="stat-content">
-                                <div className="stat-value code-value">{leagueData.uuid}</div>
-                                <div className="stat-label">Code de la ligue</div>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {leagueData.status !== 'CLOSED' && leagueData.is_started && (

@@ -218,15 +218,6 @@
   color: var(--color-primary);
 }
 
-.code-value {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.875rem;
-  background: var(--bg-elevated);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-primary);
-  color: var(--color-primary);
-}
 
 .stat-label {
   font-size: 0.875rem;
