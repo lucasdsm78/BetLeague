@@ -5,7 +5,7 @@ import secureApiClient from '../../services/secureApiClient';
 import { getCreatedLeaguesPage, getLeagueDetails, getParticipatedLeaguesPage } from '../../services/api/leagues';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
-import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
+import { useLeagueCountQuery, useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
 import { leaguesKeys } from '../../hooks/queries/leaguesKeys';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import CreateLeagueForm from '../league/CreateLeagueForm';
@@ -293,6 +293,8 @@ type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 
 interface LeaguesSectionProps {}
 
+const EMPTY_LEAGUES: LeagueSummary[] = [];
+
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const { showSuccess, showError } = useGlobalToast();
     const queryClient = useQueryClient();
@@ -308,12 +310,24 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const participatedQuery = useLeaguesListQuery('participatedLeagues', { enabled: activeTab === 'participatedLeagues' });
     const createdQuery = useLeaguesListQuery('myLeagues', { enabled: activeTab === 'myLeagues' });
     const availableQuery = useLeaguesListQuery('availableLeagues', { enabled: activeTab === 'availableLeagues' });
+    const participatedCountQuery = useLeagueCountQuery('participatedLeagues');
+    const createdCountQuery = useLeagueCountQuery('myLeagues');
+    const availableCountQuery = useLeagueCountQuery('availableLeagues');
 
     const joinMutation = useJoinLeagueMutation();
 
-    const participatedLeagues = participatedQuery.data ?? [];
-    const createdLeagues = createdQuery.data ?? [];
-    const availableLeagues = availableQuery.data ?? [];
+    const participatedLeagues = participatedQuery.data ?? EMPTY_LEAGUES;
+    const createdLeagues = createdQuery.data ?? EMPTY_LEAGUES;
+    const availableLeagues = availableQuery.data ?? EMPTY_LEAGUES;
+    const participatedCount = participatedCountQuery.data ?? participatedLeagues.length;
+    const createdCount = createdCountQuery.data ?? createdLeagues.length;
+    const availableCount = availableCountQuery.data ?? availableLeagues.length;
+
+    const renderTabBadge = useCallback((count: number | undefined, isLoading: boolean) => {
+        if (typeof count === 'number') return String(count);
+        if (isLoading) return '…';
+        return '0';
+    }, []);
 
     const isLoadingParticipated = participatedQuery.isLoading || participatedQuery.isFetching;
     const isLoadingCreated = createdQuery.isLoading || createdQuery.isFetching;
@@ -495,11 +509,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         handleCloseLeaveModal();
         secureApiClient.clearCache();
         refetchProfile().catch(() => {});
+        queryClient.invalidateQueries({ queryKey: leaguesKeys.all }).catch(() => {});
         // refresh listes
         participatedQuery.refetch();
         createdQuery.refetch();
         availableQuery.refetch();
-    }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, refetchProfile]);
+    }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, queryClient, refetchProfile]);
 
     const handleInvitationSent = useCallback((user: UserSearchResult) => {
         showSuccess('Invitation envoyée', `Invitation envoyée à ${user.pseudo} avec succès !`);
@@ -542,11 +557,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
         setTimeout(() => {
             secureApiClient.clearCache();
+            queryClient.invalidateQueries({ queryKey: leaguesKeys.all }).catch(() => {});
             participatedQuery.refetch();
             createdQuery.refetch();
             availableQuery.refetch();
         }, 100);
-    }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, showSuccess]);
+    }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, queryClient, showSuccess]);
 
     const allLeagueIds = useMemo(() => {
         const ids = [...participatedLeagues, ...createdLeagues].map((l) => l.id);
@@ -582,7 +598,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Participées</span>
-                        <span className="tab-badge">{participatedLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(participatedCount, participatedCountQuery.isLoading || participatedCountQuery.isFetching)}</span>
                     </span>
                 </button>
                 <button
@@ -592,7 +608,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Créées</span>
-                        <span className="tab-badge">{createdLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(createdCount, createdCountQuery.isLoading || createdCountQuery.isFetching)}</span>
                     </span>
                 </button>
                 <button
@@ -602,7 +618,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Disponibles</span>
-                        <span className="tab-badge">{availableLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(availableCount, availableCountQuery.isLoading || availableCountQuery.isFetching)}</span>
                     </span>
                 </button>
             </div>
