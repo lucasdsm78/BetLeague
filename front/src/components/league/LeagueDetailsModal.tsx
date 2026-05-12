@@ -190,7 +190,13 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     : null;
 
   return (
-    <div className="league-modal-overlay" onClick={onClose}>
+    <div
+      className="league-modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Détails de la ligue"
+    >
       <div className="league-modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Loading State */}
         {loading && (
