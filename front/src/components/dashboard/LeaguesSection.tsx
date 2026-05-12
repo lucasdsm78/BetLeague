@@ -2,7 +2,7 @@ import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import secureApiClient from '../../services/secureApiClient';
-import { getCreatedLeaguesPage, getLeagueDetails } from '../../services/api/leagues';
+import { getCreatedLeaguesPage, getLeagueDetails, getParticipatedLeaguesPage } from '../../services/api/leagues';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
@@ -325,14 +325,28 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         try {
             setJoiningLeagueId(league.id);
             await joinMutation.mutateAsync({ leagueId: league.id });
+            setActiveTab('participatedLeagues');
             showSuccess('Ligue rejointe', `Vous avez rejoint ${league.name}`);
-            refetchProfile();
+
+            secureApiClient.clearCache();
+
+            await Promise.allSettled([
+                queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+                queryClient.fetchQuery({
+                    queryKey: leaguesKeys.list('participated', 1, 10),
+                    queryFn: async () => {
+                        const pageData = await getParticipatedLeaguesPage(1, 10);
+                        return pageData.leagues;
+                    },
+                }),
+                Promise.resolve(refetchProfile()).then(() => undefined),
+            ]);
         } catch (e: any) {
             showError('Erreur', e?.message || 'Impossible de rejoindre la ligue');
         } finally {
             setJoiningLeagueId(null);
         }
-    }, [joinMutation, refetchProfile, showSuccess, showError]);
+    }, [joinMutation, queryClient, refetchProfile, showSuccess, showError]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
