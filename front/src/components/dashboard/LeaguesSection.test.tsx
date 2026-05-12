@@ -274,8 +274,8 @@ describe('LeaguesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveTextContent('Participées1');
-      expect(screen.getByRole('button', { name: /ligues disponibles/i })).toHaveTextContent('Disponibles1');
     });
+    expect(screen.getByRole('button', { name: /ligues disponibles/i })).toHaveTextContent('Disponibles1');
   });
 
   it('affiche immédiatement la ligue rejointe dans l’onglet Participées', async () => {
@@ -298,8 +298,8 @@ describe('LeaguesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Ligue publique')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveClass('active');
     });
+    expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveClass('active');
 
     expect(mockMutateAsync).toHaveBeenCalledWith({ leagueId: 22 });
     expect(mockShowSuccess).toHaveBeenCalledWith('Ligue rejointe', 'Vous avez rejoint Ligue publique');
@@ -340,6 +340,8 @@ describe('LeaguesSection', () => {
 
     const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue prête/i });
     expect(startButton).toBeEnabled();
+    expect(screen.getByText(/minimum atteint/i)).toBeInTheDocument();
+    expect(screen.getByText(/ouvrir les paris/i)).toBeInTheDocument();
 
     fireEvent.click(startButton);
 
@@ -349,7 +351,46 @@ describe('LeaguesSection', () => {
 
     expect(mockShowSuccess).toHaveBeenCalledWith('Ligue démarrée', 'Ligue prête a démarré avec succès.');
   });
+
+  it('affiche une aide explicative et désactive le démarrage tant que le minimum de joueurs n’est pas atteint', async () => {
+    mockCreatedLeaguesData = [
+      {
+        id: 45,
+        name: 'Ligue en attente',
+        isFree: true,
+        maxPlayers: 10,
+        minPlayers: 4,
+        currentPlayersCount: 2,
+        playersRemaining: 8,
+        status: 'OPEN',
+        currentTotalPot: null,
+        userCreator: { id: 7, pseudo: 'owner' },
+        startDate: new Date('2026-05-13T10:00:00Z').toISOString(),
+      },
+    ];
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue en attente/i });
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText(/doit atteindre au moins 4 joueurs/i)).toBeInTheDocument();
+    expect(screen.getByText(/avant de pouvoir commencer et lancer les paris/i)).toBeInTheDocument();
+  });
 });
+
+
 
 
 

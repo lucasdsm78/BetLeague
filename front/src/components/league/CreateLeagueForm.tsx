@@ -434,7 +434,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
             <div className="clf-row">
               <div className="clf-field">
                 <label htmlFor="clf-members" className="clf-label">
-                  Participants max <span className="clf-req">*</span>
+                  Joueurs maximum <span className="clf-req">*</span>
                 </label>
                 <input
                   id="clf-members"

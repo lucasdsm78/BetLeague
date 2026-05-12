@@ -232,6 +232,19 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
         && typeof leagueData.min_players === 'number'
         && typeof currentPlayersCount === 'number'
         && currentPlayersCount >= leagueData.min_players;
+    const startLeagueHintId = `league-detail-start-hint-${leagueData.id}`;
+    const startPlayersProgress = typeof currentPlayersCount === 'number' && typeof leagueData.min_players === 'number'
+        ? `${currentPlayersCount}/${leagueData.min_players}`
+        : null;
+    const startLeagueHelperText = leagueData.status === 'CLOSED'
+        ? 'Cette ligue est clôturée : elle ne peut plus être démarrée ni accepter de nouveaux paris.'
+        : leagueData.is_started
+            ? 'La ligue est déjà lancée : les participants peuvent parier dès maintenant.'
+            : canStartLeague
+                ? `Minimum atteint${startPlayersProgress ? ` (${startPlayersProgress} joueurs)` : ''} : cliquez sur « Commencer la ligue » pour ouvrir les paris.`
+                : typeof leagueData.min_players === 'number'
+                    ? `La ligue doit atteindre au moins ${leagueData.min_players} joueurs${startPlayersProgress ? ` (${startPlayersProgress})` : ''} avant de pouvoir commencer et lancer les paris.`
+                    : 'Une fois la ligue démarrée, les participants pourront commencer à parier.';
     const currentTotalPotLabel = typeof leagueData.current_total_pot === 'number'
         ? formatTicketAmount(leagueData.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
         : null;
@@ -280,13 +293,24 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                         </button>
                     )}
                     {isOwner && (
-                        <button
-                            className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={handleStartLeague}
-                            disabled={isStarting || !canStartLeague || isRefreshing}
-                        >
-                            {isStarting ? 'Démarrage...' : 'Commencer la ligue'}
-                        </button>
+                        <div className="start-league-cta">
+                            <button
+                                className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={handleStartLeague}
+                                disabled={isStarting || !canStartLeague || isRefreshing}
+                                aria-describedby={startLeagueHintId}
+                            >
+                                {isStarting ? 'Démarrage...' : 'Commencer la ligue'}
+                            </button>
+                            <p
+                                id={startLeagueHintId}
+                                className={`start-league-hint ${canStartLeague || leagueData.is_started ? 'is-ready' : 'is-pending'}`}
+                                aria-live="polite"
+                            >
+                                <span className="start-league-hint__icon" aria-hidden="true">{canStartLeague || leagueData.is_started ? '▶' : 'ℹ'}</span>
+                                <span>{startLeagueHelperText}</span>
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>
