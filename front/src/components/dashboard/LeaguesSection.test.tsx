@@ -340,6 +340,8 @@ describe('LeaguesSection', () => {
 
     const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue prête/i });
     expect(startButton).toBeEnabled();
+    expect(startButton).toHaveClass('btn-start-league');
+    expect(startButton.closest('.league-actions')).toHaveClass('league-actions--with-start');
     expect(screen.getByText(/minimum atteint/i)).toBeInTheDocument();
     expect(screen.getByText(/ouvrir les paris/i)).toBeInTheDocument();
 
@@ -388,7 +390,31 @@ describe('LeaguesSection', () => {
     expect(screen.getByText(/doit atteindre au moins 4 joueurs/i)).toBeInTheDocument();
     expect(screen.getByText(/avant de pouvoir commencer et lancer les paris/i)).toBeInTheDocument();
   });
+
+  it('conserve la variante standard pour les ligues disponibles sans bouton de démarrage', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /ligues disponibles/i }));
+
+    const joinButton = await screen.findByRole('button', { name: /rejoindre la ligue ligue publique/i });
+    expect(joinButton).not.toHaveClass('btn-start-league');
+    expect(joinButton.closest('.league-actions')).toHaveClass('league-actions--standard');
+    expect(joinButton.closest('.league-actions')).not.toHaveClass('league-actions--with-start');
+  });
 });
+
 
 
 
