@@ -163,7 +163,10 @@ export async function getSentInvitations(
 
 export async function getInvitationCounts(params?: InvitationCountsParams): Promise<InvitationCounts> {
   const isReceived = params?.isReceived ?? true;
-  const res: ApiResponse<InvitationCounts> = await http.get(`/invitations/counts?is_received=${isReceived ? 'true' : 'false'}`);
+  const res: ApiResponse<InvitationCounts> = await http.get(`/invitations/counts?is_received=${isReceived ? 'true' : 'false'}`, {
+    skipCache: true,
+    cache: 'no-store',
+  });
   return res.data ?? { pending: 0, accepted: 0, refused: 0 };
 }
 
