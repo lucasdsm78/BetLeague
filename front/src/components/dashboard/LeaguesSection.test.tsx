@@ -12,6 +12,7 @@ const mockMutateAsync = jest.fn();
 const mockGetCreatedLeaguesPage = jest.fn();
 const mockGetParticipatedLeaguesPage = jest.fn();
 const mockClearApiCache = jest.fn();
+const mockStartLeague = jest.fn();
 
 let mockParticipatedLeaguesData: Array<any> = [];
 let mockCreatedLeaguesData: Array<any> = [];
@@ -38,6 +39,13 @@ jest.mock('../../services/api/leagues', () => ({
   getLeagueDetails: jest.fn(),
   getCreatedLeaguesPage: (...args: unknown[]) => mockGetCreatedLeaguesPage(...args),
   getParticipatedLeaguesPage: (...args: unknown[]) => mockGetParticipatedLeaguesPage(...args),
+  startLeague: (...args: unknown[]) => mockStartLeague(...args),
+}));
+
+jest.mock('../../hooks/useAuth.enhanced', () => ({
+  useEnhancedAuth: () => ({
+    user: { id: 7, email: 'owner@example.com', pseudo: 'owner' },
+  }),
 }));
 
 jest.mock('../../hooks/queries/useProfileQuery', () => ({
@@ -206,6 +214,7 @@ describe('LeaguesSection', () => {
       }
       return { message: 'Ligue rejointe' };
     });
+    mockStartLeague.mockResolvedValue({ message: 'The league is well started.' });
   });
 
   it('affiche immédiatement la ligue nouvellement créée dans l’onglet Créées', async () => {
@@ -297,7 +306,52 @@ describe('LeaguesSection', () => {
     expect(mockClearApiCache).toHaveBeenCalled();
     expect(mockGetParticipatedLeaguesPage).toHaveBeenCalledWith(1, 10);
   });
+
+  it('permet au créateur de démarrer une ligue quand le minimum de joueurs est atteint', async () => {
+    mockCreatedLeaguesData = [
+      {
+        id: 44,
+        name: 'Ligue prête',
+        isFree: true,
+        maxPlayers: 10,
+        minPlayers: 3,
+        currentPlayersCount: 3,
+        playersRemaining: 7,
+        status: 'OPEN',
+        currentTotalPot: null,
+        userCreator: { id: 7, pseudo: 'owner' },
+        startDate: new Date('2026-05-13T10:00:00Z').toISOString(),
+      },
+    ];
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue prête/i });
+    expect(startButton).toBeEnabled();
+
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(mockStartLeague).toHaveBeenCalledWith(44);
+    });
+
+    expect(mockShowSuccess).toHaveBeenCalledWith('Ligue démarrée', 'Ligue prête a démarré avec succès.');
+  });
 });
+
+
 
 
 

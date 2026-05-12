@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
+import { getLeagueDetails, joinLeague, startLeague } from '../../services/api/leagues';
+import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import type { ApiLeagueDetail } from '../../types/api';
 import { formatTicketAmount } from '../../utils/ticketAmount';
 import LeagueRankingModal from './LeagueRankingModal';
@@ -18,8 +19,10 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string>('');
     const [isJoining, setIsJoining] = useState(false);
+    const [isStarting, setIsStarting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isRankingOpen, setIsRankingOpen] = useState(false);
+    const { user } = useEnhancedAuth();
 
     const leagueId = propLeagueId || (id ? parseInt(id, 10) : null);
 
@@ -89,6 +92,21 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const handleBack = useCallback(() => {
         navigate(-1);
     }, [navigate]);
+
+    const handleStartLeague = useCallback(async () => {
+        if (!leagueData || isStarting) return;
+
+        setIsStarting(true);
+        try {
+            await startLeague(leagueData.id);
+            await loadLeagueDetails(true);
+        } catch (err: any) {
+            setError(err?.message || 'Erreur lors du démarrage de la ligue');
+            console.error('Start league error:', err);
+        } finally {
+            setIsStarting(false);
+        }
+    }, [isStarting, leagueData, loadLeagueDetails]);
 
     useEffect(() => {
         loadLeagueDetails();
@@ -197,9 +215,23 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
     const statusInfo = getStatusInfo();
     const canJoin = leagueData.status !== 'CLOSED' && !leagueData.is_started && (leagueData.nb_players_remaining || 0) > 0;
     const currentPlayersLabel =
-        typeof leagueData.max_players === 'number' && typeof leagueData.nb_players_remaining === 'number'
+        typeof leagueData.current_players_count === 'number' && typeof leagueData.max_players === 'number'
+            ? `${Math.max(leagueData.current_players_count, 0)}/${leagueData.max_players}`
+            : typeof leagueData.max_players === 'number' && typeof leagueData.nb_players_remaining === 'number'
             ? `${Math.max(leagueData.max_players - leagueData.nb_players_remaining, 0)}/${leagueData.max_players}`
             : 'N/A';
+    const currentPlayersCount = typeof leagueData.current_players_count === 'number'
+        ? Math.max(leagueData.current_players_count, 0)
+        : typeof leagueData.max_players === 'number' && typeof leagueData.nb_players_remaining === 'number'
+            ? Math.max(leagueData.max_players - leagueData.nb_players_remaining, 0)
+            : undefined;
+    const isOwner = leagueData.user_creator?.id === user?.id;
+    const canStartLeague = isOwner
+        && leagueData.status !== 'CLOSED'
+        && !leagueData.is_started
+        && typeof leagueData.min_players === 'number'
+        && typeof currentPlayersCount === 'number'
+        && currentPlayersCount >= leagueData.min_players;
     const currentTotalPotLabel = typeof leagueData.current_total_pot === 'number'
         ? formatTicketAmount(leagueData.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
         : null;
@@ -247,6 +279,15 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                             )}
                         </button>
                     )}
+                    {isOwner && (
+                        <button
+                            className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={handleStartLeague}
+                            disabled={isStarting || !canStartLeague || isRefreshing}
+                        >
+                            {isStarting ? 'Démarrage...' : 'Commencer la ligue'}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -275,6 +316,16 @@ const LeagueDetail = memo<LeagueDetailProps>(({ leagueId: propLeagueId }) => {
                             <div className="stat-label">Participants</div>
                         </div>
                     </div>
+
+                    {typeof leagueData.min_players === 'number' && (
+                        <div className="stat-card">
+                            <div className="stat-icon">🚦</div>
+                            <div className="stat-content">
+                                <div className="stat-value">{leagueData.min_players}</div>
+                                <div className="stat-label">Joueurs minimum</div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="stat-card">
                         <div className="stat-icon">📅</div>

@@ -2,7 +2,8 @@ import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import secureApiClient from '../../services/secureApiClient';
-import { getCreatedLeaguesPage, getLeagueDetails, getParticipatedLeaguesPage } from '../../services/api/leagues';
+import { getCreatedLeaguesPage, getLeagueDetails, getParticipatedLeaguesPage, startLeague } from '../../services/api/leagues';
+import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
 import { useLeagueCountQuery, useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
@@ -86,19 +87,32 @@ interface LeagueCardProps {
     onViewRanking?: (league: LeagueSummary) => void;
     onLeave?: (league: LeagueSummary) => void;
     onEdit?: (league: LeagueSummary) => void;
+    onStart?: (league: LeagueSummary) => void;
     isJoining?: boolean;
+    isStarting?: boolean;
     showJoinButton?: boolean;
     showInviteButton?: boolean;
     showRankingButton?: boolean;
     showLeaveButton?: boolean;
     showEditButton?: boolean;
+    showStartButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, onStart, isJoining = false, isStarting = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false, showStartButton = false }) => {
     const isClosed = league.status === 'CLOSED';
     const isInProgress = league.status === 'IN_PROGRESS' || league.isStarted;
     const statusLabel = isClosed ? 'Fermée' : isInProgress ? 'Active' : 'En attente';
     const statusColor = isClosed ? 'var(--text-secondary)' : isInProgress ? 'var(--success-color)' : 'var(--warning-color)';
+    const currentPlayersCount = typeof league.currentPlayersCount === 'number'
+        ? league.currentPlayersCount
+        : typeof league.maxPlayers === 'number' && typeof league.playersRemaining === 'number'
+            ? Math.max(league.maxPlayers - league.playersRemaining, 0)
+            : undefined;
+    const canStartLeague = !isClosed
+        && !isInProgress
+        && typeof league.minPlayers === 'number'
+        && typeof currentPlayersCount === 'number'
+        && currentPlayersCount >= league.minPlayers;
 
     const isLoadingBalance = isBalanceLoading || myBalanceBtl === null || myBalanceBtl === undefined;
 
@@ -145,6 +159,12 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     <div className="stat">
                         <span className="stat-value">{league.playersRemaining}</span>
                         <span className="stat-label">Places restantes</span>
+                    </div>
+                )}
+                {typeof league.minPlayers === 'number' && (
+                    <div className="stat">
+                        <span className="stat-value">{typeof currentPlayersCount === 'number' ? `${currentPlayersCount}/${league.minPlayers}` : league.minPlayers}</span>
+                        <span className="stat-label">Seuil de départ</span>
                     </div>
                 )}
                 <div className="stat">
@@ -242,6 +262,28 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     </button>
                 )}
 
+                {showStartButton && onStart && (
+                    <button
+                        className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'} ${isStarting ? 'is-loading' : ''}`}
+                        onClick={() => onStart(league)}
+                        disabled={isStarting || !canStartLeague}
+                        title={canStartLeague ? `Commencer la ligue ${league.name}` : 'Le minimum de joueurs requis n’est pas encore atteint'}
+                        aria-label={`Commencer la ligue ${league.name}`}
+                    >
+                        {isStarting ? (
+                            <>
+                                <IconLoader />
+                                <span>Démarrage...</span>
+                            </>
+                        ) : (
+                            <>
+                                <IconPlay />
+                                <span>Commencer la ligue</span>
+                            </>
+                        )}
+                    </button>
+                )}
+
                 {/* Leave Button */}
                 {showLeaveButton && onLeave && (
                     <button
@@ -298,6 +340,7 @@ const EMPTY_LEAGUES: LeagueSummary[] = [];
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const { showSuccess, showError } = useGlobalToast();
     const queryClient = useQueryClient();
+    const { user } = useEnhancedAuth();
 
     const profileQuery = useProfileMeQuery();
     const profile = profileQuery.data;
@@ -334,6 +377,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const isLoadingAvailable = availableQuery.isLoading || availableQuery.isFetching;
 
     const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
+    const [startingLeagueId, setStartingLeagueId] = useState<number | null>(null);
 
     const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
         try {
@@ -533,6 +577,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 name: data.name,
                 isStarted: data.is_started,
                 maxPlayers: data.max_players,
+                minPlayers: data.min_players,
                 isFree: data.is_free,
                 nbBtl: data.nb_btl,
                 startDate: startDate
@@ -563,6 +608,27 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
             availableQuery.refetch();
         }, 100);
     }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, queryClient, showSuccess]);
+
+    const handleStartLeague = useCallback(async (league: LeagueSummary) => {
+        try {
+            setStartingLeagueId(league.id);
+            await startLeague(league.id);
+            showSuccess('Ligue démarrée', `${league.name} a démarré avec succès.`);
+
+            secureApiClient.clearCache();
+            await Promise.allSettled([
+                queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+                participatedQuery.refetch(),
+                createdQuery.refetch(),
+                availableQuery.refetch(),
+                Promise.resolve(refetchProfile()).then(() => undefined),
+            ]);
+        } catch (e: any) {
+            showError('Erreur', e?.message || 'Impossible de démarrer la ligue');
+        } finally {
+            setStartingLeagueId(null);
+        }
+    }, [availableQuery, createdQuery, participatedQuery, queryClient, refetchProfile, showError, showSuccess]);
 
     const allLeagueIds = useMemo(() => {
         const ids = [...participatedLeagues, ...createdLeagues].map((l) => l.id);
@@ -713,13 +779,16 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     onInvite={handleInviteUser}
                                     onViewRanking={handleViewRanking}
                                     onEdit={handleEditLeague}
+                                    onStart={handleStartLeague}
                                     myBalanceBtl={getBalance(league.id) ?? null}
                                     isBalanceLoading={isBalanceLoading(league.id)}
+                                    isStarting={startingLeagueId === league.id}
                                     showMyBalance={true}
                                     showJoinButton={false}
                                     showInviteButton={true}
                                     showRankingButton={true}
                                     showEditButton={true}
+                                    showStartButton={league.userCreator?.id === user?.id}
                                 />
                             ))
                         ) : (

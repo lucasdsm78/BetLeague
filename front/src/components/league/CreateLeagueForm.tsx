@@ -121,6 +121,7 @@ interface FormErrors {
   name?: string;
   type?: string;
   maxMembers?: string;
+  minMembers?: string;
   entryFee?: string;
   startDate?: string;
   description?: string;
@@ -138,6 +139,7 @@ interface FormData {
   name: string;
   type: 'private' | 'public';
   maxMembers: number;
+  minMembers: number | '';
   entryFee: number;
   startDate: string;
   description: string;
@@ -147,6 +149,7 @@ const INITIAL_FORM: FormData = {
   name: '',
   type: 'private',
   maxMembers: 10,
+  minMembers: '',
   entryFee: 0,
   startDate: '',
   description: '',
@@ -218,6 +221,12 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
         else if (form.maxMembers > LIMITS.MEMBERS_MAX)
           error = `Maximum ${LIMITS.MEMBERS_MAX} participants`;
         break;
+      case 'minMembers':
+        if (!Number.isInteger(form.minMembers) || Number(form.minMembers) < LIMITS.MEMBERS_MIN)
+          error = 'Choisissez un minimum de joueurs';
+        else if (Number(form.minMembers) > form.maxMembers)
+          error = 'Le minimum de joueurs doit être inférieur ou égal au maximum';
+        break;
       case 'entryFee':
         if (!Number.isInteger(form.entryFee) || form.entryFee < 0)
           error = 'La mise ne peut pas être négative';
@@ -247,6 +256,10 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
       e.maxMembers = `Minimum ${LIMITS.MEMBERS_MIN} participants`;
     else if (form.maxMembers > LIMITS.MEMBERS_MAX)
       e.maxMembers = `Maximum ${LIMITS.MEMBERS_MAX} participants`;
+    if (!Number.isInteger(form.minMembers) || Number(form.minMembers) < LIMITS.MEMBERS_MIN)
+      e.minMembers = 'Choisissez un minimum de joueurs';
+    else if (Number(form.minMembers) > form.maxMembers)
+      e.minMembers = 'Le minimum de joueurs doit être inférieur ou égal au maximum';
     if (form.entryFee < 0) e.entryFee = 'La mise ne peut pas être négative';
     else if (form.entryFee > LIMITS.FEE_MAX) e.entryFee = `Maximum ${LIMITS.FEE_MAX} BTL`;
     if ((form.description?.length ?? 0) > LIMITS.DESC_MAX) e.description = `Maximum ${LIMITS.DESC_MAX} caractères`;
@@ -272,6 +285,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
       const payload: ApiLeagueCreateRequest = {
         name: form.name.trim(),
         max_players: form.maxMembers,
+        min_players: Number(form.minMembers),
         is_private: form.type === 'private',
         is_free: form.entryFee === 0,
         nb_btl: form.entryFee > 0 ? form.entryFee : undefined,
@@ -308,7 +322,7 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
   const estimatedPot = form.entryFee > 0 ? form.maxMembers * form.entryFee : 0;
   const startMs = parseLocalDatetime(form.startDate);
   const endDateValue = startMs ? toLocalDatetime(startMs + LEAGUE_DURATION_DAYS * DAY_MS) : '';
-  const canSubmit = !submitting && form.name.trim().length >= 3 && !errors.name && !errors.maxMembers && !errors.entryFee && !errors.description;
+  const canSubmit = !submitting && form.name.trim().length >= 3 && !errors.name && !errors.maxMembers && !errors.minMembers && !errors.entryFee && !errors.description && Number.isInteger(form.minMembers) && Number(form.minMembers) >= LIMITS.MEMBERS_MIN;
 
   return (
     <div
@@ -439,6 +453,30 @@ const CreateLeagueForm = memo<CreateLeagueFormProps>(({ isOpen, onClose, onSucce
                   aria-describedby={errors.maxMembers ? 'clf-members-err' : undefined}
                 />
                 {errors.maxMembers && <p id="clf-members-err" className="clf-field-error" role="alert">{errors.maxMembers}</p>}
+              </div>
+
+              <div className="clf-field">
+                <label htmlFor="clf-min-members" className="clf-label">
+                  Joueurs minimum <span className="clf-req">*</span>
+                </label>
+                <input
+                  id="clf-min-members"
+                  type="number"
+                  name="minMembers"
+                  className={`clf-input ${errors.minMembers ? 'clf-input--error' : ''}`}
+                  value={form.minMembers}
+                  onChange={handleChange}
+                  onBlur={() => handleBlur('minMembers')}
+                  min={LIMITS.MEMBERS_MIN}
+                  max={form.maxMembers}
+                  required
+                  disabled={submitting}
+                  inputMode="numeric"
+                  placeholder="Choisissez un minimum"
+                  aria-invalid={!!errors.minMembers}
+                  aria-describedby={errors.minMembers ? 'clf-min-members-err' : undefined}
+                />
+                {errors.minMembers && <p id="clf-min-members-err" className="clf-field-error" role="alert">{errors.minMembers}</p>}
               </div>
 
               <div className="clf-field">
