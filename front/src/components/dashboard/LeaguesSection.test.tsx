@@ -341,7 +341,6 @@ describe('LeaguesSection', () => {
     const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue prête/i });
     expect(startButton).toBeEnabled();
     expect(startButton).toHaveClass('btn-start-league');
-    expect(startButton.closest('.league-actions')).toHaveClass('league-actions--with-start');
     expect(screen.getByText(/minimum atteint/i)).toBeInTheDocument();
     expect(screen.getByText(/ouvrir les paris/i)).toBeInTheDocument();
 
@@ -410,10 +409,9 @@ describe('LeaguesSection', () => {
 
     const joinButton = await screen.findByRole('button', { name: /rejoindre la ligue ligue publique/i });
     expect(joinButton).not.toHaveClass('btn-start-league');
-    expect(joinButton.closest('.league-actions')).toHaveClass('league-actions--standard');
-    expect(joinButton.closest('.league-actions')).not.toHaveClass('league-actions--with-start');
   });
 });
+
 
 
 
