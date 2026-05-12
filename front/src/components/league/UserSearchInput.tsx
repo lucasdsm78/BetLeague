@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, memo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo, useId } from 'react';
 import { searchUsers } from '../../services/api/users';
 import type { UserSearchResult } from 'types/entities/userSearch';
 import './UserSearchInput.css';
@@ -16,6 +16,7 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
   disabled = false,
   excludeUserIds = []
 }) => {
+  const listboxId = useId();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -179,7 +180,9 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
           autoComplete="off"
           aria-label="Rechercher un utilisateur"
           aria-expanded={isOpen}
+          aria-controls={listboxId}
           aria-haspopup="listbox"
+          aria-autocomplete="list"
           role="combobox"
         />
 
@@ -232,6 +235,7 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
       {isOpen && results.length > 0 && (
         <div
           ref={resultsRef}
+          id={listboxId}
           className="user-search-results"
           role="listbox"
           aria-label="Résultats de recherche"
@@ -250,7 +254,6 @@ const UserSearchInput: React.FC<UserSearchInputProps> = memo(({
               </div>
               <div className="user-info">
                 <div className="user-pseudo">{user.pseudo}</div>
-                <div className="user-email">{user.email}</div>
               </div>
               <div className="select-indicator">
                 <span className="select-icon">→</span>

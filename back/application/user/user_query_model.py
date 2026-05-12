@@ -102,14 +102,12 @@ class UserSearchQuery(BaseModel):
 class UserSearchResultModel(BaseModel):
     id: int
     pseudo: str
-    email: str
 
     @staticmethod
     def from_user_read_model(user: UserReadModel) -> "UserSearchResultModel":
         return UserSearchResultModel(
             id=user.id,
             pseudo=user.pseudo or 'Utilisateur',
-            email=user.email or ''
         )
 
 
