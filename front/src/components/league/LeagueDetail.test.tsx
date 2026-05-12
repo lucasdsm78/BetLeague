@@ -90,6 +90,8 @@ describe('LeagueDetail', () => {
 
     const startButton = await screen.findByRole('button', { name: /commencer la ligue/i });
     expect(startButton).toBeEnabled();
+    expect(screen.getByText(/minimum atteint/i)).toBeInTheDocument();
+    expect(screen.getByText(/ouvrir les paris/i)).toBeInTheDocument();
 
     fireEvent.click(startButton);
 
@@ -97,7 +99,39 @@ describe('LeagueDetail', () => {
       expect(startLeague).toHaveBeenCalledWith(12);
     });
   });
+
+  it('explique que le minimum de joueurs est requis avant de pouvoir démarrer la ligue', async () => {
+    (getLeagueDetails as jest.Mock).mockResolvedValueOnce({
+      id: 18,
+      name: 'Ligue en attente',
+      status: 'OPEN',
+      is_started: false,
+      is_free: true,
+      start_date: 1_710_000_000_000,
+      end_date: 1_710_604_800_000,
+      max_players: 10,
+      min_players: 4,
+      current_players_count: 2,
+      nb_players_remaining: 8,
+      user_creator: {
+        id: 4,
+        pseudo: 'owner',
+      },
+    });
+
+    render(
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <LeagueDetail leagueId={18} />
+      </MemoryRouter>
+    );
+
+    const startButton = await screen.findByRole('button', { name: /commencer la ligue/i });
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText(/doit atteindre au moins 4 joueurs/i)).toBeInTheDocument();
+    expect(screen.getByText(/avant de pouvoir commencer et lancer les paris/i)).toBeInTheDocument();
+  });
 });
+
 
 
 

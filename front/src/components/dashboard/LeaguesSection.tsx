@@ -113,6 +113,19 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
         && typeof league.minPlayers === 'number'
         && typeof currentPlayersCount === 'number'
         && currentPlayersCount >= league.minPlayers;
+    const startLeagueHintId = `league-start-hint-${league.id}`;
+    const currentPlayersProgress = typeof currentPlayersCount === 'number' && typeof league.minPlayers === 'number'
+        ? `${currentPlayersCount}/${league.minPlayers}`
+        : null;
+    const startLeagueHelperText = isClosed
+        ? 'Cette ligue est clôturée : les paris et le démarrage ne sont plus disponibles.'
+        : isInProgress
+            ? 'Cette ligue a démarré : les participants peuvent déjà commencer à parier.'
+            : canStartLeague
+                ? `Minimum atteint${currentPlayersProgress ? ` (${currentPlayersProgress} joueurs)` : ''} : cliquez sur « Commencer la ligue » pour ouvrir les paris.`
+                : typeof league.minPlayers === 'number'
+                    ? `La ligue doit atteindre au moins ${league.minPlayers} joueurs${currentPlayersProgress ? ` (${currentPlayersProgress})` : ''} avant de pouvoir commencer et lancer les paris.`
+                    : 'Le démarrage de la ligue ouvre les paris à tous les participants.';
 
     const isLoadingBalance = isBalanceLoading || myBalanceBtl === null || myBalanceBtl === undefined;
 
@@ -267,8 +280,9 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                         className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'} ${isStarting ? 'is-loading' : ''}`}
                         onClick={() => onStart(league)}
                         disabled={isStarting || !canStartLeague}
-                        title={canStartLeague ? `Commencer la ligue ${league.name}` : 'Le minimum de joueurs requis n’est pas encore atteint'}
+                        title={canStartLeague ? `Commencer la ligue ${league.name}` : startLeagueHelperText}
                         aria-label={`Commencer la ligue ${league.name}`}
+                        aria-describedby={startLeagueHintId}
                     >
                         {isStarting ? (
                             <>
@@ -325,6 +339,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     </button>
                 )}
             </div>
+
+            {showStartButton && onStart && (
+                <p
+                    id={startLeagueHintId}
+                    className={`league-start-hint ${canStartLeague || isInProgress ? 'is-ready' : 'is-pending'}`}
+                    aria-live="polite"
+                >
+                    <span className="league-start-hint__icon" aria-hidden="true">{canStartLeague || isInProgress ? '▶' : 'ℹ'}</span>
+                    <span>{startLeagueHelperText}</span>
+                </p>
+            )}
         </div>
     );
 });

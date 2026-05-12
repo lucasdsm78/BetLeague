@@ -220,6 +220,19 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     && typeof currentPlayersCount === 'number'
     && currentPlayersCount >= details.min_players
   );
+  const startLeagueHintId = details ? `league-modal-start-hint-${details.id}` : undefined;
+  const startPlayersProgress = typeof currentPlayersCount === 'number' && typeof details?.min_players === 'number'
+    ? `${currentPlayersCount}/${details.min_players}`
+    : null;
+  const startLeagueHelperText = details?.status === 'CLOSED'
+    ? 'Cette ligue est clôturée : elle ne peut plus être démarrée ni accepter de nouveaux paris.'
+    : details?.is_started
+      ? 'La ligue est déjà lancée : les participants peuvent parier dès maintenant.'
+      : canStartLeague
+        ? `Minimum atteint${startPlayersProgress ? ` (${startPlayersProgress} joueurs)` : ''} : cliquez sur « Commencer la ligue » pour ouvrir les paris.`
+        : typeof details?.min_players === 'number'
+          ? `La ligue doit atteindre au moins ${details.min_players} joueurs${startPlayersProgress ? ` (${startPlayersProgress})` : ''} avant de pouvoir commencer et lancer les paris.`
+          : 'Une fois la ligue démarrée, les participants pourront commencer à parier.';
 
   return (
     <div
@@ -369,13 +382,24 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
             {/* Modal Actions */}
             <div className="league-modal-actions">
               {isOwner && (
-                <button
-                  className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={handleStart}
-                  disabled={starting || !canStartLeague}
-                >
-                  {starting ? 'Démarrage...' : 'Commencer la ligue'}
-                </button>
+                <div className="league-modal-start-cta">
+                  <button
+                    className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={handleStart}
+                    disabled={starting || !canStartLeague}
+                    aria-describedby={startLeagueHintId}
+                  >
+                    {starting ? 'Démarrage...' : 'Commencer la ligue'}
+                  </button>
+                  <p
+                    id={startLeagueHintId}
+                    className={`league-modal-start-hint ${canStartLeague || details.is_started ? 'is-ready' : 'is-pending'}`}
+                    aria-live="polite"
+                  >
+                    <span className="league-modal-start-hint__icon" aria-hidden="true">{canStartLeague || details.is_started ? '▶' : 'ℹ'}</span>
+                    <span>{startLeagueHelperText}</span>
+                  </p>
+                </div>
               )}
               {canJoin && (
                 <button
