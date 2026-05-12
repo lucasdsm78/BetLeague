@@ -186,9 +186,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     });
   }, [isShopEnabled, user]);
 
-  // Get tabs for bottom navigation (exclude shop and profile on mobile)
+  // Get tabs for bottom navigation (exclude shop only on mobile)
   const bottomNavTabs = useMemo(() => {
-    return visibleTabs.filter(tab => tab.id !== 'shop' && tab.id !== 'profile');
+    return visibleTabs.filter(tab => tab.id !== 'shop');
   }, [visibleTabs]);
 
   const sanitizedUserName = useMemo(() => {
