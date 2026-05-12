@@ -252,7 +252,10 @@ describe('invitations api service', () => {
     });
 
     await expect(getInvitationCounts({ isReceived: false })).resolves.toEqual({ pending: 3, accepted: 1, refused: 0 });
-    expect(http.get).toHaveBeenCalledWith('/invitations/counts?is_received=false');
+    expect(http.get).toHaveBeenCalledWith('/invitations/counts?is_received=false', {
+      skipCache: true,
+      cache: 'no-store',
+    });
   });
 
   it('supprime une invitation de ligue envoyée', async () => {
