@@ -166,7 +166,6 @@ const TournamentInviteModal: React.FC<TournamentInviteModalProps> = memo(({
                   <div className="tournament-selected-user-avatar">👤</div>
                   <div>
                     <div className="tournament-selected-user-pseudo">{selectedUser.pseudo}</div>
-                    <div className="tournament-selected-user-email">{selectedUser.email}</div>
                   </div>
                 </div>
                 <button

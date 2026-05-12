@@ -3,7 +3,6 @@
 export interface ApiUserSearchResult {
   id: number;
   pseudo: string;
-  email: string;
 }
 
 export interface ApiUsersSearchResponse {

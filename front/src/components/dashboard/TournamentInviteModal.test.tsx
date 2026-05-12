@@ -25,8 +25,8 @@ jest.mock('../../store/authStore', () => ({
 
 jest.mock('../league/UserSearchInput', () => ({
   __esModule: true,
-  default: ({ onUserSelect }: { onUserSelect: (user: { id: number; pseudo: string; email: string }) => void }) => (
-    <button type="button" onClick={() => onUserSelect({ id: 7, pseudo: 'Lucas', email: 'lucas@example.com' })}>
+  default: ({ onUserSelect }: { onUserSelect: (user: { id: number; pseudo: string }) => void }) => (
+    <button type="button" onClick={() => onUserSelect({ id: 7, pseudo: 'Lucas' })}>
       Sélectionner Lucas
     </button>
   ),
@@ -51,6 +51,8 @@ describe('TournamentInviteModal', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /sélectionner lucas/i }));
+    expect(screen.getByText('Lucas')).toBeInTheDocument();
+    expect(screen.queryByText('lucas@example.com')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /envoyer l’invitation/i }));
 
     await waitFor(() => expect(mockInviteMutateAsync).toHaveBeenCalledWith({ userId: 7 }));
