@@ -240,95 +240,97 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
               </button>
             </div>
 
-            {/* Share Actions */}
-            <div className="league-modal-share">
-              <button
-                type="button"
-                className={`btn btn-outline btn-copy-link ${copyStatus === 'success' ? 'copy-success' : ''} ${copyStatus === 'error' ? 'copy-error' : ''}`}
-                onClick={handleCopyLink}
-                aria-label="Copier le lien de la ligue"
-              >
-                {copyStatus === 'success' ? '✅ Lien copié' : copyStatus === 'error' ? '⚠️ Copie impossible' : '🔗 Copier le lien'}
-              </button>
-            </div>
-
-            {/* League Stats */}
-            <div className="league-stats-modal">
-              <div className="stat-card-modal">
-                <div className="stat-icon">👥</div>
-                <div className="stat-content">
-                  <div className="stat-value">{currentPlayersLabel}</div>
-                  <div className="stat-label">Participants</div>
-                </div>
+            <div className="league-modal-body">
+              {/* Share Actions */}
+              <div className="league-modal-share">
+                <button
+                  type="button"
+                  className={`btn btn-outline btn-copy-link ${copyStatus === 'success' ? 'copy-success' : ''} ${copyStatus === 'error' ? 'copy-error' : ''}`}
+                  onClick={handleCopyLink}
+                  aria-label="Copier le lien de la ligue"
+                >
+                  {copyStatus === 'success' ? '✅ Lien copié' : copyStatus === 'error' ? '⚠️ Copie impossible' : '🔗 Copier le lien'}
+                </button>
               </div>
 
-              <div className="stat-card-modal">
-                <div className="stat-icon">📅</div>
-                <div className="stat-content">
-                  <div className="stat-value">{formatDate(details.start_date)}</div>
-                  <div className="stat-label">Date de début</div>
+              {/* League Stats */}
+              <div className="league-stats-modal">
+                <div className="stat-card-modal">
+                  <div className="stat-icon">👥</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{currentPlayersLabel}</div>
+                    <div className="stat-label">Participants</div>
+                  </div>
                 </div>
+
+                <div className="stat-card-modal">
+                  <div className="stat-icon">📅</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{formatDate(details.start_date)}</div>
+                    <div className="stat-label">Date de début</div>
+                  </div>
+                </div>
+
+                {details.end_date && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">🏁</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{formatDate(details.end_date)}</div>
+                      <div className="stat-label">Date de fin</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="stat-card-modal">
+                  <div className="stat-icon">💰</div>
+                  <div className="stat-content">
+                    <div className="stat-value">
+                      {details.is_free ? 'Gratuite' : 'Payante'}
+                    </div>
+                    <div className="stat-label">Type de ligue</div>
+                  </div>
+                </div>
+
+                {currentTotalPotLabel && (
+                  <div className="stat-card-modal stat-card-modal-pot">
+                    <div className="stat-icon">🏦</div>
+                    <div className="stat-content">
+                      <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
+                      <div className="stat-label">Pot actuel</div>
+                    </div>
+                  </div>
+                )}
+
+                {details.nb_players_remaining !== undefined && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">🆓</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{details.nb_players_remaining}</div>
+                      <div className="stat-label">Places restantes</div>
+                    </div>
+                  </div>
+                )}
+
+                {details.user_creator && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">👤</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{details.user_creator.pseudo}</div>
+                      <div className="stat-label">Créée par</div>
+                    </div>
+                  </div>
+                )}
+
+                {details.uuid && (
+                  <div className="stat-card-modal full-width">
+                    <div className="stat-icon">🔗</div>
+                    <div className="stat-content">
+                      <div className="stat-value code-value">{details.uuid}</div>
+                      <div className="stat-label">Code de la ligue</div>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {details.end_date && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">🏁</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{formatDate(details.end_date)}</div>
-                    <div className="stat-label">Date de fin</div>
-                  </div>
-                </div>
-              )}
-
-              <div className="stat-card-modal">
-                <div className="stat-icon">💰</div>
-                <div className="stat-content">
-                  <div className="stat-value">
-                    {details.is_free ? 'Gratuite' : 'Payante'}
-                  </div>
-                  <div className="stat-label">Type de ligue</div>
-                </div>
-              </div>
-
-              {currentTotalPotLabel && (
-                <div className="stat-card-modal stat-card-modal-pot">
-                  <div className="stat-icon">🏦</div>
-                  <div className="stat-content">
-                    <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
-                    <div className="stat-label">Pot actuel</div>
-                  </div>
-                </div>
-              )}
-
-              {details.nb_players_remaining !== undefined && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">🆓</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{details.nb_players_remaining}</div>
-                    <div className="stat-label">Places restantes</div>
-                  </div>
-                </div>
-              )}
-
-              {details.user_creator && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">👤</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{details.user_creator.pseudo}</div>
-                    <div className="stat-label">Créée par</div>
-                  </div>
-                </div>
-              )}
-
-              {details.uuid && (
-                <div className="stat-card-modal full-width">
-                  <div className="stat-icon">🔗</div>
-                  <div className="stat-content">
-                    <div className="stat-value code-value">{details.uuid}</div>
-                    <div className="stat-label">Code de la ligue</div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Modal Actions */}
