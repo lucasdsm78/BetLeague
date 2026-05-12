@@ -3,5 +3,4 @@
 export interface UserSearchResult {
   id: number;
   pseudo: string;
-  email: string;
 }

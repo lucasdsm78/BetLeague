@@ -682,7 +682,7 @@ async def update_user(
     response_model=UserSearchResponse,
     status_code=status.HTTP_200_OK,
     summary="Search users by pseudo or email",
-    description="Search users with secure validation. Requires authentication."
+    description="Search users with secure validation and return only minimal profile data. Requires authentication."
 )
 async def search_users(
         q: str,
