@@ -31,11 +31,13 @@
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
   animation: slideIn 0.3s ease-out;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Modal Header */
@@ -48,6 +50,14 @@
   background: var(--gradient-primary);
   color: white;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.league-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .league-title-section {
@@ -371,10 +381,14 @@
   }
 
   .league-modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     padding: 1rem;
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   }
 
   .modal-close-btn {
