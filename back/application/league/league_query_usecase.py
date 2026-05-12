@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
@@ -88,6 +89,17 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     def _extract_email_value(raw_email) -> str:
         return raw_email.value if hasattr(raw_email, 'value') else str(raw_email)
 
+    async def _hydrate_current_players_count(self, league) -> None:
+        if league is None or getattr(league, 'id', None) is None:
+            return
+        league.current_players_count = await self.league_players_repository.count_players(int(league.id))
+
+    async def _hydrate_current_players_count_for_many(self, leagues: List) -> List:
+        if not leagues:
+            return leagues
+        await asyncio.gather(*(self._hydrate_current_players_count(league) for league in leagues))
+        return leagues
+
     async def get_rank_by_league_id(
             self,
             email: str,
@@ -134,6 +146,8 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                 logger.warning("league.query.by_id_rejected", extra={"league_id": league_id, "user_id": user.id, "reason": "private_forbidden"})
                 raise LeagueParticipantNotFoundError
 
+        await self._hydrate_current_players_count(league)
+
         logger.info("league.query.by_id_loaded", extra={"league_id": league_id, "user_id": user.id, "is_private": league.is_private})
         return LeagueReadModel.from_entity_get_by_id(league)
 
@@ -157,6 +171,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page = max(total_pages, 1)
 
         leagues = await self.league_repository.find_leagues(user_id=user.id, page=page, limit=page_size)
+        await self._hydrate_current_players_count_for_many(leagues)
 
         logger.info("league.query.list_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(leagues)})
 
@@ -187,6 +202,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page = max(total_pages, 1)
 
         created_leagues = await self.league_repository.find_created_leagues(user_id=user.id, page=page, limit=page_size)
+        await self._hydrate_current_players_count_for_many(created_leagues)
 
         logger.info("league.query.created_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(created_leagues)})
 
@@ -217,6 +233,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page = max(total_pages, 1)
 
         participated_leagues = await self.league_repository.find_participated_leagues(user_id=user.id, page=page, limit=page_size)
+        await self._hydrate_current_players_count_for_many(participated_leagues)
 
         logger.info("league.query.participated_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(participated_leagues)})
 
@@ -265,16 +282,19 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             for db_inv in db_invitations:
                 if db_inv.league_id and db_inv.league is not None:
                     league = db_inv.league
+                    await self._hydrate_current_players_count(league)
                     league_summary = LeagueInvitationReceivedSummary(
                         id=league.id,
                         name=league.name,
                         max_players=league.max_players,
+                        min_players=league.min_players,
                         start_date=league.start_date,
                         user_creator=UserSummaryLeagueDetail(
                             id=league.user.id,
                             pseudo=league.user.pseudo,
                         ),
                         nb_players_remaining=league.nb_players_remaining,
+                        current_players_count=league.current_players,
                         is_started=league.is_started
                     )
 
@@ -373,6 +393,7 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             page = max(total_pages, 1)
 
         leagues = await self.league_repository.find_my_leagues(user_id=user.id, page=page, limit=page_size)
+        await self._hydrate_current_players_count_for_many(leagues)
 
         logger.info("league.query.mine_loaded", extra={"user_id": user.id, "page": page, "page_size": page_size, "total": total, "results_count": len(leagues)})
 
@@ -471,14 +492,17 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
             if db_inv.league_id and db_inv.league is not None:
                 league = db_inv.league
+                await self._hydrate_current_players_count(league)
                 result.invitations.append(InvitationSentReadModel(
                     type='league',
                     league=LeagueInvitationReceivedSummary(
                         id=league.id,
                         name=league.name,
                         max_players=league.max_players,
+                        min_players=league.min_players,
                         start_date=league.start_date,
                         nb_players_remaining=league.nb_players_remaining,
+                        current_players_count=league.current_players,
                         is_started=league.is_started,
                         user_creator=UserSummaryLeagueDetail(
                             id=user.id,

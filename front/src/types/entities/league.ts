@@ -43,10 +43,17 @@ export interface LeagueSummary {
   readonly startDate: string;
   readonly status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   readonly isStarted?: boolean;
+  readonly maxPlayers?: number;
+  readonly minPlayers?: number;
   readonly playersRemaining?: number;
+  readonly currentPlayersCount?: number;
   readonly isFree?: boolean;
   readonly nbBtl?: number;
   readonly currentTotalPot?: number | null;
+  readonly userCreator?: {
+    readonly id: number;
+    readonly pseudo: string;
+  };
 }
 
 export interface LeagueRules {

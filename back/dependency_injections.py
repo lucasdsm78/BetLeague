@@ -133,12 +133,14 @@ from domain.league.events.league_invitation_refused import LeagueInvitationRefus
 from domain.league.events.league_ended import LeagueEnded
 from domain.league.events.league_user_overtaken import LeagueUserOvertaken
 from domain.league.events.league_started import LeagueStarted
+from domain.league.events.league_minimum_players_reached import LeagueMinimumPlayersReached
 from application.notification.handlers.league_invitation_notification_handler import OnLeagueInvitationCreatedCreateNotification
 from application.notification.handlers.league_invitation_accepted_notification_handler import OnLeagueInvitationAcceptedCreateNotification
 from application.notification.handlers.league_invitation_refused_notification_handler import OnLeagueInvitationRefusedCreateNotification
 from application.notification.handlers.league_ended_notification_handler import OnLeagueEndedCreateNotification
 from application.notification.handlers.league_user_overtaken_notification_handler import OnLeagueUserOvertakenCreateNotification
 from application.notification.handlers.league_started_notification_handler import OnLeagueStartedCreateNotification
+from application.notification.handlers.league_minimum_players_reached_notification_handler import OnLeagueMinimumPlayersReachedCreateNotification
 from domain.ticket.event.ticket_choices_resolved_event import TicketChoicesResolvedEvent
 from domain.ticket.event.ticket_resolved_event import TicketResolvedEvent
 from application.notification.handlers.ticket_choice_result_notification_handler import OnTicketChoicesResolvedCreateNotification
@@ -573,6 +575,10 @@ def outbox_handler_bus_dependency(
         bus.subscribe(
             LeagueStarted,
             OnLeagueStartedCreateNotification(notification_uc, session_factory=sf),
+        )
+        bus.subscribe(
+            LeagueMinimumPlayersReached,
+            OnLeagueMinimumPlayersReachedCreateNotification(notification_uc),
         )
         bus.subscribe(
             LeagueEnded,

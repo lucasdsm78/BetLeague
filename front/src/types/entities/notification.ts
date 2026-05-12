@@ -41,6 +41,7 @@ export type NotificationType =
   | 'match_result'
   // Evenements de ligue
   | 'league_started'
+  | 'league_minimum_players_reached'
   | 'league_ended'
   | 'league_overtaken'
   // Systeme
