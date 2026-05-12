@@ -11,30 +11,49 @@ import {
 
 type LeagueTab = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 
+function mapLeagueTab(tab: LeagueTab): 'participated' | 'created' | 'available' {
+  return tab === 'participatedLeagues' ? 'participated' : tab === 'myLeagues' ? 'created' : 'available';
+}
+
+async function fetchLeaguesPage(
+  tab: 'participated' | 'created' | 'available',
+  page: number,
+  pageSize: number,
+) {
+  if (tab === 'participated') {
+    return getParticipatedLeaguesPage(page, pageSize);
+  }
+  if (tab === 'created') {
+    return getCreatedLeaguesPage(page, pageSize);
+  }
+  return getAvailableLeaguesPage(page, pageSize);
+}
+
 export function useLeaguesListQuery(
   tab: LeagueTab,
   options?: { enabled?: boolean; page?: number; pageSize?: number }
 ) {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 10;
-
-  const mappedTab: 'participated' | 'created' | 'available' =
-    tab === 'participatedLeagues' ? 'participated' : tab === 'myLeagues' ? 'created' : 'available';
+  const mappedTab = mapLeagueTab(tab);
 
   return useQuery<LeagueSummary[], Error>({
     queryKey: leaguesKeys.list(mappedTab, page, pageSize),
-    queryFn: async () => {
-      if (mappedTab === 'participated') {
-        const pageData = await getParticipatedLeaguesPage(page, pageSize);
-        return pageData.leagues;
-      }
-      if (mappedTab === 'created') {
-        const pageData = await getCreatedLeaguesPage(page, pageSize);
-        return pageData.leagues;
-      }
-      const pageData = await getAvailableLeaguesPage(page, pageSize);
-      return pageData.leagues;
-    },
+    queryFn: async () => (await fetchLeaguesPage(mappedTab, page, pageSize)).leagues,
+    enabled: options?.enabled ?? true,
+    staleTime: 15_000,
+  });
+}
+
+export function useLeagueCountQuery(
+  tab: LeagueTab,
+  options?: { enabled?: boolean }
+) {
+  const mappedTab = mapLeagueTab(tab);
+
+  return useQuery<number, Error>({
+    queryKey: leaguesKeys.count(mappedTab),
+    queryFn: async () => (await fetchLeaguesPage(mappedTab, 1, 1)).total,
     enabled: options?.enabled ?? true,
     staleTime: 15_000,
   });

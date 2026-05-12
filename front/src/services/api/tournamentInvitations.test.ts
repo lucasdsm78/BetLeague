@@ -51,7 +51,10 @@ describe('tournament invitation api service', () => {
         { id: 4, status: 'pending', created_at: 1710000000000, user: { id: 22, pseudo: 'Emma', email: 'emma@example.com' } },
       ],
     });
-    expect(http.get).toHaveBeenCalledWith('/tournament/12/invitations');
+    expect(http.get).toHaveBeenCalledWith('/tournament/12/invitations', {
+      skipCache: true,
+      cache: 'no-store',
+    });
   });
 
   it('supprime une invitation de tournoi', async () => {
