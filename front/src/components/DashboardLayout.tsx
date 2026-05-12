@@ -27,6 +27,14 @@ const sanitizeInput = (input: string): string => {
     .substring(0, 50);
 };
 
+const hasActiveModalOverlay = (): boolean => {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  return document.querySelector('[role="dialog"][aria-modal="true"]') != null;
+};
+
 // Type-safe tab configuration with strict typing
 interface TabConfig {
   readonly id: TabId;
@@ -137,6 +145,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [logoutTriggerReason, setLogoutTriggerReason] = useState<'manual' | 'inactivity' | 'security' | 'session_expired'>('manual');
   const [securityState, setSecurityState] = useState<SecurityState>({
     attemptedPaths: [],
@@ -238,6 +247,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       });
     }
   }, [profile?.is_tournament_subscriber, user?.isTournamentSubscriber, updateUser]);
+
+  useEffect(() => {
+    const syncOverlayState = () => {
+      setIsOverlayOpen(hasActiveModalOverlay());
+    };
+
+    syncOverlayState();
+
+    const observer = new MutationObserver(() => {
+      syncOverlayState();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-modal', 'role', 'class', 'style'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Security: Monitor navigation attempts
   useEffect(() => {
@@ -417,7 +449,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }
 
   return (
-    <div className="dashboard" data-security-level="high">
+    <div className="dashboard" data-security-level="high" data-overlay-open={isOverlayOpen ? 'true' : 'false'}>
       {/* Header with security indicators */}
       <header className="dashboard-header">
         <div className="header-content">
