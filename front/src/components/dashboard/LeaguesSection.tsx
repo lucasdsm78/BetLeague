@@ -223,7 +223,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 )}
             </div>
 
-            <div className="league-actions">
+            <div className={`league-actions ${showStartButton ? 'league-actions--with-start' : 'league-actions--standard'}`}>
                 {/* View Details Button */}
                 <button
                     className="btn btn-primary"
@@ -277,7 +277,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
 
                 {showStartButton && onStart && (
                     <button
-                        className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'} ${isStarting ? 'is-loading' : ''}`}
+                        className={`btn btn-start-league ${canStartLeague ? 'btn-primary' : 'btn-secondary'} ${isStarting ? 'is-loading' : ''}`}
                         onClick={() => onStart(league)}
                         disabled={isStarting || !canStartLeague}
                         title={canStartLeague ? `Commencer la ligue ${league.name}` : startLeagueHelperText}
