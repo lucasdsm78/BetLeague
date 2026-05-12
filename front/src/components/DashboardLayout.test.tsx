@@ -85,5 +85,22 @@ describe('DashboardLayout', () => {
     expect(within(bottomNav).getByRole('button', { name: /tournois/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole('button', { name: /tickets/i })).toBeInTheDocument();
   });
+
+  it('marque Profil comme onglet actif sur la route /profile', () => {
+    render(
+      <MemoryRouter initialEntries={['/profile']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <DashboardLayout>
+          <div>Contenu profil</div>
+        </DashboardLayout>
+      </MemoryRouter>
+    );
+
+    const bottomNav = screen.getByRole('navigation', { name: /navigation rapide/i });
+    const profileButton = within(bottomNav).getByRole('button', { name: /profil/i });
+
+    expect(profileButton).toHaveClass('active');
+    expect(profileButton).toHaveAttribute('aria-current', 'page');
+  });
 });
+
 
