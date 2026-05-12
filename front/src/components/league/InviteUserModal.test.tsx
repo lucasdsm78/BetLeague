@@ -16,8 +16,8 @@ jest.mock('../../hooks/queries/useInvitationsQueries', () => ({
 
 jest.mock('./UserSearchInput', () => ({
   __esModule: true,
-  default: ({ onUserSelect }: { onUserSelect: (user: { id: number; pseudo: string; email: string }) => void }) => (
-    <button type="button" onClick={() => onUserSelect({ id: 8, pseudo: 'Lucas', email: 'lucas@example.com' })}>
+  default: ({ onUserSelect }: { onUserSelect: (user: { id: number; pseudo: string }) => void }) => (
+    <button type="button" onClick={() => onUserSelect({ id: 8, pseudo: 'Lucas' })}>
       Sélectionner Lucas
     </button>
   ),
@@ -56,6 +56,8 @@ describe('InviteUserModal', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /sélectionner lucas/i }));
+    expect(screen.getByText('Lucas')).toBeInTheDocument();
+    expect(screen.queryByText('lucas@example.com')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /envoyer l'invitation/i }));
 
     await waitFor(() => expect(mockInviteUserToLeague).toHaveBeenCalledWith(12, 8));
