@@ -52,7 +52,6 @@ class LeagueReadModel(BaseModel):
     id: int
     is_free: Optional[bool] = None
     nb_btl: Optional[float] = None
-    uuid: Optional[str] = None
     start_date: int
     max_players: Optional[int] = None
     name: str
@@ -70,7 +69,6 @@ class LeagueReadModel(BaseModel):
     def from_entity_get_by_id(league: League) -> "LeagueReadModel":
         return LeagueReadModel(
             id=league.id,
-            uuid=league.uuid,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
             current_total_pot=league.current_total_pot,

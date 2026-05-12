@@ -177,10 +177,6 @@
   border-color: var(--color-primary);
 }
 
-.stat-card-modal.full-width {
-  grid-column: 1 / -1;
-}
-
 .stat-card-modal-pot {
   background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(14, 165, 233, 0.08));
   border-color: rgba(6, 182, 212, 0.35);
@@ -206,17 +202,6 @@
 }
 
 .stat-value-pot {
-  color: var(--color-primary);
-}
-
-.code-value {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.875rem;
-  background: var(--bg-surface);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
-  word-break: break-all;
   color: var(--color-primary);
 }
 

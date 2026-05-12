@@ -19,7 +19,6 @@ describe('LeagueDetailsModal', () => {
     (getLeagueDetails as jest.Mock).mockResolvedValueOnce({
       id: 12,
       name: 'Ligue Premium',
-      uuid: 'league-premium',
       status: 'OPEN',
       is_free: false,
       start_date: 1_710_000_000_000,
@@ -49,6 +48,7 @@ describe('LeagueDetailsModal', () => {
     expect(screen.getByText('30 BTL')).toBeInTheDocument();
     expect(screen.getByText('3/10')).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
+    expect(screen.queryByText('Code de la ligue')).not.toBeInTheDocument();
   });
 
   it('n’affiche pas de bloc pot quand la donnée n’est pas applicable', async () => {
