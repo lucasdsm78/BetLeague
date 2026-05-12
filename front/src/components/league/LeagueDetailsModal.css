@@ -406,8 +406,15 @@
   }
 
   .league-modal-actions {
-    padding: 1rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
     flex-direction: column;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
   }
 
   .btn {
