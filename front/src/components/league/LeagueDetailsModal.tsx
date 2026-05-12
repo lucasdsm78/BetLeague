@@ -76,7 +76,7 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     setJoining(true);
     setError(null);
     try {
-      const _ = await joinLeague(details.id);
+      await joinLeague(details.id);
       onClose();
       window.location.reload();
     } catch (e: any) {
@@ -321,15 +321,6 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
                   </div>
                 )}
 
-                {details.uuid && (
-                  <div className="stat-card-modal full-width">
-                    <div className="stat-icon">🔗</div>
-                    <div className="stat-content">
-                      <div className="stat-value code-value">{details.uuid}</div>
-                      <div className="stat-label">Code de la ligue</div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 

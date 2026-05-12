@@ -32,7 +32,6 @@ export interface ApiLeagueDetail {
   is_private?: boolean;
   is_free?: boolean;
   nb_btl?: number;
-  uuid?: string;
   start_date: string | number;
   end_date?: string | number;
   max_players: number;
