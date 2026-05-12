@@ -17,6 +17,7 @@ from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
     LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError, LeagueFinishedError, \
+    LeagueNotThePlayerError, \
     UserNotInvitationLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.invitation.exception.invitation_exception import InvitationNotFoundError
@@ -267,6 +268,18 @@ async def delete_league_player(
     except LeagueNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueParticipantNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueNotThePlayerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message,
         )
 
