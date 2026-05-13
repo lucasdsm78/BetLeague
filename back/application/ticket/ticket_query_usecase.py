@@ -115,12 +115,37 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
     class Config:
         arbitrary_types_allowed = True
 
+    @staticmethod
+    async def _get_ticket_display_numbers(ticket_repo, user_id: int, ticket_ids: List[int]) -> dict[int, int]:
+        if not ticket_ids:
+            return {}
+
+        get_display_numbers = getattr(ticket_repo, 'get_display_numbers_by_ticket_ids', None)
+        if callable(get_display_numbers):
+            return await get_display_numbers(user_id, ticket_ids)
+
+        ordered_ids = sorted({int(ticket_id) for ticket_id in ticket_ids})
+        return {ticket_id: index for index, ticket_id in enumerate(ordered_ids, start=1)}
+
+    @staticmethod
+    def _ticket_display_number(ticket, fallback_display_numbers: Optional[dict[int, int]] = None) -> int:
+        raw_display_number = getattr(ticket, 'display_number', None)
+        if raw_display_number is not None:
+            return int(raw_display_number)
+
+        ticket_id = getattr(ticket, 'id', None)
+        if ticket_id is not None and fallback_display_numbers is not None and int(ticket_id) in fallback_display_numbers:
+            return int(fallback_display_numbers[int(ticket_id)])
+
+        return int(ticket_id or 0)
+
     async def _build_ticket_read_model_from_ticket(
             self,
             session: AsyncSession,
             ticket,
             *,
             include_internal_id: bool,
+            display_number: Optional[int] = None,
     ) -> TicketReadModel | SharedTicketReadModel:
         league_repo = LeagueRepositoryImpl(session)
         match_choices_repo = MatchChoicesRepositoryImpl(session)
@@ -192,7 +217,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
         )
 
         if include_internal_id:
-            return TicketReadModel(id=ticket.id, **payload)
+            return TicketReadModel(id=ticket.id, display_number=int(display_number or 0), **payload)
         return SharedTicketReadModel(**payload)
 
     async def get_ticket_details(
@@ -228,6 +253,10 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     session,
                     ticket,
                     include_internal_id=True,
+                    display_number=self._ticket_display_number(
+                        ticket,
+                        await self._get_ticket_display_numbers(ticket_repo, user.id, [ticket.id]),
+                    ),
                 )
                 logger.info("ticket.query.detail_loaded", extra={"ticket_id": ticket.id, "user_id": user.id, "match_choices_count": len(result.match_choice_summaries)})
                 return result
@@ -289,6 +318,9 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     return result
 
                 all_odd_ids: set[int] = set()
+                display_numbers = None
+                if any(getattr(t, 'display_number', None) is None for t in db_tickets):
+                    display_numbers = await self._get_ticket_display_numbers(ticket_repo, user.id, [int(t.id) for t in db_tickets])
                 for t in db_tickets:
                     for ch in getattr(t, 'match_choices', []) or []:
                         oid = getattr(ch, 'match_odd_id', None)
@@ -337,6 +369,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                     ticket_read_model = TicketReadModel(
                         id=db_ticket.id,
+                        display_number=self._ticket_display_number(db_ticket, display_numbers),
                         uuid=db_ticket.uuid,
                         mise=db_ticket.mise,
                         gain=db_ticket.gain,
@@ -384,6 +417,9 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
                     return result
 
                 all_odd_ids: set[int] = set()
+                display_numbers = None
+                if any(getattr(t, 'display_number', None) is None for t in db_tickets):
+                    display_numbers = await self._get_ticket_display_numbers(ticket_repo, user.id, [int(t.id) for t in db_tickets])
                 for t in db_tickets:
                     for ch in getattr(t, 'match_choices', []) or []:
                         oid = getattr(ch, 'match_odd_id', None)
@@ -432,6 +468,7 @@ class TicketQueryUseCaseImpl(TicketQueryUseCase):
 
                     ticket_read_model = TicketReadModel(
                         id=db_ticket.id,
+                        display_number=self._ticket_display_number(db_ticket, display_numbers),
                         uuid=db_ticket.uuid,
                         mise=db_ticket.mise,
                         gain=db_ticket.gain,

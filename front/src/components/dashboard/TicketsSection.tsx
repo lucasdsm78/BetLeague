@@ -35,6 +35,13 @@ interface LeagueOption {
   name: string;
 }
 
+function formatTicketDisplayNumber(ticket: Pick<TicketReadModel, 'display_number' | 'id'>): string {
+  const number = typeof ticket.display_number === 'number' && ticket.display_number > 0
+    ? ticket.display_number
+    : ticket.id;
+  return `#${number}`;
+}
+
 const FILTER_ALL: TicketFilter = { type: 'all', label: 'Tous' };
 const FILTER_TOURNAMENT: TicketFilter = { type: 'tournament', label: 'Tournois' };
 
@@ -274,22 +281,23 @@ const ChoiceLabel: React.FC<{ choice: MatchChoiceSummary; className?: string }> 
 interface InProgressTicketCardProps {
   ticket: TicketReadModel;
   onView: (id: number) => void;
-  onDelete: (id: number) => void;
+  onDelete: (ticket: TicketReadModel) => void;
 }
 
 const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, onDelete }) => {
   const ticketContextLabel = getTicketContextLabel(ticket);
-  const potentialGain = Number(ticket.gain ?? 0); // backend returns gain (potential when pending)
+  const potentialGain = Number(ticket.gain ?? 0);
+  const ticketDisplayLabel = formatTicketDisplayNumber(ticket);
 
   return (
-    <article className="ticket-card-modern" aria-label={`Ticket #${ticket.id}`}>
+    <article className="ticket-card-modern" aria-label={`Ticket ${ticketDisplayLabel}`}>
       <header className="ticket-card-header">
         <div className="left">
           <span className="badge badge-warning">{statusToLabel(ticket.status)}</span>
           <span className="ticket-context" title={ticketContextLabel}>{ticketContextLabel}</span>
         </div>
         <div className="right">
-          <span className="ticket-id">#{ticket.id}</span>
+          <span className="ticket-id">{ticketDisplayLabel}</span>
         </div>
       </header>
 
@@ -315,10 +323,10 @@ const InProgressTicketCard = memo<InProgressTicketCardProps>(({ ticket, onView, 
       </div>
 
       <footer className="ticket-actions">
-        <button className="btn btn-outline btn-sm" onClick={() => onDelete(ticket.id)} aria-label={`Supprimer le ticket ${ticket.id}`}>
+        <button className="btn btn-outline btn-sm" onClick={() => onDelete(ticket)} aria-label={`Supprimer le ticket ${ticketDisplayLabel}`}>
           Supprimer
         </button>
-        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticket.id}`}>
+        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticketDisplayLabel}`}>
           Voir détail
         </button>
       </footer>
@@ -338,16 +346,17 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
   const isWin = normalizedStatus === 'correct';
   const badgeClass = isWin ? 'badge-success' : 'badge-danger';
   const resultLabel = isWin ? 'Gagné' : 'Perdu';
+  const ticketDisplayLabel = formatTicketDisplayNumber(ticket);
 
   return (
-    <article className="ticket-card-modern" aria-label={`Ticket #${ticket.id}`}>
+    <article className="ticket-card-modern" aria-label={`Ticket ${ticketDisplayLabel}`}>
       <header className="ticket-card-header">
         <div className="left">
           <span className={`badge ${badgeClass}`}>{resultLabel}</span>
           <span className="ticket-context" title={ticketContextLabel}>{ticketContextLabel}</span>
         </div>
         <div className="right">
-          <span className="ticket-id">#{ticket.id}</span>
+          <span className="ticket-id">{ticketDisplayLabel}</span>
         </div>
       </header>
 
@@ -373,7 +382,7 @@ const FinishedTicketCard = memo<FinishedTicketCardProps>(({ ticket, onView }) =>
       </div>
 
       <footer className="ticket-actions">
-        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticket.id}`}>
+        <button className="btn btn-primary btn-sm" onClick={() => onView(ticket.id)} aria-label={`Voir le ticket ${ticketDisplayLabel}`}>
           Voir détail
         </button>
       </footer>
@@ -523,6 +532,7 @@ const TicketsSection: React.FC = memo(() => {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTicketId, setDeleteTicketId] = useState<number | null>(null);
+  const [deleteTicketLabel, setDeleteTicketLabel] = useState<string>('');
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set());
   const [deleteSource, setDeleteSource] = useState<'list' | 'detail' | null>(null);
   const [localUpdatedAt, setLocalUpdatedAt] = useState<number | null>(null);
@@ -631,15 +641,17 @@ const TicketsSection: React.FC = memo(() => {
     setIsDetailOpen(true);
   }, []);
 
-  const handleDeleteAskFromList = useCallback((id: number) => {
+  const handleDeleteAskFromList = useCallback((ticket: TicketReadModel) => {
     setDeleteSource('list');
-    setDeleteTicketId(id);
+    setDeleteTicketId(ticket.id);
+    setDeleteTicketLabel(formatTicketDisplayNumber(ticket));
     setIsDeleteOpen(true);
   }, []);
 
-  const handleDeleteAskFromDetail = useCallback((id: number) => {
+  const handleDeleteAskFromDetail = useCallback((ticket: Pick<TicketReadModel, 'id' | 'display_number'>) => {
     setDeleteSource('detail');
-    setDeleteTicketId(id);
+    setDeleteTicketId(ticket.id);
+    setDeleteTicketLabel(formatTicketDisplayNumber(ticket));
     setIsDeleteOpen(true);
   }, []);
 
@@ -650,7 +662,7 @@ const TicketsSection: React.FC = memo(() => {
       setLocalUpdatedAt(Date.now());
 
       await apiDeleteTicket(id);
-      showSuccess('Ticket supprimé', `Ticket #${id} supprimé avec succès. Votre mise a été recréditée.`);
+      showSuccess('Ticket supprimé', `Ticket ${deleteTicketLabel || `#${id}`} supprimé avec succès. Votre mise a été recréditée.`);
 
       // Rafraîchir via React Query
       invalidateTickets.invalidateAll();
@@ -659,6 +671,7 @@ const TicketsSection: React.FC = memo(() => {
       // Fermeture des modales
       setIsDeleteOpen(false);
       setDeleteTicketId(null);
+      setDeleteTicketLabel('');
       if (deleteSource === 'detail') {
         setIsDetailOpen(false);
         setSelectedTicketId(null);
@@ -673,7 +686,7 @@ const TicketsSection: React.FC = memo(() => {
       showError('Erreur', e?.message || 'Suppression du ticket échouée');
       throw e; // pour affichage éventuel dans la modale
     }
-  }, [refetch, refetchProfile, showSuccess, showError, deleteSource]);
+  }, [refetch, refetchProfile, showSuccess, showError, deleteSource, deleteTicketLabel]);
 
   const handleCloseDetail = useCallback(() => {
     setIsDetailOpen(false);
@@ -681,6 +694,7 @@ const TicketsSection: React.FC = memo(() => {
 
   const handleCloseDelete = useCallback(() => {
     setIsDeleteOpen(false);
+    setDeleteTicketLabel('');
   }, []);
 
   const myLeaguesQuery = useMyLeaguesQuery({ enabled: true });
@@ -713,7 +727,13 @@ const TicketsSection: React.FC = memo(() => {
         ticketId={selectedTicketId}
         onAskDelete={handleDeleteAskFromDetail}
       />
-      <DeleteTicketModal isOpen={isDeleteOpen} onClose={handleCloseDelete} ticketId={deleteTicketId} onConfirm={handleDeleteConfirm} />
+      <DeleteTicketModal
+        isOpen={isDeleteOpen}
+        onClose={handleCloseDelete}
+        ticketId={deleteTicketId}
+        ticketLabel={deleteTicketLabel}
+        onConfirm={handleDeleteConfirm}
+      />
 
       <div className="section-header">
         <h2>Mes Tickets</h2>
