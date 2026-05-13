@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
@@ -89,15 +88,62 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
     def _extract_email_value(raw_email) -> str:
         return raw_email.value if hasattr(raw_email, 'value') else str(raw_email)
 
+    @staticmethod
+    def _extract_current_players_count(league) -> Optional[int]:
+        if league is None:
+            return None
+
+        current_players = getattr(league, 'current_players', None)
+        if current_players is not None:
+            return max(int(current_players), 0)
+
+        current_players_count = getattr(league, 'current_players_count', None)
+        if current_players_count is not None:
+            return max(int(current_players_count), 0)
+
+        max_players = getattr(league, 'max_players', None)
+        nb_players_remaining = getattr(league, 'nb_players_remaining', None)
+        if max_players is not None and nb_players_remaining is not None:
+            return max(int(max_players) - int(nb_players_remaining), 0)
+
+        return None
+
+    @staticmethod
+    def _extract_min_players(league) -> Optional[int]:
+        min_players = getattr(league, 'min_players', None)
+        if min_players is None:
+            return None
+        return int(min_players)
+
     async def _hydrate_current_players_count(self, league) -> None:
         if league is None or getattr(league, 'id', None) is None:
             return
-        league.current_players_count = await self.league_players_repository.count_players(int(league.id))
+        count_one = getattr(self.league_players_repository, 'count_players', None)
+        if not callable(count_one):
+            return
+        league.current_players_count = await count_one(int(league.id))
 
     async def _hydrate_current_players_count_for_many(self, leagues: List) -> List:
         if not leagues:
             return leagues
-        await asyncio.gather(*(self._hydrate_current_players_count(league) for league in leagues))
+
+        leagues_by_id = {
+            int(league.id): league
+            for league in leagues
+            if league is not None and getattr(league, 'id', None) is not None
+        }
+        if not leagues_by_id:
+            return leagues
+
+        count_many = getattr(self.league_players_repository, 'count_players_by_league_ids', None)
+        if callable(count_many):
+            counts_by_league_id = await count_many(list(leagues_by_id.keys()))
+            for league_id, league in leagues_by_id.items():
+                league.current_players_count = int(counts_by_league_id.get(league_id, 0))
+            return leagues
+
+        for league in leagues_by_id.values():
+            await self._hydrate_current_players_count(league)
         return leagues
 
     async def get_rank_by_league_id(
@@ -279,22 +325,26 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
                 logger.info("league.query.invitations_loaded", extra={"user_id": user.id, "is_received": is_received, "status": getattr(status, 'value', status), "total": total, "results_count": 0})
                 return result
 
+            await self._hydrate_current_players_count_for_many([
+                db_inv.league for db_inv in db_invitations
+                if db_inv.league_id and db_inv.league is not None
+            ])
+
             for db_inv in db_invitations:
                 if db_inv.league_id and db_inv.league is not None:
                     league = db_inv.league
-                    await self._hydrate_current_players_count(league)
                     league_summary = LeagueInvitationReceivedSummary(
                         id=league.id,
                         name=league.name,
                         max_players=league.max_players,
-                        min_players=league.min_players,
+                        min_players=self._extract_min_players(league),
                         start_date=league.start_date,
                         user_creator=UserSummaryLeagueDetail(
                             id=league.user.id,
                             pseudo=league.user.pseudo,
                         ),
                         nb_players_remaining=league.nb_players_remaining,
-                        current_players_count=league.current_players,
+                        current_players_count=self._extract_current_players_count(league),
                         is_started=league.is_started
                     )
 
@@ -478,6 +528,11 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
             logger.info("league.query.sent_loaded", extra={"user_id": user.id, "status": getattr(status, 'value', status), "total": total, "results_count": 0})
             return result
 
+        await self._hydrate_current_players_count_for_many([
+            db_inv.league for db_inv in db_invitations
+            if db_inv.league_id and db_inv.league is not None
+        ])
+
         for db_inv in db_invitations:
             common_payload = {
                 'id': db_inv.id,
@@ -492,17 +547,16 @@ class LeagueQueryUseCaseImpl(LeagueQueryUseCase, BaseModel):
 
             if db_inv.league_id and db_inv.league is not None:
                 league = db_inv.league
-                await self._hydrate_current_players_count(league)
                 result.invitations.append(InvitationSentReadModel(
                     type='league',
                     league=LeagueInvitationReceivedSummary(
                         id=league.id,
                         name=league.name,
                         max_players=league.max_players,
-                        min_players=league.min_players,
+                        min_players=self._extract_min_players(league),
                         start_date=league.start_date,
                         nb_players_remaining=league.nb_players_remaining,
-                        current_players_count=league.current_players,
+                        current_players_count=self._extract_current_players_count(league),
                         is_started=league.is_started,
                         user_creator=UserSummaryLeagueDetail(
                             id=user.id,
