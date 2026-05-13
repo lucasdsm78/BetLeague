@@ -1,19 +1,19 @@
 class PasswordResetError(Exception):
-    message: str = "Password reset error"
+    message: str = "Erreur de réinitialisation du mot de passe"
 
 
 class PasswordResetChallengeNotFoundError(PasswordResetError):
-    message = "Reset challenge not found or expired"
+    message = "La demande de réinitialisation est introuvable ou expirée"
 
 
 class PasswordResetRateLimitedError(PasswordResetError):
-    message = "Too many requests"
+    message = "Trop de tentatives, réessayez plus tard"
 
 
 class PasswordResetInvalidCodeError(PasswordResetError):
-    message = "Invalid code"
+    message = "Code invalide"
 
 
 class PasswordResetInvalidTokenError(PasswordResetError):
-    message = "Invalid or expired reset token"
+    message = "Le jeton de réinitialisation est invalide ou expiré"
 

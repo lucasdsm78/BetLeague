@@ -81,35 +81,35 @@ class LeagueUpdateModel(BaseModel):
 
 
 class LeagueJoinResponse(BaseModel):
-    message: str = "Your participation is well saved for this league"
+    message: str = "Votre participation à la ligue a bien été enregistrée."
 
 
 class LeagueInviteResponse(BaseModel):
-    message: str = "The user is invited to join this league"
+    message: str = "L'utilisateur a bien été invité à rejoindre cette ligue."
 
 
 class InvitationUpdateResponse(BaseModel):
-    message: str = "The invitation is well updated."
+    message: str = "L'invitation a bien été mise à jour."
 
 
 class InvitationDeleteResponse(BaseModel):
-    message: str = "The invitation is well deleted."
+    message: str = "L'invitation a bien été supprimée."
 
 
 class LeagueUpdateResponse(BaseModel):
-    message: str = "The league is well updated."
+    message: str = "La ligue a bien été mise à jour."
 
 
 class LeagueStartResponse(BaseModel):
-    message: str = "The league is well started."
+    message: str = "La ligue a bien démarré."
 
 
 class LeagueFreeCreateResponse(BaseModel):
-    message: str = "The free league is well created"
+    message: str = "La ligue a bien été créée."
 
 
 class LeaguePlayerDeletedResponse(BaseModel):
-    message: str = "The player is well deleted to the league"
+    message: str = "Le joueur a bien été retiré de la ligue."
 
 
 class LeagueInjectBtlModel(BaseModel):
@@ -117,4 +117,4 @@ class LeagueInjectBtlModel(BaseModel):
 
 
 class LeagueInjectBtlResponse(BaseModel):
-    message: str = "BTL successfully injected"
+    message: str = "Les BTL ont bien été ajoutés."

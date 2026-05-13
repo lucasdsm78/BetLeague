@@ -226,7 +226,7 @@ async def get_league_ranking(
         logger.exception("league.http.rank_failed", extra={"user_id": current_user.get("id"), "league_id": league_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred."
+            detail="Une erreur inattendue est survenue."
         )
 
 @router.post(
@@ -276,7 +276,7 @@ async def get_leagues_balances_bulk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
         logger.exception("league.http.balances_bulk_failed", extra={"user_id": current_user.get("id")})
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Une erreur inattendue est survenue.")
 
 
 @router.delete(

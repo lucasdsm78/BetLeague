@@ -1,107 +1,107 @@
 class LeagueNameAlreadyExistsError(Exception):
-    message = "The league with the name you specified already exists."
+    message = "Une ligue avec ce nom existe déjà."
 
     def __str__(self):
         return LeagueNameAlreadyExistsError.message
 
 
 class LeagueMaxPlayersError(Exception):
-    message = "The league can't have more players than the maximum of the players."
+    message = "Le nombre maximal de joueurs pour cette ligue est invalide."
 
     def __str__(self):
         return LeagueMaxPlayersError.message
 
 
 class LeagueMustHaveNbBtlError(Exception):
-    message = "The league is not free, you must have a number of BTL."
+    message = "Cette ligue n'est pas gratuite : un montant de BTL est requis."
 
     def __str__(self):
         return LeagueMustHaveNbBtlError.message
 
 
 class LeagueNotThePlayerError(Exception):
-    message = "The user is not the player."
+    message = "Vous n'êtes pas le joueur concerné par cette ligue."
 
     def __str__(self):
         return LeagueNotThePlayerError.message
 
 
 class LeagueNbBtlIsNotEnoughError(Exception):
-    message = "Your number of BTL is not enough to join this league."
+    message = "Votre solde de BTL est insuffisant pour rejoindre cette ligue."
 
     def __str__(self):
         return LeagueNbBtlIsNotEnoughError.message
 
 
 class LeagueNotFoundError(Exception):
-    message = "The league does not exist."
+    message = "La ligue n'existe pas."
 
     def __str__(self):
         return LeagueNotFoundError.message
 
 
 class LeagueParticipantFoundError(Exception):
-    message = "You are participating in this league."
+    message = "Vous participez déjà à cette ligue."
 
     def __str__(self):
         return LeagueParticipantFoundError.message
 
 
 class LeagueParticipantNotFoundError(Exception):
-    message = "You are not participating in this league."
+    message = "Vous ne participez pas à cette ligue."
 
     def __str__(self):
         return LeagueParticipantNotFoundError.message
 
 
 class NbBTLHasReached0(Exception):
-    message = "Your number of BTL in this league has been reached 0."
+    message = "Votre solde de BTL dans cette ligue a atteint 0."
 
     def __str__(self):
         return NbBTLHasReached0.message
 
 
 class LeagueNotStartedError(Exception):
-    message = "The league is not started."
+    message = "La ligue n'a pas encore commencé."
 
     def __str__(self):
         return LeagueNotStartedError.message
 
 
 class LeagueAlreadyStartedError(Exception):
-    message = "The league is already started."
+    message = "La ligue a déjà commencé."
 
     def __str__(self):
         return LeagueAlreadyStartedError.message
 
 
 class LeagueMinimumPlayersNotReachedError(Exception):
-    message = "The league does not have the minimum required players to start."
+    message = "Le nombre minimum de joueurs requis pour démarrer la ligue n'est pas atteint."
 
     def __str__(self):
         return LeagueMinimumPlayersNotReachedError.message
 
 
 class UserNotOwnerLeaguedError(Exception):
-    message = "The user is not owner of the league."
+    message = "Vous n'êtes pas le propriétaire de cette ligue."
 
     def __str__(self):
         return UserNotOwnerLeaguedError.message
 
 class UserNotInvitationLeaguedError(Exception):
-    message = "The user is not owner of the invitation for the league."
+    message = "Vous n'êtes pas propriétaire de cette invitation de ligue."
 
     def __str__(self):
         return UserNotInvitationLeaguedError.message
 
 class LeagueNotFinishedError(Exception):
-    message = "The league is not finished"
+    message = "La ligue n'est pas terminée."
 
     def __str__(self):
         return LeagueNotFinishedError.message
 
 class LeagueFinishedError(Exception):
-    message = "The league is finished"
+    message = "La ligue est terminée."
 
     def __str__(self):
         return LeagueFinishedError.message

@@ -35,7 +35,7 @@ class JwtBearer(HTTPBearer):
             logger.warning("auth.jwt_bearer.rejected", extra={"reason": "missing_authorization", "path": request.url.path, "method": request.method})
             if self.auto_error:
                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated"
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Authentification requise."
                 )
             else:
                 return None
@@ -44,7 +44,7 @@ class JwtBearer(HTTPBearer):
             if self.auto_error:
                 raise HTTPException(
                     status_code=HTTP_403_FORBIDDEN,
-                    detail="Invalid authentication credentials",
+                    detail="Informations d'authentification invalides.",
                 )
             else:
                 return None
