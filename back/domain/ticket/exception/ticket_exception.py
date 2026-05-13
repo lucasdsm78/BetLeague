@@ -1,12 +1,12 @@
 class TicketNotFoundError(Exception):
-    message = "The ticket does not exist."
+    message = "Le ticket n'existe pas."
 
     def __str__(self):
         return TicketNotFoundError.message
 
 
 class NotTicketOwnerError(Exception):
-    message = "You are not the ticket owner."
+    message = "Vous n'êtes pas le propriétaire de ce ticket."
 
     def __str__(self):
         return NotTicketOwnerError.message
@@ -20,48 +20,48 @@ class MatchAlreadyStartedError(Exception):
 
 
 class InvalidMatchChoiceStatusException(Exception):
-    message = "This match choice status is not a valid match choice status"
+    message = "Ce statut de choix de match n'est pas valide."
 
     def __init__(self, match_choice_status: str):
         self.match_choice_status = match_choice_status
 
     def __str__(self):
-        return f"{self.match_choice_status} is not a valid match choice status"
+        return f"{self.match_choice_status} n'est pas un statut de choix de match valide."
 
 
 class InvalidTicketStatusException(Exception):
-    message = "This ticket status is not a valid ticket status"
+    message = "Ce statut de ticket n'est pas valide."
 
     def __init__(self, ticket_status: str):
         self.ticket_status = ticket_status
 
     def __str__(self):
-        return f"{self.ticket_status} is not a valid ticket status"
+        return f"{self.ticket_status} n'est pas un statut de ticket valide."
 
 
 class GainNotEqualsError(Exception):
-    message = "The gain for this match is not equals"
+    message = "Le gain calculé pour ce ticket est invalide."
 
     def __str__(self):
         return self.message
 
 
 class MiseSuperiorToNbBtlError(Exception):
-    message = "The mise is superior to your btl points"
+    message = "La mise est supérieure à votre solde de BTL."
 
     def __str__(self):
         return self.message
 
 
 class TicketAccessDeniedError(Exception):
-    message = "You do not have permission to view this ticket."
+    message = "Vous n'avez pas l'autorisation de consulter ce ticket."
 
     def __str__(self):
         return self.message
 
 
 class TicketNotShareableError(Exception):
-    message = "This ticket cannot be shared."
+    message = "Ce ticket ne peut pas être partagé."
 
     def __str__(self):
         return self.message

@@ -144,13 +144,13 @@ async def test_accept_tournament_invitation_adds_player_and_starts_when_full(mon
     async def fake_start_tournament(tournament_id: int, email: str):
         started['tournament_id'] = tournament_id
         started['email'] = email
-        return SimpleNamespace(message='Tournament start successfully')
+        return SimpleNamespace(message='Le tournoi a bien démarré.')
 
     usecase.start_tournament = fake_start_tournament
 
     result = await usecase.update_invitation(5, True, 'invitee@example.com')
 
-    assert result.message == 'Tournament invitation accepted successfully'
+    assert result.message == 'Invitation au tournoi acceptée avec succès.'
     assert session.added_player is not None
     assert session.added_player.user_id == 7
     assert session.deleted_invitation_id == 5
@@ -172,7 +172,7 @@ async def test_decline_tournament_invitation_only_deletes_invitation(monkeypatch
     )
     result = await usecase.update_invitation(5, False, 'invitee@example.com')
 
-    assert result.message == 'Tournament invitation declined successfully'
+    assert result.message == 'Invitation au tournoi refusée avec succès.'
     assert session.deleted_invitation_id == 5
     assert session.added_player is None
     assert session.updated_tournament is None

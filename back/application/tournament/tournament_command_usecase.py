@@ -568,7 +568,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
             await self.start_tournament(invitation.tournament_id, owner_email)
 
         return InvitationUpdateResponse(
-            message="Tournament invitation accepted successfully" if action else "Tournament invitation declined successfully"
+            message="Invitation au tournoi acceptée avec succès." if action else "Invitation au tournoi refusée avec succès."
         )
 
     async def delete_invitation(self, invitation_id: int, owner_email: str):
