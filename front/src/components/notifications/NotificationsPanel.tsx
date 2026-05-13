@@ -135,6 +135,8 @@ function getNotificationIcon(type: NotificationType): React.FC<IconProps> {
       return SoccerIcon;
     case 'league_started':
       return FlagIcon;
+    case 'league_minimum_players_reached':
+      return FlagIcon;
     case 'league_ended':
       return CheckCircleIcon;
     case 'league_overtaken':
@@ -166,6 +168,7 @@ function getNotificationStyle(type: NotificationType): string {
     case 'match_result':
       return styles.typeMatch;
     case 'league_started':
+    case 'league_minimum_players_reached':
     case 'league_ended':
     case 'league_overtaken':
       return styles.typeLeague;

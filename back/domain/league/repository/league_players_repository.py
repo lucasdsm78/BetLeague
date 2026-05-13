@@ -44,6 +44,10 @@ class LeaguePlayersRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def count_players_by_league_ids(self, league_ids: List[int]) -> Dict[int, int]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def delete_player(self, league_player_id: int):
         raise NotImplementedError
 

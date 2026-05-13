@@ -13,6 +13,7 @@ class NotificationType(StrEnum):
     BET_LOST = "bet_lost"
     MATCH_RESULT = "match_result"
     LEAGUE_STARTED = "league_started"
+    LEAGUE_MINIMUM_PLAYERS_REACHED = "league_minimum_players_reached"
     LEAGUE_ENDED = "league_ended"
     LEAGUE_OVERTAKEN = "league_overtaken"
     SYSTEM_ANNOUNCEMENT = "system_announcement"

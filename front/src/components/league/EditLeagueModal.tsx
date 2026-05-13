@@ -7,6 +7,7 @@ interface LeagueToEdit {
   name: string;
   isStarted?: boolean;
   maxPlayers?: number;
+  minPlayers?: number;
   isFree?: boolean;
   nbBtl?: number;
   startDate?: number; // Timestamp Unix
@@ -22,6 +23,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   const [formData, setFormData] = useState({
     name: league.name,
     maxPlayers: league.maxPlayers || 10,
+    minPlayers: league.minPlayers || 2,
     isFree: league.isFree ?? true,
     nbBtl: league.nbBtl || 100,
   });
@@ -29,6 +31,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   const [originalData] = useState({
     name: league.name,
     maxPlayers: league.maxPlayers || 10,
+    minPlayers: league.minPlayers || 2,
     isFree: league.isFree ?? true,
     nbBtl: league.nbBtl || 100,
   });
@@ -36,6 +39,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   const [errors, setErrors] = useState<{
     name?: string;
     maxPlayers?: string;
+    minPlayers?: string;
     nbBtl?: string;
     general?: string;
   }>({});
@@ -45,12 +49,13 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   const [touched, setTouched] = useState({
     name: false,
     maxPlayers: false,
+    minPlayers: false,
     nbBtl: false,
   });
 
   // Validation en temps réel
   const validateField = useCallback(
-    (field: 'name' | 'maxPlayers' | 'nbBtl', value: string | number): string | undefined => {
+    (field: 'name' | 'maxPlayers' | 'minPlayers' | 'nbBtl', value: string | number): string | undefined => {
       if (field === 'name') {
         const nameValue = String(value).trim();
         if (!nameValue) return 'Le nom de la ligue ne peut pas être vide';
@@ -67,7 +72,17 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
           return 'Le nombre minimum de participants est 2';
         }
         if (maxPlayersValue > 200) {
-          return 'Le nombre maximum de participants est 200';
+          return 'Le nombre maximum de joueurs est 200';
+        }
+      }
+
+      if (field === 'minPlayers') {
+        const minPlayersValue = Number(value);
+        if (!Number.isInteger(minPlayersValue) || minPlayersValue < 2) {
+          return 'Le nombre minimum de joueurs est 2';
+        }
+        if (minPlayersValue > formData.maxPlayers) {
+          return 'Le minimum de joueurs doit être inférieur ou égal au maximum';
         }
       }
 
@@ -87,7 +102,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   );
 
   const handleChange = useCallback(
-    (field: 'name' | 'maxPlayers' | 'nbBtl', value: string | number) => {
+      (field: 'name' | 'maxPlayers' | 'minPlayers' | 'nbBtl', value: string | number) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
 
       // Valider uniquement si le champ a été touché
@@ -100,7 +115,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
   );
 
   const handleBlur = useCallback(
-    (field: 'name' | 'maxPlayers' | 'nbBtl') => {
+      (field: 'name' | 'maxPlayers' | 'minPlayers' | 'nbBtl') => {
       setTouched((prev) => ({ ...prev, [field]: true }));
       const error = validateField(field, formData[field]);
       setErrors((prev) => ({ ...prev, [field]: error }));
@@ -112,7 +127,8 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
     // Seuls name et maxPlayers peuvent être modifiés
     return (
       formData.name.trim() !== originalData.name ||
-      formData.maxPlayers !== originalData.maxPlayers
+        formData.maxPlayers !== originalData.maxPlayers ||
+        formData.minPlayers !== originalData.minPlayers
     );
   }, [formData, originalData]);
 
@@ -121,16 +137,17 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
       e.preventDefault();
 
       // Marquer tous les champs comme touchés
-      setTouched({ name: true, maxPlayers: true, nbBtl: true });
+      setTouched({ name: true, maxPlayers: true, minPlayers: true, nbBtl: true });
 
       // Valider tous les champs
       const nameError = validateField('name', formData.name);
       const maxPlayersError = validateField('maxPlayers', formData.maxPlayers);
+      const minPlayersError = validateField('minPlayers', formData.minPlayers);
       const nbBtlError =
         !formData.isFree ? validateField('nbBtl', formData.nbBtl) : undefined;
 
-      if (nameError || maxPlayersError || nbBtlError) {
-        setErrors({ name: nameError, maxPlayers: maxPlayersError, nbBtl: nbBtlError });
+      if (nameError || maxPlayersError || minPlayersError || nbBtlError) {
+        setErrors({ name: nameError, maxPlayers: maxPlayersError, minPlayers: minPlayersError, nbBtl: nbBtlError });
         return;
       }
 
@@ -156,6 +173,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
         const updateData: any = {
           name: formData.name.trim(),
           max_players: formData.maxPlayers,
+          min_players: formData.minPlayers,
           start_date: startDate, // Timestamp Unix en millisecondes
         };
 
@@ -179,7 +197,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
           if (error.message.toLowerCase().includes('nom')) {
             setErrors({ name: error.message });
           } else if (error.message.toLowerCase().includes('joueur')) {
-            setErrors({ maxPlayers: error.message });
+            setErrors({ maxPlayers: error.message, minPlayers: error.message });
           } else if (error.message.toLowerCase().includes('btl')) {
             setErrors({ nbBtl: error.message });
           } else {
@@ -215,7 +233,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
     };
   }, []);
 
-  const isFormValid = !errors.name && !errors.maxPlayers && !errors.nbBtl && hasChanges();
+  const isFormValid = !errors.name && !errors.maxPlayers && !errors.minPlayers && !errors.nbBtl && hasChanges();
 
   // Vérifier si la ligue a déjà commencé
   const isLeagueStarted = league.isStarted;
@@ -326,7 +344,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
 
           <div className="form-group">
             <label htmlFor="edit-max-players" className="form-label">
-              Nombre maximum de participants
+              Nombre maximum de joueurs
             </label>
             <input
               id="edit-max-players"
@@ -344,6 +362,30 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
             {errors.maxPlayers && (
               <span id="maxPlayers-error" className="error-message" role="alert">
                 {errors.maxPlayers}
+              </span>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="edit-min-players" className="form-label">
+              Nombre minimum de joueurs
+            </label>
+            <input
+              id="edit-min-players"
+              type="number"
+              className={`form-input ${errors.minPlayers ? 'input-error' : ''}`}
+              value={formData.minPlayers}
+              onChange={(e) => handleChange('minPlayers', parseInt(e.target.value, 10) || 2)}
+              onBlur={() => handleBlur('minPlayers')}
+              disabled={isSubmitting || success}
+              min={2}
+              max={formData.maxPlayers}
+              aria-invalid={!!errors.minPlayers}
+              aria-describedby={errors.minPlayers ? 'minPlayers-error' : undefined}
+            />
+            {errors.minPlayers && (
+              <span id="minPlayers-error" className="error-message" role="alert">
+                {errors.minPlayers}
               </span>
             )}
           </div>
