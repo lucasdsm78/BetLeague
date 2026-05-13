@@ -75,6 +75,13 @@ class LeagueAlreadyStartedError(Exception):
         return LeagueAlreadyStartedError.message
 
 
+class LeagueMinimumPlayersNotReachedError(Exception):
+    message = "The league does not have the minimum required players to start."
+
+    def __str__(self):
+        return LeagueMinimumPlayersNotReachedError.message
+
+
 class UserNotOwnerLeaguedError(Exception):
     message = "The user is not owner of the league."
 

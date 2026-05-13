@@ -12,6 +12,7 @@ const mockMutateAsync = jest.fn();
 const mockGetCreatedLeaguesPage = jest.fn();
 const mockGetParticipatedLeaguesPage = jest.fn();
 const mockClearApiCache = jest.fn();
+const mockStartLeague = jest.fn();
 
 let mockParticipatedLeaguesData: Array<any> = [];
 let mockCreatedLeaguesData: Array<any> = [];
@@ -38,6 +39,13 @@ jest.mock('../../services/api/leagues', () => ({
   getLeagueDetails: jest.fn(),
   getCreatedLeaguesPage: (...args: unknown[]) => mockGetCreatedLeaguesPage(...args),
   getParticipatedLeaguesPage: (...args: unknown[]) => mockGetParticipatedLeaguesPage(...args),
+  startLeague: (...args: unknown[]) => mockStartLeague(...args),
+}));
+
+jest.mock('../../hooks/useAuth.enhanced', () => ({
+  useEnhancedAuth: () => ({
+    user: { id: 7, email: 'owner@example.com', pseudo: 'owner' },
+  }),
 }));
 
 jest.mock('../../hooks/queries/useProfileQuery', () => ({
@@ -206,6 +214,7 @@ describe('LeaguesSection', () => {
       }
       return { message: 'Ligue rejointe' };
     });
+    mockStartLeague.mockResolvedValue({ message: 'The league is well started.' });
   });
 
   it('affiche immédiatement la ligue nouvellement créée dans l’onglet Créées', async () => {
@@ -265,8 +274,8 @@ describe('LeaguesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveTextContent('Participées1');
-      expect(screen.getByRole('button', { name: /ligues disponibles/i })).toHaveTextContent('Disponibles1');
     });
+    expect(screen.getByRole('button', { name: /ligues disponibles/i })).toHaveTextContent('Disponibles1');
   });
 
   it('affiche immédiatement la ligue rejointe dans l’onglet Participées', async () => {
@@ -289,15 +298,125 @@ describe('LeaguesSection', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Ligue publique')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveClass('active');
     });
+    expect(screen.getByRole('button', { name: /ligues participées/i })).toHaveClass('active');
 
     expect(mockMutateAsync).toHaveBeenCalledWith({ leagueId: 22 });
     expect(mockShowSuccess).toHaveBeenCalledWith('Ligue rejointe', 'Vous avez rejoint Ligue publique');
     expect(mockClearApiCache).toHaveBeenCalled();
     expect(mockGetParticipatedLeaguesPage).toHaveBeenCalledWith(1, 10);
   });
+
+  it('permet au créateur de démarrer une ligue quand le minimum de joueurs est atteint', async () => {
+    mockCreatedLeaguesData = [
+      {
+        id: 44,
+        name: 'Ligue prête',
+        isFree: true,
+        maxPlayers: 10,
+        minPlayers: 3,
+        currentPlayersCount: 3,
+        playersRemaining: 7,
+        status: 'OPEN',
+        currentTotalPot: null,
+        userCreator: { id: 7, pseudo: 'owner' },
+        startDate: new Date('2026-05-13T10:00:00Z').toISOString(),
+      },
+    ];
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue prête/i });
+    expect(startButton).toBeEnabled();
+    expect(startButton).toHaveClass('btn-start-league');
+    expect(screen.getByText(/minimum atteint/i)).toBeInTheDocument();
+    expect(screen.getByText(/ouvrir les paris/i)).toBeInTheDocument();
+
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      expect(mockStartLeague).toHaveBeenCalledWith(44);
+    });
+
+    expect(mockShowSuccess).toHaveBeenCalledWith('Ligue démarrée', 'Ligue prête a démarré avec succès.');
+  });
+
+  it('affiche une aide explicative et désactive le démarrage tant que le minimum de joueurs n’est pas atteint', async () => {
+    mockCreatedLeaguesData = [
+      {
+        id: 45,
+        name: 'Ligue en attente',
+        isFree: true,
+        maxPlayers: 10,
+        minPlayers: 4,
+        currentPlayersCount: 2,
+        playersRemaining: 8,
+        status: 'OPEN',
+        currentTotalPot: null,
+        userCreator: { id: 7, pseudo: 'owner' },
+        startDate: new Date('2026-05-13T10:00:00Z').toISOString(),
+      },
+    ];
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const startButton = await screen.findByRole('button', { name: /commencer la ligue ligue en attente/i });
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText(/doit atteindre au moins 4 joueurs/i)).toBeInTheDocument();
+    expect(screen.getByText(/avant de pouvoir commencer et lancer les paris/i)).toBeInTheDocument();
+  });
+
+  it('conserve la variante standard pour les ligues disponibles sans bouton de démarrage', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <LeaguesSection />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /ligues disponibles/i }));
+
+    const joinButton = await screen.findByRole('button', { name: /rejoindre la ligue ligue publique/i });
+    expect(joinButton).not.toHaveClass('btn-start-league');
+  });
 });
+
+
+
+
+
+
 
 
 

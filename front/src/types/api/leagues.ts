@@ -8,6 +8,7 @@ export interface ApiLeagueSummary {
   id: number;
   name: string;
   max_players: number;
+  min_players?: number;
   status?: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   is_private?: boolean;
   is_free?: boolean;
@@ -21,6 +22,7 @@ export interface ApiLeagueSummary {
     pseudo: string;
   };
   nb_players_remaining?: number;
+  current_players_count?: number;
   is_started?: boolean;
   current_total_pot?: number | null;
 }
@@ -35,7 +37,9 @@ export interface ApiLeagueDetail {
   start_date: string | number;
   end_date?: string | number;
   max_players: number;
+  min_players?: number;
   nb_players_remaining?: number;
+  current_players_count?: number;
   is_started?: boolean;
   current_total_pot?: number | null;
   user_creator?: {
@@ -49,6 +53,7 @@ export type ApiLeaguesPage = ApiPaginatedResponse<ApiLeagueSummary>;
 export interface ApiLeagueCreateRequest {
   name: string;
   max_players: number;
+  min_players: number;
   is_private: boolean;
   is_free: boolean;
   nb_btl?: number;
@@ -82,6 +87,7 @@ export interface ApiParticipatedLeaguesResponse {
 export interface ApiLeagueUpdateRequest {
   name: string;
   max_players: number;
+  min_players: number;
   start_date: number;
 }
 
@@ -102,6 +108,10 @@ export interface ApiLeagueLeaveResponse {
 }
 
 export interface ApiLeagueJoinResponse {
+  message: string;
+}
+
+export interface ApiLeagueStartResponse {
   message: string;
 }
 

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class LeagueCreateModel(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
     max_players: int = Field(..., ge=2, le=200)
+    min_players: int = Field(..., ge=2, le=200)
     is_private: bool
     is_free: bool = True
     nb_btl: Optional[int] = None
@@ -36,6 +37,8 @@ class LeagueCreateModel(BaseModel):
 
     @model_validator(mode='after')
     def _validate_paid_rules(self):
+        if self.min_players > self.max_players:
+            raise ValueError('min_players doit être inférieur ou égal à max_players')
         if self.is_free is False:
             if self.nb_btl is None or self.nb_btl <= 0:
                 raise ValueError('nb_btl requis et > 0 pour une ligue payante')
@@ -48,6 +51,7 @@ class LeagueCreateModel(BaseModel):
 class LeagueUpdateModel(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
     max_players: int = Field(..., ge=2, le=200)
+    min_players: int = Field(..., ge=2, le=200)
     start_date: int
 
     @field_validator('name')
@@ -69,6 +73,12 @@ class LeagueUpdateModel(BaseModel):
             raise ValueError('start_date doit être en millisecondes')
         return v
 
+    @model_validator(mode='after')
+    def _validate_player_rules(self):
+        if self.min_players > self.max_players:
+            raise ValueError('min_players doit être inférieur ou égal à max_players')
+        return self
+
 
 class LeagueJoinResponse(BaseModel):
     message: str = "Your participation is well saved for this league"
@@ -88,6 +98,10 @@ class InvitationDeleteResponse(BaseModel):
 
 class LeagueUpdateResponse(BaseModel):
     message: str = "The league is well updated."
+
+
+class LeagueStartResponse(BaseModel):
+    message: str = "The league is well started."
 
 
 class LeagueFreeCreateResponse(BaseModel):

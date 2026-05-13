@@ -18,11 +18,29 @@ export function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
     startDate: startMs ? new Date(startMs).toISOString() : new Date().toISOString(),
     status: (api as any).status,
     isStarted: Boolean((api as any).is_started ?? (api as any).isStarted ?? false),
+    maxPlayers:
+      typeof (api as any).max_players === 'number'
+        ? (api as any).max_players
+        : typeof (api as any).maxPlayers === 'number'
+          ? (api as any).maxPlayers
+          : undefined,
+    minPlayers:
+      typeof (api as any).min_players === 'number'
+        ? (api as any).min_players
+        : typeof (api as any).minPlayers === 'number'
+          ? (api as any).minPlayers
+          : undefined,
     playersRemaining:
       typeof (api as any).nb_players_remaining === 'number'
         ? (api as any).nb_players_remaining
         : typeof (api as any).playersRemaining === 'number'
           ? (api as any).playersRemaining
+          : undefined,
+    currentPlayersCount:
+      typeof (api as any).current_players_count === 'number'
+        ? Math.max(0, (api as any).current_players_count)
+        : typeof (api as any).currentPlayersCount === 'number'
+          ? Math.max(0, (api as any).currentPlayersCount)
           : undefined,
     isFree:
       typeof (api as any).is_free === 'boolean'
@@ -46,6 +64,18 @@ export function mapApiLeagueSummaryToUi(api: ApiLeagueSummary): LeagueSummary {
           : (api as any).currentTotalPot === null
             ? null
             : undefined,
+    userCreator:
+      (api as any).user_creator && typeof (api as any).user_creator.id === 'number'
+        ? {
+            id: Number((api as any).user_creator.id),
+            pseudo: String((api as any).user_creator.pseudo ?? ''),
+          }
+        : (api as any).userCreator && typeof (api as any).userCreator.id === 'number'
+          ? {
+              id: Number((api as any).userCreator.id),
+              pseudo: String((api as any).userCreator.pseudo ?? ''),
+            }
+          : undefined,
   };
 }
 

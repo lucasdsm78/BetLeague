@@ -49,6 +49,49 @@
   align-items: center;
 }
 
+.start-league-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: min(100%, 320px);
+}
+
+.start-league-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.start-league-hint.is-pending {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(255, 255, 255, 0.95));
+}
+
+.start-league-hint.is-ready {
+  border-color: rgba(6, 182, 212, 0.28);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(255, 255, 255, 0.95));
+}
+
+.start-league-hint__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.0625rem;
+  color: var(--color-primary);
+}
+
 /* Loading States */
 .league-detail-loading,
 .league-detail-error {
@@ -331,6 +374,7 @@
 
   .header-actions {
     justify-content: center;
+    flex-direction: column;
   }
 
   .back-button {
@@ -369,6 +413,16 @@
   .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .start-league-cta {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .start-league-hint {
+    font-size: 0.75rem;
+    padding: 0.75rem;
   }
 
   .error-actions {
