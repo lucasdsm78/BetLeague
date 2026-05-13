@@ -70,6 +70,9 @@ class FakeTicketRepository:
             )
         ]
 
+    async def get_display_numbers_by_ticket_ids(self, user_id: int, ticket_ids: list[int]):
+        return {15: 3}
+
     async def count_in_progress_by_user_id(self, user_id: int, league_id=None, is_tournament=None):
         return len(self.tickets)
 
@@ -107,6 +110,7 @@ async def test_get_tickets_in_progress_exposes_tournament_name(monkeypatch: pyte
 
     assert result.total == 1
     assert len(result.tickets) == 1
+    assert result.tickets[0].display_number == 3
     assert result.tickets[0].tournament_match_summary is not None
     assert result.tickets[0].tournament_match_summary.tournament_id == 9
     assert result.tickets[0].tournament_match_summary.name == 'Champions Sprint'

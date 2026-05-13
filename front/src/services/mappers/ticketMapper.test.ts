@@ -4,6 +4,7 @@ describe('ticketMapper', () => {
   it('priorise et mappe correctement le résumé de tournoi avec son nom', () => {
     const ticket = mapApiTicketToUi({
       id: 42,
+      display_number: 3,
       mise: 15,
       uuid: 'ticket-42',
       gain: 48.2,
@@ -26,6 +27,7 @@ describe('ticketMapper', () => {
       stage_id: 4,
       type: 'semi_final',
     });
+    expect(ticket.display_number).toBe(3);
     expect(ticket.league_summary?.name).toBe('Liga Pro');
   });
 

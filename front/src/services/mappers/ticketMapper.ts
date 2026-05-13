@@ -126,6 +126,7 @@ export function mapApiTicketToUi(api: ApiTicketReadModel): TicketReadModel {
 
   return {
     id: asNumber((api as any).id),
+    display_number: asNumber((api as any).display_number),
     mise: asNumberOrZero((api as any).mise),
     uuid: asStringOrEmpty((api as any).uuid),
     gain: asNumberOrZero((api as any).gain),
