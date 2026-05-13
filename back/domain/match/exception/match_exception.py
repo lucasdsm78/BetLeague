@@ -1,42 +1,42 @@
 class MatchesNotFoundError(Exception):
-    message = "No matches found from the API."
+    message = "Aucun match n'a été trouvé."
 
     def __str__(self):
         return MatchesNotFoundError.message
 
 
 class MatchNotFoundError(Exception):
-    message = "The match does not exist."
+    message = "Le match n'existe pas."
 
     def __str__(self):
         return MatchNotFoundError.message
 
 
 class InvalidMatchPossibilityException(Exception):
-    message = "This match possibility is not a valid match possibility"
+    message = "Cette possibilité de match n'est pas valide"
 
     def __init__(self, match_possibility: str):
         self.match_possibility = match_possibility
 
     def __str__(self):
-        return f"{self.match_possibility} is not a valid match possibility"
+        return f"{self.match_possibility} n'est pas une possibilité de match valide"
 
 
 class InvalidMatchStatusException(Exception):
-    message = "This match status is not valid"
+    message = "Ce statut de match n'est pas valide"
 
     def __init__(self, match_status: str):
         self.match_status = match_status
 
     def __str__(self):
-        return f"{self.match_status} is not a valid match status"
+        return f"{self.match_status} n'est pas un statut de match valide"
 
 
 class InvalidSportException(Exception):
-    message = "This sport is not valid"
+    message = "Ce sport n'est pas valide"
 
     def __init__(self, sport: str):
         self.sport = sport
 
     def __str__(self):
-        return f"{self.sport} is not a valid sport"
+        return f"{self.sport} n'est pas un sport valide"

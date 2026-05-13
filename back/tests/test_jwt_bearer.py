@@ -47,7 +47,7 @@ def test_jwt_bearer_rejects_legacy_x_authentication_header():
         asyncio.run(bearer(request))
 
     assert exc.value.status_code == 403
-    assert exc.value.detail == "Not authenticated"
+    assert exc.value.detail == "Authentification requise."
 
 
 def test_jwt_bearer_uses_authorization_even_if_legacy_header_is_also_present():

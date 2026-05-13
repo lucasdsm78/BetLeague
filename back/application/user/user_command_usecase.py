@@ -510,7 +510,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             if not payload:
                 raise HTTPException(
                     status_code=401,
-                    detail="Invalid or expired refresh token"
+                    detail="Le jeton de rafraîchissement est invalide ou expiré."
                 )
 
             if payload.get("type") != "refresh":
@@ -524,12 +524,12 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
             if not user_email:
                 raise HTTPException(
                     status_code=401,
-                    detail="Invalid token payload"
+                    detail="Le contenu du jeton est invalide."
                 )
             if user_id is None:
                 raise HTTPException(
                     status_code=401,
-                    detail="Invalid token payload"
+                    detail="Le contenu du jeton est invalide."
                 )
 
             async with self._session_factory() as session:
@@ -539,7 +539,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                     if not user:
                         raise HTTPException(
                             status_code=401,
-                            detail="User not found"
+                            detail="Utilisateur introuvable."
                         )
 
             await self.manager_token.invalidate_token(refresh_token, str(user_id))
@@ -554,7 +554,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
                 token_auth=new_token,
                 refresh_token=new_refresh,
                 token_expiration=_utc_iso_z(expiration_time),
-                message="Token refreshed successfully"
+                message="Session renouvelée avec succès."
             )
 
         except HTTPException:
@@ -562,7 +562,7 @@ class UserCommandUseCaseImpl(UserCommandUseCase):
         except Exception:
             raise HTTPException(
                 status_code=401,
-                detail="Token refresh failed"
+                detail="Impossible de renouveler la session."
             )
 
     async def logout(self, user_id: str, token: str) -> dict:

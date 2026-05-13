@@ -40,7 +40,7 @@ class TournamentCreateModel(BaseModel):
         return v
 
 class TournamentCreateResponse(BaseModel):
-    message: str = "Tournament created successfully"
+    message: str = "Tournoi créé avec succès."
     tournament_id: Optional[int] = None
     tournament_uuid: Optional[str] = None
     name: Optional[str] = None
@@ -52,10 +52,10 @@ class TournamentCreateResponse(BaseModel):
     requires_tournament_subscription: bool = False
 
 class TournamentJoinResponse(BaseModel):
-    message: str = "Joined tournament successfully"
+    message: str = "Inscription au tournoi effectuée avec succès."
 
 class TournamentStartResponse(BaseModel):
-    message: str = "Tournament start successfully"
+    message: str = "Le tournoi a bien démarré."
 
 class TournamentUpdateModel(BaseModel):
     name: Optional[str]
@@ -64,19 +64,19 @@ class TournamentUpdateModel(BaseModel):
     end_date: Optional[int] = None
 
 class TournamentUpdateResponse(BaseModel):
-    message: str = "Tournament updated successfully"
+    message: str = "Le tournoi a bien été mis à jour."
 
 class SchedulerSuccessfulyRunResponse(BaseModel):
-    message: str = "Scheduler run successfully"
+    message: str = "Le scheduler a bien été exécuté."
 
 class TournamentPlayerDeletedResponse(BaseModel):
-    message: str = "The player is well deleted to the tournament"
+    message: str = "Le joueur a bien été retiré du tournoi."
 
 class TournamentInviteResponse(BaseModel):
-    message: str = "The user is invited to join this tournament"
+    message: str = "L'utilisateur a bien été invité à rejoindre ce tournoi."
 
 class InvitationUpdateResponse(BaseModel):
-    message: str = "The invitation is well updated."
+    message: str = "L'invitation a bien été mise à jour."
 
 class InvitationDeleteResponse(BaseModel):
-    message: str = "The invitation is well deleted."
+    message: str = "L'invitation a bien été supprimée."

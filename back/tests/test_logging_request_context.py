@@ -220,7 +220,7 @@ def test_unhandled_exception_handler_returns_500_and_request_id():
 
     assert response.status_code == 500
     assert response.headers["x-request-id"] == "req-500"
-    assert response.json() == {"detail": "Internal server error"}
+    assert response.json() == {"detail": "Erreur interne du serveur."}
 
     unhandled_logs = [record for record in handler.records if record.getMessage() == "http.exception.unhandled"]
     assert unhandled_logs, "Expected http.exception.unhandled log"
@@ -320,6 +320,7 @@ def test_resolve_queue_logs_enabled_supports_explicit_environment_resolution():
     assert resolve_queue_logs_enabled(environment="dev") is False
     assert resolve_queue_logs_enabled(environment="dev", raw_value="true") is True
     assert resolve_queue_logs_enabled(environment="prod", raw_value="false") is False
+
 
 
 
