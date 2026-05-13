@@ -67,7 +67,7 @@ describe('DashboardLayout', () => {
     jest.clearAllMocks();
   });
 
-  it('affiche Profil dans la navigation rapide mobile', () => {
+  it('affiche les raccourcis principaux et un bouton Profil dans la navigation rapide mobile', () => {
     render(
       <MemoryRouter initialEntries={['/matches']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <DashboardLayout>
@@ -78,15 +78,15 @@ describe('DashboardLayout', () => {
 
     const bottomNav = screen.getByRole('navigation', { name: /navigation rapide/i });
 
-    expect(within(bottomNav).getByRole('button', { name: /profil/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole('button', { name: /matchs/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole('button', { name: /ligues/i })).toBeInTheDocument();
-    expect(within(bottomNav).getByRole('button', { name: /invitations/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole('button', { name: /tournois/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole('button', { name: /tickets/i })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole('button', { name: /profil/i })).toBeInTheDocument();
+    expect(within(bottomNav).queryByRole('button', { name: /invitations/i })).not.toBeInTheDocument();
   });
 
-  it('marque Profil comme onglet actif sur la route /profile', () => {
+  it('marque le bouton Profil comme actif quand la route courante est /profile', () => {
     render(
       <MemoryRouter initialEntries={['/profile']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <DashboardLayout>
@@ -101,6 +101,25 @@ describe('DashboardLayout', () => {
     expect(profileButton).toHaveClass('active');
     expect(profileButton).toHaveAttribute('aria-current', 'page');
   });
+
+  it('garde Tickets actif sur une sous-route de détail', () => {
+    render(
+      <MemoryRouter initialEntries={['/tickets/42']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <DashboardLayout>
+          <div>Détail ticket</div>
+        </DashboardLayout>
+      </MemoryRouter>
+    );
+
+    const bottomNav = screen.getByRole('navigation', { name: /navigation rapide/i });
+    const ticketsButton = within(bottomNav).getByRole('button', { name: /tickets/i });
+
+    expect(ticketsButton).toHaveClass('active');
+    expect(ticketsButton).toHaveAttribute('aria-current', 'page');
+  });
 });
+
+
+
 
 
