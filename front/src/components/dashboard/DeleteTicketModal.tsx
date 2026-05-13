@@ -5,10 +5,11 @@ interface DeleteTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticketId: number | null;
+  ticketLabel?: string;
   onConfirm: (id: number) => Promise<void>;
 }
 
-const DeleteTicketModal: React.FC<DeleteTicketModalProps> = ({ isOpen, onClose, ticketId, onConfirm }) => {
+const DeleteTicketModal: React.FC<DeleteTicketModalProps> = ({ isOpen, onClose, ticketId, ticketLabel, onConfirm }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -47,6 +48,8 @@ const DeleteTicketModal: React.FC<DeleteTicketModalProps> = ({ isOpen, onClose, 
 
   if (!isOpen || ticketId == null) return null;
 
+  const displayLabel = ticketLabel && ticketLabel.trim() !== '' ? ticketLabel : `#${ticketId}`;
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-ticket-title" onClick={handleOverlayClick}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
@@ -56,7 +59,7 @@ const DeleteTicketModal: React.FC<DeleteTicketModalProps> = ({ isOpen, onClose, 
         </div>
 
         <div className="inline-warning" role="alert">
-          Cette action est définitive. Le ticket #{ticketId} sera supprimé.
+          Cette action est définitive. Le ticket {displayLabel} sera supprimé.
         </div>
 
         {error && (

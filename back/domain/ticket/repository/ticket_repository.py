@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from domain.ticket.model.ticket import Ticket
 
@@ -60,6 +60,14 @@ class TicketRepository(ABC):
 
     @abstractmethod
     async def find_by_uuid(self, ticket_uuid: str) -> Optional[Ticket]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_display_numbers_by_ticket_ids(self, user_id: int, ticket_ids: List[int]) -> Dict[int, int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def reserve_next_display_number(self, user_id: int) -> int:
         raise NotImplementedError
 
     @abstractmethod

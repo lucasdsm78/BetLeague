@@ -3,6 +3,7 @@ from typing import List, Optional
 from sqlalchemy.orm import joinedload, selectinload
 
 from sqlalchemy import select, update, func, case, or_
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.ticket.exception.ticket_exception import TicketNotFoundError
@@ -11,6 +12,7 @@ from domain.ticket.model.ticket_status import TicketStatus
 from domain.ticket.repository.ticket_repository import TicketRepository
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices
 from infrastructure.postgresql.ticket.db_ticket import DBTicket
+from infrastructure.postgresql.ticket.db_user_ticket_counter import DBUserTicketCounter
 from infrastructure.postgresql.tournament.db_tournament_match import DBTournamentMatch
 from domain.ticket.model.match_choice_status import MatchChoiceStatus
 
@@ -84,6 +86,34 @@ class TicketRepositoryImpl(TicketRepository):
         if ticket_db is None:
             return None
         return ticket_db.to_entity()
+
+    async def get_display_numbers_by_ticket_ids(self, user_id: int, ticket_ids: List[int]) -> dict[int, int]:
+        if not ticket_ids:
+            return {}
+
+        query = select(DBTicket.id, DBTicket.display_number).where(
+            DBTicket.user_id == user_id,
+            DBTicket.id.in_(ticket_ids)
+        )
+        result = await self.session.execute(query)
+        return {int(ticket_id): int(display_number) for ticket_id, display_number in result.all()}
+
+    async def reserve_next_display_number(self, user_id: int) -> int:
+        await self.session.execute(
+            insert(DBUserTicketCounter)
+            .values(user_id=user_id, next_value=1)
+            .on_conflict_do_nothing(index_elements=[DBUserTicketCounter.user_id])
+        )
+
+        result = await self.session.execute(
+            select(DBUserTicketCounter)
+            .where(DBUserTicketCounter.user_id == user_id)
+            .with_for_update()
+        )
+        counter = result.scalar_one()
+        display_number = int(counter.next_value)
+        counter.next_value = display_number + 1
+        return display_number
 
     async def find_by_player_match(self, user_id: int, tournament_match_id: int) -> Optional[Ticket]:
         result = await self.session.execute(

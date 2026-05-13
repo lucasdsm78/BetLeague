@@ -14,12 +14,14 @@ class Ticket:
             user: UserSummary,
             status: TicketStatus,
             id: Optional[int] = None,
+            display_number: Optional[int] = None,
             league_id: Optional[int] = None,
             tournament_match_id: Optional[int] = None,
             created_at: Optional[int] = None,
             updated_at: Optional[int] = None
     ):
         self.id: Optional[int] = id
+        self.display_number: Optional[int] = display_number
         self.uuid: str = uuid
         self.gain: float = gain
         self.status: TicketStatus = status

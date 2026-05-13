@@ -34,6 +34,7 @@ export interface ApiTournamentMatchSummary {
 // Read model tel que renvoyé par l'API
 export interface ApiTicketReadModel {
   id: number;
+  display_number: number;
   mise: number;
   uuid: string;
   gain: number;

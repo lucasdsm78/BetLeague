@@ -36,6 +36,7 @@ export interface TournamentMatchSummary {
 
 export interface TicketReadModel {
   id: number;
+  display_number: number;
   mise: number;
   uuid: string;
   gain: number;
