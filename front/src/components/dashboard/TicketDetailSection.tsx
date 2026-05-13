@@ -90,6 +90,9 @@ const TicketDetailSection: React.FC = memo(() => {
   const statusLabel = statusToLabel(ticket?.status);
 
   const totalChoices = ticket?.match_choice_summaries?.length || 0;
+  const ticketDisplayLabel = ticket
+    ? `#${typeof ticket.display_number === 'number' && ticket.display_number > 0 ? ticket.display_number : ticket.id}`
+    : '';
 
   const summary = useMemo(() => {
     if (!ticket) return { mise: 0, gain: 0 };
@@ -133,8 +136,7 @@ const TicketDetailSection: React.FC = memo(() => {
         <>
           <header className="ticket-head">
             <div className="title">
-              <h2>Ticket #{ticket.id}</h2>
-              <span className="ticket-uuid">UUID: {ticket.uuid}</span>
+              <h2>Ticket {ticketDisplayLabel}</h2>
             </div>
             <div className="status">
               <span className={badgeClass}>{statusLabel}</span>

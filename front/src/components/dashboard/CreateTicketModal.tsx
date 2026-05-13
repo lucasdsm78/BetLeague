@@ -183,7 +183,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
         {success ? (
           <div className="success-block">
             <div className="success-msg">{success.message}</div>
-            <div className="ticket-id">Ticket #{success.ticketId}</div>
             <div className="success-summary">
               <div className="row"><span>Paris:</span><strong>{bets.length}</strong></div>
               <div className="row"><span>Cote totale:</span><strong>{totalOdds}</strong></div>
