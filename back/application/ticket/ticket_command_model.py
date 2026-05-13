@@ -19,21 +19,21 @@ class TicketUpdateModel(BaseModel):
 
 
 class TicketCreateResponse(BaseModel):
-    message: str = "The ticket is well created"
+    message: str = "Ticket créé avec succès."
     ticket_id: Optional[int] = None
 
 
 class TicketUpdateResponse(BaseModel):
-    message: str = "The ticket is well updated"
+    message: str = "Ticket mis à jour avec succès."
 
 
 class TicketRemoveResponse(BaseModel):
-    message: str = "The ticket is well removed"
+    message: str = "Ticket supprimé avec succès."
 
 
 class TicketUpdatedResponse(BaseModel):
-    message: str = "The ticket is well updated"
+    message: str = "Ticket mis à jour avec succès."
 
 
 class NoTicketUpdatedResponse(BaseModel):
-    message: str = "No ticket was updated"
+    message: str = "Aucun ticket n'a été mis à jour."

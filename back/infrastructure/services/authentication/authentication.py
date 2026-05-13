@@ -21,7 +21,7 @@ class AuthenticationToken(BaseModel):
             logger.warning("auth.authentication.rejected", extra={"reason": "decode_failed"})
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authenticated"
+                detail="Authentification requise."
             )
         logger.info("auth.authentication.succeeded", extra={"user_id": decoded.get("id"), "token_type": decoded.get("type")})
         return self.token

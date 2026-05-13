@@ -205,7 +205,7 @@ def test_refresh_token_rotates_refresh_token_and_invalidates_previous_one(monkey
 
     assert response.token_auth == "access-for-2-1"
     assert response.refresh_token == "refresh-for-2-1"
-    assert response.message == "Token refreshed successfully"
+    assert response.message == "Session renouvelée avec succès."
     assert manager.invalidations == [("refresh-token-old", "2")]
 
 

@@ -261,13 +261,13 @@ describe('invitations api service', () => {
   it('supprime une invitation de ligue envoyée', async () => {
     (http.delete as jest.Mock).mockResolvedValueOnce({
       success: true,
-      data: { message: 'The invitation is well deleted.', success: true },
+      data: { message: "L'invitation a bien été supprimée.", success: true },
       status: 202,
       headers: {},
     });
 
     await expect(deleteLeagueInvitation(4)).resolves.toEqual({
-      message: 'The invitation is well deleted.',
+      message: "L'invitation a bien été supprimée.",
       success: true,
     });
 
@@ -277,13 +277,13 @@ describe('invitations api service', () => {
   it('met à jour une invitation tournoi reçue', async () => {
     (http.put as jest.Mock).mockResolvedValueOnce({
       success: true,
-      data: { message: 'Tournament invitation accepted successfully', success: true },
+      data: { message: 'Invitation au tournoi acceptée avec succès.', success: true },
       status: 202,
       headers: {},
     });
 
     await expect(updateTournamentInvitation(9, true)).resolves.toEqual({
-      message: 'Tournament invitation accepted successfully',
+      message: 'Invitation au tournoi acceptée avec succès.',
       success: true,
     });
 

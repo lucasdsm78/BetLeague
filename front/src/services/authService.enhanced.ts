@@ -126,7 +126,7 @@ class EnhancedAuthService {
           const retryResp = await fetch(url, { ...cfg, headers: retryHeaders });
           return this.handleResponse<T>(retryResp, endpoint);
         }
-        throw new AuthError('Authentication required', 401, 'TOKEN_EXPIRED');
+        throw new AuthError('Authentification requise.', 401, 'TOKEN_EXPIRED');
       }
 
       return this.handleResponse<T>(resp, endpoint);
@@ -134,13 +134,13 @@ class EnhancedAuthService {
       clearTimeout(timeout);
       if (err?.name === 'AbortError') throw new AuthError('Délai dépassé, serveur injoignable', 0, 'NETWORK_TIMEOUT', true);
       if (err instanceof AuthError) throw err;
-      throw new AuthError('Network error', 0, 'NETWORK_ERROR', true);
+      throw new AuthError('Erreur réseau. Vérifiez votre connexion.', 0, 'NETWORK_ERROR', true);
     }
   }
 
   private async handleResponse<T>(response: Response, endpoint?: string): Promise<T> {
     if (!response.ok) {
-      let msg: any = 'Request failed';
+      let msg: any = 'La requête a échoué.';
       let code = 'REQUEST_FAILED';
 
       try {
@@ -179,13 +179,13 @@ class EnhancedAuthService {
 
       if (response.status === 422 && (!code || code === 'REQUEST_FAILED')) {
         code = 'UNPROCESSABLE_ENTITY';
-        if (!msg || msg === 'Request failed') msg = 'Données invalides (422). Vérifiez les champs.';
+        if (!msg || msg === 'La requête a échoué.') msg = 'Données invalides (422). Vérifiez les champs.';
       }
 
       const lower = String(msg).toLowerCase();
       if (response.status === 400 && (!code || code === 'REQUEST_FAILED')) {
-        if (lower.includes('2fa') && lower.includes('required')) code = 'TWO_FACTOR_REQUIRED';
-        else if (lower.includes('invalid') && lower.includes('2fa')) code = 'INVALID_2FA_CODE';
+        if (lower.includes('2fa') && (lower.includes('required') || lower.includes('requis'))) code = 'TWO_FACTOR_REQUIRED';
+        else if (lower.includes('2fa') && (lower.includes('invalid') || lower.includes('invalide'))) code = 'INVALID_2FA_CODE';
       }
 
       throw new AuthError(String(msg), response.status, code, response.status >= 500 || response.status === 429);
@@ -266,7 +266,7 @@ class EnhancedAuthService {
     if (!resp.ok) {
       const errData = await resp.json().catch(() => ({}));
       const detail = errData?.detail;
-      const message = typeof detail === 'string' ? detail : detail?.message || 'Token refresh failed';
+      const message = typeof detail === 'string' ? detail : detail?.message || 'Impossible de renouveler la session.';
       throw new AuthError(message, resp.status, detail?.code || 'REFRESH_FAILED');
     }
 
@@ -308,14 +308,14 @@ class EnhancedAuthService {
       if (error instanceof AuthError) {
         const msg = (error.message || '').toLowerCase();
         if (error.status === 400) {
-          if (msg.includes('code required')) throw new AuthError('Deuxième facteur requis', 400, 'TWO_FACTOR_REQUIRED');
-          if (msg.includes('invalid 2fa code') || msg.includes('invalid 2fa')) throw new AuthError('Code 2FA invalide', 400, 'INVALID_2FA_CODE');
+          if (msg.includes('code required') || msg.includes('code 2fa est requis') || msg.includes('code 2fa requis')) throw new AuthError('Deuxième facteur requis', 400, 'TWO_FACTOR_REQUIRED');
+          if (msg.includes('invalid 2fa code') || msg.includes('invalid 2fa') || msg.includes('code 2fa est invalide') || msg.includes('code 2fa invalide')) throw new AuthError('Code 2FA invalide', 400, 'INVALID_2FA_CODE');
         }
         const isTwoFa = error.code === 'TWO_FACTOR_REQUIRED' || (error.status === 401 && (msg.includes('2fa') || (msg.includes('two') && msg.includes('factor'))));
         if (isTwoFa) throw new AuthError('Deuxième facteur requis', error.status || 400, 'TWO_FACTOR_REQUIRED');
         if (error.status === 422) throw new AuthError(error.message || 'Données invalides', 422, 'UNPROCESSABLE_ENTITY');
       }
-      if (!(error instanceof AuthError)) throw new AuthError('Login failed');
+      if (!(error instanceof AuthError)) throw new AuthError('Échec de la connexion.');
       if (error.isUnauthorized() && (!error.code || error.code === 'REQUEST_FAILED')) {
         throw new AuthError('Email ou mot de passe incorrect.', 401, 'INVALID_CREDENTIALS');
       }
@@ -341,11 +341,11 @@ class EnhancedAuthService {
 
   async validateToken(): Promise<{ user: User }> {
     const token = this.getCurrentAccessToken();
-    if (!token) throw new AuthError('No token available', 401, 'NO_TOKEN');
+    if (!token) throw new AuthError('Aucun jeton disponible.', 401, 'NO_TOKEN');
     try {
       return { user: this.buildUserFromToken(token) };
     } catch {
-      throw new AuthError('Invalid token format', 401, 'INVALID_TOKEN');
+      throw new AuthError('Format de jeton invalide.', 401, 'INVALID_TOKEN');
     }
   }
 

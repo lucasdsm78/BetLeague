@@ -68,6 +68,14 @@ const buildAuthHeaders = (): Record<string, string> => {
   };
 };
 
+const extractApiErrorMessage = (errorData: any, fallbackMessage: string): string => {
+  const detail = errorData?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (detail && typeof detail === 'object' && typeof detail.message === 'string' && detail.message.trim()) return detail.message;
+  if (typeof errorData?.message === 'string' && errorData.message.trim()) return errorData.message;
+  return fallbackMessage;
+};
+
 // Initial state
 const initialState: LeagueStore = {
   leagues: [],
@@ -232,14 +240,14 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error('Impossible de charger les ligues.');
         }
 
         const data = await response.json();
         setLeagues(data.leagues || []);
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to fetch leagues';
+        const message = error instanceof Error ? error.message : 'Impossible de charger les ligues.';
         setError(message);
       } finally {
         setLoading(false);
@@ -268,7 +276,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || 'Failed to create league');
+          throw new Error(extractApiErrorMessage(errorData, 'Impossible de créer la ligue.'));
         }
 
         const data = await response.json();
@@ -279,7 +287,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         return true;
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to create league';
+        const message = error instanceof Error ? error.message : 'Impossible de créer la ligue.';
         setError(message);
         return false;
       } finally {
@@ -299,7 +307,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || 'Failed to join league');
+          throw new Error(extractApiErrorMessage(errorData, 'Impossible de rejoindre la ligue.'));
         }
 
         const data = await response.json();
@@ -310,7 +318,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         return true;
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to join league';
+        const message = error instanceof Error ? error.message : 'Impossible de rejoindre la ligue.';
         setError(message);
         return false;
       } finally {
@@ -330,7 +338,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || 'Failed to leave league');
+          throw new Error(extractApiErrorMessage(errorData, 'Impossible de quitter la ligue.'));
         }
 
         const data = await response.json();
@@ -341,7 +349,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         return true;
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to leave league';
+        const message = error instanceof Error ? error.message : 'Impossible de quitter la ligue.';
         setError(message);
         return false;
       } finally {
@@ -359,14 +367,14 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error('Impossible de charger les invitations.');
         }
 
         const data = await response.json();
         setInvitations(data.invitations || []);
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to fetch invitations';
+        const message = error instanceof Error ? error.message : 'Impossible de charger les invitations.';
         setError(message);
       } finally {
         setLoading(false);
@@ -388,7 +396,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.detail || 'Failed to respond to invitation');
+          throw new Error(extractApiErrorMessage(errorData, "Impossible de répondre à l'invitation."));
         }
 
         // Update invitation status
@@ -400,7 +408,7 @@ export const useLeagueStore = create<LeagueStoreWithActions>()(
         return true;
 
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to respond to invitation';
+        const message = error instanceof Error ? error.message : "Impossible de répondre à l'invitation.";
         setError(message);
         return false;
       } finally {

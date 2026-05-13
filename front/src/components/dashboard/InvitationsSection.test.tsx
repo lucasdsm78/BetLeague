@@ -100,7 +100,7 @@ describe('InvitationsSection', () => {
 
   it('accepte une invitation tournoi reçue depuis le dashboard', async () => {
     mockUpdateTournamentInvitation.mockResolvedValueOnce({
-      message: 'Tournament invitation accepted successfully',
+      message: 'Invitation au tournoi acceptée avec succès.',
       success: true,
     });
 
@@ -113,13 +113,13 @@ describe('InvitationsSection', () => {
     expect(mockInvalidateAll).toHaveBeenCalled();
     expect(mockShowSuccess).toHaveBeenCalledWith(
       'Invitation acceptée',
-      'Tournament invitation accepted successfully',
+      'Invitation au tournoi acceptée avec succès.',
     );
   });
 
   it('refuse une invitation tournoi reçue depuis le dashboard', async () => {
     mockUpdateTournamentInvitation.mockResolvedValueOnce({
-      message: 'Tournament invitation declined successfully',
+      message: 'Invitation au tournoi refusée avec succès.',
       success: true,
     });
 
@@ -132,7 +132,7 @@ describe('InvitationsSection', () => {
     expect(mockInvalidateAll).toHaveBeenCalled();
     expect(mockShowSuccess).toHaveBeenCalledWith(
       'Invitation refusée',
-      'Tournament invitation declined successfully',
+      'Invitation au tournoi refusée avec succès.',
     );
   });
 

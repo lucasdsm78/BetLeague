@@ -1,46 +1,46 @@
 class UserEmailAlreadyExistsError(Exception):
-    message = "The user with the email code you specified already exists."
+    message = "Un utilisateur avec cet email existe déjà."
 
     def __str__(self):
         return UserEmailAlreadyExistsError.message
 
 
 class FARequiredError(Exception):
-    message = "2FA code is required."
+    message = "Le code 2FA est requis."
 
     def __str__(self):
         return FARequiredError.message
 
 
 class Invalid2FACodeError(Exception):
-    message = "Invalid 2FA code."
+    message = "Le code 2FA est invalide."
 
     def __str__(self):
         return Invalid2FACodeError.message
 
 
 class UserPseudoAlreadyExistsError(Exception):
-    message = "The user with the pseudo you specified already exists."
+    message = "Un utilisateur avec ce pseudo existe déjà."
 
     def __str__(self):
         return UserPseudoAlreadyExistsError.message
 
 
 class UsersNotFoundError(Exception):
-    message = "No users found from the API."
+    message = "Aucun utilisateur n'a été trouvé."
 
     def __str__(self):
         return UsersNotFoundError.message
 
 
 class UserNotFoundError(Exception):
-    message = "The user does not exist."
+    message = "L'utilisateur n'existe pas."
 
     def __str__(self):
         return UserNotFoundError.message
 
 class UserNotOwnerError(Exception):
-    message = "The user connected is not the same user."
+    message = "L'utilisateur connecté ne correspond pas à cette ressource."
 
     def __str__(self):
         return UserNotOwnerError.message
@@ -51,10 +51,10 @@ class UserLoginNotFoundError(Exception):
         self.login = login
 
     def __str__(self):
-        return f"user with login {self.login} not found"
+        return f"Aucun utilisateur trouvé pour l'identifiant {self.login}"
 
 class PasswordResetNotEnabledError(Exception):
-    message = "Password reset not enabled"
+    message = "La réinitialisation du mot de passe n'est pas activée."
 
     def __str__(self):
         return PasswordResetNotEnabledError.message
