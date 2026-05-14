@@ -91,7 +91,7 @@ async def test_delete_league_invitation_deletes_when_current_user_is_owner(monke
 
     result = await usecase.delete_invitation(5, 'owner@example.com')
 
-    assert result.message == 'The invitation is well deleted.'
+    assert result.message == "L'invitation a bien été supprimée."
     assert session.deleted_invitation_id == 5
     assert session.updated_league is not None
 
