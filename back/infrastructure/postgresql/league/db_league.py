@@ -48,6 +48,7 @@ class DBLeague(Base):
     start_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     end_date: Union[int, Column] = Column(BigInteger, index=True, nullable=False)
     max_players: Union[int, Column] = Column(Integer, nullable=False)
+    min_players: Union[int, Column] = Column(Integer, nullable=True)
     winner_id: Union[int, Column] = Column(Integer, ForeignKey('user.id'))
     closed_at: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
     reward_paid_at: Union[int, Column] = Column(BigInteger, index=True, nullable=True)
@@ -75,6 +76,7 @@ class DBLeague(Base):
             rewarded_amount=self.rewarded_amount,
             is_private=self.is_private,
             max_players=self.max_players,
+            min_players=self.min_players,
             name=self.name,
             start_date=self.start_date,
             user=UserSummary(id=self.user_id, email=Email(self.user.email), pseudo=self.user.pseudo),
@@ -102,6 +104,7 @@ class DBLeague(Base):
         league_db_to_update.name = league.name
         league_db_to_update.nb_players_remaining = league.nb_players_remaining
         league_db_to_update.max_players = league.max_players
+        league_db_to_update.min_players = league.min_players
         league_db_to_update.start_date = league.start_date
         league_db_to_update.end_date = league.end_date
         league_db_to_update.user_id = league.user.id

@@ -92,6 +92,7 @@ async def test_create_league_uses_custom_start_date_and_auto_computes_end_date(m
     payload = LeagueCreateModel(
         name='Ligue programmee',
         max_players=10,
+        min_players=4,
         is_private=True,
         is_free=True,
         start_date=custom_start_ms,
@@ -112,6 +113,7 @@ def test_league_create_model_accepts_start_date_in_milliseconds():
     payload = LeagueCreateModel(
         name='Ligue test',
         max_players=10,
+        min_players=3,
         is_private=False,
         is_free=True,
         start_date=1_735_689_600_000,
@@ -126,9 +128,22 @@ def test_league_create_model_rejects_invalid_start_date(invalid_start_date: int)
         LeagueCreateModel(
             name='Ligue test',
             max_players=10,
+            min_players=3,
             is_private=False,
             is_free=True,
             start_date=invalid_start_date,
+        )
+
+
+def test_league_create_model_rejects_min_players_above_max_players():
+    with pytest.raises(ValueError):
+        LeagueCreateModel(
+            name='Ligue test',
+            max_players=10,
+            min_players=11,
+            is_private=False,
+            is_free=True,
+            start_date=1_735_689_600_000,
         )
 
 

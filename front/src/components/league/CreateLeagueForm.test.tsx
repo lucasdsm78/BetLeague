@@ -52,6 +52,10 @@ describe('CreateLeagueForm', () => {
       target: { name: 'startDate', value: '2025-01-01T10:30' },
     });
 
+    fireEvent.change(screen.getByLabelText(/joueurs minimum/i), {
+      target: { name: 'minMembers', value: '4' },
+    });
+
     expect(screen.getByLabelText(/date de fin/i)).toHaveValue('2025-01-08T10:30');
 
     fireEvent.click(screen.getByRole('button', { name: /créer la ligue/i }));
@@ -60,6 +64,7 @@ describe('CreateLeagueForm', () => {
       expect(createLeague).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Ligue programmée',
+            min_players: 4,
           start_date: new Date('2025-01-01T10:30').getTime(),
         })
       );

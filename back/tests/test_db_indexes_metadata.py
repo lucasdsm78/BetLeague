@@ -129,6 +129,18 @@ def test_tournament_name_has_single_named_unique_constraint_without_duplicate_in
     assert _index_by_name(DBTournament.__table__, "ix_tournament_name_unique") is None
 
 
+def test_ticket_display_number_has_named_unique_constraint_per_user() -> None:
+    unique_constraints = [
+        constraint
+        for constraint in DBTicket.__table__.constraints
+        if isinstance(constraint, UniqueConstraint) and constraint.name == "uq_ticket_user_display_number"
+    ]
+
+    assert len(unique_constraints) == 1
+    assert [column.name for column in unique_constraints[0].columns] == ["user_id", "display_number"]
+
+
+
 def test_leagues_players_redundant_composite_index_is_not_declared() -> None:
     assert _index_by_name(DBLeaguePlayers.__table__, "ix_leagues_players_user_id_league_id") is None
 

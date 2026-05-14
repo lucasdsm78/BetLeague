@@ -5,6 +5,5 @@ export function mapApiUserSearchResultToUi(api: ApiUserSearchResult): UserSearch
   return {
     id: Number((api as any).id),
     pseudo: String((api as any).pseudo || 'Utilisateur'),
-    email: String((api as any).email || ''),
   };
 }

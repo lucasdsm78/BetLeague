@@ -32,6 +32,8 @@ def test_league_read_model_exposes_current_total_pot_for_detail_and_list_views()
     assert league.current_total_pot == 30.0
     assert detail.current_total_pot == 30.0
     assert summary.current_total_pot == 30.0
+    assert 'uuid' not in detail.model_dump()
+    assert 'uuid' not in summary.model_dump()
 
 
 def test_league_current_total_pot_is_none_when_not_applicable():
@@ -52,5 +54,6 @@ def test_league_current_total_pot_can_be_zero_when_paid_league_has_no_current_pa
     assert empty_paid_league.current_players == 0
     assert empty_paid_league.current_total_pot == 0.0
     assert LeagueReadModel.from_entity_get_by_id(empty_paid_league).current_total_pot == 0.0
+
 
 

@@ -8,14 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import shortuuid
 
-from application.league.constants import LEAGUE_DURATION_DAYS, MAX_PLAYERS, MIN_PLAYERS
+from application.league.constants import LEAGUE_DURATION_DAYS, MAX_PLAYERS
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateModel, \
-    LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse
+    LeagueUpdateResponse, LeagueInjectBtlResponse, InvitationDeleteResponse, LeagueStartResponse
 from application.events.event_bus import DomainEventBus
 from domain.league.events.league_invitation_created import LeagueInvitationCreated
 from domain.league.events.league_invitation_accepted import LeagueInvitationAccepted
 from domain.league.events.league_invitation_refused import LeagueInvitationRefused
+from domain.league.events.league_minimum_players_reached import LeagueMinimumPlayersReached
 from domain.league.events.league_started import LeagueStarted
 from domain.invitation.exception.invitation_exception import InvitationFoundError, InvitationNotFoundError, InvitationDeletionNotAllowedError
 from domain.invitation.model.invitation import Invitation
@@ -24,7 +25,7 @@ from domain.invitation.repository.invitation_repository import InvitationReposit
 from domain.league.exception.league_exception import LeagueNameAlreadyExistsError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueNotFoundError, LeagueParticipantNotFoundError, LeagueAlreadyStartedError, \
     UserNotOwnerLeaguedError, UserNotInvitationLeaguedError, LeagueMustHaveNbBtlError, LeagueNbBtlIsNotEnoughError, \
-    LeagueNotStartedError, LeagueFinishedError, LeagueNotThePlayerError
+    LeagueNotStartedError, LeagueFinishedError, LeagueNotThePlayerError, LeagueMinimumPlayersNotReachedError
 from domain.league.model.league import League, LeagueStatus
 from domain.league.model.league_players import LeaguePlayers
 from domain.league.repository.league_players_repository import LeaguePlayersRepository
@@ -62,7 +63,11 @@ class LeagueCommandUseCase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_league_player(self, id: int, email: str) -> LeaguePlayerDeletedResponse:
+    async def delete_league_player(self, league_id: int, email: str) -> LeaguePlayerDeletedResponse:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def start_league(self, league_id: int, email: str) -> LeagueStartResponse:
         raise NotImplementedError
 
     @abstractmethod
@@ -115,6 +120,33 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
             return status == LeagueStatus.CLOSED
         return status == LeagueStatus.CLOSED.value
 
+    async def _publish_minimum_players_reached_if_needed(
+            self,
+            *,
+            league: League,
+            previous_current_players_count: int,
+            previous_min_players: int,
+            current_players_count: int,
+    ) -> None:
+        league.current_players_count = current_players_count
+        if league.is_started or self._league_is_closed(league):
+            return
+
+        previously_met = int(previous_current_players_count) >= int(previous_min_players)
+        currently_met = league.has_minimum_players(current_players_count)
+        if previously_met or not currently_met:
+            return
+
+        await self._event_bus.publish(
+            LeagueMinimumPlayersReached(
+                league_id=int(league.id),
+                league_name=league.name,
+                owner_user_id=int(league.user.id),
+                min_players=int(league.min_players),
+                current_players_count=int(current_players_count),
+            )
+        )
+
     async def create_league(
             self,
             data: LeagueCreateModel,
@@ -156,10 +188,12 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     status=LeagueStatus.OPEN,
                     name=data.name,
                     max_players=data.max_players,
+                    min_players=data.min_players,
                     is_private=data.is_private,
                     start_date=start_ms,
                     end_date=end_ms,
                     nb_players_remaining=data.max_players - 1,
+                    current_players_count=1,
                     user=UserSummary(
                         id=user.id,
                         email=user.email,
@@ -185,6 +219,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                         "is_private": league.is_private,
                         "is_free": league.is_free,
                         "max_players": league.max_players,
+                        "min_players": league.min_players,
                     },
                 )
 
@@ -219,26 +254,14 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     # ligue pleine
                     raise LeagueMaxPlayersError
 
+                previous_current_players_count = await league_players_repository.count_players(league.id)
+
                 # Pour ligue payante: débit atomique après lock league.
                 # Si débit échoue, on annule la transaction (rollback) => la place est rendue.
                 if not league.is_free and league.nb_btl is not None:
                     ok = await user_repository.debit_btl_if_enough(user_id=user.id, amount=float(league.nb_btl))
                     if not ok:
                         raise LeagueNbBtlIsNotEnoughError
-
-                # Démarrage ligue: quand suffisamment de joueurs ont rejoint.
-                was_started = bool(league.is_started)
-                next_remaining = int(league.nb_players_remaining)
-                if (not league.is_started) and next_remaining <= MIN_PLAYERS:
-                    league.mark_started()
-
-                if not was_started and league.is_started:
-                    await self._event_bus.publish(
-                        LeagueStarted(
-                            league_id=league.id,
-                            league_name=league.name,
-                        )
-                    )
 
                 # Enregistre membership (UPSERT)
                 await league_players_repository.join_league(
@@ -248,7 +271,14 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     )
                 )
 
-                # Persiste le flag is_started si modifié
+                current_players_count = previous_current_players_count + 1
+                await self._publish_minimum_players_reached_if_needed(
+                    league=league,
+                    previous_current_players_count=previous_current_players_count,
+                    previous_min_players=league.min_players,
+                    current_players_count=current_players_count,
+                )
+
                 await league_repository.update(league)
 
                 logger.info(
@@ -258,6 +288,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                         "user_id": user.id,
                         "user_email_hash": _hash_identifier(email),
                         "is_started": league.is_started,
+                        "current_players_count": current_players_count,
                         "players_remaining": league.nb_players_remaining,
                     },
                 )
@@ -266,7 +297,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
 
     async def delete_league_player(
             self,
-            id: int,
+            league_id: int,
             email: str
     ) -> LeaguePlayerDeletedResponse:
         async with self._session_factory() as session:
@@ -279,7 +310,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if not user:
                     raise UserNotFoundError
 
-                league = await league_repo.find_by_id(id)
+                league = await league_repo.find_by_id(league_id)
                 if not league:
                     raise LeagueNotFoundError
 
@@ -297,15 +328,14 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if not league_player:
                     raise LeagueParticipantNotFoundError
 
-                if league_player.user.id != id:
+                if league_player.user_id != user.id:
                     raise LeagueNotThePlayerError
 
                 if league.is_free is False and league.nb_btl is not None and league.nb_btl > 0:
                     await user_repo.credit_btl(user_id=user.id, amount=float(league.nb_btl))
 
                 league = await league_repo.increment_players_remaining(league.id)
-                if league.nb_players_remaining + 1 >= MIN_PLAYERS:
-                    league.mark_waiting()
+                league.current_players_count = league.current_players
 
                 await league_repo.update(league)
                 await players_repo.delete_player(league_player.id)
@@ -366,18 +396,6 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 league = await league_repo.decrement_players_remaining_if_available(league.id)
                 if league is None:
                     raise LeagueMaxPlayersError
-
-                was_started = bool(league.is_started)
-                if (not league.is_started) and int(league.nb_players_remaining) <= MIN_PLAYERS:
-                    league.mark_started()
-
-                if not was_started and league.is_started:
-                    await self._event_bus.publish(
-                        LeagueStarted(
-                            league_id=league.id,
-                            league_name=league.name,
-                        )
-                    )
 
                 invitation = Invitation(
                     league_id=league.id,
@@ -442,6 +460,8 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                     raise LeagueNotFoundError
 
                 if action:
+                    previous_current_players_count = await players_repo.count_players(league.id)
+                    already_participating = await players_repo.find_participation(league_id=league.id, user_id=user.id)
                     if self._league_is_closed(league):
                         raise LeagueFinishedError
 
@@ -452,13 +472,22 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                             await league_repo.update(league)
                             raise LeagueNbBtlIsNotEnoughError
 
-                    if await players_repo.find_participation(league_id=league.id, user_id=user.id):
+                    if already_participating:
                         invitation.status = InvitationStatus.accepted
                     else:
                         invitation.status = InvitationStatus.accepted
                         await players_repo.join_league(
                             LeaguePlayers(user_id=user.id, league_id=league.id)
                         )
+
+                    # la participation peut déjà exister si l’utilisateur avait rejoint autrement
+                    actual_current_players_count = await players_repo.count_players(league.id)
+                    await self._publish_minimum_players_reached_if_needed(
+                        league=league,
+                        previous_current_players_count=previous_current_players_count,
+                        previous_min_players=league.min_players,
+                        current_players_count=actual_current_players_count,
+                    )
 
                     await self._event_bus.publish(
                         LeagueInvitationAccepted(
@@ -581,18 +610,32 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                 if data.max_players > MAX_PLAYERS:
                     raise LeagueMaxPlayersError
 
+                current_players = await players_repo.count_players(league_id=league.id)
+                if data.max_players < current_players:
+                    raise LeagueMaxPlayersError
+
                 if league.is_started and (
                         data.max_players != league.max_players or
-                        data.start_date   != league.start_date
+                        data.start_date   != league.start_date or
+                        data.min_players  != league.min_players
                 ):
                     raise LeagueAlreadyStartedError
 
-                current_players = await players_repo.count_players(league_id=league.id)
+                previous_min_players = league.min_players
                 league.nb_players_remaining = data.max_players - current_players
 
                 league.name       = data.name
                 league.start_date = data.start_date
                 league.max_players = data.max_players
+                league.min_players = data.min_players
+                league.current_players_count = current_players
+
+                await self._publish_minimum_players_reached_if_needed(
+                    league=league,
+                    previous_current_players_count=current_players,
+                    previous_min_players=previous_min_players,
+                    current_players_count=current_players,
+                )
 
                 await league_repo.update(league)
 
@@ -603,12 +646,62 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                         "owner_user_id": user.id,
                         "owner_email_hash": _hash_identifier(email),
                         "max_players": league.max_players,
+                        "min_players": league.min_players,
                         "start_date": league.start_date,
                         "name": league.name,
                     },
                 )
 
         return LeagueUpdateResponse()
+
+    async def start_league(
+            self,
+            league_id: int,
+            email: str
+    ) -> LeagueStartResponse:
+        async with self._session_factory() as session:
+            async with session.begin():
+                user_repo = UserRepositoryImpl(session)
+                league_repo = LeagueRepositoryImpl(session)
+                players_repo = LeaguePlayersRepositoryImpl(session)
+
+                user = await user_repo.find_by_email(email)
+                if not user:
+                    raise UserNotFoundError
+
+                league = await league_repo.find_by_id_for_update(league_id)
+                if not league:
+                    raise LeagueNotFoundError
+
+                current_players_count = await players_repo.count_players(league.id)
+                league.current_players_count = current_players_count
+                league.ensure_startable(owner_user_id=user.id, current_players=current_players_count)
+
+                now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+                end_ms = now_ms + int(timedelta(days=LEAGUE_DURATION_DAYS).total_seconds() * 1000)
+                league.start(at_ms=now_ms, end_date_ms=end_ms)
+
+                await league_repo.update(league)
+                await self._event_bus.publish(
+                    LeagueStarted(
+                        league_id=int(league.id),
+                        league_name=league.name,
+                        started_by_user_id=int(user.id),
+                    )
+                )
+
+                logger.info(
+                    "league.started_manually",
+                    extra={
+                        "league_id": league.id,
+                        "owner_user_id": user.id,
+                        "owner_email_hash": _hash_identifier(email),
+                        "current_players_count": current_players_count,
+                        "min_players": league.min_players,
+                    },
+                )
+
+        return LeagueStartResponse()
 
     async def inject_btl(
             self,

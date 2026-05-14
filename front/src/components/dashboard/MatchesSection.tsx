@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './MatchesSection.css';
 import type { ApiMatchReadModel } from '../../types/api/matches';
 import CreateTicketModal from './CreateTicketModal';
@@ -23,6 +24,11 @@ import type { BetSelection } from '../../types/entities/betting';
 interface MatchesSectionProps {
     user?: { id: string; email: string; pseudo?: string; username?: string };
 }
+
+type MatchesRouteState = {
+    readonly betDrawerOpen?: boolean;
+    readonly [key: string]: unknown;
+};
 
 const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
     const kickoffIso = m.time;
@@ -77,8 +83,10 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
 };
 
 const MatchesSection = memo<MatchesSectionProps>(() => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const bumpTicketsRefresh = useTicketsRefreshStore((s) => s.bumpRefresh);
-    const { showSuccess, showError } = useGlobalToast();
+    const { showSuccess } = useGlobalToast();
 
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
@@ -93,6 +101,51 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
     const [drawerSelectedTournamentMatchId, setDrawerSelectedTournamentMatchId] = useState<string>('');
     const [drawerError, setDrawerError] = useState<string | null>(null);
     const [isSubmittingDrawer, setIsSubmittingDrawer] = useState<boolean>(false);
+
+    const routeState = useMemo<MatchesRouteState | null>(() => {
+        const state = location.state;
+        return state && typeof state === 'object' ? (state as MatchesRouteState) : null;
+    }, [location.state]);
+
+    const isDrawerOpenedFromHistory = routeState?.betDrawerOpen === true;
+
+    const stateWithoutDrawer = useMemo<MatchesRouteState | null>(() => {
+        if (!routeState) return null;
+        const nextState = { ...routeState };
+        delete nextState.betDrawerOpen;
+        return Object.keys(nextState).length > 0 ? nextState : null;
+    }, [routeState]);
+
+    const openTicketDrawer = useCallback(() => {
+        if (isDrawerOpenedFromHistory) {
+            setIsTicketDrawerOpen(true);
+            return;
+        }
+
+        navigate(`${location.pathname}${location.search}`, {
+            state: {
+                ...(routeState ?? {}),
+                betDrawerOpen: true,
+            },
+        });
+    }, [isDrawerOpenedFromHistory, navigate, location.pathname, location.search, routeState]);
+
+    const closeTicketDrawer = useCallback(() => {
+        if (isDrawerOpenedFromHistory) {
+            if (window.history.length > 1) {
+                navigate(-1);
+                return;
+            }
+
+            navigate(`${location.pathname}${location.search}`, {
+                replace: true,
+                state: stateWithoutDrawer,
+            });
+            return;
+        }
+
+        setIsTicketDrawerOpen(false);
+    }, [isDrawerOpenedFromHistory, navigate, location.pathname, location.search, stateWithoutDrawer]);
 
     // Desktop
     const [desktopStake, setDesktopStake] = useState<string>('');
@@ -181,9 +234,9 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         setSelectedBets((prev) => [...prev, bet]);
         // UX mobile: ouvrir drawer automatiquement
         if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
-            setIsTicketDrawerOpen(true);
+            openTicketDrawer();
         }
-    }, []);
+    }, [openTicketDrawer]);
 
     const handleRemoveBet = useCallback((index: number) => {
         setSelectedBets((prev) => prev.filter((_, i) => i !== index));
@@ -237,6 +290,10 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
             setDrawerSelectedTournamentMatchId('');
         }
     }, [tournamentTicketCreationEnabled]);
+
+    useEffect(() => {
+        setIsTicketDrawerOpen(isDrawerOpenedFromHistory);
+    }, [isDrawerOpenedFromHistory]);
 
     const canSubmitDesktop = useMemo(() => {
         const hasLeagueOrTournament = !!desktopSelectedLeagueId || (tournamentTicketCreationEnabled && desktopSelectedTournamentMatchId !== '');
@@ -397,7 +454,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
                 setSelectedBets([]);
                 setDrawerStake('');
                 setDrawerSelectedTournamentMatchId('');
-                setIsTicketDrawerOpen(false);
+                closeTicketDrawer();
 
                 bumpTicketsRefresh();
 
@@ -422,7 +479,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 setSelectedBets([]);
                 setDrawerStake('');
-                setIsTicketDrawerOpen(false);
+                closeTicketDrawer();
 
                 bumpTicketsRefresh();
 
@@ -457,7 +514,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         } finally {
             setIsSubmittingDrawer(false);
         }
-    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, tournamentTicketCreationEnabled]);
+    }, [drawerSelectedLeagueId, selectedBets, drawerStakeNumber, drawerSelectedTournamentMatchId, bumpTicketsRefresh, showSuccess, tournamentTicketCreationEnabled, closeTicketDrawer]);
 
     // Infinite scroll observer (reprend l'existant)
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -557,7 +614,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
                 <BetDrawerMobile
                     isOpen={isTicketDrawerOpen}
-                    onClose={() => setIsTicketDrawerOpen(false)}
+                    onClose={closeTicketDrawer}
                     selectedBets={selectedBets}
                     onRemoveBet={handleRemoveBet}
                     tournamentTicketCreationEnabled={tournamentTicketCreationEnabled}
@@ -583,7 +640,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
             {/* Fab mobile */}
             <button
                 className="ticket-fab"
-                onClick={() => setIsTicketDrawerOpen(true)}
+                onClick={openTicketDrawer}
                 aria-label="Ouvrir mon ticket"
                 type="button"
             >

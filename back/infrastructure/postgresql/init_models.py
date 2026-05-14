@@ -5,6 +5,7 @@ from infrastructure.postgresql.invitation.db_invitation import DBInvitation  # n
 from infrastructure.postgresql.match.db_match import DBMatch  # noqa: F401
 from infrastructure.postgresql.ticket.db_ticket import DBTicket  # noqa: F401
 from infrastructure.postgresql.ticket.db_match_choices import DBMatchChoices  # noqa: F401
+from infrastructure.postgresql.ticket.db_user_ticket_counter import DBUserTicketCounter  # noqa: F401
 from infrastructure.postgresql.purchase.db_pack import DBPack  # noqa: F401
 from infrastructure.postgresql.purchase.db_purchase import DBPurchase  # noqa: F401
 

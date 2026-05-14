@@ -56,6 +56,7 @@ _EVENT_BUILDERS: dict[str, Callable[[dict[str, Any]], DomainEvent]] = {
     "league.started": lambda p: LeagueStarted(
         league_id=int(p["league_id"]),
         league_name=str(p.get("league_name", "")),
+        started_by_user_id=int(p.get("started_by_user_id") or 0),
     ),
     "league.ended": lambda p: LeagueEnded(
         league_id=int(p["league_id"]),

@@ -1,5 +1,6 @@
 import React, { memo, useEffect, useState, useCallback } from 'react';
-import { getLeagueDetails, joinLeague } from '../../services/api/leagues';
+import { getLeagueDetails, joinLeague, startLeague } from '../../services/api/leagues';
+import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import type { ApiLeagueDetail } from '../../types/api';
 import { formatTicketAmount } from '../../utils/ticketAmount';
 import './LeagueDetailsModal.css';
@@ -15,7 +16,9 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<ApiLeagueDetail | null>(null);
   const [joining, setJoining] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { user } = useEnhancedAuth();
 
   // Disable body scroll when modal is open
   useEffect(() => {
@@ -76,12 +79,26 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
     setJoining(true);
     setError(null);
     try {
-      const _ = await joinLeague(details.id);
+      await joinLeague(details.id);
       onClose();
       window.location.reload();
     } catch (e: any) {
       setError(e?.message || 'Erreur lors de la tentative de rejoindre la ligue');
       setJoining(false);
+    }
+  };
+
+  const handleStart = async () => {
+    if (!details || starting) return;
+    setStarting(true);
+    setError(null);
+    try {
+      await startLeague(details.id);
+      await loadDetails();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur lors du démarrage de la ligue');
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -181,16 +198,50 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
   };
 
   const statusInfo = getStatusInfo();
+  const currentPlayersCount = typeof details?.current_players_count === 'number'
+    ? Math.max(details.current_players_count, 0)
+    : typeof details?.max_players === 'number' && typeof details?.nb_players_remaining === 'number'
+      ? Math.max(details.max_players - details.nb_players_remaining, 0)
+      : undefined;
   const currentPlayersLabel =
-    typeof details?.max_players === 'number' && typeof details?.nb_players_remaining === 'number'
-      ? `${Math.max(details.max_players - details.nb_players_remaining, 0)}/${details.max_players}`
+    typeof currentPlayersCount === 'number' && typeof details?.max_players === 'number'
+      ? `${currentPlayersCount}/${details.max_players}`
       : 'N/A';
   const currentTotalPotLabel = typeof details?.current_total_pot === 'number'
     ? formatTicketAmount(details.current_total_pot, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     : null;
+  const isOwner = details?.user_creator?.id === user?.id;
+  const canStartLeague = Boolean(
+    isOwner
+    && details
+    && details.status !== 'CLOSED'
+    && !details.is_started
+    && typeof details.min_players === 'number'
+    && typeof currentPlayersCount === 'number'
+    && currentPlayersCount >= details.min_players
+  );
+  const startLeagueHintId = details ? `league-modal-start-hint-${details.id}` : undefined;
+  const startPlayersProgress = typeof currentPlayersCount === 'number' && typeof details?.min_players === 'number'
+    ? `${currentPlayersCount}/${details.min_players}`
+    : null;
+  const startLeagueHelperText = details?.status === 'CLOSED'
+    ? 'Cette ligue est clôturée : elle ne peut plus être démarrée ni accepter de nouveaux paris.'
+    : details?.is_started
+      ? 'La ligue est déjà lancée : les participants peuvent parier dès maintenant.'
+      : canStartLeague
+        ? `Minimum atteint${startPlayersProgress ? ` (${startPlayersProgress} joueurs)` : ''} : cliquez sur « Commencer la ligue » pour ouvrir les paris.`
+        : typeof details?.min_players === 'number'
+          ? `La ligue doit atteindre au moins ${details.min_players} joueurs${startPlayersProgress ? ` (${startPlayersProgress})` : ''} avant de pouvoir commencer et lancer les paris.`
+          : 'Une fois la ligue démarrée, les participants pourront commencer à parier.';
 
   return (
-    <div className="league-modal-overlay" onClick={onClose}>
+    <div
+      className="league-modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Détails de la ligue"
+    >
       <div className="league-modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Loading State */}
         {loading && (
@@ -234,99 +285,122 @@ const LeagueDetailsModal: React.FC<LeagueDetailsModalProps> = memo(({ isOpen, le
               </button>
             </div>
 
-            {/* Share Actions */}
-            <div className="league-modal-share">
-              <button
-                type="button"
-                className={`btn btn-outline btn-copy-link ${copyStatus === 'success' ? 'copy-success' : ''} ${copyStatus === 'error' ? 'copy-error' : ''}`}
-                onClick={handleCopyLink}
-                aria-label="Copier le lien de la ligue"
-              >
-                {copyStatus === 'success' ? '✅ Lien copié' : copyStatus === 'error' ? '⚠️ Copie impossible' : '🔗 Copier le lien'}
-              </button>
-            </div>
-
-            {/* League Stats */}
-            <div className="league-stats-modal">
-              <div className="stat-card-modal">
-                <div className="stat-icon">👥</div>
-                <div className="stat-content">
-                  <div className="stat-value">{currentPlayersLabel}</div>
-                  <div className="stat-label">Participants</div>
-                </div>
+            <div className="league-modal-body">
+              {/* Share Actions */}
+              <div className="league-modal-share">
+                <button
+                  type="button"
+                  className={`btn btn-outline btn-copy-link ${copyStatus === 'success' ? 'copy-success' : ''} ${copyStatus === 'error' ? 'copy-error' : ''}`}
+                  onClick={handleCopyLink}
+                  aria-label="Copier le lien de la ligue"
+                >
+                  {copyStatus === 'success' ? '✅ Lien copié' : copyStatus === 'error' ? '⚠️ Copie impossible' : '🔗 Copier le lien'}
+                </button>
               </div>
 
-              <div className="stat-card-modal">
-                <div className="stat-icon">📅</div>
-                <div className="stat-content">
-                  <div className="stat-value">{formatDate(details.start_date)}</div>
-                  <div className="stat-label">Date de début</div>
+              {/* League Stats */}
+              <div className="league-stats-modal">
+                <div className="stat-card-modal">
+                  <div className="stat-icon">👥</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{currentPlayersLabel}</div>
+                    <div className="stat-label">Participants</div>
+                  </div>
                 </div>
+
+                {typeof details.min_players === 'number' && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">🚦</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{details.min_players}</div>
+                      <div className="stat-label">Joueurs minimum</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="stat-card-modal">
+                  <div className="stat-icon">📅</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{formatDate(details.start_date)}</div>
+                    <div className="stat-label">Date de début</div>
+                  </div>
+                </div>
+
+                {details.end_date && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">🏁</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{formatDate(details.end_date)}</div>
+                      <div className="stat-label">Date de fin</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="stat-card-modal">
+                  <div className="stat-icon">💰</div>
+                  <div className="stat-content">
+                    <div className="stat-value">
+                      {details.is_free ? 'Gratuite' : 'Payante'}
+                    </div>
+                    <div className="stat-label">Type de ligue</div>
+                  </div>
+                </div>
+
+                {currentTotalPotLabel && (
+                  <div className="stat-card-modal stat-card-modal-pot">
+                    <div className="stat-icon">🏦</div>
+                    <div className="stat-content">
+                      <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
+                      <div className="stat-label">Pot actuel</div>
+                    </div>
+                  </div>
+                )}
+
+                {details.nb_players_remaining !== undefined && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">🆓</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{details.nb_players_remaining}</div>
+                      <div className="stat-label">Places restantes</div>
+                    </div>
+                  </div>
+                )}
+
+                {details.user_creator && (
+                  <div className="stat-card-modal">
+                    <div className="stat-icon">👤</div>
+                    <div className="stat-content">
+                      <div className="stat-value">{details.user_creator.pseudo}</div>
+                      <div className="stat-label">Créée par</div>
+                    </div>
+                  </div>
+                )}
+
               </div>
-
-              {details.end_date && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">🏁</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{formatDate(details.end_date)}</div>
-                    <div className="stat-label">Date de fin</div>
-                  </div>
-                </div>
-              )}
-
-              <div className="stat-card-modal">
-                <div className="stat-icon">💰</div>
-                <div className="stat-content">
-                  <div className="stat-value">
-                    {details.is_free ? 'Gratuite' : 'Payante'}
-                  </div>
-                  <div className="stat-label">Type de ligue</div>
-                </div>
-              </div>
-
-              {currentTotalPotLabel && (
-                <div className="stat-card-modal stat-card-modal-pot">
-                  <div className="stat-icon">🏦</div>
-                  <div className="stat-content">
-                    <div className="stat-value stat-value-pot">{currentTotalPotLabel}</div>
-                    <div className="stat-label">Pot actuel</div>
-                  </div>
-                </div>
-              )}
-
-              {details.nb_players_remaining !== undefined && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">🆓</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{details.nb_players_remaining}</div>
-                    <div className="stat-label">Places restantes</div>
-                  </div>
-                </div>
-              )}
-
-              {details.user_creator && (
-                <div className="stat-card-modal">
-                  <div className="stat-icon">👤</div>
-                  <div className="stat-content">
-                    <div className="stat-value">{details.user_creator.pseudo}</div>
-                    <div className="stat-label">Créée par</div>
-                  </div>
-                </div>
-              )}
-
-              {details.uuid && (
-                <div className="stat-card-modal full-width">
-                  <div className="stat-icon">🔗</div>
-                  <div className="stat-content">
-                    <div className="stat-value code-value">{details.uuid}</div>
-                    <div className="stat-label">Code de la ligue</div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Modal Actions */}
             <div className="league-modal-actions">
+              {isOwner && (
+                <div className="league-modal-start-cta">
+                  <button
+                    className={`btn ${canStartLeague ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={handleStart}
+                    disabled={starting || !canStartLeague}
+                    aria-describedby={startLeagueHintId}
+                  >
+                    {starting ? 'Démarrage...' : 'Commencer la ligue'}
+                  </button>
+                  <p
+                    id={startLeagueHintId}
+                    className={`league-modal-start-hint ${canStartLeague || details.is_started ? 'is-ready' : 'is-pending'}`}
+                    aria-live="polite"
+                  >
+                    <span className="league-modal-start-hint__icon" aria-hidden="true">{canStartLeague || details.is_started ? '▶' : 'ℹ'}</span>
+                    <span>{startLeagueHelperText}</span>
+                  </p>
+                </div>
+              )}
               {canJoin && (
                 <button
                   className="btn btn-primary"

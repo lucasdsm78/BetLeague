@@ -230,7 +230,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": "2FA code required.",
+                "message": "Le code 2FA est requis.",
                 "code": "TWO_FACTOR_REQUIRED",
                 "two_factor_required": True
             }
@@ -246,7 +246,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": "Invalid 2FA code.",
+                "message": "Le code 2FA est invalide.",
                 "code": "INVALID_2FA_CODE",
                 "two_factor_required": True
             }
@@ -257,7 +257,7 @@ async def login(
         logger.exception("Échec inattendu du login")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login failed."
+            detail="Échec de la connexion."
         )
 
 
@@ -283,7 +283,7 @@ async def validate_token(
         logger.exception("Validation de token invalide")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail="Jeton invalide."
         )
 
 
@@ -312,7 +312,7 @@ async def refresh_token(
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token missing",
+                detail="Jeton de rafraîchissement manquant.",
             )
 
         result = await user_command_usecase.refresh_token(refresh_token_value)
@@ -336,7 +336,7 @@ async def refresh_token(
         logger.exception("Erreur inattendue pendant le refresh token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token refresh failed"
+            detail="Impossible de renouveler la session."
         )
 
 
@@ -459,7 +459,7 @@ async def enable_2fa(
         logger.exception("Échec inattendu lors de l'activation de la 2FA")
         raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to enable 2FA."
+                detail="Impossible d'activer la double authentification."
             )
 
 
@@ -515,7 +515,7 @@ async def verify_2fa(
         logger.exception("Échec inattendu lors de la vérification 2FA")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to verify 2FA."
+            detail="Impossible de vérifier le code 2FA."
         )
 
 
@@ -579,7 +579,7 @@ async def disable_2fa(
         logger.exception("Échec inattendu lors de la désactivation de la 2FA")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to disable 2FA."
+            detail="Impossible de désactiver la double authentification."
         )
 
 
@@ -598,7 +598,7 @@ async def get_general_ranking(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred."
+            detail="Une erreur inattendue est survenue."
         )
 
 
@@ -682,7 +682,7 @@ async def update_user(
     response_model=UserSearchResponse,
     status_code=status.HTTP_200_OK,
     summary="Search users by pseudo or email",
-    description="Search users with secure validation. Requires authentication."
+    description="Search users with secure validation and return only minimal profile data. Requires authentication."
 )
 async def search_users(
         q: str,
@@ -826,7 +826,8 @@ async def forgot_password_verify(
             settings=settings,
             reason="invalid_code",
         )
-        raise HTTPException(status_code=400, detail={"message": "Invalid code", "code": "INVALID_CODE"})
+        raise HTTPException(status_code=400, detail={"message": "Code invalide", "code": "INVALID_CODE"})
+
 
 
 @router.post(
@@ -918,7 +919,7 @@ async def change_my_password(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": "2FA code required.",
+                "message": "Le code 2FA est requis.",
                 "code": "TWO_FACTOR_REQUIRED",
                 "two_factor_required": True,
             },
@@ -935,7 +936,7 @@ async def change_my_password(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
-                "message": "Invalid 2FA code.",
+                "message": "Le code 2FA est invalide.",
                 "code": "INVALID_2FA_CODE",
                 "two_factor_required": True,
             },

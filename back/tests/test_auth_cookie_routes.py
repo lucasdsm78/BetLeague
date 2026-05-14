@@ -38,7 +38,7 @@ class FakeUserCommandUseCase:
             token_auth="access-token-2",
             refresh_token="refresh-token-2",
             token_expiration="2030-01-01T00:05:00Z",
-            message="Token refreshed successfully",
+            message="Session renouvelée avec succès.",
         )
 
     async def logout(self, user_id: str, token: str):
@@ -144,7 +144,7 @@ def test_refresh_uses_cookie_rotates_cookie_and_omits_refresh_token_from_body(mo
     assert response.json() == {
         "token_auth": "access-token-2",
         "token_expiration": "2030-01-01T00:05:00Z",
-        "message": "Token refreshed successfully",
+        "message": "Session renouvelée avec succès.",
     }
     set_cookie = response.headers["set-cookie"]
     assert "betleague_refresh_token=refresh-token-2" in set_cookie
@@ -158,7 +158,7 @@ def test_refresh_requires_cookie_when_no_refresh_cookie_is_present(monkeypatch):
     response = client.post("/api/auth/refresh")
 
     assert response.status_code == 401
-    assert response.json() == {"detail": "Refresh token missing"}
+    assert response.json() == {"detail": "Jeton de rafraîchissement manquant."}
     assert fake_uc.refresh_token_input is None
 
 

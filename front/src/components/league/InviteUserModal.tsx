@@ -182,7 +182,7 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
               excludeUserIds={mergedExcludeUserIds}
             />
             <p className="search-hint">
-              Minimum 2 caractères requis. Recherchez par nom d'utilisateur ou email.
+              Minimum 2 caractères requis. Recherchez par nom d'utilisateur.
             </p>
           </div>
 
@@ -206,7 +206,6 @@ const InviteUserModal: React.FC<InviteUserModalProps> = memo(({
                 </div>
                 <div className="user-details">
                   <div className="user-pseudo-large">{selectedUser.pseudo}</div>
-                  <div className="user-email-large">{selectedUser.email}</div>
                 </div>
                 <div className="invitation-icon">
                   <span className="invite-icon">✉️</span>

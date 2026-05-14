@@ -233,13 +233,6 @@
   word-break: break-word;
 }
 
-.user-email {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin-top: 0.125rem;
-  word-break: break-word;
-}
-
 /* Select Indicator */
 .select-indicator {
   display: flex;
@@ -338,13 +331,6 @@
     font-weight: 600;
   }
 
-  .user-email {
-    font-size: 0.9rem;
-    display: block;
-    visibility: visible;
-    opacity: 1;
-    color: var(--text-secondary);
-  }
 
   .user-search-no-results {
     padding: 1.5rem 1rem;

@@ -22,9 +22,11 @@ class LeagueInvitationReceivedSummary(BaseModel):
     id: int
     name: str
     max_players: int
+    min_players: Optional[int] = None
     start_date: int
     user_creator: UserSummaryLeagueDetail
     nb_players_remaining: int
+    current_players_count: Optional[int] = None
     is_started: Optional[bool] = None
 
     class Config:
@@ -52,15 +54,16 @@ class LeagueReadModel(BaseModel):
     id: int
     is_free: Optional[bool] = None
     nb_btl: Optional[float] = None
-    uuid: Optional[str] = None
     start_date: int
     max_players: Optional[int] = None
+    min_players: Optional[int] = None
     name: str
     end_date: Optional[int] = None
     status: Optional[str] = None
     user_creator: Optional[UserSummaryLeagueDetail] = None
     is_started: Optional[bool] = None
     nb_players_remaining: Optional[int] = None
+    current_players_count: Optional[int] = None
     current_total_pot: Optional[float] = None
 
     class Config:
@@ -70,17 +73,18 @@ class LeagueReadModel(BaseModel):
     def from_entity_get_by_id(league: League) -> "LeagueReadModel":
         return LeagueReadModel(
             id=league.id,
-            uuid=league.uuid,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
             current_total_pot=league.current_total_pot,
             start_date=league.start_date,
             max_players=league.max_players,
+            min_players=league.min_players,
             name=league.name,
             end_date=league.end_date,
             status=league.status.value,
             is_started=league.is_started,
             nb_players_remaining=league.nb_players_remaining,
+            current_players_count=league.current_players,
             user_creator=UserSummaryLeagueDetail(id=league.user.id, pseudo=league.user.pseudo),
         )
 
@@ -90,12 +94,16 @@ class LeagueReadModel(BaseModel):
             id=league.id,
             is_started=league.is_started,
             start_date=league.start_date,
+            max_players=league.max_players,
+            min_players=league.min_players,
             nb_players_remaining=league.nb_players_remaining,
+            current_players_count=league.current_players,
             name=league.name,
             status=league.status.value,
             is_free=league.is_free,
             nb_btl=league.nb_btl,
             current_total_pot=league.current_total_pot,
+            user_creator=UserSummaryLeagueDetail(id=league.user.id, pseudo=league.user.pseudo),
         )
 
 

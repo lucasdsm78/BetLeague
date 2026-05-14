@@ -46,7 +46,7 @@ describe('enhancedAuthService', () => {
       uuid: 'user-42',
       token_expiration: new Date(Date.now() + 60_000).toISOString(),
       two_factor_enabled: false,
-      message: 'login successful',
+      message: 'Connexion réussie.',
     }, { status: 200 }));
 
     const result = await enhancedAuthService.login({
@@ -107,7 +107,7 @@ describe('enhancedAuthService', () => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(makeJsonResponse({
       token_auth: token,
       token_expiration: new Date(Date.now() + 60_000).toISOString(),
-      message: 'Token refreshed successfully',
+      message: 'Session renouvelée avec succès.',
     }, { status: 200 }));
 
     const restored = await enhancedAuthService.restoreSession();

@@ -110,6 +110,22 @@ class LeaguePlayersRepositoryImpl(LeaguePlayersRepository):
         except:
             raise
 
+    async def count_players_by_league_ids(self, league_ids: List[int]) -> Dict[int, int]:
+        if not league_ids:
+            return {}
+
+        try:
+            query = (
+                select(DBLeaguePlayers.league_id, func.count().label('players_count'))
+                .where(DBLeaguePlayers.league_id.in_(league_ids))
+                .group_by(DBLeaguePlayers.league_id)
+            )
+            result = await self.session.execute(query)
+            rows = result.all()
+            return {int(league_id): int(players_count or 0) for league_id, players_count in rows}
+        except:
+            raise
+
     async def find_participation(self, league_id: int, user_id: int) -> bool:
         try:
             query = select(DBLeaguePlayers).where(

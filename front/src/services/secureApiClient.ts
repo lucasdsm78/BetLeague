@@ -8,6 +8,30 @@ import { createLogger, serializeError } from '../utils/logger';
 
 const logger = createLogger('apiClient');
 
+function getDefaultHttpErrorMessage(status: number): string {
+  switch (status) {
+    case 400:
+      return 'Requête invalide.';
+    case 401:
+      return 'Authentification requise.';
+    case 403:
+      return 'Accès refusé.';
+    case 404:
+      return 'Ressource introuvable.';
+    case 408:
+      return 'Le délai de la requête a expiré.';
+    case 409:
+      return 'Conflit détecté.';
+    case 422:
+      return 'Données invalides.';
+    case 429:
+      return 'Trop de tentatives, réessayez plus tard.';
+    default:
+      if (status >= 500) return 'Erreur interne du serveur.';
+      return 'La requête a échoué.';
+  }
+}
+
 // Types for API client
 export interface ApiClientConfig {
   baseURL: string;
@@ -423,7 +447,7 @@ class SecureApiClient {
       };
     } catch (error) {
       // Parsing error => erreur cliente (statut conservé)
-      throw new ApiClientError('Failed to parse response', {
+      throw new ApiClientError('Impossible de lire la réponse du serveur.', {
         status,
         code: 'PARSE_ERROR',
         details: error,
@@ -434,9 +458,8 @@ class SecureApiClient {
   }
 
   private async parseErrorResponse(response: Response): Promise<{ message: string; details?: unknown; code?: string }> {
-    const status = response.status;
-
     try {
+      const fallbackMessage = getDefaultHttpErrorMessage(response.status);
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const errorData: any = await response.json();
@@ -446,8 +469,7 @@ class SecureApiClient {
           (typeof detail === 'string' && detail) ||
           (detail?.message as string) ||
           (errorData?.message as string) ||
-          response.statusText ||
-          'Request failed';
+          fallbackMessage;
 
         const code = detail?.code || errorData?.code;
 
@@ -460,12 +482,12 @@ class SecureApiClient {
 
       const text = await response.text();
       return {
-        message: text || response.statusText || 'Request failed',
+        message: text || fallbackMessage,
         details: text,
       };
     } catch {
       return {
-        message: response.statusText || 'Request failed',
+        message: getDefaultHttpErrorMessage(response.status),
       };
     }
   }
@@ -517,11 +539,11 @@ class SecureApiClient {
 
     // fetch network error
     if (error?.name === 'TypeError' && String(error?.message || '').includes('Failed to fetch')) {
-      return new ApiClientError('Network error', { status: 0, code: 'NETWORK_ERROR', details: error, headers: {}, requestId });
+      return new ApiClientError('Erreur réseau. Vérifiez votre connexion.', { status: 0, code: 'NETWORK_ERROR', details: error, headers: {}, requestId });
     }
 
     // Fallback
-    return new ApiClientError(error?.message || 'Unknown error', { status: 0, code: 'UNKNOWN_ERROR', details: error, headers: {}, requestId });
+    return new ApiClientError(error?.message || 'Une erreur inconnue est survenue.', { status: 0, code: 'UNKNOWN_ERROR', details: error, headers: {}, requestId });
   }
 
   // ==========================================

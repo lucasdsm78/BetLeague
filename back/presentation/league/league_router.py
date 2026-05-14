@@ -7,7 +7,7 @@ from fastapi import Request
 
 from application.league.league_command_model import LeagueCreateModel, LeagueFreeCreateResponse, LeagueJoinResponse, \
     LeaguePlayerDeletedResponse, LeagueInviteResponse, InvitationUpdateResponse, LeagueUpdateResponse, \
-    LeagueUpdateModel, LeagueInjectBtlModel, LeagueInjectBtlResponse, InvitationDeleteResponse
+    LeagueUpdateModel, LeagueInjectBtlModel, LeagueInjectBtlResponse, InvitationDeleteResponse, LeagueStartResponse
 from application.league.league_command_usecase import LeagueCommandUseCase
 from application.league.league_query_model import LeagueReadModel, LeaguesListResponse, LeagueBalancesBulkRequest, LeagueBalancesBulkResponse, InvitationsReceivedResponse, InvitationCountsResponse, LeagueInvitationsSentResponse, InvitationsSentResponse
 from application.league.league_query_usecase import LeagueQueryUseCase
@@ -17,6 +17,7 @@ from domain.invitation.model.invitation_status import InvitationStatus
 from domain.league.exception.league_exception import LeagueNotFoundError, LeagueMaxPlayersError, \
     LeagueParticipantFoundError, LeagueAlreadyStartedError, LeagueParticipantNotFoundError, UserNotOwnerLeaguedError, \
     LeagueNameAlreadyExistsError, LeagueNbBtlIsNotEnoughError, LeagueMustHaveNbBtlError, LeagueFinishedError, \
+    LeagueNotThePlayerError, LeagueMinimumPlayersNotReachedError, \
     UserNotInvitationLeaguedError
 from domain.user.exception.user_exception import UserNotFoundError
 from domain.invitation.exception.invitation_exception import InvitationNotFoundError
@@ -160,6 +161,42 @@ async def join_league(
     return league_players
 
 
+@router.post(
+    "/league/{id}/start",
+    response_model=LeagueStartResponse,
+    summary="Start a league manually",
+    status_code=status.HTTP_200_OK,
+)
+async def start_league(
+        id: int,
+        league_command_usecase: LeagueCommandUseCase = Depends(league_command_usecase),
+        current_user: dict = Depends(current_user),
+):
+    try:
+        result = await league_command_usecase.start_league(id, current_user.get('email', ''))
+    except LeagueNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
+    except UserNotOwnerLeaguedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
+    except LeagueMinimumPlayersNotReachedError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+    except LeagueAlreadyStartedError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.message)
+    except LeagueFinishedError as e:
+        _raise_league_finished(e)
+    except Exception:
+        logger.exception("league.http.start_failed", extra={"user_id": current_user.get("id"), "league_id": id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors du démarrage de la ligue.",
+        )
+
+    _log_league_event(logging.INFO, "league.http.start_succeeded", current_user=current_user, league_id=id)
+    return result
+
+
 @router.get(
     "/league/{league_id}/rank",
     summary="Get the league ranking",
@@ -189,7 +226,7 @@ async def get_league_ranking(
         logger.exception("league.http.rank_failed", extra={"user_id": current_user.get("id"), "league_id": league_id})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred."
+            detail="Une erreur inattendue est survenue."
         )
 
 @router.post(
@@ -239,7 +276,7 @@ async def get_leagues_balances_bulk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
     except Exception:
         logger.exception("league.http.balances_bulk_failed", extra={"user_id": current_user.get("id")})
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Une erreur inattendue est survenue.")
 
 
 @router.delete(
@@ -267,6 +304,18 @@ async def delete_league_player(
     except LeagueNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueParticipantNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.message,
+        )
+
+    except LeagueNotThePlayerError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=e.message,
         )
 
