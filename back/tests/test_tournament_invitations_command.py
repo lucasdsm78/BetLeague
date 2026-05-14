@@ -120,7 +120,7 @@ async def test_invite_user_creates_pending_tournament_invitation(monkeypatch: py
 
     result = await usecase.invite_user(12, 7, 'owner@example.com')
 
-    assert result.message == 'The user is invited to join this tournament'
+    assert result.message == "L'utilisateur a bien été invité à rejoindre ce tournoi."
     assert session.invitation_added is not None
     assert session.invitation_added.tournament_id == 12
     assert session.invitation_added.user_id == 7

@@ -100,7 +100,7 @@ async def test_create_league_uses_custom_start_date_and_auto_computes_end_date(m
 
     result = await usecase.create_league(payload, 'owner@example.com')
 
-    assert result.message == 'The free league is well created'
+    assert result.message == 'La ligue a bien été créée.'
     assert league_repo.created_league is not None
     assert league_repo.created_league.start_date == custom_start_ms
     assert league_repo.created_league.end_date == custom_start_ms + LEAGUE_DURATION_DAYS * DAY_MS

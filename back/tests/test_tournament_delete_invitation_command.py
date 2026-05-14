@@ -113,7 +113,7 @@ async def test_delete_tournament_invitation_deletes_pending_invitation_for_owner
 
     result = await usecase.delete_invitation(5, 'owner@example.com')
 
-    assert result.message == 'The invitation is well deleted.'
+    assert result.message == "L'invitation a bien été supprimée."
     assert invitation_repo.deleted_invitation_id == 5
     assert uow.committed is True
 

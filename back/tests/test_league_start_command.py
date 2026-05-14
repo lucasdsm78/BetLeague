@@ -121,7 +121,7 @@ async def test_start_league_starts_manually_and_publishes_event(monkeypatch: pyt
 
     result = await usecase.start_league(12, 'owner@example.com')
 
-    assert result.message == 'The league is well started.'
+    assert result.message == 'La ligue a bien démarré.'
     assert session.updated_league is session.league
     assert session.league.is_started is True
     assert session.league.status == LeagueStatus.IN_PROGRESS
