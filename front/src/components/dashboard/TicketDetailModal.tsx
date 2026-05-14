@@ -14,7 +14,7 @@ interface TicketDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticketId: number | string | null;
-  onAskDelete?: (id: number) => void;
+  onAskDelete?: (ticket: { id: number; display_number: number }) => void;
 }
 
 type NormalizedStatus = 'pending' | 'correct' | 'wrong';
@@ -151,6 +151,9 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
     if (!ticket) return { mise: 0, gain: 0 };
     return { mise: ticket.mise || 0, gain: ticket.gain || 0 };
   }, [ticket]);
+  const ticketDisplayLabel = ticket
+    ? `#${typeof ticket.display_number === 'number' && ticket.display_number > 0 ? ticket.display_number : ticket.id}`
+    : '';
 
   if (!isOpen || ticketId == null) return null;
 
@@ -210,8 +213,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             <>
               <header className="ticket-head">
                 <div className="title">
-                  <h2>Ticket #{ticket.id}</h2>
-                  <span className="ticket-uuid">UUID: {ticket.uuid}</span>
+                  <h2>Ticket {ticketDisplayLabel}</h2>
                 </div>
                 <div className="status">
                   <span className={badgeClass}>{statusLabel}</span>
@@ -278,7 +280,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ isOpen, onClose, 
             Fermer
           </button>
           {ticket && onAskDelete && (
-            <button className="btn btn-danger" onClick={() => onAskDelete(ticket.id)}>
+            <button className="btn btn-danger" onClick={() => onAskDelete({ id: ticket.id, display_number: ticket.display_number })}>
               Supprimer le ticket
             </button>
           )}

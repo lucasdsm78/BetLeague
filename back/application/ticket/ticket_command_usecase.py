@@ -174,8 +174,10 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
             gain = TicketDomainService.calculate_gain(odd_values, ticket_create_model.mise)
 
             uuid = shortuuid.uuid()
+            display_number = await uow.ticket_repo.reserve_next_display_number(user.id)
             ticket = Ticket(
                 uuid=uuid,
+                display_number=display_number,
                 gain=gain,
                 league_id=league.id,
                 mise=ticket_create_model.mise,
@@ -203,6 +205,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 "ticket.created",
                 extra={
                     "ticket_id": ticket_id,
+                    "ticket_display_number": display_number,
                     "ticket_uuid": ticket.uuid,
                     "league_id": league.id,
                     "user_id": user.id,
@@ -404,8 +407,10 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 raise TournamentMatchNotFoundError
 
             uuid = shortuuid.uuid()
+            display_number = await uow.ticket_repo.reserve_next_display_number(user.id)
             ticket = Ticket(
                 uuid=uuid,
+                display_number=display_number,
                 gain=gain,
                 tournament_match_id=match.id,
                 mise=ticket_create_model.mise,
@@ -434,6 +439,7 @@ class TicketCommandUseCaseImpl(TicketCommandUseCase):
                 "ticket.tournament.created",
                 extra={
                     "ticket_id": ticket_id,
+                    "ticket_display_number": display_number,
                     "ticket_uuid": ticket.uuid,
                     "tournament_id": tournament_id,
                     "tournament_match_id": match.id,

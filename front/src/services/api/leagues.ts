@@ -17,6 +17,7 @@ import type {
   ApiLeagueNameAvailabilityResponse,
   ApiLeagueLeaveResponse,
   ApiLeagueJoinResponse,
+  ApiLeagueStartResponse,
 } from '../../types/api';
 
 // Compat API légère (utilisée dans quelques endroits)
@@ -37,19 +38,19 @@ export async function createLeague(payload: ApiLeagueCreateRequest): Promise<Api
 
 export async function getAvailableLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getCreatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/created?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/created?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
 export async function getParticipatedLeaguesPage(page = 1, pageSize = 10): Promise<LeaguesPage> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/participated?${query.toString()}`);
+  const res: ApiResponse<ApiLeaguesPage> = await http.get(`/leagues/participated?${query.toString()}`, { skipCache: true });
   return mapLeaguesPage(res.data as ApiLeaguesPage);
 }
 
@@ -57,6 +58,12 @@ export async function joinLeague(leagueId: number): Promise<ApiLeagueMessageResp
   if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
   const res: ApiResponse<ApiLeagueMessageResponse> = await http.post(`/league/${leagueId}/join`);
   return (res.data ?? {}) as ApiLeagueMessageResponse;
+}
+
+export async function startLeague(leagueId: number): Promise<ApiLeagueStartResponse> {
+  if (!Number.isInteger(leagueId) || leagueId <= 0) throw new Error('ID de ligue invalide');
+  const res: ApiResponse<ApiLeagueStartResponse> = await http.post(`/league/${leagueId}/start`);
+  return (res.data ?? { message: '' }) as ApiLeagueStartResponse;
 }
 
 export async function leaveLeague(leagueId: number): Promise<ApiLeagueLeaveResponse> {
@@ -131,10 +138,16 @@ export function validateLeagueUpdateData(data: ApiLeagueUpdateRequest): void {
   }
 
   if (!Number.isInteger(data.max_players) || data.max_players < 2) {
-    throw new Error('Le nombre minimum de participants est 2');
+    throw new Error('Le nombre minimum de joueurs est 2');
   }
   if (data.max_players > 200) {
-    throw new Error('Le nombre maximum de participants est 200');
+    throw new Error('Le nombre maximum de joueurs est 200');
+  }
+  if (!Number.isInteger(data.min_players) || data.min_players < 2) {
+    throw new Error('Le nombre minimum de joueurs doit être au moins 2');
+  }
+  if (data.min_players > data.max_players) {
+    throw new Error('Le nombre minimum de joueurs doit être inférieur ou égal au nombre maximum');
   }
 
   if (!Number.isInteger(data.start_date) || data.start_date < 1_000_000_000_000) {

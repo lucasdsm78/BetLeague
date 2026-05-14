@@ -19,6 +19,7 @@ export type {
   ApiLeagueNameAvailabilityResponse,
   ApiLeagueLeaveResponse,
   ApiLeagueJoinResponse,
+  ApiLeagueStartResponse,
   ApiLeagueRankingRow,
 } from './leagues';
 

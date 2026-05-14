@@ -1,6 +1,16 @@
 import http from '../http';
 import { ApiClientError } from '../secureApiClient';
-import { createTournament, getTournamentCreationAccess, getUserTournamentMatches, leaveTournament, TournamentCreationError } from './tournament';
+import {
+  createTournament,
+  getFinishedTournaments,
+  getMyCreatedTournaments,
+  getMyTournaments,
+  getTournamentCreationAccess,
+  getTournaments,
+  getUserTournamentMatches,
+  leaveTournament,
+  TournamentCreationError,
+} from './tournament';
 
 jest.mock('../http', () => ({
   __esModule: true,
@@ -119,7 +129,70 @@ describe('tournament api service', () => {
       },
     ]);
 
-    expect(http.get).toHaveBeenCalledWith('/tournaments/my/match-options');
+    expect(http.get).toHaveBeenCalledWith('/tournaments/my/match-options', {
+      skipCache: true,
+      cache: 'no-store',
+    });
+  });
+
+  it('charge les tournois disponibles sans utiliser le cache HTTP', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { tournaments: [], total_count: 0, page: 1, page_size: 10 },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getTournaments(1, 10)).resolves.toEqual({ tournaments: [], total_count: 0, page: 1, page_size: 10 });
+    expect(http.get).toHaveBeenCalledWith('/tournaments?page=1&page_size=10', {
+      skipCache: true,
+      cache: 'no-store',
+    });
+  });
+
+  it('charge mes tournois sans utiliser le cache HTTP', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { tournaments: [], total_count: 0, page: 1, page_size: 10 },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getMyTournaments(1, 10)).resolves.toEqual({ tournaments: [], total_count: 0, page: 1, page_size: 10 });
+    expect(http.get).toHaveBeenCalledWith('/tournaments/my?page=1&page_size=10', {
+      skipCache: true,
+      cache: 'no-store',
+    });
+  });
+
+  it('charge mes tournois créés sans utiliser le cache HTTP', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { tournaments: [], total_count: 0, page: 1, page_size: 10 },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getMyCreatedTournaments(1, 10)).resolves.toEqual({ tournaments: [], total_count: 0, page: 1, page_size: 10 });
+    expect(http.get).toHaveBeenCalledWith('/tournaments/my/created?page=1&page_size=10', {
+      skipCache: true,
+      cache: 'no-store',
+    });
+  });
+
+  it('charge les tournois terminés sans utiliser le cache HTTP', async () => {
+    (http.get as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      data: { tournaments: [], total_count: 0, page: 1, page_size: 10 },
+      status: 200,
+      headers: {},
+    });
+
+    await expect(getFinishedTournaments(1, 10)).resolves.toEqual({ tournaments: [], total_count: 0, page: 1, page_size: 10 });
+    expect(http.get).toHaveBeenCalledWith('/tournaments/my/finished?page=1&page_size=10', {
+      skipCache: true,
+      cache: 'no-store',
+    });
   });
 
   it('mappe une tentative de départ interdite vers le message backend', async () => {

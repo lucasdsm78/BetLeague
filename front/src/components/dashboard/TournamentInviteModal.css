@@ -166,12 +166,6 @@
   color: var(--text-primary);
 }
 
-.tournament-selected-user-email,
-.tournament-invitation-email {
-  color: var(--text-secondary);
-  font-size: 0.92rem;
-  word-break: break-word;
-}
 
 .tournament-selected-user-clear,
 .tournament-invitation-delete {

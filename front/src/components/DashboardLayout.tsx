@@ -27,6 +27,14 @@ const sanitizeInput = (input: string): string => {
     .substring(0, 50);
 };
 
+const hasActiveModalOverlay = (): boolean => {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  return document.querySelector('[role="dialog"][aria-modal="true"]') != null;
+};
+
 // Type-safe tab configuration with strict typing
 interface TabConfig {
   readonly id: TabId;
@@ -36,6 +44,16 @@ interface TabConfig {
   readonly requiresPermission?: string;
   readonly requiresSubscription?: boolean;
   readonly securityLevel?: 'low' | 'medium' | 'high';
+}
+
+interface MobileBottomNavItem {
+  readonly id: TabId;
+  readonly label: string;
+  readonly icon: string;
+  readonly isActive: boolean;
+  readonly onClick: () => void;
+  readonly ariaLabel: string;
+  readonly tabId?: TabId;
 }
 
 type TabId =
@@ -132,11 +150,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const profileQuery = useProfileMeQuery({ enabled: isAuthenticated });
   const profile = profileQuery.data;
   const isShopEnabled = profile?.commerce_availability?.shop_enabled !== false;
+  const profileTournamentSubscriber = profile?.is_tournament_subscriber;
+  const currentUserId = user?.id;
+  const userTournamentSubscriber = user?.isTournamentSubscriber;
 
   // Secure state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [logoutTriggerReason, setLogoutTriggerReason] = useState<'manual' | 'inactivity' | 'security' | 'session_expired'>('manual');
   const [securityState, setSecurityState] = useState<SecurityState>({
     attemptedPaths: [],
@@ -177,9 +199,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     });
   }, [isShopEnabled, user]);
 
-  // Get tabs for bottom navigation (exclude shop and profile on mobile)
+  // Get tabs for bottom navigation (exclude shop only on mobile)
   const bottomNavTabs = useMemo(() => {
-    return visibleTabs.filter(tab => tab.id !== 'shop' && tab.id !== 'profile');
+    const primaryTabOrder: TabId[] = ['matches', 'leagues', 'tournaments', 'tickets'];
+    return primaryTabOrder
+      .map((tabId) => visibleTabs.find((tab) => tab.id === tabId) ?? null)
+      .filter((tab): tab is TabConfig => tab !== null);
   }, [visibleTabs]);
 
   const sanitizedUserName = useMemo(() => {
@@ -232,12 +257,35 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
   // Sync user subscription status from profile
   useEffect(() => {
-    if (profile && user && user.isTournamentSubscriber !== profile.is_tournament_subscriber) {
+    if (typeof profileTournamentSubscriber === 'boolean' && currentUserId && userTournamentSubscriber !== profileTournamentSubscriber) {
       updateUser({
-        isTournamentSubscriber: profile.is_tournament_subscriber
+        isTournamentSubscriber: profileTournamentSubscriber
       });
     }
-  }, [profile?.is_tournament_subscriber, user?.isTournamentSubscriber, updateUser]);
+  }, [currentUserId, profileTournamentSubscriber, updateUser, userTournamentSubscriber]);
+
+  useEffect(() => {
+    const syncOverlayState = () => {
+      setIsOverlayOpen(hasActiveModalOverlay());
+    };
+
+    syncOverlayState();
+
+    const observer = new MutationObserver(() => {
+      syncOverlayState();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-modal', 'role', 'class', 'style'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Security: Monitor navigation attempts
   useEffect(() => {
@@ -307,6 +355,36 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       showError('Erreur de navigation', 'Impossible de naviguer vers cette section');
     }
   }, [navigate, hasPermission, isShopEnabled, securityState.lastActivity, showError]);
+
+  const mobileBottomNavItems = useMemo<MobileBottomNavItem[]>(() => {
+    const primaryItems: MobileBottomNavItem[] = bottomNavTabs.map((tab) => ({
+      id: tab.id,
+      label: tab.label,
+      icon: tab.icon,
+      isActive: activeTab === tab.id,
+      onClick: () => handleTabClick(tab.id),
+      ariaLabel: tab.label,
+      tabId: tab.id,
+    }));
+
+    const profileTab = visibleTabs.find((tab) => tab.id === 'profile');
+    if (!profileTab) {
+      return primaryItems;
+    }
+
+    return [
+      ...primaryItems,
+      {
+        id: profileTab.id,
+        label: profileTab.label,
+        icon: profileTab.icon,
+        isActive: activeTab === profileTab.id,
+        onClick: () => handleTabClick(profileTab.id),
+        ariaLabel: profileTab.label,
+        tabId: profileTab.id,
+      },
+    ];
+  }, [activeTab, bottomNavTabs, handleTabClick, visibleTabs]);
 
   // Enhanced logout handler with modal
   const handleLogout = useCallback(async () => {
@@ -417,7 +495,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   }
 
   return (
-    <div className="dashboard" data-security-level="high">
+    <div className="dashboard" data-security-level="high" data-overlay-open={isOverlayOpen ? 'true' : 'false'}>
       {/* Header with security indicators */}
       <header className="dashboard-header">
         <div className="header-content">
@@ -637,30 +715,39 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
       {/* Bottom Navigation for Mobile */}
       <nav className="bottom-nav" role="navigation" aria-label="Navigation rapide">
-        {bottomNavTabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`bottom-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => handleTabClick(tab.id)}
-            aria-label={tab.label}
-            aria-current={activeTab === tab.id ? 'page' : undefined}
-            data-tab={tab.id}
-          >
-            <span className="bottom-nav-icon-wrap">
-              <span className="bottom-nav-icon">{tab.icon}</span>
-              {tab.id === 'tournaments' && tournamentQuotaBadge && (
-                <span
-                  className={`bottom-nav-badge bottom-nav-badge--${tournamentQuotaBadge.variant}`}
-                  title={tournamentQuotaBadge.title}
-                  aria-label={tournamentQuotaBadge.title}
-                >
-                  {tournamentQuotaBadge.compact}
+        <div
+          className="bottom-nav-shell"
+          style={{ ['--bottom-nav-count' as string]: String(mobileBottomNavItems.length) }}
+        >
+          {mobileBottomNavItems.map((item) => {
+            const isTournamentTab = item.tabId === 'tournaments';
+
+            return (
+              <button
+                key={item.id}
+                className={`bottom-nav-item ${item.isActive ? 'active' : ''} ${isTournamentTab ? 'bottom-nav-item--primary' : ''}`}
+                onClick={item.onClick}
+                aria-label={item.ariaLabel}
+                aria-current={item.isActive ? 'page' : undefined}
+                data-tab={item.id}
+              >
+                <span className="bottom-nav-icon-wrap">
+                  <span className="bottom-nav-icon">{item.icon}</span>
+                  {isTournamentTab && tournamentQuotaBadge && (
+                    <span
+                      className={`bottom-nav-badge bottom-nav-badge--${tournamentQuotaBadge.variant}`}
+                      title={tournamentQuotaBadge.title}
+                      aria-label={tournamentQuotaBadge.title}
+                    >
+                      {tournamentQuotaBadge.compact}
+                    </span>
+                  )}
                 </span>
-              )}
-            </span>
-            <span className="bottom-nav-label">{tab.label}</span>
-          </button>
-        ))}
+                <span className="bottom-nav-label">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Enhanced Logout Modal */}

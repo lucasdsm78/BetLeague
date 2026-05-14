@@ -80,7 +80,10 @@ export async function getTournamentInvitations(tournamentId: number): Promise<To
   if (!Number.isInteger(tournamentId) || tournamentId <= 0) throw new Error('ID de tournoi invalide');
 
   try {
-    const response: ApiResponse<TournamentInvitationsResponse> = await http.get(`/tournament/${tournamentId}/invitations`);
+    const response: ApiResponse<TournamentInvitationsResponse> = await http.get(`/tournament/${tournamentId}/invitations`, {
+      skipCache: true,
+      cache: 'no-store',
+    });
     return (response.data ?? { tournament_id: tournamentId, invitations: [] }) as TournamentInvitationsResponse;
   } catch (e) {
     if (e instanceof ApiClientError) {
@@ -144,7 +147,10 @@ export async function getTournamentCreationAccess(): Promise<TournamentCreationA
 }
 
 export async function getTournaments(page = 1, pageSize = 10): Promise<TournamentsResponse> {
-  const response: ApiResponse<TournamentsResponse> = await http.get(`/tournaments?page=${page}&page_size=${pageSize}`);
+  const response: ApiResponse<TournamentsResponse> = await http.get(`/tournaments?page=${page}&page_size=${pageSize}`, {
+    skipCache: true,
+    cache: 'no-store',
+  });
   return response.data as TournamentsResponse;
 }
 
@@ -164,7 +170,10 @@ export async function getTournamentStages(tournamentId: number): Promise<Tournam
 }
 
 export async function getMyTournaments(page = 1, pageSize = 10): Promise<MyTournamentsResponse> {
-  const response: ApiResponse<MyTournamentsResponse> = await http.get(`/tournaments/my?page=${page}&page_size=${pageSize}`);
+  const response: ApiResponse<MyTournamentsResponse> = await http.get(`/tournaments/my?page=${page}&page_size=${pageSize}`, {
+    skipCache: true,
+    cache: 'no-store',
+  });
   return response.data as MyTournamentsResponse;
 }
 
@@ -176,7 +185,11 @@ export async function getStageMatches(tournamentId: number, stageType: string): 
 export async function getMyCreatedTournaments(page = 1, pageSize = 10): Promise<CreatedTournamentsResponse> {
   try {
     const response: ApiResponse<CreatedTournamentsResponse> = await http.get(
-      `/tournaments/my/created?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`
+      `/tournaments/my/created?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`,
+      {
+        skipCache: true,
+        cache: 'no-store',
+      }
     );
     return response.data as CreatedTournamentsResponse;
   } catch (e) {
@@ -210,12 +223,18 @@ export async function leaveTournament(tournamentId: number): Promise<{ message: 
 }
 
 export async function getFinishedTournaments(page = 1, pageSize = 10): Promise<TournamentsFinishedResponse> {
-  const response: ApiResponse<TournamentsFinishedResponse> = await http.get(`/tournaments/my/finished?page=${page}&page_size=${pageSize}`);
+  const response: ApiResponse<TournamentsFinishedResponse> = await http.get(`/tournaments/my/finished?page=${page}&page_size=${pageSize}`, {
+    skipCache: true,
+    cache: 'no-store',
+  });
   return response.data as TournamentsFinishedResponse;
 }
 
 export async function getUserTournamentMatches(): Promise<TournamentMatchOption[]> {
-  const response: ApiResponse<TournamentMatchOptionsResponse> = await http.get('/tournaments/my/match-options');
+  const response: ApiResponse<TournamentMatchOptionsResponse> = await http.get('/tournaments/my/match-options', {
+    skipCache: true,
+    cache: 'no-store',
+  });
   return (response.data?.matches ?? []).sort((a, b) => a.start_date - b.start_date);
 }
 

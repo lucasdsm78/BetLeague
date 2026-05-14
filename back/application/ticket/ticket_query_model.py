@@ -10,6 +10,7 @@ from application.tournament.tournament_match_summary import TournamentMatchSumma
 class TicketReadModel(BaseModel):
 
     id: int
+    display_number: int
     mise: int
     uuid: str
     gain: float

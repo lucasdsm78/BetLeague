@@ -123,7 +123,7 @@ class UserLoginResponse(BaseModel):
             uuid=self.uuid,
             token_expiration=self.token_expiration,
             two_factor_enabled=self.two_factor_enabled,
-            message="login successful"
+            message="Connexion réussie."
         )
         if include_refresh_token and self.refresh_token:
             payload["refresh_token"] = self.refresh_token
@@ -134,7 +134,7 @@ class RefreshTokenResponse(BaseModel):
     token_auth: str
     refresh_token: Optional[str] = None
     token_expiration: str
-    message: str = "Token refreshed successfully"
+    message: str = "Session renouvelée avec succès."
 
 
 class InvalidPasswordError(Exception):
@@ -159,7 +159,7 @@ class TwoFactorSetupResponse(BaseModel):
     qr_code: str
     secret: str
     otpauth_url: str
-    message: str = "2FA setup ready."
+    message: str = "Configuration de la double authentification prête."
 
 
 class TwoFactorStatusResponse(BaseModel):

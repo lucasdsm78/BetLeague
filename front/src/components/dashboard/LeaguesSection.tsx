@@ -1,10 +1,13 @@
 import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import secureApiClient from '../../services/secureApiClient';
-import { getLeagueDetails } from '../../services/api/leagues';
+import { getCreatedLeaguesPage, getLeagueDetails, getParticipatedLeaguesPage, startLeague } from '../../services/api/leagues';
+import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { useLeagueBalances } from '../../hooks/useLeagueBalances';
-import { useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
+import { useLeagueCountQuery, useLeaguesListQuery, useJoinLeagueMutation } from '../../hooks/queries/useLeaguesQueries';
+import { leaguesKeys } from '../../hooks/queries/leaguesKeys';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import CreateLeagueForm from '../league/CreateLeagueForm';
 import LeagueDetailsModal from '../league/LeagueDetailsModal';
@@ -84,19 +87,45 @@ interface LeagueCardProps {
     onViewRanking?: (league: LeagueSummary) => void;
     onLeave?: (league: LeagueSummary) => void;
     onEdit?: (league: LeagueSummary) => void;
+    onStart?: (league: LeagueSummary) => void;
     isJoining?: boolean;
+    isStarting?: boolean;
     showJoinButton?: boolean;
     showInviteButton?: boolean;
     showRankingButton?: boolean;
     showLeaveButton?: boolean;
     showEditButton?: boolean;
+    showStartButton?: boolean;
 }
 
-const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, isJoining = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false }) => {
+const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null, isBalanceLoading = false, showMyBalance = false, replaceEntryFeeWithBalance = false, onJoin, onInvite, onViewRanking, onLeave, onEdit, onStart, isJoining = false, isStarting = false, showJoinButton = false, showInviteButton = false, showRankingButton = false, showLeaveButton = false, showEditButton = false, showStartButton = false }) => {
     const isClosed = league.status === 'CLOSED';
     const isInProgress = league.status === 'IN_PROGRESS' || league.isStarted;
     const statusLabel = isClosed ? 'Fermée' : isInProgress ? 'Active' : 'En attente';
     const statusColor = isClosed ? 'var(--text-secondary)' : isInProgress ? 'var(--success-color)' : 'var(--warning-color)';
+    const currentPlayersCount = typeof league.currentPlayersCount === 'number'
+        ? league.currentPlayersCount
+        : typeof league.maxPlayers === 'number' && typeof league.playersRemaining === 'number'
+            ? Math.max(league.maxPlayers - league.playersRemaining, 0)
+            : undefined;
+    const canStartLeague = !isClosed
+        && !isInProgress
+        && typeof league.minPlayers === 'number'
+        && typeof currentPlayersCount === 'number'
+        && currentPlayersCount >= league.minPlayers;
+    const startLeagueHintId = `league-start-hint-${league.id}`;
+    const currentPlayersProgress = typeof currentPlayersCount === 'number' && typeof league.minPlayers === 'number'
+        ? `${currentPlayersCount}/${league.minPlayers}`
+        : null;
+    const startLeagueHelperText = isClosed
+        ? 'Cette ligue est clôturée : les paris et le démarrage ne sont plus disponibles.'
+        : isInProgress
+            ? 'Cette ligue a démarré : les participants peuvent déjà commencer à parier.'
+            : canStartLeague
+                ? `Minimum atteint${currentPlayersProgress ? ` (${currentPlayersProgress} joueurs)` : ''} : cliquez sur « Commencer la ligue » pour ouvrir les paris.`
+                : typeof league.minPlayers === 'number'
+                    ? `La ligue doit atteindre au moins ${league.minPlayers} joueurs${currentPlayersProgress ? ` (${currentPlayersProgress})` : ''} avant de pouvoir commencer et lancer les paris.`
+                    : 'Le démarrage de la ligue ouvre les paris à tous les participants.';
 
     const isLoadingBalance = isBalanceLoading || myBalanceBtl === null || myBalanceBtl === undefined;
 
@@ -145,6 +174,12 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                         <span className="stat-label">Places restantes</span>
                     </div>
                 )}
+                {typeof league.minPlayers === 'number' && (
+                    <div className="stat">
+                        <span className="stat-value">{typeof currentPlayersCount === 'number' ? `${currentPlayersCount}/${league.minPlayers}` : league.minPlayers}</span>
+                        <span className="stat-label">Seuil de départ</span>
+                    </div>
+                )}
                 <div className="stat">
                     <span className="stat-value">{statusLabel}</span>
                     <span className="stat-label">Statut</span>
@@ -188,7 +223,7 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                 )}
             </div>
 
-            <div className="league-actions">
+            <div className={`league-actions ${showStartButton ? 'league-actions--with-start' : 'league-actions--standard'}`}>
                 {/* View Details Button */}
                 <button
                     className="btn btn-primary"
@@ -240,6 +275,29 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     </button>
                 )}
 
+                {showStartButton && onStart && (
+                    <button
+                        className={`btn btn-start-league ${canStartLeague ? 'btn-primary' : 'btn-secondary'} ${isStarting ? 'is-loading' : ''}`}
+                        onClick={() => onStart(league)}
+                        disabled={isStarting || !canStartLeague}
+                        title={canStartLeague ? `Commencer la ligue ${league.name}` : startLeagueHelperText}
+                        aria-label={`Commencer la ligue ${league.name}`}
+                        aria-describedby={startLeagueHintId}
+                    >
+                        {isStarting ? (
+                            <>
+                                <IconLoader />
+                                <span>Démarrage...</span>
+                            </>
+                        ) : (
+                            <>
+                                <IconPlay />
+                                <span>Commencer la ligue</span>
+                            </>
+                        )}
+                    </button>
+                )}
+
                 {/* Leave Button */}
                 {showLeaveButton && onLeave && (
                     <button
@@ -281,6 +339,17 @@ const LeagueCard = memo<LeagueCardProps>(({ league, onView, myBalanceBtl = null,
                     </button>
                 )}
             </div>
+
+            {showStartButton && onStart && (
+                <p
+                    id={startLeagueHintId}
+                    className={`league-start-hint ${canStartLeague || isInProgress ? 'is-ready' : 'is-pending'}`}
+                    aria-live="polite"
+                >
+                    <span className="league-start-hint__icon" aria-hidden="true">{canStartLeague || isInProgress ? '▶' : 'ℹ'}</span>
+                    <span>{startLeagueHelperText}</span>
+                </p>
+            )}
         </div>
     );
 });
@@ -291,8 +360,12 @@ type TabType = 'participatedLeagues' | 'myLeagues' | 'availableLeagues';
 
 interface LeaguesSectionProps {}
 
+const EMPTY_LEAGUES: LeagueSummary[] = [];
+
 const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const { showSuccess, showError } = useGlobalToast();
+    const queryClient = useQueryClient();
+    const { user } = useEnhancedAuth();
 
     const profileQuery = useProfileMeQuery();
     const profile = profileQuery.data;
@@ -305,31 +378,58 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const participatedQuery = useLeaguesListQuery('participatedLeagues', { enabled: activeTab === 'participatedLeagues' });
     const createdQuery = useLeaguesListQuery('myLeagues', { enabled: activeTab === 'myLeagues' });
     const availableQuery = useLeaguesListQuery('availableLeagues', { enabled: activeTab === 'availableLeagues' });
+    const participatedCountQuery = useLeagueCountQuery('participatedLeagues');
+    const createdCountQuery = useLeagueCountQuery('myLeagues');
+    const availableCountQuery = useLeagueCountQuery('availableLeagues');
 
     const joinMutation = useJoinLeagueMutation();
 
-    const participatedLeagues = participatedQuery.data ?? [];
-    const createdLeagues = createdQuery.data ?? [];
-    const availableLeagues = availableQuery.data ?? [];
+    const participatedLeagues = participatedQuery.data ?? EMPTY_LEAGUES;
+    const createdLeagues = createdQuery.data ?? EMPTY_LEAGUES;
+    const availableLeagues = availableQuery.data ?? EMPTY_LEAGUES;
+    const participatedCount = participatedCountQuery.data ?? participatedLeagues.length;
+    const createdCount = createdCountQuery.data ?? createdLeagues.length;
+    const availableCount = availableCountQuery.data ?? availableLeagues.length;
+
+    const renderTabBadge = useCallback((count: number | undefined, isLoading: boolean) => {
+        if (typeof count === 'number') return String(count);
+        if (isLoading) return '…';
+        return '0';
+    }, []);
 
     const isLoadingParticipated = participatedQuery.isLoading || participatedQuery.isFetching;
     const isLoadingCreated = createdQuery.isLoading || createdQuery.isFetching;
     const isLoadingAvailable = availableQuery.isLoading || availableQuery.isFetching;
 
     const [joiningLeagueId, setJoiningLeagueId] = useState<number | null>(null);
+    const [startingLeagueId, setStartingLeagueId] = useState<number | null>(null);
 
     const handleJoinLeague = useCallback(async (league: LeagueSummary) => {
         try {
             setJoiningLeagueId(league.id);
             await joinMutation.mutateAsync({ leagueId: league.id });
+            setActiveTab('participatedLeagues');
             showSuccess('Ligue rejointe', `Vous avez rejoint ${league.name}`);
-            refetchProfile();
+
+            secureApiClient.clearCache();
+
+            await Promise.allSettled([
+                queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+                queryClient.fetchQuery({
+                    queryKey: leaguesKeys.list('participated', 1, 10),
+                    queryFn: async () => {
+                        const pageData = await getParticipatedLeaguesPage(1, 10);
+                        return pageData.leagues;
+                    },
+                }),
+                Promise.resolve(refetchProfile()).then(() => undefined),
+            ]);
         } catch (e: any) {
             showError('Erreur', e?.message || 'Impossible de rejoindre la ligue');
         } finally {
             setJoiningLeagueId(null);
         }
-    }, [joinMutation, refetchProfile, showSuccess, showError]);
+    }, [joinMutation, queryClient, refetchProfile, showSuccess, showError]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
@@ -349,13 +449,25 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
     const navigate = useNavigate();
 
     // Handle league creation success
-    const handleCreateLeague = useCallback((_leagueData: any, message: string) => {
+    const handleCreateLeague = useCallback(async (_leagueData: any, message: string) => {
         setIsCreateModalOpen(false);
+        setActiveTab('myLeagues');
         showSuccess('Ligue créée', message || 'Ligue créée avec succès !');
-        // Rafraîchir les données via React Query
-        createdQuery.refetch();
-        availableQuery.refetch();
-    }, [showSuccess, createdQuery, availableQuery]);
+
+        secureApiClient.clearCache();
+
+        await Promise.allSettled([
+            queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+            queryClient.fetchQuery({
+                queryKey: leaguesKeys.list('created', 1, 10),
+                queryFn: async () => {
+                    const pageData = await getCreatedLeaguesPage(1, 10);
+                    return pageData.leagues;
+                },
+            }),
+            Promise.resolve(refetchProfile()).then(() => undefined),
+        ]);
+    }, [showSuccess, queryClient, refetchProfile]);
 
     // Handle view league details
     const handleViewLeague = useCallback((league: LeagueSummary) => {
@@ -466,11 +578,12 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
         handleCloseLeaveModal();
         secureApiClient.clearCache();
         refetchProfile().catch(() => {});
+        queryClient.invalidateQueries({ queryKey: leaguesKeys.all }).catch(() => {});
         // refresh listes
         participatedQuery.refetch();
         createdQuery.refetch();
         availableQuery.refetch();
-    }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, refetchProfile]);
+    }, [handleCloseLeaveModal, participatedQuery, createdQuery, availableQuery, queryClient, refetchProfile]);
 
     const handleInvitationSent = useCallback((user: UserSearchResult) => {
         showSuccess('Invitation envoyée', `Invitation envoyée à ${user.pseudo} avec succès !`);
@@ -489,6 +602,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 name: data.name,
                 isStarted: data.is_started,
                 maxPlayers: data.max_players,
+                minPlayers: data.min_players,
                 isFree: data.is_free,
                 nbBtl: data.nb_btl,
                 startDate: startDate
@@ -513,11 +627,33 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
 
         setTimeout(() => {
             secureApiClient.clearCache();
+            queryClient.invalidateQueries({ queryKey: leaguesKeys.all }).catch(() => {});
             participatedQuery.refetch();
             createdQuery.refetch();
             availableQuery.refetch();
         }, 100);
-    }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, showSuccess]);
+    }, [handleCloseEditModal, participatedQuery, createdQuery, availableQuery, queryClient, showSuccess]);
+
+    const handleStartLeague = useCallback(async (league: LeagueSummary) => {
+        try {
+            setStartingLeagueId(league.id);
+            await startLeague(league.id);
+            showSuccess('Ligue démarrée', `${league.name} a démarré avec succès.`);
+
+            secureApiClient.clearCache();
+            await Promise.allSettled([
+                queryClient.invalidateQueries({ queryKey: leaguesKeys.all }),
+                participatedQuery.refetch(),
+                createdQuery.refetch(),
+                availableQuery.refetch(),
+                Promise.resolve(refetchProfile()).then(() => undefined),
+            ]);
+        } catch (e: any) {
+            showError('Erreur', e?.message || 'Impossible de démarrer la ligue');
+        } finally {
+            setStartingLeagueId(null);
+        }
+    }, [availableQuery, createdQuery, participatedQuery, queryClient, refetchProfile, showError, showSuccess]);
 
     const allLeagueIds = useMemo(() => {
         const ids = [...participatedLeagues, ...createdLeagues].map((l) => l.id);
@@ -553,7 +689,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Participées</span>
-                        <span className="tab-badge">{participatedLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(participatedCount, participatedCountQuery.isLoading || participatedCountQuery.isFetching)}</span>
                     </span>
                 </button>
                 <button
@@ -563,7 +699,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Créées</span>
-                        <span className="tab-badge">{createdLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(createdCount, createdCountQuery.isLoading || createdCountQuery.isFetching)}</span>
                     </span>
                 </button>
                 <button
@@ -573,7 +709,7 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                 >
                     <span className="tab-content-wrapper">
                         <span className="tab-title">Disponibles</span>
-                        <span className="tab-badge">{availableLeagues.length}</span>
+                        <span className="tab-badge">{renderTabBadge(availableCount, availableCountQuery.isLoading || availableCountQuery.isFetching)}</span>
                     </span>
                 </button>
             </div>
@@ -668,13 +804,16 @@ const LeaguesSection = memo<LeaguesSectionProps>(() => {
                                     onInvite={handleInviteUser}
                                     onViewRanking={handleViewRanking}
                                     onEdit={handleEditLeague}
+                                    onStart={handleStartLeague}
                                     myBalanceBtl={getBalance(league.id) ?? null}
                                     isBalanceLoading={isBalanceLoading(league.id)}
+                                    isStarting={startingLeagueId === league.id}
                                     showMyBalance={true}
                                     showJoinButton={false}
                                     showInviteButton={true}
                                     showRankingButton={true}
                                     showEditButton={true}
+                                    showStartButton={league.userCreator?.id === user?.id}
                                 />
                             ))
                         ) : (

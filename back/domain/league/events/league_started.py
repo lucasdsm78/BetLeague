@@ -10,6 +10,7 @@ from domain.utils.domain_event import DomainEvent
 class LeagueStarted(DomainEvent):
     league_id: int
     league_name: str
+    started_by_user_id: int
     event_name: str = field(default="league.started", init=False)
     aggregate_type: str = field(default="league", init=False)
     aggregate_id: int = field(init=False)

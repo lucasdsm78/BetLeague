@@ -57,16 +57,6 @@
   border-color: rgba(16, 185, 129, 0.35);
 }
 
-.legal-page__quick-links {
-  width: 100%;
-  max-width: 400px;
-}
-
-.legal-page__quick-link {
-  text-decoration: none;
-  width: 100%;
-}
-
 .legal-card {
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(148, 163, 184, 0.18);
@@ -294,9 +284,6 @@
     margin-bottom: 24px;
   }
 
-  .legal-page__quick-links {
-    margin-left: auto;
-  }
 
   .legal-card__header {
     padding: 32px 32px 22px;
