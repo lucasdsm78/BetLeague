@@ -409,7 +409,7 @@ class TournamentCommandUseCaseImpl(TournamentCommandUseCase):
                         "tournament_id": tournament.id,
                         "owner_user_id": user.id,
                         "owner_email_hash": _hash_identifier(email),
-                        "name": tournament.name,
+                        "tournament_name": tournament.name,
                         "is_private": tournament.is_private,
                         "start_date": tournament.start_date,
                         "end_date": tournament.end_date,

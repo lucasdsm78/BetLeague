@@ -648,7 +648,7 @@ class LeagueCommandUseCaseImpl(LeagueCommandUseCase):
                         "max_players": league.max_players,
                         "min_players": league.min_players,
                         "start_date": league.start_date,
-                        "name": league.name,
+                        "league_name": league.name,
                     },
                 )
 
