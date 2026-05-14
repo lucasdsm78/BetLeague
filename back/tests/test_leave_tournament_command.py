@@ -103,7 +103,7 @@ async def test_leave_tournament_unregisters_participant_and_updates_tournament_c
 
     result = await usecase.leave_tournament(12, 7)
 
-    assert result.message == 'The player is well deleted to the tournament'
+    assert result.message == 'Le joueur a bien été retiré du tournoi.'
     assert players_repo.unregistered_player_id == 99
     assert tournament.current_players == 2
     assert tournament.prize_pool == 10.0

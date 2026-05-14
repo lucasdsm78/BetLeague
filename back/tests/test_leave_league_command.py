@@ -126,7 +126,7 @@ async def test_leave_league_unregisters_participant_without_accessing_missing_us
 
     result = await usecase.delete_league_player(10, "player@example.com")
 
-    assert result.message == "The player is well deleted to the league"
+    assert result.message == "Le joueur a bien été retiré de la ligue."
     assert session.deleted_league_player_id == 99
     assert session.credits == [(7, 25.0)]
     assert session.updated_league is session.league
