@@ -13,12 +13,13 @@ export interface SeoMeta {
 
 const SITE_NAME = 'BetLeague';
 const DEFAULT_IMAGE_PATH = '/betleague-logo.jpg';
+const DEFAULT_PUBLIC_SITE_URL = 'https://app.betleague.app';
 const HOME_KEYWORDS = 'pronostic gratuit entre amis, ligue de pronostics sportifs, paris sportifs gratuits, ligue paris sportifs';
 const INDEXABLE_ROBOTS: RobotsDirective = 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1';
 const NOINDEX_ROBOTS: RobotsDirective = 'noindex,nofollow,noarchive';
 
 const normalizeSiteUrl = (rawUrl?: string): string => {
-  const fallback = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const fallback = typeof window !== 'undefined' ? window.location.origin : DEFAULT_PUBLIC_SITE_URL;
   const candidate = (rawUrl || fallback).trim();
 
   try {
