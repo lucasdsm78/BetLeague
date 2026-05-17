@@ -89,7 +89,7 @@ const homeStructuredData = [
 
 const routeMetaByPath: Record<string, SeoMeta> = {
   '/': {
-    title: 'BetLeague — Pronostic gratuit entre amis et ligue de pronostics sportifs',
+    title: 'BetLeague — Pronostics gratuits entre amis',
     description: defaultDescription,
     keywords: HOME_KEYWORDS,
     canonicalPath: '/',
@@ -172,6 +172,7 @@ export const getSeoMetaForPath = (pathname: string): SeoMeta => {
     pathname || '/',
   );
 };
+
 
 
 

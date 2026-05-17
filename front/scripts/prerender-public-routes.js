@@ -3,19 +3,34 @@ const path = require('path');
 
 const BUILD_DIR = path.join(__dirname, '..', 'build');
 const INDEX_FILE = path.join(BUILD_DIR, 'index.html');
+const LOCAL_FALLBACK_URL = 'http://localhost:3000';
 
-const normalizeSiteUrl = (value) => {
-  const fallback = 'http://localhost:3000';
-  const candidate = (value || fallback).trim();
+const resolveSiteUrl = () => {
+  const rawValue = process.env.REACT_APP_SITE_URL || process.env.APP_FRONTEND_URL || process.env.SITE_URL;
+  const requirePublicUrl = process.env.SEO_REQUIRE_PUBLIC_URL === 'true';
+
+  if (!rawValue) {
+    if (requirePublicUrl) {
+      throw new Error('Missing public site URL. Define REACT_APP_SITE_URL, APP_FRONTEND_URL or SITE_URL before prerendering public routes.');
+    }
+
+    return LOCAL_FALLBACK_URL;
+  }
+
+  const candidate = rawValue.trim();
 
   try {
     return new URL(candidate).origin;
   } catch {
-    return fallback;
+    if (requirePublicUrl) {
+      throw new Error(`Invalid public site URL: ${candidate}`);
+    }
+
+    return LOCAL_FALLBACK_URL;
   }
 };
 
-const siteUrl = normalizeSiteUrl(process.env.REACT_APP_SITE_URL || process.env.APP_FRONTEND_URL || process.env.SITE_URL);
+const siteUrl = resolveSiteUrl();
 const absoluteUrl = (pathname) => new URL(pathname, `${siteUrl}/`).toString();
 
 const sharedImage = '/betleague-logo.jpg';
@@ -23,7 +38,7 @@ const sharedImage = '/betleague-logo.jpg';
 const routes = [
   {
     path: '/',
-    title: 'BetLeague — Pronostic gratuit entre amis et ligue de pronostics sportifs',
+    title: 'BetLeague — Pronostics gratuits entre amis',
     description: 'BetLeague est la plateforme de pronostic gratuit entre amis pour créer une ligue de pronostics sportifs, partager vos tickets et profiter de paris sportifs gratuits dans une expérience mobile rapide et sécurisée.',
     robots: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1',
     type: 'website',
@@ -214,6 +229,7 @@ routes.forEach((route) => {
 });
 
 console.log(`Pre-rendered public routes for ${siteUrl}`);
+
 
 
 
