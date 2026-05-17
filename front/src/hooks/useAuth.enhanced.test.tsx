@@ -51,12 +51,10 @@ describe('useEnhancedAuth', () => {
 
     const { result } = renderHook(() => useEnhancedAuth(), { wrapper });
 
-    await waitFor(() => {
-      expect(restoreSessionSpy).toHaveBeenCalledTimes(1);
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.initializationComplete).toBe(false);
-      expect(result.current.isAuthenticated).toBe(false);
-    });
+    await waitFor(() => expect(restoreSessionSpy).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.initializationComplete).toBe(false);
+    expect(result.current.isAuthenticated).toBe(false);
 
     await act(async () => {
       deferred.resolve({
@@ -71,13 +69,11 @@ describe('useEnhancedAuth', () => {
       await deferred.promise;
     });
 
-    await waitFor(() => {
-      expect(result.current.initializationComplete).toBe(true);
-      expect(result.current.isAuthenticated).toBe(true);
-      expect(result.current.user).toMatchObject({
-        id: 'user-42',
-        email: 'player@example.com',
-      });
+    await waitFor(() => expect(result.current.initializationComplete).toBe(true));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user).toMatchObject({
+      id: 'user-42',
+      email: 'player@example.com',
     });
   });
 });
