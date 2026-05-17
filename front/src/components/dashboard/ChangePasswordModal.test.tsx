@@ -49,16 +49,14 @@ describe('ChangePasswordModal', () => {
   });
 
   it('appelle mutateAsync avec le payload attendu', async () => {
-    const { container } = render(<ChangePasswordModal isTwoFactorEnabled onClose={() => {}} />);
+    render(<ChangePasswordModal isTwoFactorEnabled onClose={() => {}} />);
 
     fireEvent.change(screen.getByLabelText(/mot de passe actuel/i), { target: { value: 'oldpassword' } });
     fireEvent.change(screen.getByLabelText(/nouveau mot de passe/i), { target: { value: 'newpassword' } });
     fireEvent.change(screen.getByLabelText(/confirmer/i), { target: { value: 'newpassword' } });
     fireEvent.change(screen.getByLabelText(/code 2fa/i), { target: { value: '123456' } });
 
-    const form = container.querySelector('form');
-    expect(form).toBeTruthy();
-    fireEvent.submit(form!);
+    fireEvent.click(screen.getByRole('button', { name: /mettre à jour/i }));
 
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalled());
 

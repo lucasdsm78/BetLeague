@@ -93,12 +93,25 @@ export function useAdvancedDebounce<T>(
     );
   }, [delay, maxWait]);
 
+  const cancel = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (maxTimeoutRef.current) {
+      clearTimeout(maxTimeoutRef.current);
+      maxTimeoutRef.current = null;
+    }
+    lastInvokeTimeRef.current = 0;
+    lastCallTimeRef.current = null;
+  }, []);
+
   const trailingEdge = useCallback((newValue: T) => {
     if (trailing) {
       invokeFunc(newValue);
     }
     cancel();
-  }, [trailing, invokeFunc]);
+  }, [trailing, invokeFunc, cancel]);
 
   const timerExpired = useCallback((newValue: T) => {
     const time = Date.now();
@@ -113,18 +126,6 @@ export function useAdvancedDebounce<T>(
     }
   }, [shouldInvoke, trailingEdge, remainingWait]);
 
-  const cancel = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (maxTimeoutRef.current) {
-      clearTimeout(maxTimeoutRef.current);
-      maxTimeoutRef.current = null;
-    }
-    lastInvokeTimeRef.current = 0;
-    lastCallTimeRef.current = null;
-  }, []);
 
   const flush = useCallback(() => {
     if (timeoutRef.current) {
@@ -146,7 +147,7 @@ export function useAdvancedDebounce<T>(
       if (timeoutRef.current === null) {
         leadingEdge(value);
       }
-      
+
       if (maxWait !== undefined) {
         maxTimeoutRef.current = setTimeout(() => {
           invokeFunc(value);
@@ -216,9 +217,9 @@ export function useDebouncedCallback<T extends (...args: any[]) => any>(
       callbackRef.current(...args);
       timeoutRef.current = null;
     }, delay);
-  }, [delay, cancel]) as T & { 
-    cancel: () => void; 
-    flush: () => void; 
+  }, [delay, cancel]) as T & {
+    cancel: () => void;
+    flush: () => void;
     isPending: () => boolean;
   };
 

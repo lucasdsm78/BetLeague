@@ -6,6 +6,7 @@ import { initTheme } from './theme';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
 import { GlobalToastProvider } from './toast/ToastProvider';
+import reportWebVitals from './reportWebVitals';
 
 // Appliquer le thème au plus tôt pour éviter le FOUC
 initTheme();
@@ -30,3 +31,12 @@ root.render(
     </QueryClientProvider>
   </React.StrictMode>
 );
+
+requestAnimationFrame(() => {
+  document.querySelectorAll('.prerender-shell').forEach((element) => {
+    element.parentElement?.removeChild(element);
+  });
+});
+
+reportWebVitals();
+

@@ -77,7 +77,6 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
     isLoading,
     error,
     login: storeLogin,
-    logout: storeLogout,
     setLoading,
     setError,
     clearError: storeClearError,
@@ -87,6 +86,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   // Token monitoring
   const tokenMonitor = useTokenMonitor({
+    enableAutoRefresh: autoRefresh,
     enableActivityTracking: activityTracking,
     debugMode,
     refreshThreshold: 5, // 5 minutes before expiry
@@ -95,11 +95,6 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   // Local state for additional features
   const [initializationComplete, setInitializationComplete] = useState(false);
-
-  // Global flag to prevent multiple initializations across instances
-  const [isGloballyInitialized] = useState(() => {
-    return (window as any).__AUTH_INITIALIZED__ || false;
-  });
 
   // Initialize authentication state on mount
   useEffect(() => {
@@ -259,15 +254,15 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Recover from stored token function
   const recoverFromStoredToken = useCallback(() => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   const scanLegacyTokens = useCallback((): string[] => {
     return [];
-  }, [debugMode]);
+  }, []);
 
   const attemptHydrateFromAnyStorage = useCallback((): boolean => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   const debugDumpAuth = useCallback(() => {
     const st = useAuthStore.getState();
@@ -285,7 +280,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   const hydrateFromPersistedAuthStore = useCallback((): boolean => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   return {
     // State

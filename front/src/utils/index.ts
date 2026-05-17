@@ -3,6 +3,9 @@
  * All utility functions for the BetLeague application
  */
 
+import { createLogger } from './logger';
+import SecurityUtils from './security';
+
 // Security utilities
 export {
   CSPUtils,
@@ -202,8 +205,6 @@ export const StorageUtils = {
   }
 };
 
-import { createLogger } from './logger';
-
 const logger = createLogger('utils');
 
 // Error handling utilities
@@ -250,14 +251,14 @@ export const ErrorUtils = {
   }
 };
 
-// Import default exports
-import SecurityUtils from './security';
-
 // Export all utilities as default
-export default {
+const utils = {
   CommonUtils,
   ValidationUtils,
   StorageUtils,
   ErrorUtils,
   SecurityUtils,
 };
+
+export default utils;
+

@@ -14,8 +14,11 @@
     "zustand": "^5.0.8"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "npm run seo:generate && react-scripts start",
+    "build": "npm run seo:generate && react-scripts build && npm run prerender:public",
+    "seo:generate": "node scripts/generate-seo-assets.js",
+    "prerender:public": "node scripts/prerender-public-routes.js",
+    "audit:lighthouse:mobile": "npm run build && node scripts/run-lighthouse-mobile.js",
     "test": "react-scripts test",
     "test:ci": "CI=true react-scripts test --watchAll=false",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx src",
