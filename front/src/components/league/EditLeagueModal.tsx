@@ -98,7 +98,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
 
       return undefined;
     },
-    [formData.isFree]
+    [formData.isFree, formData.maxPlayers]
   );
 
   const handleChange = useCallback(
@@ -210,7 +210,7 @@ const EditLeagueModal = memo<EditLeagueModalProps>(({ league, onClose, onSuccess
         setIsSubmitting(false);
       }
     },
-    [formData, originalData, validateField, hasChanges, league.id, onSuccess, onClose]
+    [formData, originalData, validateField, hasChanges, league.id, league.startDate, onSuccess, onClose]
   );
 
   // Fermer avec Escape

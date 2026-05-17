@@ -3,7 +3,7 @@
  * Displays tournaments for subscribed users with creation capability
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import CreateTournamentModal from './CreateTournamentModal';
 import TournamentCard from './TournamentCard';
 import TournamentJoinSuccessModal from './TournamentJoinSuccessModal';
@@ -40,7 +40,7 @@ const TournamentsSection: React.FC = () => {
   const createButtonIcon = isCreationBlocked ? '✨' : '➕';
 
   const availableQuery = useAvailableTournamentsQuery(page, pageSize, { enabled: activeTab === 'available' });
-  const tournaments = availableQuery.data?.tournaments ?? [];
+  const tournaments = useMemo(() => availableQuery.data?.tournaments ?? [], [availableQuery.data?.tournaments]);
   const totalCount = availableQuery.data?.total_count ?? 0;
   const isLoading = availableQuery.isLoading;
   const error = availableQuery.error?.message ?? null;

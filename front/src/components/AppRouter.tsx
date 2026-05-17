@@ -9,15 +9,16 @@ import { useEnhancedAuth } from 'hooks/useAuth.enhanced';
 import { useProfileMeQuery } from 'hooks/queries/useProfileQuery';
 import { useAuthStore } from 'store/authStore';
 import App from 'App';
-import LoginForm from 'components/LoginForm';
-import RegisterForm from 'components/RegisterForm';
-import DashboardLayout from 'components/DashboardLayout';
-import TwoFactorPage from 'components/TwoFactorPage';
-import TermsPage from 'pages/legal/TermsPage';
-import PrivacyPage from 'pages/legal/PrivacyPage';
-import LegalNoticePage from 'pages/legal/LegalNoticePage';
+import SeoHead from 'seo/SeoHead';
 
 // Forgot password (lazy)
+const LoginForm = React.lazy(() => import('components/LoginForm'));
+const RegisterForm = React.lazy(() => import('components/RegisterForm'));
+const DashboardLayout = React.lazy(() => import('components/DashboardLayout'));
+const TwoFactorPage = React.lazy(() => import('components/TwoFactorPage'));
+const TermsPage = React.lazy(() => import('pages/legal/TermsPage'));
+const PrivacyPage = React.lazy(() => import('pages/legal/PrivacyPage'));
+const LegalNoticePage = React.lazy(() => import('pages/legal/LegalNoticePage'));
 const ForgotPasswordRequestPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordRequestPage'));
 const ForgotPasswordVerifyPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordVerifyPage'));
 const ForgotPasswordConfirmPage = React.lazy(() => import('./auth/ForgotPassword/ForgotPasswordConfirmPage'));
@@ -151,22 +152,21 @@ const RegisterPage: React.FC = () => {
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <SeoHead />
       <Routes>
         {/* Public routes */}
         <Route
           path="/"
-          element={
-            <PublicRoute>
-              <App />
-            </PublicRoute>
-          }
+          element={<App />}
         />
 
         <Route
           path="/login"
           element={
             <PublicRoute>
-              <LoginPage />
+              <Suspense fallback={<LoadingSpinner />}>
+                <LoginPage />
+              </Suspense>
             </PublicRoute>
           }
         />
@@ -175,7 +175,9 @@ const AppRouter: React.FC = () => {
           path="/register"
           element={
             <PublicRoute>
-              <RegisterPage />
+              <Suspense fallback={<LoadingSpinner />}>
+                <RegisterPage />
+              </Suspense>
             </PublicRoute>
           }
         />
@@ -184,7 +186,9 @@ const AppRouter: React.FC = () => {
           path="/2fa"
           element={
             <PublicRoute>
-              <TwoFactorPage />
+              <Suspense fallback={<LoadingSpinner />}>
+                <TwoFactorPage />
+              </Suspense>
             </PublicRoute>
           }
         />
@@ -233,17 +237,29 @@ const AppRouter: React.FC = () => {
 
         <Route
           path="/cgu"
-          element={<TermsPage />}
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <TermsPage />
+            </Suspense>
+          }
         />
 
         <Route
           path="/confidentialite"
-          element={<PrivacyPage />}
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <PrivacyPage />
+            </Suspense>
+          }
         />
 
         <Route
           path="/mentions-legales"
-          element={<LegalNoticePage />}
+          element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <LegalNoticePage />
+            </Suspense>
+          }
         />
 
         {/* Protected Dashboard routes */}
@@ -251,11 +267,13 @@ const AppRouter: React.FC = () => {
           path="/matches"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <MatchesSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <MatchesSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -264,11 +282,13 @@ const AppRouter: React.FC = () => {
           path="/leagues"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <LeaguesSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <LeaguesSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -277,11 +297,13 @@ const AppRouter: React.FC = () => {
           path="/invitations"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <InvitationsSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <InvitationsSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -291,11 +313,13 @@ const AppRouter: React.FC = () => {
           element={
             <ProtectedRoute>
               <CommerceEnabledRoute>
-                <DashboardLayout>
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <TournamentsSection />
-                  </Suspense>
-                </DashboardLayout>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <DashboardLayout>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <TournamentsSection />
+                    </Suspense>
+                  </DashboardLayout>
+                </Suspense>
               </CommerceEnabledRoute>
             </ProtectedRoute>
           }
@@ -305,11 +329,13 @@ const AppRouter: React.FC = () => {
           path="/tickets"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <TicketsSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <TicketsSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -318,11 +344,13 @@ const AppRouter: React.FC = () => {
           path="/tickets/:ticketId"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <TicketDetailSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <TicketDetailSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -332,11 +360,13 @@ const AppRouter: React.FC = () => {
           element={
             <ProtectedRoute>
               <CommerceEnabledRoute>
-                <DashboardLayout>
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <ShopSection />
-                  </Suspense>
-                </DashboardLayout>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <DashboardLayout>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ShopSection />
+                    </Suspense>
+                  </DashboardLayout>
+                </Suspense>
               </CommerceEnabledRoute>
             </ProtectedRoute>
           }
@@ -346,11 +376,13 @@ const AppRouter: React.FC = () => {
           path="/profile"
           element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <ProfileSection />
-                </Suspense>
-              </DashboardLayout>
+              <Suspense fallback={<LoadingSpinner />}>
+                <DashboardLayout>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <ProfileSection />
+                  </Suspense>
+                </DashboardLayout>
+              </Suspense>
             </ProtectedRoute>
           }
         />

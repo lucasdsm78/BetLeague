@@ -16,7 +16,6 @@ import { deleteTicket as apiDeleteTicket } from 'services/api/tickets';
 import { useGlobalToast } from '../../toast/ToastProvider';
 import { useProfileMeQuery } from '../../hooks/queries/useProfileQuery';
 import { formatBetTypeLabel, formatChoiceLabelFr } from '../../utils/oddsLabel';
-import { useMyLeaguesQuery } from '../../hooks/queries/useLeaguesLiteQueries';
 import { getTicketContextLabel } from '../../utils/ticketContext';
 import { formatTicketAmount } from '../../utils/ticketAmount';
 
@@ -502,27 +501,6 @@ const SkeletonCard: React.FC = () => (
 
 const SERVER_FILTER_THRESHOLD = 300;
 
-function buildCompleteFilters(args: {
-  leagues: Array<{ id: number; name: string }>;
-  includeTournament: boolean;
-}): TicketFilter[] {
-  const filters: TicketFilter[] = [FILTER_ALL];
-  const sorted = [...(args.leagues ?? [])]
-    .filter((l) => l && typeof l.id === 'number' && !!String(l.name ?? '').trim())
-    .map((l) => ({ id: Number(l.id), name: String(l.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  for (const l of sorted) {
-    filters.push({ type: 'league', id: l.id, label: l.name });
-  }
-
-  if (args.includeTournament) {
-    filters.push({ type: 'tournament', label: 'Tournoi' });
-  }
-
-  return filters;
-}
-
 const TicketsSection: React.FC = memo(() => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
   const [activeFilter, setActiveFilter] = useState<TicketFilter>(FILTER_ALL);
@@ -593,12 +571,12 @@ const TicketsSection: React.FC = memo(() => {
   const inProgressQuery = filterMode.mode === 'server' ? serverInProgressQuery : clientInProgressQuery;
   const finishedQuery = filterMode.mode === 'server' ? serverFinishedQuery : clientFinishedQuery;
 
-  const tickets = inProgressQuery.data?.tickets ?? [];
+  const tickets = useMemo(() => inProgressQuery.data?.tickets ?? [], [inProgressQuery.data?.tickets]);
   const loading = inProgressQuery.isLoading;
   const error = (inProgressQuery.error as any)?.message ?? null;
   const lastUpdated = inProgressQuery.dataUpdatedAt ?? null;
 
-  const finishedTickets = finishedQuery.data?.tickets ?? [];
+  const finishedTickets = useMemo(() => finishedQuery.data?.tickets ?? [], [finishedQuery.data?.tickets]);
   const loadingFinished = finishedQuery.isLoading;
   const errorFinished = (finishedQuery.error as any)?.message ?? null;
   const lastUpdatedFinished = finishedQuery.dataUpdatedAt ?? null;
@@ -686,7 +664,7 @@ const TicketsSection: React.FC = memo(() => {
       showError('Erreur', e?.message || 'Suppression du ticket échouée');
       throw e; // pour affichage éventuel dans la modale
     }
-  }, [refetch, refetchProfile, showSuccess, showError, deleteSource, deleteTicketLabel]);
+  }, [refetchProfile, showSuccess, showError, deleteSource, deleteTicketLabel, invalidateTickets]);
 
   const handleCloseDetail = useCallback(() => {
     setIsDetailOpen(false);
@@ -697,25 +675,6 @@ const TicketsSection: React.FC = memo(() => {
     setDeleteTicketLabel('');
   }, []);
 
-  const myLeaguesQuery = useMyLeaguesQuery({ enabled: true });
-  const myLeagues = myLeaguesQuery.data ?? [];
-
-  const includeTournament = useMemo(() => {
-    // Heuristique simple et stable:
-    // - si on voit au moins un ticket tournoi dans la liste non filtrée de l’onglet
-    // - ou si l’utilisateur force le filtre tournoi via le chip actif
-    if (activeFilter.type === 'tournament') return true;
-    return allCurrentTabTickets.some((t) => t.tournament_match_summary != null);
-  }, [activeFilter.type, allCurrentTabTickets]);
-
-  const availableFilters = useMemo(() => {
-    // En mode server: chips basés sur toutes les ligues de l’utilisateur (complet).
-    // En mode client: même chose (toujours complet) + inclut tournoi si détecté.
-    return buildCompleteFilters({
-      leagues: myLeagues.map((l) => ({ id: l.id, name: l.name })),
-      includeTournament,
-    });
-  }, [myLeagues, includeTournament]);
 
   return (
     <div className="tickets-section">

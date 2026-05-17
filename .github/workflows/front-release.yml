@@ -26,6 +26,7 @@ jobs:
     env:
       FRONTEND_RELEASE_REACT_APP_API_URL: ${{ vars.FRONTEND_RELEASE_REACT_APP_API_URL }}
       FRONTEND_RELEASE_REACT_APP_DEBUG: ${{ vars.FRONTEND_RELEASE_REACT_APP_DEBUG }}
+      FRONTEND_RELEASE_REACT_APP_SITE_URL: ${{ vars.FRONTEND_RELEASE_REACT_APP_SITE_URL }}
       FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER: ${{ vars.FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER }}
     steps:
       - name: Checkout repository
@@ -43,6 +44,7 @@ jobs:
         run: |
           {
             echo "REACT_APP_API_URL=${FRONTEND_RELEASE_REACT_APP_API_URL:-https://api.betleague.app/api}"
+            echo "REACT_APP_SITE_URL=${FRONTEND_RELEASE_REACT_APP_SITE_URL:-https://betleague.app}"
             echo "REACT_APP_ENV=production"
             echo "REACT_APP_DEBUG=${FRONTEND_RELEASE_REACT_APP_DEBUG:-false}"
             echo "REACT_APP_TICKETS_SERVER_FILTER=${FRONTEND_RELEASE_REACT_APP_TICKETS_SERVER_FILTER:-false}"

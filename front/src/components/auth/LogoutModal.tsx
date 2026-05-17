@@ -4,7 +4,6 @@
  */
 
 import React, { memo, useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from '../../hooks/useAuth.enhanced';
 import { useLogout, LogoutOption } from '../../hooks/useLogout';
 import './LogoutModal.css';
@@ -61,7 +60,6 @@ const LogoutModal = memo<LogoutModalProps>(({
   showDeviceOptions = true,
   enableQuickLogout = false,
 }) => {
-  const navigate = useNavigate();
   const { user, isLoading } = useEnhancedAuth();
   const {
     logout,
@@ -70,8 +68,6 @@ const LogoutModal = memo<LogoutModalProps>(({
     progress,
     lastLogoutError,
     clearError,
-    getLogoutOptionLabel,
-    getLogoutOptionDescription,
   } = useLogout({
     autoNavigate: true,
     enableAnalytics: true,
@@ -104,7 +100,11 @@ const LogoutModal = memo<LogoutModalProps>(({
       countdownIntervalRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            logout('current', triggerReason, true);
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            void logout('current', triggerReason, true);
             return 0;
           }
           return prev - 1;
@@ -127,36 +127,6 @@ const LogoutModal = memo<LogoutModalProps>(({
       }
     };
   }, []);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      switch (event.key) {
-        case 'Escape':
-          if (!isLoggingOut && triggerReason === 'manual') {
-            onClose();
-          }
-          break;
-        case 'Enter':
-          if (document.activeElement?.getAttribute('data-logout-option')) {
-            const optionId = document.activeElement.getAttribute('data-logout-option') as LogoutOption;
-            setSelectedOption(optionId);
-            handleLogout(optionId);
-          }
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isLoggingOut, triggerReason, onClose]);
-
-  // Get the selected logout option
-  const getSelectedLogoutOption = useCallback((): LogoutOptionConfig => {
-    return LOGOUT_OPTIONS.find(option => option.id === selectedOption) || LOGOUT_OPTIONS[0];
-  }, [selectedOption]);
 
   // Get reason message based on trigger
   const getReasonMessage = useCallback((): string => {
@@ -202,10 +172,33 @@ const LogoutModal = memo<LogoutModalProps>(({
 
   // Quick logout for emergencies
   const handleQuickLogout = useCallback(async () => {
-    const success = await quickLogout();
-    if (success) {
-    }
+    await quickLogout();
   }, [quickLogout]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpen) return;
+
+      switch (event.key) {
+        case 'Escape':
+          if (!isLoggingOut && triggerReason === 'manual') {
+            onClose();
+          }
+          break;
+        case 'Enter':
+          if (document.activeElement?.getAttribute('data-logout-option')) {
+            const optionId = document.activeElement.getAttribute('data-logout-option') as LogoutOption;
+            setSelectedOption(optionId);
+            void handleLogout(optionId);
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isLoggingOut, triggerReason, onClose, handleLogout]);
 
   // Cancel logout (only for manual logouts)
   const handleCancel = useCallback(() => {
@@ -219,6 +212,7 @@ const LogoutModal = memo<LogoutModalProps>(({
 
   // Auto-logout countdown UI
   const showCountdown = triggerReason === 'security' || triggerReason === 'session_expired';
+  const selectedLogoutOption = LOGOUT_OPTIONS.find((option) => option.id === selectedOption) || LOGOUT_OPTIONS[0];
 
   return (
     <div
@@ -276,6 +270,37 @@ const LogoutModal = memo<LogoutModalProps>(({
                 <span className="user-email">{user.email}</span>
               </div>
             </div>
+          )}
+
+          {showDeviceOptions && triggerReason === 'manual' && !showConfirmation && (
+            <div className="logout-modal__options" role="radiogroup" aria-label="Choisir un type de déconnexion">
+              {LOGOUT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`logout-modal__option${selectedOption === option.id ? ' selected' : ''}`}
+                  data-logout-option={option.id}
+                  aria-pressed={selectedOption === option.id}
+                  onClick={() => {
+                    setSelectedOption(option.id);
+                    setShowConfirmation(false);
+                  }}
+                  disabled={isLoggingOut}
+                >
+                  <span aria-hidden="true">{option.icon}</span>
+                  <span>
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {triggerReason === 'manual' && !showConfirmation && (
+            <p className="logout-modal__helper">
+              Option sélectionnée : <strong>{selectedLogoutOption.label}</strong> — {selectedLogoutOption.description}
+            </p>
           )}
 
           {/* Countdown for urgent logouts */}
@@ -344,6 +369,17 @@ const LogoutModal = memo<LogoutModalProps>(({
               disabled={isLoggingOut}
             >
               Annuler
+            </button>
+          )}
+
+          {enableQuickLogout && triggerReason === 'manual' && !showConfirmation && !isLoggingOut && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleQuickLogout}
+              disabled={isLoggingOut}
+            >
+              Déconnexion rapide
             </button>
           )}
 

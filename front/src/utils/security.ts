@@ -217,9 +217,9 @@ export const SessionUtils = {
     const components = [
       navigator.userAgent,
       navigator.language,
-      screen.width,
-      screen.height,
-      screen.colorDepth,
+      window.screen.width,
+      window.screen.height,
+      window.screen.colorDepth,
       new Date().getTimezoneOffset(),
       navigator.platform,
       navigator.cookieEnabled ? '1' : '0'
@@ -396,7 +396,7 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
   enableDeviceFingerprinting: true,
 };
 
-export default {
+const securityUtils = {
   CSPUtils,
   SanitizationUtils,
   ClientRateLimiter,
@@ -406,3 +406,6 @@ export default {
   withSecurity,
   DEFAULT_SECURITY_CONFIG
 };
+
+export default securityUtils;
+

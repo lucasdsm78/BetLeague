@@ -4,7 +4,6 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useEnhancedAuth } from './useAuth.enhanced';
 import { useGlobalToast } from '../toast/ToastProvider';
 import secureApiClient from '../services/secureApiClient';
@@ -12,6 +11,14 @@ import enhancedAuthService from '../services/authService.enhanced';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useLogout');
+const PROGRESS_STAGES = {
+  idle: { percentage: 0, message: 'Prêt à se déconnecter' },
+  client_cleanup: { percentage: 20, message: 'Nettoyage des données locales...' },
+  server_request: { percentage: 50, message: 'Déconnexion du serveur...' },
+  auth_cleanup: { percentage: 80, message: 'Nettoyage de la session...' },
+  navigation: { percentage: 95, message: 'Redirection...' },
+  complete: { percentage: 100, message: 'Déconnexion terminée' },
+} as const;
 
 export type LogoutOption = 'current' | 'all_devices' | 'except_current';
 export type LogoutTrigger = 'manual' | 'inactivity' | 'security' | 'session_expired';
@@ -86,7 +93,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
   } = options;
 
   // Dependencies
-  const navigate = useNavigate();
   const { isAuthenticated } = useEnhancedAuth();
   const { showSuccess, showError } = useGlobalToast();
 
@@ -102,16 +108,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
   // Refs for cleanup
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Progress stages configuration
-  const PROGRESS_STAGES = {
-    idle: { percentage: 0, message: 'Prêt à se déconnecter' },
-    client_cleanup: { percentage: 20, message: 'Nettoyage des données locales...' },
-    server_request: { percentage: 50, message: 'Déconnexion du serveur...' },
-    auth_cleanup: { percentage: 80, message: 'Nettoyage de la session...' },
-    navigation: { percentage: 95, message: 'Redirection...' },
-    complete: { percentage: 100, message: 'Déconnexion terminée' },
-  };
 
   // Update progress with stage
   const updateProgress = useCallback((stage: LogoutProgress['stage'], customMessage?: string) => {
@@ -346,8 +342,6 @@ export const useLogout = (options: UseLogoutOptions = {}): UseLogoutReturn => {
     return success;
   }, [
     isLoggingOut,
-    isAuthenticated,
-    navigate,
     autoNavigate,
     fallbackUrl,
     onLogoutStart,
