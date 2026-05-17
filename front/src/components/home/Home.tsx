@@ -52,7 +52,7 @@ const HeroMockup = memo(() => (
         </li>
         <li>
           <span className="bl-home__mockup-rank">3</span>
-          <span className="bl-home__mockup-name">Sarah</span>
+          <span className="bl-home__mockup-name">Matthieu</span>
           <span className="bl-home__mockup-pts">965 BTL</span>
         </li>
       </ul>
@@ -175,7 +175,7 @@ const Home = memo(() => {
                   </div>
                   <div className="bl-home__preview-row">
                     <span className="bl-home__preview-medal bl-home__preview-medal--bronze">3</span>
-                    <span>Sarah</span>
+                    <span>Matthieu</span>
                     <strong>+65</strong>
                   </div>
                 </div>
