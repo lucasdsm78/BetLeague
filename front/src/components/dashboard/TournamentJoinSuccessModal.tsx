@@ -3,7 +3,7 @@
  * Displays when user successfully joins a tournament
  */
 
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useState, useCallback } from 'react';
 import type { Tournament } from '../../types/api/tournament';
 import './TournamentJoinSuccessModal.css';
 
@@ -53,10 +53,10 @@ const TournamentJoinSuccessModal: React.FC<TournamentJoinSuccessModalProps> = me
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsVisible(false);
     setTimeout(onClose, 300);
-  };
+  }, [onClose]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -67,7 +67,7 @@ const TournamentJoinSuccessModal: React.FC<TournamentJoinSuccessModalProps> = me
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [handleClose]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';

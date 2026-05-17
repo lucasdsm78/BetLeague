@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getLeagueBalanceResponse, getLeaguesBalancesBulk } from '../services/api/leagues';
+import { getLeaguesBalancesBulk } from '../services/api/leagues';
 
 export type LeagueBalances = Record<number, number>;
 
@@ -55,7 +55,6 @@ export function useLeagueBalances(
 ): UseLeagueBalancesReturn {
   const {
     autoFetch = true,
-    concurrency = 6,
     defaultBalance = 0,
   } = options;
 
@@ -94,19 +93,6 @@ export function useLeagueBalances(
     (leagueId: number) => balances[leagueId],
     [balances]
   );
-
-  const fetchOne = useCallback(async (leagueId: number): Promise<number> => {
-    // cache hit
-    if (balanceCache.has(leagueId)) return balanceCache.get(leagueId) as number;
-
-    try {
-      const dto = await getLeagueBalanceResponse(leagueId);
-      const nb = Number(dto?.nb_btl);
-      return Number.isFinite(nb) ? nb : defaultBalance;
-    } catch {
-      return defaultBalance;
-    }
-  }, [defaultBalance]);
 
   const refetch = useCallback(async () => {
     if (ids.length === 0) {
@@ -171,7 +157,7 @@ export function useLeagueBalances(
         setLoadingIds(new Set());
       }
     }
-  }, [idsKey, defaultBalance]);
+  }, [ids, defaultBalance]);
 
   useEffect(() => {
     // Hydrate depuis le cache + prune, sans boucler inutilement.
@@ -203,7 +189,7 @@ export function useLeagueBalances(
     if (autoFetch) {
       refetch().catch(() => {});
     }
-  }, [idsKey, autoFetch, refetch]);
+  }, [ids, idsKey, autoFetch, refetch]);
 
   return {
     balances,

@@ -22,7 +22,7 @@ const LoadingSpinner = () => (
 
 // Enhanced App component with automatic token refresh
 const EnhancedApp: React.FC = () => {
-  const { isLoading, error } = useEnhancedAuth({
+  const { isLoading } = useEnhancedAuth({
     autoRefresh: true,
     activityTracking: true,
     debugMode: process.env.REACT_APP_DEBUG === 'true',

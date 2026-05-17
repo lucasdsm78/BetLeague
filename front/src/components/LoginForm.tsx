@@ -315,7 +315,7 @@ const LoginForm = memo<LoginFormProps>(({ onBack, onSwitchToRegister, onLogin })
     } finally {
       setIsLoading(false);
     }
-  }, [formData, login, validateForm, attemptCount, onLogin, twoFA]);
+  }, [formData, login, validateForm, attemptCount, onLogin, twoFA, authStore, navigate]);
 
   const handleBackClick = useCallback(() => {
     // Reset form state when going back

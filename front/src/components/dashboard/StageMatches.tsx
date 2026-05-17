@@ -3,7 +3,7 @@
  * Shows all player matchups in a specific tournament stage
  */
 
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 import { useStageMatchesQuery } from '../../hooks/queries/useTournamentQueries';
 import type { StageMatch } from '../../types/api/tournament';
 import './StageMatches.css';

@@ -13,6 +13,62 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useEnhancedAuth');
 
+let authInitializationPromise: Promise<void> | null = null;
+let authInitializationResolved = false;
+let authInitializationError: AuthError | null = null;
+
+const markAuthInitializationComplete = () => {
+  authInitializationResolved = true;
+  authInitializationPromise = null;
+};
+
+const resetSharedAuthInitialization = () => {
+  authInitializationPromise = null;
+  authInitializationResolved = false;
+  authInitializationError = null;
+  (window as any).__AUTH_INITIALIZED__ = false;
+};
+
+const ensureSharedAuthInitialization = async (): Promise<void> => {
+  if (authInitializationResolved) {
+    return;
+  }
+
+  if (!authInitializationPromise) {
+    const authStore = useAuthStore.getState();
+    authStore.setLoading(true);
+    authInitializationError = null;
+    (window as any).__AUTH_INITIALIZED__ = true;
+
+    authInitializationPromise = (async () => {
+      try {
+        const restoredSession = await enhancedAuthService.restoreSession();
+        const currentAuthStore = useAuthStore.getState();
+
+        if (restoredSession) {
+          currentAuthStore.login(restoredSession.user, restoredSession.token);
+        } else if (currentAuthStore.isAuthenticated) {
+          currentAuthStore.logout();
+        }
+      } catch (error) {
+        if (error instanceof AuthError && error.isUnauthorized()) {
+          await enhancedAuthService.logout();
+        } else {
+          authInitializationError = error instanceof AuthError
+            ? error
+            : new AuthError('Erreur d\'initialisation');
+          useAuthStore.getState().setError(authInitializationError.message);
+        }
+      } finally {
+        useAuthStore.getState().setLoading(false);
+        markAuthInitializationComplete();
+      }
+    })();
+  }
+
+  await authInitializationPromise;
+};
+
 export interface UseAuthReturn {
   // State
   isAuthenticated: boolean;
@@ -76,8 +132,6 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
     user,
     isLoading,
     error,
-    login: storeLogin,
-    logout: storeLogout,
     setLoading,
     setError,
     clearError: storeClearError,
@@ -87,6 +141,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   // Token monitoring
   const tokenMonitor = useTokenMonitor({
+    enableAutoRefresh: autoRefresh,
     enableActivityTracking: activityTracking,
     debugMode,
     refreshThreshold: 5, // 5 minutes before expiry
@@ -96,49 +151,46 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Local state for additional features
   const [initializationComplete, setInitializationComplete] = useState(false);
 
-  // Global flag to prevent multiple initializations across instances
-  const [isGloballyInitialized] = useState(() => {
-    return (window as any).__AUTH_INITIALIZED__ || false;
-  });
-
   // Initialize authentication state on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
-      if (initializationComplete || (window as any).__AUTH_INITIALIZED__) {
-        if (!initializationComplete) {
+      if (initializationComplete || authInitializationResolved) {
+        if (isMounted) {
           setInitializationComplete(true);
-          setLoading(false);
         }
         return;
       }
-      (window as any).__AUTH_INITIALIZED__ = true;
-      setLoading(true);
+
       try {
-        const restoredSession = await enhancedAuthService.restoreSession();
-        if (restoredSession) {
-          storeLogin(restoredSession.user, restoredSession.token);
-        } else {
-          const authStore = useAuthStore.getState();
-          if (authStore.isAuthenticated) {
-            authStore.logout();
+        await ensureSharedAuthInitialization();
+        if (isMounted) {
+          if (authInitializationError && onError) {
+            onError(authInitializationError);
           }
+          setInitializationComplete(true);
         }
       } catch (error) {
-        if (error instanceof AuthError && error.isUnauthorized()) {
-          await enhancedAuthService.logout();
-        } else {
-          setError(error instanceof AuthError ? error.message : 'Erreur d\'initialisation');
-          if (onError && error instanceof AuthError) {
-            onError(error);
-          }
+        if (!isMounted) {
+          return;
         }
-      } finally {
-        setLoading(false);
+
+        const initError = error instanceof AuthError ? error : new AuthError('Erreur d\'initialisation');
+        setError(initError.message);
+        if (onError) {
+          onError(initError);
+        }
         setInitializationComplete(true);
       }
     };
+
     initAuth();
-  }, [initializationComplete, storeLogin, setLoading, setError, onError]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initializationComplete, setError, onError]);
 
   // Auth change callback
   useEffect(() => {
@@ -168,13 +220,15 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
       storeClearError();
       const { user: loggedInUser, token } = await enhancedAuthService.login(credentials) as any;
       if (token) {
-        storeLogin(loggedInUser, token);
+        useAuthStore.getState().login(loggedInUser, token);
       } else {
         const currentToken = enhancedAuthService.getCurrentToken();
         if (currentToken) {
-          storeLogin(loggedInUser, currentToken);
+          useAuthStore.getState().login(loggedInUser, currentToken);
         }
       }
+      markAuthInitializationComplete();
+      (window as any).__AUTH_INITIALIZED__ = true;
       setInitializationComplete(true);
       setLoading(false);
       return loggedInUser;
@@ -189,7 +243,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
       if (onError) onError(authError);
       throw authError;
     }
-  }, [storeLogin, setLoading, setError, storeClearError, onError]);
+  }, [setLoading, setError, storeClearError, onError]);
 
   // Enhanced register function - ne connecte PAS automatiquement
   const register = useCallback(async (credentials: RegisterForm): Promise<User> => {
@@ -259,15 +313,15 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
   // Recover from stored token function
   const recoverFromStoredToken = useCallback(() => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   const scanLegacyTokens = useCallback((): string[] => {
     return [];
-  }, [debugMode]);
+  }, []);
 
   const attemptHydrateFromAnyStorage = useCallback((): boolean => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   const debugDumpAuth = useCallback(() => {
     const st = useAuthStore.getState();
@@ -285,7 +339,7 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
   const hydrateFromPersistedAuthStore = useCallback((): boolean => {
     return false;
-  }, [storeLogin, debugMode, setLoading]);
+  }, []);
 
   return {
     // State
@@ -329,6 +383,10 @@ export const useEnhancedAuth = (options: UseAuthOptions = {}): UseAuthReturn => 
 
 // Backward compatibility - keep the same interface as the original useAuth
 export const useAuth = useEnhancedAuth;
+
+export const __resetSharedAuthInitializationForTests = () => {
+  resetSharedAuthInitialization();
+};
 
 // Specialized hooks for different use cases
 export const useAuthUser = () => {
