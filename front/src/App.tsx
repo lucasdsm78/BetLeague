@@ -48,7 +48,7 @@ const HomeScreen = memo(() => (
           </div>
 
           <div className="auth-buttons">
-            <Link to="/register" className="btn btn-primary btn-lg" aria-label="Créer un nouveau compte">
+            <Link to="/register" className="btn btn-primary btn-lg home-primary-cta" aria-label="Créer un nouveau compte">
               Commencer gratuitement
             </Link>
             <Link to="/login" className="btn btn-secondary btn-lg" aria-label="Se connecter à votre compte">
