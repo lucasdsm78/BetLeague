@@ -2,6 +2,12 @@
 
 FROM node:18-alpine AS build
 WORKDIR /app
+ARG REACT_APP_SITE_URL=https://app.betleague.app
+ARG APP_FRONTEND_URL=https://app.betleague.app
+ARG SITE_URL=https://app.betleague.app
+ENV REACT_APP_SITE_URL=$REACT_APP_SITE_URL
+ENV APP_FRONTEND_URL=$APP_FRONTEND_URL
+ENV SITE_URL=$SITE_URL
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm,sharing=locked npm ci --no-audit --prefer-offline
 COPY . .
