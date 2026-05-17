@@ -39,7 +39,6 @@ const AuthMonitor = memo<AuthMonitorProps>(({
     isAuthenticated,
     error,
     clearError,
-    refreshSession,
     forceRefresh,
     activityLevel,
   } = useEnhancedAuth({

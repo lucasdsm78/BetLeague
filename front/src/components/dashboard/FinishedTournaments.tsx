@@ -71,7 +71,7 @@ const FinishedTournaments: React.FC = memo(() => {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize]); // showError intentionally omitted to prevent infinite loop
+  }, [page, pageSize, showError]);
 
   const fetchFinishedTournaments = useCallback(async () => {
     setIsLoading(true);
@@ -108,7 +108,7 @@ const FinishedTournaments: React.FC = memo(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, showError]);
 
   const handlePreviousPage = useCallback(() => {
     if (page > 1) {

@@ -3,6 +3,9 @@
  * Centralized hook management for BetLeague
  */
 
+import { useAuth as useAuthHook } from './useAuth';
+import { useGlobalToast } from '../toast/ToastProvider';
+
 // Authentication hooks
 export {
   useAuth,
@@ -45,9 +48,6 @@ export {
   type UsePushNotificationsReturn,
 } from './usePushNotifications';
 
-// Hook composition utilities
-import { useAuth as useAuthHook } from './useAuth';
-import { useGlobalToast } from '../toast/ToastProvider';
 
 export const useAppInitialization = () => {
   const { isAuthenticated, isLoading } = useAuthHook();

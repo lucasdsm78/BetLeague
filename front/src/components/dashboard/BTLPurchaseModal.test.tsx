@@ -66,7 +66,7 @@ describe('BTLPurchaseModal', () => {
   it('affiche les badges marketing pour Pack Pro et Pack Elite', async () => {
     render(<BTLPurchaseModal onClose={() => {}} />);
 
-    await waitFor(() => expect(screen.getByText('Pack Pro')).toBeInTheDocument());
+    expect(await screen.findByText('Pack Pro')).toBeInTheDocument();
 
     expect(screen.getByText('Recommandé')).toBeInTheDocument();
     expect(screen.getByText('Meilleure valeur')).toBeInTheDocument();

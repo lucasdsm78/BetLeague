@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://app.betleague.app/sitemap.xml
