@@ -445,5 +445,9 @@ function formatTime(ms: number): string {
   return `${seconds}s`;
 }
 
+export const __resetSharedAuthInitializationForTests = () => {
+  resetSharedAuthInitialization();
+};
+
 export default useEnhancedAuth;
 
