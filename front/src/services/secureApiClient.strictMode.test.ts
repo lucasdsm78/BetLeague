@@ -58,16 +58,17 @@ describe('secureApiClient strict mode', () => {
       code: 'RATE_LIMITED',
     });
 
-    try {
-      await secureApiClient.post('/auth/change-password', { a: 1 }, { skipAuth: true, skipCache: true });
-    } catch (e) {
-      const err = e as ApiClientError;
-      expect(err.status).toBe(429);
-      expect(err.headers['retry-after']).toBe('60');
-      expect((err.details as any)?.detail?.code).toBe('RATE_LIMITED');
-      expect(err.code).toBe('RATE_LIMITED');
-      expect(err.message).toContain('Rate limit');
-    }
+    const capturedError = await secureApiClient
+      .post('/auth/change-password', { a: 1 }, { skipAuth: true, skipCache: true })
+      .catch((error: unknown) => error);
+
+    expect(capturedError).toBeInstanceOf(ApiClientError);
+    const err = capturedError as ApiClientError;
+    expect(err.status).toBe(429);
+    expect(err.headers['retry-after']).toBe('60');
+    expect((err.details as any)?.detail?.code).toBe('RATE_LIMITED');
+    expect(err.code).toBe('RATE_LIMITED');
+    expect(err.message).toContain('Rate limit');
   });
 
   it('throw ApiClientError sur 400 text/plain', async () => {
@@ -82,13 +83,14 @@ describe('secureApiClient strict mode', () => {
       status: 400,
     });
 
-    try {
-      await secureApiClient.get('/bad', { skipAuth: true, skipCache: true });
-    } catch (e) {
-      const err = e as ApiClientError;
-      expect(err.message).toBe('Bad request');
-      expect(err.details).toBe('Bad request');
-    }
+    const capturedError = await secureApiClient
+      .get('/bad', { skipAuth: true, skipCache: true })
+      .catch((error: unknown) => error);
+
+    expect(capturedError).toBeInstanceOf(ApiClientError);
+    const err = capturedError as ApiClientError;
+    expect(err.message).toBe('Bad request');
+    expect(err.details).toBe('Bad request');
   });
 
   it('envoie uniquement Authorization pour les requêtes authentifiées', async () => {
