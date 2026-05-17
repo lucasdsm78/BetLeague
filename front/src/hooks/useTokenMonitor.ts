@@ -11,6 +11,7 @@ export interface TokenMonitorConfig {
   refreshThreshold: number; // Minutes before expiry to refresh token
   activityTimeout: number; // Minutes of inactivity before logout
   checkInterval: number; // Seconds between token checks
+  enableAutoRefresh: boolean;
   enableActivityTracking: boolean;
   enableVisibilityTracking: boolean;
   enableOfflineDetection: boolean;
@@ -31,6 +32,7 @@ const DEFAULT_CONFIG: TokenMonitorConfig = {
   refreshThreshold: 5, // 5 minutes
   activityTimeout: 30, // 30 minutes
   checkInterval: 60, // 60 seconds
+  enableAutoRefresh: true,
   enableActivityTracking: true,
   enableVisibilityTracking: true,
   enableOfflineDetection: true,
@@ -61,6 +63,11 @@ export const useTokenMonitor = (config: Partial<TokenMonitorConfig> = {}) => {
   const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const debug = useCallback((message: string, ...args: any[]) => {
+    if (!fullConfig.debugMode) {
+      return;
+    }
+
+    console.debug('[useTokenMonitor]', message, ...args);
   }, [fullConfig.debugMode]);
 
   // Update activity level based on last activity
@@ -173,6 +180,10 @@ export const useTokenMonitor = (config: Partial<TokenMonitorConfig> = {}) => {
     debug(`Time until refresh: ${Math.round(timeUntilRefresh / 1000)}s, until expiry: ${Math.round(timeUntilExpiry / 1000)}s`);
 
     // Schedule refresh if needed
+    if (!fullConfig.enableAutoRefresh) {
+      return;
+    }
+
     if (timeUntilRefresh <= 0 && timeUntilExpiry > 0 && !state.isRefreshing) {
       debug('Token needs refresh, scheduling immediately');
       refreshToken();
@@ -187,7 +198,7 @@ export const useTokenMonitor = (config: Partial<TokenMonitorConfig> = {}) => {
         refreshToken();
       }, timeUntilRefresh);
     }
-  }, [isAuthenticated, fullConfig.refreshThreshold, state.isRefreshing, refreshToken, debug]);
+  }, [isAuthenticated, fullConfig.refreshThreshold, fullConfig.enableAutoRefresh, state.isRefreshing, refreshToken, debug]);
 
   // Main monitoring loop
   useEffect(() => {

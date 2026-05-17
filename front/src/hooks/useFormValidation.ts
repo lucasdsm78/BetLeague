@@ -5,9 +5,9 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { createLogger } from '../utils/logger';
+import type { ValidationSchema, ValidationRule } from '../types';
 
 const logger = createLogger('useFormValidation');
-import type { ValidationSchema, ValidationResult, ValidationRule } from '../types';
 
 export interface FormState<T> {
   values: T;
@@ -177,7 +177,7 @@ export const SanitizationUtils = {
   email: (value: string): string => value.toLowerCase().trim(),
 
   noSpecialChars: (value: string): string =>
-    value.replace(/[<>\/\\&"'`]/g, ''),
+    value.replace(/[<>/\\&"'`]/g, ''),
 
   alphanumeric: (value: string): string =>
     value.replace(/[^a-zA-Z0-9\s]/g, ''),
@@ -257,7 +257,6 @@ export function useFormValidation<T extends Record<string, any>>(
 
   // Validate entire form
   const validateForm = useCallback((): boolean => {
-    const newErrors: Partial<Record<keyof T, string>> = {};
     let isValid = true;
 
     Object.keys(validationSchema).forEach(key => {

@@ -631,7 +631,7 @@ interface ProfileSectionProps {
   onLogout?: () => void;
 }
 
-const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
+const ProfileSection = memo<ProfileSectionProps>(() => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isBTLPurchaseModalOpen, setIsBTLPurchaseModalOpen] = useState(false);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
@@ -681,11 +681,6 @@ const ProfileSection = memo<ProfileSectionProps>(({ onLogout }) => {
     setActiveTab('account');
   }, []);
 
-  const handleLogout = useCallback(() => {
-    if (onLogout) {
-      onLogout();
-    }
-  }, [onLogout]);
 
   const handleOpenBTLPurchase = useCallback(() => {
     setIsBTLPurchaseModalOpen(true);

@@ -41,7 +41,7 @@ const TournamentStages: React.FC<TournamentStagesProps> = memo(({ tournamentId, 
   const { showError } = useGlobalToast();
 
   const stagesQuery = useTournamentStagesQuery(tournamentId);
-  const stages: TournamentStage[] = stagesQuery.data?.stages || [];
+  const stages: TournamentStage[] = useMemo(() => stagesQuery.data?.stages ?? [], [stagesQuery.data?.stages]);
   const isLoading = stagesQuery.isLoading;
   const error = stagesQuery.error?.message ?? null;
 
