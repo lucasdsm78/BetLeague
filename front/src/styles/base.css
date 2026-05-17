@@ -48,6 +48,10 @@ body {
   width: 100%;
 }
 
+html.hydrated .prerender-shell {
+  display: none;
+}
+
 img, picture, video, canvas, svg {
   display: block;
   max-width: 100%;

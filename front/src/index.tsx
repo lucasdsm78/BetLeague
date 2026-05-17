@@ -33,6 +33,7 @@ root.render(
 );
 
 requestAnimationFrame(() => {
+  document.documentElement.classList.add('hydrated');
   document.querySelectorAll('.prerender-shell').forEach((element) => {
     element.parentElement?.removeChild(element);
   });

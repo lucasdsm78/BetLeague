@@ -15,7 +15,7 @@
   },
   "scripts": {
     "start": "npm run seo:generate && react-scripts start",
-    "build": "npm run seo:generate && react-scripts build && npm run prerender:public",
+    "build": "SEO_REQUIRE_PUBLIC_URL=true npm run seo:generate && react-scripts build && SEO_REQUIRE_PUBLIC_URL=true npm run prerender:public",
     "seo:generate": "node scripts/generate-seo-assets.js",
     "prerender:public": "node scripts/prerender-public-routes.js",
     "audit:lighthouse:mobile": "npm run build && node scripts/run-lighthouse-mobile.js",
