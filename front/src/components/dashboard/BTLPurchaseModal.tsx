@@ -125,7 +125,7 @@ const BTLPurchaseModal: React.FC<BTLPurchaseModalProps> = memo(({
     } finally {
       setPurchasing(false);
     }
-  }, [isBTLPurchaseEnabled, selectedPack]);
+  }, [isBTLPurchaseEnabled, selectedPack, purchasing]);
 
   const handlePackSelect = useCallback((pack: Pack) => {
     setSelectedPack(pack);

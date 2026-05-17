@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /2fa
+Disallow: /forgot-password
+Disallow: /matches
+Disallow: /leagues
+Disallow: /invitations
+Disallow: /tournaments
+Disallow: /tickets
+Disallow: /shop
+Disallow: /profile
+Sitemap: http://localhost:3000/sitemap.xml
