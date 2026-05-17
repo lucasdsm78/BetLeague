@@ -10,7 +10,7 @@ const getCanonical = () => document.head.querySelector('link[rel="canonical"]')?
 
 describe('SeoHead', () => {
   beforeEach(() => {
-    process.env.REACT_APP_SITE_URL = 'https://betleague.app';
+    process.env.REACT_APP_SITE_URL = 'https://app.betleague.app';
     document.title = 'Test';
     document.head.querySelector('meta[name="description"]')?.remove();
     document.head.querySelector('meta[name="robots"]')?.remove();
@@ -30,7 +30,7 @@ describe('SeoHead', () => {
     expect(document.title).toContain('BetLeague');
     expect(getMeta('meta[name="robots"]')).toContain('index,follow');
     expect(getMeta('meta[property="og:title"]')).toContain('BetLeague');
-    expect(getCanonical()).toBe('https://betleague.app/');
+    expect(getCanonical()).toBe('https://app.betleague.app/');
     expect(document.head.querySelector('script[data-betleague-seo="json-ld"]')).toBeInTheDocument();
   });
 
@@ -43,7 +43,7 @@ describe('SeoHead', () => {
 
     expect(getMeta('meta[name="robots"]')).toBe('noindex,nofollow,noarchive');
     expect(getMeta('meta[name="description"]')).toContain('Zone privée');
-    expect(getCanonical()).toBe('https://betleague.app/matches');
+    expect(getCanonical()).toBe('https://app.betleague.app/matches');
   });
 
   it('applique noindex sur un ticket partagé public', () => {
@@ -55,7 +55,7 @@ describe('SeoHead', () => {
 
     expect(getMeta('meta[name="robots"]')).toBe('noindex,nofollow,noarchive');
     expect(getMeta('meta[name="twitter:title"]')).toContain('Ticket partagé');
-    expect(getCanonical()).toBe('https://betleague.app/tickets/shared/abc-123');
+    expect(getCanonical()).toBe('https://app.betleague.app/tickets/shared/abc-123');
   });
 });
 
