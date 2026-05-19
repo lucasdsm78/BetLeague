@@ -1,6 +1,6 @@
-# Migration de dump Neon → Supabase — BetLeague
+# Migration de dump entre Neon et Supabase — BetLeague
 
-Ce guide décrit la procédure recommandée pour **exporter la base PostgreSQL primaire hébergée sur Neon** puis **la restaurer dans Supabase** afin de préparer ou tester la base secondaire de BetLeague.
+Ce guide décrit la procédure recommandée pour **exporter une base PostgreSQL source** puis **la restaurer dans une base PostgreSQL cible** afin de préparer, tester ou exécuter une bascule BetLeague entre **Neon** et **Supabase**.
 
 Il complète :
 
@@ -11,11 +11,14 @@ Il complète :
 
 ## Objectif
 
-Le but est de produire un dump fiable depuis **Neon** puis de le restaurer dans **Supabase** pour :
+Le but est de produire un dump fiable depuis une **base source** puis de le restaurer dans une **base cible** pour :
 
 - préparer une base secondaire de secours,
 - valider la procédure de reprise,
-- tester la future bascule manuelle par secrets + redéploiement.
+- tester la future bascule manuelle par secrets + redéploiement,
+- couvrir explicitement les deux sens de migration :
+  - **Sens A : Neon -> Supabase**
+  - **Sens B : Supabase -> Neon**
 
 ---
 
@@ -48,17 +51,33 @@ Donc :
 - migrations → direct préférable
 - dump / restore → **direct obligatoire de préférence**
 
+## 1.1 Sens explicitement couverts
+
+Ce guide couvre les deux variantes suivantes :
+
+- **Sens A : Neon -> Supabase**
+  - `SOURCE_DATABASE_URL` = URL directe Neon
+  - `TARGET_DATABASE_URL` = URL directe Supabase
+- **Sens B : Supabase -> Neon**
+  - `SOURCE_DATABASE_URL` = URL directe Supabase
+  - `TARGET_DATABASE_URL` = URL directe Neon
+
+Dans toute la suite du document :
+
+- `SOURCE_DATABASE_URL` = base depuis laquelle on exporte
+- `TARGET_DATABASE_URL` = base dans laquelle on restaure
+
 ---
 
 ## 2. Pré-requis
 
 Avant de lancer la migration :
 
-- un projet Supabase existe déjà
-- les connection strings Supabase ont été récupérées
+- les deux providers existent déjà et sont accessibles si tu fais un test bidirectionnel
+- les connection strings utiles ont été récupérées
 - tu connais :
-  - l’URL directe Neon source
-  - l’URL directe Supabase cible
+  - l’URL directe de la base source
+  - l’URL directe de la base cible
 - `pg_dump` et `pg_restore` sont installés sur la machine d’administration
 - tu disposes de suffisamment d’espace disque local pour stocker le dump
 
@@ -115,15 +134,23 @@ Idéalement, utilise une version cliente PostgreSQL **égale ou supérieure** à
 
 ## 3. Informations à récupérer
 
-## 3.1 Source Neon
+## 3.1 Base source
 
-Tu dois disposer d’une **URL directe** source, par exemple :
+Tu dois disposer d’une **URL directe** source, selon le sens choisi.
+
+### Sens A : source Neon
 
 ```text
 postgresql://user:password@ep-xxxx.eu-west-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-### Retour d’expérience réel
+### Sens B : source Supabase
+
+```text
+postgresql://postgres.xxxxx:password@db.xxxxx.supabase.co:5432/postgres?sslmode=require
+```
+
+### Retour d’expérience réel côté Neon
 
 Le premier test a été fait par erreur sur un host `-pooler`, avec un message de type :
 
@@ -138,15 +165,25 @@ Ce message confirmait deux choses :
 
 Pour `pg_dump`, il faut donc utiliser l’**endpoint direct Neon**, pas l’endpoint pooler.
 
-## 3.2 Cible Supabase
+## 3.2 Base cible
 
-Tu dois disposer d’une **URL directe** cible, par exemple :
+Tu dois disposer d’une **URL directe** cible, selon le sens choisi.
+
+### Sens A : cible Supabase
 
 ```text
 postgresql://postgres.xxxxx:password@aws-0-eu-west-3.pooler.supabase.com:5432/postgres
 ```
 
 > Si Supabase ne te donne qu’un pooler visible dans l’UI, cherche bien l’onglet ou la section **direct connection**. Pour `pg_restore`, le direct est préférable.
+
+### Sens B : cible Neon
+
+```text
+postgresql://user:password@ep-xxxx.eu-west-1.aws.neon.tech/neondb?sslmode=require
+```
+
+> Pour une restauration vers Neon, privilégie également l’endpoint **direct** et non le host `-pooler`.
 
 ---
 
@@ -180,22 +217,38 @@ Avantages :
 Travaille avec des variables temporaires locales.
 
 ```zsh
-export NEON_DIRECT_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
-export SUPABASE_DIRECT_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
-export BETLEAGUE_DUMP_FILE="$HOME/betleague-neon-$(date +%Y%m%d-%H%M%S).dump"
+export SOURCE_DATABASE_URL='postgresql://USER:PASSWORD@SOURCE_DIRECT_HOST:5432/source_db?sslmode=require'
+export TARGET_DATABASE_URL='postgresql://USER:PASSWORD@TARGET_DIRECT_HOST:5432/target_db?sslmode=require'
+export BETLEAGUE_DUMP_FILE="$HOME/betleague-db-migration-$(date +%Y%m%d-%H%M%S).dump"
 ```
 
 > N’enregistre pas ces valeurs en clair dans le dépôt.
 
+### Mapping rapide
+
+#### Sens A : Neon -> Supabase
+
+```zsh
+export SOURCE_DATABASE_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
+export TARGET_DATABASE_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
+```
+
+#### Sens B : Supabase -> Neon
+
+```zsh
+export SOURCE_DATABASE_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
+export TARGET_DATABASE_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
+```
+
 ---
 
-## 6. Étape 1 — Vérifier la connexion à Neon
+## 6. Étape 1 — Vérifier la connexion à la base source
 
 Avant le dump :
 
 ```zsh
-psql "$NEON_DIRECT_URL" -c 'SELECT now();'
-psql "$NEON_DIRECT_URL" -c 'SELECT current_database();'
+psql "$SOURCE_DATABASE_URL" -c 'SELECT now();'
+psql "$SOURCE_DATABASE_URL" -c 'SELECT current_database();'
 ```
 
 Si cela échoue, ne lance pas `pg_dump`.
@@ -211,12 +264,12 @@ ERROR: Your account or project has exceeded the compute time quota.
 Dans ce cas :
 
 - le problème ne vient pas de `psql` local,
-- le dump est impossible tant que Neon refuse les connexions,
+- le dump est impossible tant que **la base source** refuse les connexions,
 - il faut attendre le reset du quota ou réactiver temporairement le compute côté Neon.
 
 ---
 
-## 7. Étape 2 — Créer le dump depuis Neon
+## 7. Étape 2 — Créer le dump depuis la base source
 
 Commande recommandée :
 
@@ -227,7 +280,7 @@ pg_dump \
   --no-owner \
   --no-privileges \
   --file "$BETLEAGUE_DUMP_FILE" \
-  "$NEON_DIRECT_URL"
+  "$SOURCE_DATABASE_URL"
 ```
 
 ### Explication
@@ -276,20 +329,20 @@ Pour BetLeague, la cible utile de reprise reste le schéma `public`.
 
 ---
 
-## 9. Étape 4 — Vérifier la connexion à Supabase
+## 9. Étape 4 — Vérifier la connexion à la base cible
 
 Avant restauration :
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT now();'
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT current_database();'
+psql "$TARGET_DATABASE_URL" -c 'SELECT now();'
+psql "$TARGET_DATABASE_URL" -c 'SELECT current_database();'
 ```
 
 Si cela échoue, ne restaure pas.
 
 ---
 
-## 10. Étape 5 — Préparer Supabase pour la restauration
+## 10. Étape 5 — Préparer la base cible pour la restauration
 
 Selon ton usage, tu peux :
 
@@ -302,7 +355,7 @@ Fais d’abord un test sur une cible non critique si possible.
 
 ### Attention
 
-Supabase est un PostgreSQL managé ; certains rôles ou paramètres source peuvent ne pas exister côté cible.
+Le provider cible peut avoir des rôles, paramètres, extensions ou restrictions réseau différents de la source.
 
 C’est pour cela qu’on utilise :
 
@@ -311,7 +364,7 @@ C’est pour cela qu’on utilise :
 
 ---
 
-## 11. Étape 6 — Restaurer dans Supabase
+## 11. Étape 6 — Restaurer dans la base cible
 
 Commande recommandée :
 
@@ -323,7 +376,7 @@ pg_restore \
   --no-owner \
   --no-privileges \
   --schema=public \
-  --dbname "$SUPABASE_DIRECT_URL" \
+  --dbname "$TARGET_DATABASE_URL" \
   "$BETLEAGUE_DUMP_FILE"
 ```
 
@@ -338,7 +391,7 @@ pg_restore \
 
 Dans le retour d’expérience réel, le dump Neon contenait aussi le schéma `neon_auth`.
 
-Pour une base secondaire BetLeague sur Supabase, la recommandation opérationnelle est :
+Pour une base secondaire BetLeague, la recommandation opérationnelle est :
 
 - restaurer le schéma métier `public`,
 - ne pas tenter de réimporter `neon_auth` sauf besoin spécifique explicitement identifié.
@@ -350,19 +403,19 @@ Pour une base secondaire BetLeague sur Supabase, la recommandation opérationnel
 ### Vérifier que les tables existent
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c '\dt'
+psql "$TARGET_DATABASE_URL" -c '\dt'
 ```
 
 ### Vérifier `alembic_version`
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT * FROM alembic_version;'
+psql "$TARGET_DATABASE_URL" -c 'SELECT * FROM alembic_version;'
 ```
 
 ### Vérifier que les tables métier principales sont bien dans `public`
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c '\dt public.*'
+psql "$TARGET_DATABASE_URL" -c '\dt public.*'
 ```
 
 ### Vérifier quelques volumes de données
@@ -370,22 +423,24 @@ psql "$SUPABASE_DIRECT_URL" -c '\dt public.*'
 Exemples :
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT count(*) FROM "user";'
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT count(*) FROM league;'
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT count(*) FROM ticket;'
+psql "$TARGET_DATABASE_URL" -c 'SELECT count(*) FROM "user";'
+psql "$TARGET_DATABASE_URL" -c 'SELECT count(*) FROM league;'
+psql "$TARGET_DATABASE_URL" -c 'SELECT count(*) FROM ticket;'
 ```
 
 ### Vérifier l’heure côté cible
 
 ```zsh
-psql "$SUPABASE_DIRECT_URL" -c 'SELECT now();'
+psql "$TARGET_DATABASE_URL" -c 'SELECT now();'
 ```
 
 ---
 
-## 13. Étape 8 — Mapper les URLs BetLeague vers Supabase
+## 13. Étape 8 — Mapper les URLs BetLeague vers le provider cible
 
-Une fois la restauration validée, prépare les secrets secondaires de BetLeague.
+Une fois la restauration validée, prépare les secrets BetLeague correspondant au provider désormais actif.
+
+### Sens A : Neon -> Supabase
 
 ### Runtime
 Dans `backend.env.secondary` :
@@ -404,9 +459,26 @@ ALEMBIC_DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@SUPABASE_DIRECT_HOST:POR
 
 > Si tu n’as pas encore deux endpoints distincts bien identifiés, tu peux temporairement utiliser l’URL directe des deux côtés pour les tests, puis optimiser ensuite.
 
+### Sens B : Supabase -> Neon
+
+### Runtime
+Dans `backend.env` ou `backend.env.secondary` selon ton scénario :
+
+```dotenv
+SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@NEON_RUNTIME_HOST:PORT/neondb
+SQLALCHEMY_SSL_MODE=verify-full
+```
+
+### Migrations
+Dans `migrations.env` ou `migrations.env.secondary` selon ton scénario :
+
+```dotenv
+ALEMBIC_DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@NEON_DIRECT_HOST:PORT/neondb
+```
+
 ---
 
-## 14. Étape 9 — Tester BetLeague sur Supabase
+## 14. Étape 9 — Tester BetLeague sur le provider cible
 
 Après mise à jour des secrets, les vérifications minimales sont :
 
@@ -448,7 +520,7 @@ C’est pourquoi on évite de restaurer :
 
 Certaines extensions présentes côté source peuvent :
 
-- être déjà gérées par Supabase,
+- être déjà gérées par le provider cible,
 - être absentes,
 - nécessiter une adaptation.
 
@@ -474,15 +546,13 @@ Pour une base volumineuse :
 
 ## 16. Exemple complet prêt à copier
 
-### Variables
+### Sens A : Neon -> Supabase
 
 ```zsh
-export NEON_DIRECT_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
-export SUPABASE_DIRECT_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
-export BETLEAGUE_DUMP_FILE="$HOME/betleague-neon-$(date +%Y%m%d-%H%M%S).dump"
+export SOURCE_DATABASE_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
+export TARGET_DATABASE_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
+export BETLEAGUE_DUMP_FILE="$HOME/betleague-neon-to-supabase-$(date +%Y%m%d-%H%M%S).dump"
 ```
-
-### Dump
 
 ```zsh
 pg_dump \
@@ -491,16 +561,12 @@ pg_dump \
   --no-owner \
   --no-privileges \
   --file "$BETLEAGUE_DUMP_FILE" \
-  "$NEON_DIRECT_URL"
+  "$SOURCE_DATABASE_URL"
 ```
-
-### Vérification
 
 ```zsh
 pg_restore --list "$BETLEAGUE_DUMP_FILE" | head -n 40
 ```
-
-### Restore
 
 ```zsh
 pg_restore \
@@ -510,7 +576,41 @@ pg_restore \
   --no-owner \
   --no-privileges \
   --schema=public \
-  --dbname "$SUPABASE_DIRECT_URL" \
+  --dbname "$TARGET_DATABASE_URL" \
+  "$BETLEAGUE_DUMP_FILE"
+```
+
+### Sens B : Supabase -> Neon
+
+```zsh
+export SOURCE_DATABASE_URL='postgresql://USER:PASSWORD@SUPABASE_DIRECT_HOST:5432/postgres?sslmode=require'
+export TARGET_DATABASE_URL='postgresql://USER:PASSWORD@NEON_DIRECT_HOST:5432/neondb?sslmode=require'
+export BETLEAGUE_DUMP_FILE="$HOME/betleague-supabase-to-neon-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+```zsh
+pg_dump \
+  --format=custom \
+  --verbose \
+  --no-owner \
+  --no-privileges \
+  --file "$BETLEAGUE_DUMP_FILE" \
+  "$SOURCE_DATABASE_URL"
+```
+
+```zsh
+pg_restore --list "$BETLEAGUE_DUMP_FILE" | head -n 40
+```
+
+```zsh
+pg_restore \
+  --verbose \
+  --clean \
+  --if-exists \
+  --no-owner \
+  --no-privileges \
+  --schema=public \
+  --dbname "$TARGET_DATABASE_URL" \
   "$BETLEAGUE_DUMP_FILE"
 ```
 
@@ -518,14 +618,15 @@ pg_restore \
 
 ## 17. Check-list finale
 
-Avant de déclarer “Neon → Supabase prêt” :
+Avant de déclarer une migration inter-provider prête :
 
-- [ ] dump Neon réussi
+- [ ] sens choisi explicitement confirmé (`Neon -> Supabase` ou `Supabase -> Neon`)
+- [ ] dump de la base source réussi
 - [ ] dump vérifié localement
-- [ ] restore Supabase réussi
+- [ ] restore de la base cible réussi
 - [ ] `alembic_version` cohérente
 - [ ] volumes de données plausibles
-- [ ] secrets BetLeague secondaires mis à jour
+- [ ] secrets BetLeague correspondant au provider cible mis à jour
 - [ ] `/ready` OK après test
 - [ ] tests métier OK
 
@@ -540,7 +641,7 @@ Avant de déclarer “Neon → Supabase prêt” :
 
 Si tu veux aller encore plus loin, l’étape suivante logique est d’ajouter :
 
-- un script shell `dump_neon_to_supabase.sh`,
-- ou un guide de test de bascule complet BetLeague sur Supabase.
+- un script shell générique `dump_provider_to_provider.sh`,
+- ou un guide de test de bascule complet BetLeague entre Neon et Supabase.
 
 
