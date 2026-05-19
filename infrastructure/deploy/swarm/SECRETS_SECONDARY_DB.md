@@ -161,6 +161,24 @@ Donc :
 - si DB interne privée sans TLS → `disable`
 - si DB externe TLS correctement certifiée → `verify-full`
 
+### CA privée / certificat autosigné
+Si la DB externe utilise bien TLS mais présente une **CA privée** (ou une chaîne incluant un certificat autosigné), garde :
+
+```dotenv
+SQLALCHEMY_SSL_MODE=verify-full
+```
+
+et ajoute aussi le certificat racine dans l'env file concerné, sur **une seule ligne** avec des retours à la ligne échappés :
+
+```dotenv
+SQLALCHEMY_SSL_ROOT_CERT=-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----
+```
+
+Tu peux mettre cette variable :
+
+- dans `backend.env.secondary.example` si le runtime applicatif utilise aussi cette CA,
+- ou uniquement dans `migrations.env.secondary.example` si seule la connexion Alembic en a besoin.
+
 ---
 
 ## 7. Valeurs concrètes à préparer

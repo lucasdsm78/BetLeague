@@ -13,6 +13,11 @@ def strip_optional_wrapping_quotes(value: str) -> str:
     return normalized
 
 
+def normalize_escaped_newlines(value: str) -> str:
+    normalized = strip_optional_wrapping_quotes(value)
+    return normalized.replace("\\r\\n", "\\n").replace("\\n", "\n")
+
+
 class DatabaseSettings(BaseSettings):
     sqlalchemy_database_url: str
     alembic_database_url: str | None = Field(default=None, validation_alias="ALEMBIC_DATABASE_URL")
@@ -25,6 +30,7 @@ class DatabaseSettings(BaseSettings):
     sqlalchemy_command_timeout_seconds: int = Field(default=30, validation_alias="SQLALCHEMY_COMMAND_TIMEOUT")
     sqlalchemy_ssl_mode: str = Field(default="", validation_alias="SQLALCHEMY_SSL_MODE")
     sqlalchemy_ssl_root_cert_path: str = Field(default="", validation_alias="SQLALCHEMY_SSL_ROOT_CERT_PATH")
+    sqlalchemy_ssl_root_cert: str = Field(default="", validation_alias="SQLALCHEMY_SSL_ROOT_CERT")
     sqlalchemy_disable_jit: bool = Field(default=True, validation_alias="SQLALCHEMY_DISABLE_JIT")
     sqlalchemy_application_name: str = Field(default="betleague-api", validation_alias="SQLALCHEMY_APPLICATION_NAME")
 
@@ -42,9 +48,17 @@ class DatabaseSettings(BaseSettings):
             return value
         return strip_optional_wrapping_quotes(value)
 
+    @field_validator("sqlalchemy_ssl_root_cert", mode="before")
+    @classmethod
+    def normalize_sqlalchemy_ssl_root_cert(cls, value: str | None) -> str | None:
+        if not isinstance(value, str):
+            return value
+        return normalize_escaped_newlines(value)
+
     class Config:
         env_file = ".env"
         extra = "ignore"
+        populate_by_name = True
 
 
 class Settings(BaseSettings):
@@ -59,6 +73,7 @@ class Settings(BaseSettings):
     sqlalchemy_command_timeout_seconds: int = Field(default=30, validation_alias="SQLALCHEMY_COMMAND_TIMEOUT")
     sqlalchemy_ssl_mode: str = Field(default="", validation_alias="SQLALCHEMY_SSL_MODE")
     sqlalchemy_ssl_root_cert_path: str = Field(default="", validation_alias="SQLALCHEMY_SSL_ROOT_CERT_PATH")
+    sqlalchemy_ssl_root_cert: str = Field(default="", validation_alias="SQLALCHEMY_SSL_ROOT_CERT")
     sqlalchemy_disable_jit: bool = Field(default=True, validation_alias="SQLALCHEMY_DISABLE_JIT")
     sqlalchemy_application_name: str = Field(default="betleague-api", validation_alias="SQLALCHEMY_APPLICATION_NAME")
     json_logs: bool | None = Field(default=None, validation_alias="JSON_LOGS")
@@ -157,16 +172,12 @@ class Settings(BaseSettings):
             return value
         return strip_optional_wrapping_quotes(value)
 
-    @field_validator("private_key", "public_key", mode="before")
+    @field_validator("private_key", "public_key", "sqlalchemy_ssl_root_cert", mode="before")
     @classmethod
-    def normalize_pem_env(cls, value: str) -> str:
+    def normalize_multiline_secret_env(cls, value: str) -> str:
         if not isinstance(value, str):
             return value
-
-        normalized = strip_optional_wrapping_quotes(value)
-
-        normalized = normalized.replace("\\r\\n", "\\n").replace("\\n", "\n")
-        return normalized
+        return normalize_escaped_newlines(value)
 
     @field_validator("api_sports_league_ids", mode="before")
     @classmethod
@@ -286,3 +297,4 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         extra = "ignore"
+        populate_by_name = True

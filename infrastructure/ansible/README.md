@@ -201,7 +201,7 @@ Le rôle applique aussi un garde-fou anti rate-limit : tant que `betleague_letse
 
 Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy` via un conteneur one-shot lancé en `--network host`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée tout en gardant la même connectivité DB que l’hôte.
 
-Pour PostgreSQL managé sur Neon, le runtime applicatif utilise désormais un endpoint **pooler** via `SQLALCHEMY_DATABASE_URL`, tandis que les migrations Alembic utilisent un endpoint **direct** séparé injecté via le secret `MIGRATIONS_ENV`. Cela évite d’exposer les credentials DDL aux services runtime tout en gardant un tuning SQLAlchemy adapté à Neon (`verify-full`, `pool_recycle`, `pool_timeout`, `command_timeout`, `application_name`).
+Pour PostgreSQL managé sur Neon, le runtime applicatif utilise désormais un endpoint **pooler** via `SQLALCHEMY_DATABASE_URL`, tandis que les migrations Alembic utilisent un endpoint **direct** séparé injecté via le secret `MIGRATIONS_ENV`. Cela évite d’exposer les credentials DDL aux services runtime tout en gardant un tuning SQLAlchemy adapté à Neon (`verify-full`, `pool_recycle`, `pool_timeout`, `command_timeout`, `application_name`). Si l’endpoint direct de migrations présente une CA privée / chaîne autosignée, `MIGRATIONS_ENV` peut aussi surcharger `SQLALCHEMY_SSL_ROOT_CERT` (PEM sur une ligne avec `\n` échappés) sans impacter les services runtime.
 
 Le playbook `release_swarm.yml`, lui, est dédié aux releases applicatives d’une stack déjà en place. Il :
 
