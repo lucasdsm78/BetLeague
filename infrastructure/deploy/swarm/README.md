@@ -135,7 +135,7 @@ Adapte en particulier :
 Avec **Neon**, la stratégie recommandée est :
 
 - `SQLALCHEMY_DATABASE_URL` → **endpoint poolé** Neon pour le runtime applicatif (`backend`, `celery`, `outbox`)
-- `migrations.env` / `MIGRATIONS_ENV` → contient uniquement `ALEMBIC_DATABASE_URL`, sur **endpoint direct** Neon pour les migrations Alembic
+- `migrations.env` / `MIGRATIONS_ENV` → contient `ALEMBIC_DATABASE_URL`, sur **endpoint direct** Neon pour les migrations Alembic, et peut surcharger `SQLALCHEMY_SSL_MODE` / `SQLALCHEMY_SSL_ROOT_CERT` si ce chemin de connexion utilise une CA privée
 
 Cela permet de garder une bonne élasticité côté application tout en évitant les surprises liées au pooler transactionnel pendant les migrations de schéma.
 
