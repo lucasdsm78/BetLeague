@@ -199,14 +199,14 @@ Par défaut, ce rôle émet maintenant les certificats Let’s Encrypt en **ECDS
 
 Le rôle applique aussi un garde-fou anti rate-limit : tant que `betleague_letsencrypt_staging=true` n'a pas été validé de bout en bout, une émission directe Let’s Encrypt production est refusée sauf si tu assumes explicitement le risque avec `betleague_letsencrypt_acked_production=true`.
 
-Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée.
+Le rôle `swarm_stack` précharge aussi les images backend/frontend visées, applique `./scripts/run_migrations.sh` **avant** `docker stack deploy` via un conteneur one-shot lancé en `--network host`, puis laisse Swarm effectuer le rolling update applicatif. Ce séquencement est nécessaire pour éviter une coupure backend lors d’une release versionnée tout en gardant la même connectivité DB que l’hôte.
 
 Pour PostgreSQL managé sur Neon, le runtime applicatif utilise désormais un endpoint **pooler** via `SQLALCHEMY_DATABASE_URL`, tandis que les migrations Alembic utilisent un endpoint **direct** séparé injecté via le secret `MIGRATIONS_ENV`. Cela évite d’exposer les credentials DDL aux services runtime tout en gardant un tuning SQLAlchemy adapté à Neon (`verify-full`, `pool_recycle`, `pool_timeout`, `command_timeout`, `application_name`).
 
 Le playbook `release_swarm.yml`, lui, est dédié aux releases applicatives d’une stack déjà en place. Il :
 
 1. vérifie l’existence des images cibles
-2. déclenche le service one-shot `<stack>_migrations` (par défaut `betleague_migrations`)
+2. déclenche le service one-shot `<stack>_migrations` (par défaut `betleague_migrations`), rattaché à `edge` + `app` pour conserver l’egress DB
 3. attend sa fin avec succès
 4. effectue ensuite un rolling update séquencé de `backend`, puis des workers (`celery_worker`, `celery_beat`, `outbox_worker`), puis de `frontend`
 5. termine par des smoke tests HTTP sur l’API et le frontend

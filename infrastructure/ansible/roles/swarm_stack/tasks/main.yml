@@ -7,8 +7,11 @@
   # Avec un bind mount Docker classique, ils restent lisibles uniquement par root dans le conteneur.
   # Contrairement aux secrets Swarm, on ne peut pas définir ici uid/gid/mode par fichier.
   # On exécute donc ce conteneur one-shot en root pour lire les env files avant le déploiement de la stack.
+  # Le mode `host` évite aussi les écarts de routage/NAT entre le bridge Docker par défaut et l'hôte,
+  # ce qui fiabilise l'accès aux bases managées/privées avant `docker stack deploy`.
   ansible.builtin.command: >-
     docker run --rm
+    --network host
     --user 0:0
     --env TMPDIR={{ betleague_swarm_python_temp }}
     --env TEMP={{ betleague_swarm_python_temp }}

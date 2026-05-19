@@ -26,7 +26,7 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 - secrets Docker Swarm pour les données sensibles
 - configs Docker Swarm pour les fichiers non sensibles
 - réseau `overlay` interne dédié à l'application
-- le réseau `app` reste `internal: true`; tout service ayant besoin d’egress vers des dépendances managées/externe (ex. Neon, API-Sports) doit aussi être rattaché au réseau `edge`
+- le réseau `app` reste `internal: true`; tout service ayant besoin d’egress vers des dépendances managées/externe (ex. Neon, API-Sports) doit aussi être rattaché au réseau `edge` — c’est notamment le cas du service one-shot `migrations`
 - publication publique limitée au reverse proxy `edge`
 - `read_only`, `tmpfs`, `cap_drop: ALL`, utilisateurs non-root, permissions strictes sur les secrets Docker (`0400`)
 - healthchecks, limites mémoire/CPU/PIDs, rolling updates avec rollback, `stop_grace_period` explicites pour les services sensibles
@@ -52,11 +52,31 @@ Les recommandations de ce bundle ont été recoupées avec les pages Docker offi
 
 ```text
 infrastructure/deploy/swarm/
+├── MIGRATION_NEON_TO_SUPABASE.md
+├── SECRETS_SECONDARY_DB.md
+├── RUNBOOK_DB_FAILOVER.md
 ├── stack.prod.yml
 └── secrets/
     ├── *.example
     └── backend.env.example
 ```
+
+Un runbook dédié à la bascule DB primaire → secondaire est disponible dans :
+
+- `infrastructure/deploy/swarm/RUNBOOK_DB_FAILOVER.md`
+
+Un guide dédié au **remplissage exact** des secrets DB secondaires est disponible dans :
+
+- `infrastructure/deploy/swarm/SECRETS_SECONDARY_DB.md`
+
+Un guide dédié à l’export / restauration **Neon → Supabase** est disponible dans :
+
+- `infrastructure/deploy/swarm/MIGRATION_NEON_TO_SUPABASE.md`
+
+Des modèles de secrets de secours sont également fournis :
+
+- `infrastructure/deploy/swarm/secrets/backend.env.secondary.example`
+- `infrastructure/deploy/swarm/secrets/migrations.env.secondary.example`
 
 ## Préparation
 
@@ -150,8 +170,8 @@ Pour publier une release applicative (ex. `backend:1.0.0`, `frontend:1.0.0`) san
 Le rôle Ansible `swarm_stack` :
 
 - précharge les nouvelles images sur le nœud
-- expose aussi un service one-shot `migrations` pour les releases applicatives dédiées
-- exécute `./scripts/run_migrations.sh` **avant** le déploiement Swarm complet
+- expose aussi un service one-shot `migrations` pour les releases applicatives dédiées, rattaché à `edge` + `app`
+- exécute `./scripts/run_migrations.sh` **avant** le déploiement Swarm complet via un conteneur one-shot lancé en `--network host`
 - ou, en mode release dédiée, déclenche ensuite un rolling update séquencé backend → workers → frontend
 
 Cela supprime le principal trou de disponibilité précédent, où l'unique conteneur `backend` s'arrêtait pour appliquer les migrations avant de redémarrer.
@@ -427,7 +447,7 @@ sudo certbot renew --dry-run
 
 - Le service `jetstream_provision` est volontairement one-shot.
 - Le service `migrations` est volontairement défini avec `replicas: 0` dans la stack, puis activé uniquement lors d’une release applicative dédiée.
-- Les migrations DB restent exécutées **avant** `docker stack deploy` par Ansible pour le déploiement complet, et via le service one-shot `migrations` pour la release applicative dédiée.
+- Les migrations DB restent exécutées **avant** `docker stack deploy` par Ansible pour le déploiement complet, via un conteneur one-shot en `--network host`, et via le service one-shot `migrations` (attaché à `edge` + `app`) pour la release applicative dédiée.
 - Le secret runtime `backend.env` ne doit plus contenir `ALEMBIC_DATABASE_URL` : l’URL DDL de migration vit désormais dans un secret séparé `migrations.env` / `MIGRATIONS_ENV`, monté uniquement pour les migrations.
 - Les releases `frontend`/`backend` sont maintenant conçues pour être appliquées sans downtime perceptible côté application, mais `edge` reste mono-réplique sur ports `80/443` en mode `host` : une mise à jour du reverse proxy lui-même n'offre pas le même niveau de continuité qu'un vrai cluster multi-nœuds.
 - Le certificat Let’s Encrypt est obtenu via `HTTP-01` sur le port `80`, puis synchronisé dans un répertoire hôte monté en lecture seule dans `edge`; le hook de renouvellement recharge ensuite Nginx sans repasser par des secrets GitHub.

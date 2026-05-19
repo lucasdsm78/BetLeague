@@ -613,6 +613,7 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
+      - edge
       - app
     deploy:
       placement:
