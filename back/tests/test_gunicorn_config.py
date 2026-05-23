@@ -69,6 +69,7 @@ def test_gunicorn_config_uses_secure_defaults(monkeypatch):
     assert module.loglevel == "info"
     assert module.capture_output is True
     assert module.proc_name == "betleague-api"
+    assert os.environ["HOME"]
 
 
 
@@ -148,6 +149,47 @@ def test_prometheus_multiproc_dir_raises_when_configured_and_fallback_paths_are_
 
     with pytest.raises(RuntimeError, match="fallback"):
         module._resolve_prometheus_multiproc_dir_for_startup()
+
+
+def test_runtime_home_falls_back_to_worker_tmp_dir_when_home_is_read_only(monkeypatch, tmp_path):
+    configured_home = tmp_path / "configured-home"
+    fallback_base = tmp_path / "worker-tmp"
+    module = _load_gunicorn_conf(
+        monkeypatch,
+        HOME=str(configured_home),
+        GUNICORN_WORKER_TMP_DIR=str(fallback_base),
+    )
+
+    real_ensure = module._ensure_directory_is_writable
+
+    def fake_ensure(path: Path) -> None:
+        if path == configured_home:
+            raise OSError(30, "Read-only file system")
+        real_ensure(path)
+
+    monkeypatch.setattr(module, "_ensure_directory_is_writable", fake_ensure)
+
+    resolved = module._resolve_runtime_home_for_startup()
+
+    assert resolved == (fallback_base.resolve() / "betleague-home")
+
+
+def test_runtime_home_raises_when_home_and_fallback_are_both_unwritable(monkeypatch, tmp_path):
+    configured_home = tmp_path / "configured-home"
+    fallback_base = tmp_path / "worker-tmp"
+    module = _load_gunicorn_conf(
+        monkeypatch,
+        HOME=str(configured_home),
+        GUNICORN_WORKER_TMP_DIR=str(fallback_base),
+    )
+
+    def always_fail(_path: Path) -> None:
+        raise OSError(30, "Read-only file system")
+
+    monkeypatch.setattr(module, "_ensure_directory_is_writable", always_fail)
+
+    with pytest.raises(RuntimeError, match="HOME"):
+        module._resolve_runtime_home_for_startup()
 
 
 
