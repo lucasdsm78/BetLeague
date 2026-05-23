@@ -22,6 +22,7 @@
     python scripts/run_with_env_files.py /run/secrets/backend_env /run/secrets/migrations_env -- ./scripts/run_migrations.sh
   register: betleague_swarm_migrations_result
   changed_when: false
+  when: not (betleague_swarm_internal_postgres_enabled | bool)
 
 - name: Déployer la stack Swarm BetLeague
   ansible.builtin.command: docker stack deploy --with-registry-auth -c stack.prod.yml {{ betleague_swarm_stack_name }}
@@ -30,6 +31,11 @@
   environment:
     BETLEAGUE_BACKEND_IMAGE: "{{ betleague_swarm_backend_image }}"
     BETLEAGUE_FRONTEND_IMAGE: "{{ betleague_swarm_frontend_image }}"
+    BETLEAGUE_INTERNAL_POSTGRES_REPLICAS: "{{ (betleague_swarm_internal_postgres_enabled | bool) | ternary('1', '0') }}"
+    BETLEAGUE_POSTGRES_IMAGE: "{{ betleague_swarm_postgres_image }}"
+    BETLEAGUE_POSTGRES_DATABASE: "{{ betleague_swarm_postgres_database }}"
+    BETLEAGUE_POSTGRES_SUPERUSER: "{{ betleague_swarm_postgres_superuser }}"
+    BETLEAGUE_POSTGRES_PLACEMENT_CONSTRAINT: "{{ betleague_swarm_postgres_placement_constraint }}"
     BETLEAGUE_API_DOMAIN: "{{ betleague_swarm_api_domain }}"
     BETLEAGUE_GRAFANA_DOMAIN: "{{ betleague_swarm_grafana_domain }}"
     BETLEAGUE_PROMETHEUS_DOMAIN: "{{ betleague_swarm_prometheus_domain }}"
@@ -50,8 +56,12 @@
     BETLEAGUE_GRAFANA_DASHBOARDS_CONFIG_NAME: "{{ betleague_swarm_grafana_dashboards_config_name }}"
     BETLEAGUE_GRAFANA_SYSTEM_OVERVIEW_DASHBOARD_CONFIG_NAME: "{{ betleague_swarm_grafana_system_overview_dashboard_config_name }}"
     BETLEAGUE_GRAFANA_LEAGUE_PAYOUT_OVERDUE_DASHBOARD_CONFIG_NAME: "{{ betleague_swarm_grafana_league_payout_overdue_dashboard_config_name }}"
+    BETLEAGUE_POSTGRES_INIT_BETLEAGUE_CONFIG_NAME: "{{ betleague_swarm_postgres_init_betleague_config_name }}"
     BETLEAGUE_BACKEND_ENV_SECRET_NAME: "{{ betleague_swarm_backend_env_secret_name }}"
     BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME: "{{ betleague_swarm_migrations_env_secret_name }}"
+    BETLEAGUE_POSTGRES_SUPERUSER_PASSWORD_SECRET_NAME: "{{ betleague_swarm_postgres_superuser_password_secret_name }}"
+    BETLEAGUE_POSTGRES_APP_PASSWORD_SECRET_NAME: "{{ betleague_swarm_postgres_app_password_secret_name }}"
+    BETLEAGUE_POSTGRES_MIGRATIONS_PASSWORD_SECRET_NAME: "{{ betleague_swarm_postgres_migrations_password_secret_name }}"
     BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME: "{{ betleague_swarm_grafana_admin_password_secret_name }}"
     BETLEAGUE_GRAFANA_SECRET_KEY_SECRET_NAME: "{{ betleague_swarm_grafana_secret_key_secret_name }}"
     BETLEAGUE_MONITORING_HTPASSWD_SECRET_NAME: "{{ betleague_swarm_monitoring_htpasswd_secret_name }}"
@@ -74,6 +84,59 @@
     'Creating network' in betleague_swarm_deploy_result.stdout or
     'Creating secret' in betleague_swarm_deploy_result.stdout or
     'Creating config' in betleague_swarm_deploy_result.stdout
+
+- name: Attendre la convergence du service PostgreSQL interne
+  ansible.builtin.shell: |
+    set -euo pipefail
+    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_postgres$ --format '{{"{{.Replicas}}"}}')"
+    test -n "$replicas"
+    running="${replicas%%/*}"
+    desired="${replicas##*/}"
+    test "$running" = "$desired"
+    test "$desired" = "1"
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_postgres_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_postgres_wait.rc == 0
+  changed_when: false
+  when: betleague_swarm_internal_postgres_enabled | bool
+
+- name: Lancer le service one-shot de migrations après déploiement de la stack
+  ansible.builtin.command: >-
+    docker service scale
+    {{ betleague_swarm_stack_name }}_migrations=1
+  changed_when: true
+  when: betleague_swarm_internal_postgres_enabled | bool
+
+- name: Attendre la fin des migrations one-shot après déploiement de la stack
+  ansible.builtin.shell: |
+    set -euo pipefail
+    state="$(docker service ps {{ betleague_swarm_stack_name }}_migrations --no-trunc --format '{{"{{.CurrentState}}"}}' | head -n 1)"
+    if [[ "$state" == Complete* ]]; then
+      exit 0
+    fi
+    if [[ "$state" == Failed* || "$state" == Rejected* ]]; then
+      echo "$state" >&2
+      exit 2
+    fi
+    exit 1
+  args:
+    executable: /bin/bash
+  register: betleague_swarm_internal_postgres_migrations_wait
+  retries: "{{ (betleague_swarm_wait_timeout_seconds // betleague_swarm_wait_sleep_seconds) | int }}"
+  delay: "{{ betleague_swarm_wait_sleep_seconds }}"
+  until: betleague_swarm_internal_postgres_migrations_wait.rc == 0
+  changed_when: false
+  when: betleague_swarm_internal_postgres_enabled | bool
+
+- name: Remettre le service de migrations à 0 replica après succès
+  ansible.builtin.command: >-
+    docker service scale
+    {{ betleague_swarm_stack_name }}_migrations=0
+  changed_when: true
+  when: betleague_swarm_internal_postgres_enabled | bool
 
 - name: Attendre que les services Swarm convergent
   block:

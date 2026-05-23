@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+app_password="$(cat /run/secrets/postgres_app_password)"
+migrations_password="$(cat /run/secrets/postgres_migrations_password)"
+
+psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" \
+  --dbname postgres \
+  -v app_user='{{ betleague_swarm_postgres_app_user }}' \
+  -v app_password="$app_password" \
+  -v migrations_user='{{ betleague_swarm_postgres_migrations_user }}' \
+  -v migrations_password="$migrations_password" \
+  -v database_name='{{ betleague_swarm_postgres_database }}' <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'migrations_user', :'migrations_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'migrations_user')\gexec
+SELECT format('ALTER ROLE %I PASSWORD %L', :'migrations_user', :'migrations_password')\gexec
+
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user')\gexec
+SELECT format('ALTER ROLE %I PASSWORD %L', :'app_user', :'app_password')\gexec
+
+SELECT format('CREATE DATABASE %I OWNER %I', :'database_name', :'migrations_user')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'database_name')\gexec
+SQL
+
+psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" \
+  --dbname "{{ betleague_swarm_postgres_database }}" \
+  -v app_user='{{ betleague_swarm_postgres_app_user }}' \
+  -v migrations_user='{{ betleague_swarm_postgres_migrations_user }}' \
+  -v database_name='{{ betleague_swarm_postgres_database }}' <<'SQL'
+SELECT format('ALTER DATABASE %I OWNER TO %I', :'database_name', :'migrations_user')\gexec
+ALTER SCHEMA public OWNER TO {{ betleague_swarm_postgres_migrations_user }};
+REVOKE ALL ON DATABASE {{ betleague_swarm_postgres_database }} FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT CONNECT ON DATABASE {{ betleague_swarm_postgres_database }} TO {{ betleague_swarm_postgres_app_user }};
+GRANT USAGE ON SCHEMA public TO {{ betleague_swarm_postgres_app_user }};
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {{ betleague_swarm_postgres_app_user }};
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {{ betleague_swarm_postgres_app_user }};
+ALTER DEFAULT PRIVILEGES FOR ROLE {{ betleague_swarm_postgres_migrations_user }} IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {{ betleague_swarm_postgres_app_user }};
+ALTER DEFAULT PRIVILEGES FOR ROLE {{ betleague_swarm_postgres_migrations_user }} IN SCHEMA public
+GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {{ betleague_swarm_postgres_app_user }};
+SQL
+
