@@ -83,6 +83,7 @@ def build_asyncpg_ssl_context(settings: DatabaseSettingsLike) -> ssl.SSLContext 
 
 
 def build_asyncpg_connect_args(settings: DatabaseSettingsLike, *, application_name: str) -> dict[str, Any]:
+    ssl_mode = getattr(settings, "sqlalchemy_ssl_mode_value", "disable")
     server_settings: dict[str, str] = {
         "application_name": application_name,
     }
@@ -97,6 +98,8 @@ def build_asyncpg_connect_args(settings: DatabaseSettingsLike, *, application_na
     ssl_context = build_asyncpg_ssl_context(settings)
     if ssl_context is not None:
         connect_args["ssl"] = ssl_context
+    elif ssl_mode == "disable":
+        connect_args["ssl"] = False
 
     return connect_args
 

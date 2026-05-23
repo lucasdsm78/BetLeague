@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from redis.asyncio import Redis
@@ -57,17 +58,23 @@ async def readiness_report(settings: Settings) -> tuple[bool, dict[str, Any]]:
     checks: dict[str, str] = {}
     errors: dict[str, str] = {}
 
-    async def _run(name: str, coro) -> None:
+    async def _run(name: str, check_factory: Callable[[], Awaitable[None]]) -> tuple[str, str, str | None]:
         try:
-            await asyncio.wait_for(coro, timeout=3)
-            checks[name] = "ok"
+            await asyncio.wait_for(check_factory(), timeout=3)
+            return name, "ok", None
         except Exception as exc:  # pragma: no cover - exercised by targeted tests via monkeypatching
-            checks[name] = "error"
-            errors[name] = str(exc)
+            return name, "error", str(exc)
 
-    await _run("database", check_database())
-    await _run("redis", check_redis(settings))
-    await _run("nats", check_nats())
+    results = await asyncio.gather(
+        _run("database", check_database),
+        _run("redis", lambda: check_redis(settings)),
+        _run("nats", check_nats),
+    )
+
+    for name, status, error in results:
+        checks[name] = status
+        if error is not None:
+            errors[name] = error
 
     ready = not errors
     payload: dict[str, Any] = {

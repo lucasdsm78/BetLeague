@@ -5,6 +5,7 @@ import certifi
 from infrastructure.config import DatabaseSettings
 from infrastructure.postgresql import engine_factory
 from infrastructure.postgresql.engine_factory import (
+    build_asyncpg_connect_args,
     build_asyncpg_ssl_context,
     create_configured_async_engine,
     sanitize_asyncpg_database_url,
@@ -94,5 +95,18 @@ def test_build_asyncpg_ssl_context_loads_system_and_inline_custom_ca(monkeypatch
     ]
     assert fake_context.check_hostname is True
     assert fake_context.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_build_asyncpg_connect_args_explicitly_disables_ssl_when_sqlalchemy_ssl_mode_is_disable():
+    settings = DatabaseSettings(
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        environment="prod",
+        sqlalchemy_ssl_mode="disable",
+    )
+
+    connect_args = build_asyncpg_connect_args(settings, application_name="betleague-test")
+
+    assert connect_args["ssl"] is False
+    assert connect_args["server_settings"]["application_name"] == "betleague-test"
 
 
