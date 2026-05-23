@@ -463,6 +463,7 @@ services:
     <<: *service-defaults
     image: ${BETLEAGUE_POSTGRES_IMAGE:-postgres:16}
     read_only: false
+    cap_drop: []
     stop_grace_period: 60s
     environment:
       POSTGRES_DB: ${BETLEAGUE_POSTGRES_DATABASE:?BETLEAGUE_POSTGRES_DATABASE is required}
@@ -484,7 +485,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - export PGPASSWORD="$$(cat /run/secrets/postgres_superuser_password)" && pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" || exit 1
+        - pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -q
       interval: 10s
       timeout: 5s
       retries: 10
