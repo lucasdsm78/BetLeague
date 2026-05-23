@@ -12,6 +12,7 @@
 - name: Lancer le service one-shot de migrations avec la nouvelle image backend
   ansible.builtin.command: >-
     docker service update
+    --detach=true
     --with-registry-auth
     --image {{ betleague_swarm_backend_image }}
     --force
@@ -43,6 +44,7 @@
 - name: Remettre le service de migrations à 0 replica après succès
   ansible.builtin.command: >-
     docker service scale
+    --detach=true
     {{ betleague_swarm_stack_name }}_migrations=0
   changed_when: true
 

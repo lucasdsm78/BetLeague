@@ -110,6 +110,7 @@
 - name: Lancer le service one-shot de migrations après déploiement de la stack
   ansible.builtin.command: >-
     docker service scale
+    --detach=true
     {{ betleague_swarm_stack_name }}_migrations=1
   changed_when: true
   when: betleague_swarm_internal_postgres_enabled | bool
@@ -138,6 +139,7 @@
 - name: Remettre le service de migrations à 0 replica après succès
   ansible.builtin.command: >-
     docker service scale
+    --detach=true
     {{ betleague_swarm_stack_name }}_migrations=0
   changed_when: true
   when: betleague_swarm_internal_postgres_enabled | bool
