@@ -88,7 +88,11 @@
 - name: Attendre la convergence du service PostgreSQL interne
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_postgres$ --format '{{"{{.Replicas}}"}}')"
+    service_name="{{ betleague_swarm_stack_name }}_postgres"
+    replicas="$({
+      docker stack services "{{ betleague_swarm_stack_name }}" --format '{{"{{.Name}} {{.Replicas}}"}}' |
+      awk -v service="$service_name" '$1 == service {print $2}'
+    })"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"

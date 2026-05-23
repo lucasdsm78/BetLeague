@@ -62,7 +62,11 @@
 - name: Attendre la convergence du backend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_backend$ --format '{{"{{.Replicas}}"}}')"
+    service_name="{{ betleague_swarm_stack_name }}_backend"
+    replicas="$({
+      docker stack services "{{ betleague_swarm_stack_name }}" --format '{{"{{.Name}} {{.Replicas}}"}}' |
+      awk -v service="$service_name" '$1 == service {print $2}'
+    })"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"
@@ -94,7 +98,11 @@
 - name: Attendre la convergence des workers backend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_{{ item }}$ --format '{{"{{.Replicas}}"}}')"
+    service_name="{{ betleague_swarm_stack_name }}_{{ item }}"
+    replicas="$({
+      docker stack services "{{ betleague_swarm_stack_name }}" --format '{{"{{.Name}} {{.Replicas}}"}}' |
+      awk -v service="$service_name" '$1 == service {print $2}'
+    })"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"
@@ -126,7 +134,11 @@
 - name: Attendre la convergence du frontend
   ansible.builtin.shell: |
     set -euo pipefail
-    replicas="$(docker service ls --filter name=^{{ betleague_swarm_stack_name }}_frontend$ --format '{{"{{.Replicas}}"}}')"
+    service_name="{{ betleague_swarm_stack_name }}_frontend"
+    replicas="$({
+      docker stack services "{{ betleague_swarm_stack_name }}" --format '{{"{{.Name}} {{.Replicas}}"}}' |
+      awk -v service="$service_name" '$1 == service {print $2}'
+    })"
     test -n "$replicas"
     running="${replicas%%/*}"
     desired="${replicas##*/}"
