@@ -1,5 +1,12 @@
+import ssl
+
+import certifi
+
 from infrastructure.config import DatabaseSettings
+from infrastructure.postgresql import engine_factory
 from infrastructure.postgresql.engine_factory import (
+    build_asyncpg_connect_args,
+    build_asyncpg_ssl_context,
     create_configured_async_engine,
     sanitize_asyncpg_database_url,
 )
@@ -39,4 +46,67 @@ def test_sanitize_asyncpg_database_url_rejects_unknown_postgresql_driver():
         assert "Unsupported PostgreSQL driver" in str(exc)
     else:
         raise AssertionError("Expected ValueError for unsupported PostgreSQL driver")
+
+
+def test_database_settings_normalize_inline_sqlalchemy_ssl_root_cert():
+    settings = DatabaseSettings(
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        sqlalchemy_ssl_root_cert='"-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----"',
+    )
+
+    assert settings.sqlalchemy_ssl_root_cert == "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+
+
+def test_build_asyncpg_ssl_context_loads_system_and_inline_custom_ca(monkeypatch):
+    class DummySSLContext:
+        def __init__(self) -> None:
+            self.loaded_locations: list[dict[str, str | None]] = []
+            self.check_hostname: bool | None = None
+            self.verify_mode: ssl.VerifyMode | None = None
+
+        def load_verify_locations(self, *, cafile=None, capath=None, cadata=None):
+            self.loaded_locations.append({"cafile": cafile, "cadata": cadata})
+
+    fake_context = DummySSLContext()
+    captured: dict[str, str | None] = {}
+
+    def fake_create_default_context(*, cafile=None, capath=None, cadata=None):
+        captured["cafile"] = cafile
+        captured["cadata"] = cadata
+        return fake_context
+
+    monkeypatch.setattr(engine_factory.ssl, "create_default_context", fake_create_default_context)
+
+    settings = DatabaseSettings(
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        environment="prod",
+        sqlalchemy_ssl_mode="verify-full",
+        sqlalchemy_ssl_root_cert_path="/tmp/postgres-ca.pem",
+        sqlalchemy_ssl_root_cert="-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----",
+    )
+
+    context = build_asyncpg_ssl_context(settings)
+
+    assert context is fake_context
+    assert captured == {"cafile": certifi.where(), "cadata": None}
+    assert fake_context.loaded_locations == [
+        {"cafile": "/tmp/postgres-ca.pem", "cadata": None},
+        {"cafile": None, "cadata": "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"},
+    ]
+    assert fake_context.check_hostname is True
+    assert fake_context.verify_mode == ssl.CERT_REQUIRED
+
+
+def test_build_asyncpg_connect_args_explicitly_disables_ssl_when_sqlalchemy_ssl_mode_is_disable():
+    settings = DatabaseSettings(
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        environment="prod",
+        sqlalchemy_ssl_mode="disable",
+    )
+
+    connect_args = build_asyncpg_connect_args(settings, application_name="betleague-test")
+
+    assert connect_args["ssl"] is False
+    assert connect_args["server_settings"]["application_name"] == "betleague-test"
+
 

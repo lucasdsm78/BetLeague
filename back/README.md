@@ -41,6 +41,7 @@ Pour travailler en local, copie `back/.env.local.example` vers `back/.env`. Le f
 - `SQLALCHEMY_DATABASE_URL` : endpoint Neon **pooler** pour le runtime applicatif
 - `ALEMBIC_DATABASE_URL` : endpoint Neon **direct** pour les migrations Alembic
 - `SQLALCHEMY_SSL_MODE=verify-full`
+- `SQLALCHEMY_SSL_ROOT_CERT` : optionnel si l’endpoint PostgreSQL présente une CA privée / chaîne autosignée (PEM sur une ligne avec `\n` échappés)
 - `SQLALCHEMY_POOL_RECYCLE=300`
 - `SQLALCHEMY_POOL_TIMEOUT=30`
 - `SQLALCHEMY_COMMAND_TIMEOUT=30`
@@ -51,7 +52,7 @@ Pour travailler en local, copie `back/.env.local.example` vers `back/.env`. Le f
 - `HTTP_REQUEST_LOGGING_EXCLUDED_PATHS=/health`
 - `HTTP_SLOW_REQUEST_THRESHOLD_MS=1000`
 
-Le backend applique désormais un `application_name` PostgreSQL explicite par composant (`betleague-api`, `betleague-celery`, `betleague-migrations`) via `connect_args`, avec `jit=off`, `pool_pre_ping`, `pool_recycle` et `pool_timeout` pour mieux supporter Neon en production.
+Le backend applique désormais un `application_name` PostgreSQL explicite par composant (`betleague-api`, `betleague-celery`, `betleague-migrations`) via `connect_args`, avec `jit=off`, `pool_pre_ping`, `pool_recycle` et `pool_timeout` pour mieux supporter Neon en production. Si ton PostgreSQL n’utilise pas une chaîne publique standard, tu peux conserver `verify-full` et injecter le certificat racine via `SQLALCHEMY_SSL_ROOT_CERT`.
 
 ### Développement local rapide
 

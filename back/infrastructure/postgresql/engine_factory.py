@@ -69,14 +69,21 @@ def build_asyncpg_ssl_context(settings: DatabaseSettingsLike) -> ssl.SSLContext 
             f"Unsupported SQLALCHEMY_SSL_MODE={ssl_mode!r}. Supported values: disable, verify-full."
         )
 
-    cafile = (getattr(settings, "sqlalchemy_ssl_root_cert_path", "") or "").strip() or certifi.where()
-    context = ssl.create_default_context(cafile=cafile)
+    cafile = (getattr(settings, "sqlalchemy_ssl_root_cert_path", "") or "").strip()
+    cadata = (getattr(settings, "sqlalchemy_ssl_root_cert", "") or "").strip()
+
+    context = ssl.create_default_context(cafile=certifi.where())
+    if cafile:
+        context.load_verify_locations(cafile=cafile)
+    if cadata:
+        context.load_verify_locations(cadata=cadata)
     context.check_hostname = True
     context.verify_mode = ssl.CERT_REQUIRED
     return context
 
 
 def build_asyncpg_connect_args(settings: DatabaseSettingsLike, *, application_name: str) -> dict[str, Any]:
+    ssl_mode = getattr(settings, "sqlalchemy_ssl_mode_value", "disable")
     server_settings: dict[str, str] = {
         "application_name": application_name,
     }
@@ -91,6 +98,8 @@ def build_asyncpg_connect_args(settings: DatabaseSettingsLike, *, application_na
     ssl_context = build_asyncpg_ssl_context(settings)
     if ssl_context is not None:
         connect_args["ssl"] = ssl_context
+    elif ssl_mode == "disable":
+        connect_args["ssl"] = False
 
     return connect_args
 

@@ -4,6 +4,14 @@ betleague_runtime_group: "{{ ansible_user | default('betleague') }}"
 betleague_swarm_deploy_path: "{{ betleague_compose_root }}/swarm"
 betleague_swarm_backend_image: ""
 betleague_swarm_frontend_image: ""
+betleague_swarm_internal_postgres_enabled: true
+betleague_swarm_postgres_image: postgres:16
+betleague_swarm_postgres_service_name: postgres
+betleague_swarm_postgres_database: betleague
+betleague_swarm_postgres_superuser: postgres
+betleague_swarm_postgres_app_user: betleague_app
+betleague_swarm_postgres_migrations_user: betleague_migrations
+betleague_swarm_postgres_placement_constraint: node.labels.betleague.db == true
 betleague_swarm_gunicorn_workers: 2
 betleague_swarm_gunicorn_forwarded_allow_ips: "*"
 betleague_swarm_python_temp: /dev/shm
@@ -39,6 +47,9 @@ betleague_swarm_monitoring_htpasswd: ""
 # Laisser vide pour désactiver Alertmanager. Une configuration neutre est alors générée
 # et le service n'est pas démarré.
 betleague_swarm_alertmanager_config_content: ""
+betleague_swarm_postgres_superuser_password: ""
+betleague_swarm_postgres_app_password: ""
+betleague_swarm_postgres_migrations_password: ""
 betleague_swarm_redis_password: ""
 betleague_swarm_nats_user: ""
 betleague_swarm_nats_password: ""
