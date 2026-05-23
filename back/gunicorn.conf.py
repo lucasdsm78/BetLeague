@@ -38,6 +38,45 @@ preload_app = False
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
 
+def _ensure_directory_is_writable(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / ".betleague-write-test"
+    probe.touch(exist_ok=True)
+    probe.unlink(missing_ok=True)
+
+
+def _runtime_home_fallback_dir() -> Path:
+    base_dir = Path(worker_tmp_dir).resolve()
+    if base_dir == Path(base_dir.anchor):
+        raise RuntimeError("GUNICORN_WORKER_TMP_DIR must not point to a filesystem root when used for the runtime HOME fallback")
+    return base_dir / "betleague-home"
+
+
+def _resolve_runtime_home_for_startup() -> Path:
+    configured_home_raw = (os.getenv("HOME") or "").strip()
+    if configured_home_raw:
+        configured_home = Path(configured_home_raw)
+        try:
+            _ensure_directory_is_writable(configured_home)
+            return configured_home
+        except OSError:
+            pass
+
+    fallback_home = _runtime_home_fallback_dir()
+    try:
+        _ensure_directory_is_writable(fallback_home)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Neither HOME '{configured_home_raw or '<unset>'}' nor fallback '{fallback_home}' is writable for Gunicorn runtime files"
+        ) from exc
+    return fallback_home
+
+
+runtime_home = _resolve_runtime_home_for_startup()
+os.environ["HOME"] = str(runtime_home)
+_ensure_directory_is_writable(runtime_home / ".gunicorn")
+
+
 def _prometheus_multiproc_dir() -> Path | None:
     raw_path = os.getenv("PROMETHEUS_MULTIPROC_DIR", "").strip()
     if not raw_path:
@@ -57,10 +96,7 @@ def _prometheus_multiproc_fallback_dir() -> Path:
 
 
 def _ensure_prometheus_dir_is_writable(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-    probe = path / ".betleague-prometheus-write-test"
-    probe.touch(exist_ok=True)
-    probe.unlink(missing_ok=True)
+    _ensure_directory_is_writable(path)
 
 
 def _resolve_prometheus_multiproc_dir_for_startup() -> Path | None:
