@@ -15,6 +15,16 @@
       - betleague_swarm_grafana_admin_password | trim != ''
       - betleague_swarm_grafana_secret_key | trim != ''
       - betleague_swarm_monitoring_htpasswd | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_image | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_service_name | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_database | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_superuser | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_app_user | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_migrations_user | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_placement_constraint | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_superuser_password | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_app_password | trim != ''
+      - not (betleague_swarm_internal_postgres_enabled | bool) or betleague_swarm_postgres_migrations_password | trim != ''
       - betleague_swarm_redis_password | trim != ''
       - betleague_swarm_nats_user | trim != ''
       - betleague_swarm_nats_password | trim != ''
@@ -151,6 +161,22 @@
   changed_when: false
   no_log: true
 
+- name: Valider les secrets PostgreSQL internes
+  ansible.builtin.assert:
+    that:
+      - betleague_swarm_postgres_superuser_password | length >= 24
+      - betleague_swarm_postgres_app_password | length >= 24
+      - betleague_swarm_postgres_migrations_password | length >= 24
+      - betleague_swarm_postgres_superuser_password != betleague_swarm_postgres_app_password
+      - betleague_swarm_postgres_superuser_password != betleague_swarm_postgres_migrations_password
+      - betleague_swarm_postgres_app_password != betleague_swarm_postgres_migrations_password
+      - betleague_swarm_postgres_app_user != betleague_swarm_postgres_migrations_user
+    fail_msg: >-
+      Les secrets PostgreSQL internes doivent être robustes (>=24 caractères), distincts
+      entre superuser / runtime / migrations, et les rôles applicatif / migrations doivent être séparés.
+  when: betleague_swarm_internal_postgres_enabled | bool
+  no_log: true
+
 - name: Calculer les noms immuables des secrets Swarm depuis leur contenu
   ansible.builtin.set_fact:
     betleague_swarm_backend_env_secret_name: "{{ betleague_swarm_stack_name }}_backend_env_{{ ((betleague_swarm_backend_env_content_normalized ~ '\n') | hash('sha256'))[:12] }}"
@@ -159,6 +185,9 @@
     betleague_swarm_grafana_secret_key_secret_name: "{{ betleague_swarm_stack_name }}_grafana_secret_key_{{ ((betleague_swarm_grafana_secret_key ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_monitoring_htpasswd_secret_name: "{{ betleague_swarm_stack_name }}_monitoring_htpasswd_{{ ((betleague_swarm_monitoring_htpasswd ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_alertmanager_config_secret_name: "{{ betleague_swarm_stack_name }}_alertmanager_config_{{ ((betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_postgres_superuser_password_secret_name: "{{ betleague_swarm_stack_name }}_postgres_superuser_password_{{ ((betleague_swarm_postgres_superuser_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_postgres_app_password_secret_name: "{{ betleague_swarm_stack_name }}_postgres_app_password_{{ ((betleague_swarm_postgres_app_password ~ '\n') | hash('sha256'))[:12] }}"
+    betleague_swarm_postgres_migrations_password_secret_name: "{{ betleague_swarm_stack_name }}_postgres_migrations_password_{{ ((betleague_swarm_postgres_migrations_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_redis_password_secret_name: "{{ betleague_swarm_stack_name }}_redis_password_{{ ((betleague_swarm_redis_password ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_user_secret_name: "{{ betleague_swarm_stack_name }}_nats_user_{{ ((betleague_swarm_nats_user ~ '\n') | hash('sha256'))[:12] }}"
     betleague_swarm_nats_password_secret_name: "{{ betleague_swarm_stack_name }}_nats_password_{{ ((betleague_swarm_nats_password ~ '\n') | hash('sha256'))[:12] }}"
@@ -283,6 +312,14 @@
     group: "{{ betleague_runtime_group }}"
     mode: '0440'
 
+- name: Rendre le script d'initialisation PostgreSQL interne
+  ansible.builtin.template:
+    src: postgres-init-betleague.sh.j2
+    dest: "{{ betleague_swarm_deploy_path }}/generated/postgres-init-betleague.sh"
+    owner: root
+    group: "{{ betleague_runtime_group }}"
+    mode: '0440'
+
 - name: Rendre la configuration edge Nginx
   ansible.builtin.template:
     src: edge.conf.j2
@@ -347,6 +384,7 @@
     - { key: 'edge_nginx_conf', path: "{{ betleague_swarm_deploy_path }}/generated/edge.conf" }
     - { key: 'redis_conf_template', path: "{{ betleague_swarm_deploy_path }}/redis.conf.template" }
     - { key: 'nats_server_conf', path: "{{ betleague_swarm_deploy_path }}/nats-server.conf" }
+    - { key: 'postgres_init_betleague', path: "{{ betleague_swarm_deploy_path }}/generated/postgres-init-betleague.sh" }
     - { key: 'prometheus_conf', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus.yml" }
     - { key: 'prometheus_alerts', path: "{{ betleague_swarm_deploy_path }}/generated/prometheus-alerts.yml" }
     - { key: 'grafana_datasources', path: "{{ betleague_swarm_deploy_path }}/generated/grafana-datasources.yml" }
@@ -362,6 +400,7 @@
     betleague_swarm_edge_nginx_conf_config_name: "{{ betleague_swarm_stack_name }}_edge_nginx_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'edge_nginx_conf') | first).stat.checksum[:12] }}"
     betleague_swarm_redis_conf_template_config_name: "{{ betleague_swarm_stack_name }}_redis_conf_template_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'redis_conf_template') | first).stat.checksum[:12] }}"
     betleague_swarm_nats_server_conf_config_name: "{{ betleague_swarm_stack_name }}_nats_server_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'nats_server_conf') | first).stat.checksum[:12] }}"
+    betleague_swarm_postgres_init_betleague_config_name: "{{ betleague_swarm_stack_name }}_postgres_init_betleague_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'postgres_init_betleague') | first).stat.checksum[:12] }}"
     betleague_swarm_prometheus_conf_config_name: "{{ betleague_swarm_stack_name }}_prometheus_conf_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_conf') | first).stat.checksum[:12] }}"
     betleague_swarm_prometheus_alerts_config_name: "{{ betleague_swarm_stack_name }}_prometheus_alerts_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'prometheus_alerts') | first).stat.checksum[:12] }}"
     betleague_swarm_grafana_datasources_config_name: "{{ betleague_swarm_stack_name }}_grafana_datasources_{{ (betleague_swarm_config_stats.results | selectattr('item.key', 'equalto', 'grafana_datasources') | first).stat.checksum[:12] }}"
@@ -383,6 +422,9 @@
     - { name: 'grafana_secret_key.txt', content: "{{ betleague_swarm_grafana_secret_key }}" }
     - { name: 'monitoring_htpasswd', content: "{{ betleague_swarm_monitoring_htpasswd }}" }
     - { name: 'alertmanager.yml', content: "{{ betleague_swarm_alertmanager_config_content_effective | regex_replace('\n*$', '') }}" }
+    - { name: 'postgres_superuser_password.txt', content: "{{ betleague_swarm_postgres_superuser_password }}" }
+    - { name: 'postgres_app_password.txt', content: "{{ betleague_swarm_postgres_app_password }}" }
+    - { name: 'postgres_migrations_password.txt', content: "{{ betleague_swarm_postgres_migrations_password }}" }
     - { name: 'redis_password.txt', content: "{{ betleague_swarm_redis_password }}" }
     - { name: 'nats_user.txt', content: "{{ betleague_swarm_nats_user }}" }
     - { name: 'nats_password.txt', content: "{{ betleague_swarm_nats_password }}" }

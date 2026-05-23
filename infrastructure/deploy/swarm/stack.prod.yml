@@ -93,6 +93,27 @@ x-secret-migrations-env: &secret-migrations-env
   gid: "1000"
   mode: 0400
 
+x-secret-postgres-superuser-password: &secret-postgres-superuser-password
+  source: postgres_superuser_password
+  target: postgres_superuser_password
+  uid: "999"
+  gid: "999"
+  mode: 0400
+
+x-secret-postgres-app-password: &secret-postgres-app-password
+  source: postgres_app_password
+  target: postgres_app_password
+  uid: "999"
+  gid: "999"
+  mode: 0400
+
+x-secret-postgres-migrations-password: &secret-postgres-migrations-password
+  source: postgres_migrations_password
+  target: postgres_migrations_password
+  uid: "999"
+  gid: "999"
+  mode: 0400
+
 x-secret-grafana-admin-password: &secret-grafana-admin-password
   source: grafana_admin_password
   target: grafana_admin_password
@@ -438,6 +459,58 @@ services:
         reservations:
           memory: 64M
 
+  postgres:
+    <<: *service-defaults
+    image: ${BETLEAGUE_POSTGRES_IMAGE:-postgres:16}
+    read_only: false
+    stop_grace_period: 60s
+    environment:
+      POSTGRES_DB: ${BETLEAGUE_POSTGRES_DATABASE:?BETLEAGUE_POSTGRES_DATABASE is required}
+      POSTGRES_USER: ${BETLEAGUE_POSTGRES_SUPERUSER:?BETLEAGUE_POSTGRES_SUPERUSER is required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets:
+      - *secret-postgres-superuser-password
+      - *secret-postgres-app-password
+      - *secret-postgres-migrations-password
+    configs:
+      - source: postgres_init_betleague
+        target: /docker-entrypoint-initdb.d/010-betleague-init.sh
+        mode: 0555
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - export PGPASSWORD="$$(cat /run/secrets/postgres_superuser_password)" && pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      <<: *deploy-defaults
+      replicas: ${BETLEAGUE_INTERNAL_POSTGRES_REPLICAS:-1}
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.betleague.role == manager
+          - ${BETLEAGUE_POSTGRES_PLACEMENT_CONSTRAINT:?BETLEAGUE_POSTGRES_PLACEMENT_CONSTRAINT is required}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: ${BETLEAGUE_SWARM_UPDATE_FAILURE_ACTION:-pause}
+        monitor: 30s
+        order: stop-first
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 2048M
+          pids: 400
+        reservations:
+          memory: 512M
+
   redis:
     <<: *service-defaults
     image: redis:7-alpine
@@ -613,7 +686,6 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
-      - edge
       - app
     deploy:
       placement:
@@ -708,7 +780,6 @@ services:
     secrets:
       - *secret-backend-env
     networks:
-      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -781,7 +852,6 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
-      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -816,7 +886,6 @@ services:
       - *secret-nats-client-cert
       - *secret-nats-client-key
     networks:
-      - edge
       - app
     deploy:
       <<: *deploy-defaults
@@ -843,6 +912,7 @@ networks:
     internal: true
 
 volumes:
+  postgres_data:
   redis_data:
   nats_data:
   celery_beat_schedule:
@@ -860,6 +930,9 @@ configs:
   nats_server_conf:
     name: ${BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME:?BETLEAGUE_NATS_SERVER_CONF_CONFIG_NAME is required}
     file: ./nats-server.conf
+  postgres_init_betleague:
+    name: ${BETLEAGUE_POSTGRES_INIT_BETLEAGUE_CONFIG_NAME:?BETLEAGUE_POSTGRES_INIT_BETLEAGUE_CONFIG_NAME is required}
+    file: ./generated/postgres-init-betleague.sh
   prometheus_conf:
     name: ${BETLEAGUE_PROMETHEUS_CONF_CONFIG_NAME:?BETLEAGUE_PROMETHEUS_CONF_CONFIG_NAME is required}
     file: ./generated/prometheus.yml
@@ -886,6 +959,15 @@ secrets:
   migrations_env:
     name: ${BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME:?BETLEAGUE_MIGRATIONS_ENV_SECRET_NAME is required}
     file: ./secrets/migrations.env
+  postgres_superuser_password:
+    name: ${BETLEAGUE_POSTGRES_SUPERUSER_PASSWORD_SECRET_NAME:?BETLEAGUE_POSTGRES_SUPERUSER_PASSWORD_SECRET_NAME is required}
+    file: ./secrets/postgres_superuser_password.txt
+  postgres_app_password:
+    name: ${BETLEAGUE_POSTGRES_APP_PASSWORD_SECRET_NAME:?BETLEAGUE_POSTGRES_APP_PASSWORD_SECRET_NAME is required}
+    file: ./secrets/postgres_app_password.txt
+  postgres_migrations_password:
+    name: ${BETLEAGUE_POSTGRES_MIGRATIONS_PASSWORD_SECRET_NAME:?BETLEAGUE_POSTGRES_MIGRATIONS_PASSWORD_SECRET_NAME is required}
+    file: ./secrets/postgres_migrations_password.txt
   grafana_admin_password:
     name: ${BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME:?BETLEAGUE_GRAFANA_ADMIN_PASSWORD_SECRET_NAME is required}
     file: ./secrets/grafana_admin_password.txt
