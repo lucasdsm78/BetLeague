@@ -96,23 +96,23 @@ x-secret-migrations-env: &secret-migrations-env
 x-secret-postgres-superuser-password: &secret-postgres-superuser-password
   source: postgres_superuser_password
   target: postgres_superuser_password
-  uid: "999"
+  uid: "0"
   gid: "999"
-  mode: 0400
+  mode: 0440
 
 x-secret-postgres-app-password: &secret-postgres-app-password
   source: postgres_app_password
   target: postgres_app_password
-  uid: "999"
+  uid: "0"
   gid: "999"
-  mode: 0400
+  mode: 0440
 
 x-secret-postgres-migrations-password: &secret-postgres-migrations-password
   source: postgres_migrations_password
   target: postgres_migrations_password
-  uid: "999"
+  uid: "0"
   gid: "999"
-  mode: 0400
+  mode: 0440
 
 x-secret-grafana-admin-password: &secret-grafana-admin-password
   source: grafana_admin_password
