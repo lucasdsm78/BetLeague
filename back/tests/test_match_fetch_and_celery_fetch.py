@@ -301,6 +301,88 @@ async def test_football_fetch_service_caps_odds_requests_per_run(monkeypatch: py
 
 
 @pytest.mark.asyncio
+async def test_football_fetch_service_reads_supported_odds_from_all_bookmakers(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(football_fetch_service_module, "_REQUEST_DELAY", 0)
+
+    fixture_payload = {
+        "fixture": {"id": 2001, "date": "2026-05-03T16:00:00Z", "status": {"short": "NS"}},
+        "league": {"id": 39, "name": "Premier League", "season": 2026},
+        "teams": {
+            "home": {"name": "West Ham", "logo": "home.png"},
+            "away": {"name": "Leeds", "logo": "away.png"},
+        },
+        "goals": {"home": None, "away": None},
+    }
+
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            if endpoint == "/fixtures":
+                return {"response": [fixture_payload], "errors": []}
+            if endpoint == "/odds":
+                return {
+                    "response": [
+                        {
+                            "bookmakers": [
+                                {
+                                    "id": 1,
+                                    "name": "Bookmaker sans 1N2",
+                                    "bets": [
+                                        {
+                                            "id": 5,
+                                            "name": "Goals Over/Under",
+                                            "values": [
+                                                {"value": "Over 2.5", "odd": "1.95"},
+                                                {"value": "Under 2.5", "odd": "1.85"},
+                                            ],
+                                        }
+                                    ],
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "Bookmaker avec 1N2",
+                                    "bets": [
+                                        {
+                                            "id": 1,
+                                            "name": "Match Winner",
+                                            "values": [
+                                                {"value": "Home", "odd": "2.10"},
+                                                {"value": "Draw", "odd": "3.20"},
+                                                {"value": "Away", "odd": "3.40"},
+                                            ],
+                                        }
+                                    ],
+                                },
+                            ]
+                        }
+                    ],
+                    "errors": [],
+                }
+            raise AssertionError(f"Unexpected endpoint: {endpoint}")
+
+    service = ApiSportsFootballFetchService(
+        client=FakeClient(),
+        league_ids=frozenset({39}),
+        fetch_odds_until=date(2026, 5, 3),
+        max_odds_fixtures=1,
+    )
+
+    pairs = await service.get_upcoming_matches(
+        sport=Sport.FOOTBALL,
+        date_from=date(2026, 5, 3),
+        date_to=date(2026, 5, 3),
+    )
+
+    assert len(pairs) == 1
+    _, odds = pairs[0]
+    winner_odds = [o for o in odds if getattr(o.bet_type, "value", o.bet_type) == "match_winner"]
+    assert sorted((o.value, o.odd) for o in winner_odds) == [
+        ("Away", 3.40),
+        ("Draw", 3.20),
+        ("Home", 2.10),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.MonkeyPatch):
     class FakeEngine:
         async def dispose(self):
