@@ -148,6 +148,27 @@ def test_settings_api_sports_league_ids_trims_spaces():
     assert settings.api_sports_league_ids_set == frozenset({39, 61, 78})
 
 
+def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch():
+    settings = Settings(
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        access_token_expire_minutes=15,
+        refresh_token_expire_minutes=60,
+        secret_key_token="secret",
+        secret_key_token_refresh="refresh",
+        encryption_key="enc",
+        api_football_data_token="token",
+        url_api_football_data="https://example.test/api",
+        private_key="PRIVATE",
+        public_key="PUBLIC",
+        stripe_api_key="stripe",
+        stripe_webhook_secret="whsec",
+        the_odds_api_api_key="odds",
+    )
+
+    assert settings.api_sports_fetch_odds_days_ahead == 0
+    assert settings.api_sports_fetch_odds_max_fixtures_per_run == 30
+
+
 @pytest.mark.asyncio
 async def test_api_sports_base_client_request_error_logs_network_context(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch):
     client = ApiSportsBaseClient(
