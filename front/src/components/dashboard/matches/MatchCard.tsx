@@ -87,7 +87,10 @@ const MatchCard = memo<MatchCardProps>(function MatchCard({ match, onAddToBet })
 
   const disabledByStatus = match.status === 'live' || match.status === 'finished';
   const oddsAvailable =
-    isOddSelectable(match.odds.home) || isOddSelectable(match.odds.draw) || isOddSelectable(match.odds.away);
+    isOddSelectable(match.odds.home)
+    || isOddSelectable(match.odds.draw)
+    || isOddSelectable(match.odds.away)
+    || (Array.isArray(match.oddsAll) && match.oddsAll.some((o) => isOddSelectable(o.odd)));
 
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 

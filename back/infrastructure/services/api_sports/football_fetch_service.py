@@ -149,39 +149,46 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             )
             return []
 
-        all_odds: List[MatchOdd] = []
+        unique_odds: dict[tuple[str, str], MatchOdd] = {}
 
         for item in data.get("response", []):
             bookmakers = item.get("bookmakers", [])
             if not bookmakers:
                 continue
 
-            bets = bookmakers[0].get("bets", [])
+            for bookmaker in bookmakers:
+                bets = bookmaker.get("bets", [])
 
-            for bet in bets:
-                bet_id = bet.get("id")
-                if bet_id not in _SUPPORTED_BET_IDS:
-                    continue
-
-                bet_type = _API_BET_ID_TO_TYPE[bet_id]
-                bet_name = bet.get("name", "")
-
-                for v in bet.get("values", []):
-                    try:
-                        odd_value = float(v.get("odd", 0))
-                    except (ValueError, TypeError):
-                        continue
-                    if odd_value <= 0:
+                for bet in bets:
+                    bet_id = bet.get("id")
+                    if bet_id not in _SUPPORTED_BET_IDS:
                         continue
 
-                    all_odds.append(MatchOdd(
-                        match_id=0,  # set after match upsert
-                        bet_type=bet_type,
-                        bet_name=bet_name,
-                        value=str(v.get("value", "")),
-                        odd=odd_value,
-                    ))
+                    bet_type = _API_BET_ID_TO_TYPE[bet_id]
+                    bet_name = bet.get("name", "")
+                    bet_type_key = bet_type.value if hasattr(bet_type, "value") else str(bet_type)
 
+                    for v in bet.get("values", []):
+                        try:
+                            odd_value = float(v.get("odd", 0))
+                        except (ValueError, TypeError):
+                            continue
+                        if odd_value <= 0:
+                            continue
+
+                        value = str(v.get("value", ""))
+                        unique_odds.setdefault(
+                            (bet_type_key, value),
+                            MatchOdd(
+                                match_id=0,  # set after match upsert
+                                bet_type=bet_type,
+                                bet_name=bet_name,
+                                value=value,
+                                odd=odd_value,
+                            ),
+                        )
+
+        all_odds = list(unique_odds.values())
         logger.info("api_sports.football.fixture_odds_loaded", extra={"fixture_id": fixture_id, "odds_count": len(all_odds)})
         return all_odds
 

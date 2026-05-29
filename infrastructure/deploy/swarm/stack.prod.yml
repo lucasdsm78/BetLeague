@@ -785,6 +785,7 @@ services:
     secrets:
       - *secret-backend-env
     networks:
+      - edge
       - app
     deploy:
       <<: *deploy-defaults
