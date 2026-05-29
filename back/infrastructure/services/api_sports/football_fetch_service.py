@@ -15,8 +15,10 @@ from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
 
 logger = logging.getLogger(__name__)
 
-# Top 5 European leagues (API-Sports IDs)
+# World Cup, UEFA Champions League and top 5 European leagues (API-Sports IDs)
 DEFAULT_LEAGUE_IDS: FrozenSet[int] = frozenset({
+    1,    # World Cup
+    2,    # UEFA Champions League
     39,   # Premier League (England)
     61,   # Ligue 1 (France)
     78,   # Bundesliga (Germany)
@@ -46,11 +48,13 @@ class ApiSportsFootballFetchService(MatchFetchApi):
         self,
         client: ApiSportsBaseClient,
         league_ids: FrozenSet[int] = DEFAULT_LEAGUE_IDS,
+        league_seasons: dict[int, int] | None = None,
         fetch_odds_until: date | None = None,
         max_odds_fixtures: int = 30,
     ):
         self._client = client
         self._league_ids = league_ids
+        self._league_seasons = dict(league_seasons or {})
         self._fetch_odds_until = fetch_odds_until
         self._max_odds_fixtures = max(0, int(max_odds_fixtures))
 
@@ -87,7 +91,7 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             for fixture in data.get("response", []):
                 try:
                     match = self._parse_fixture(fixture)
-                    if match and match.league_id in self._league_ids:
+                    if match and self._is_target_match(match):
                         day_matches.append(match)
                 except Exception as e:
                     logger.warning("api_sports.football.fixture_parse_failed", extra={"error": str(e), "date": current.isoformat()})
@@ -245,3 +249,12 @@ class ApiSportsFootballFetchService(MatchFetchApi):
             api_fixture_id=fixture_id,
             season=league.get("season"),
         )
+
+    def _is_target_match(self, match: Match) -> bool:
+        if match.league_id not in self._league_ids:
+            return False
+        target_season = self._league_seasons.get(int(match.league_id)) if match.league_id is not None else None
+        if target_season is None:
+            return True
+        return int(match.season) == target_season if match.season is not None else False
+

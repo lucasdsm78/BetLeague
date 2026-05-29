@@ -17,6 +17,7 @@ import FilterBar from './matches/FilterBar';
 import MatchCard, { type UiMatch } from './matches/MatchCard';
 import BetSidebarDesktop from './matches/BetSidebarDesktop';
 import BetDrawerMobile from './matches/BetDrawerMobile';
+import { getCompetitionLeagueId, normalizeCompetitionLabel } from './matches/competitionOptions';
 import type { BetSelection } from '../../types/entities/betting';
 
 // NOTE: les types UI (Match/Bet/etc.) et les composants UI ont été extraits dans /matches/**
@@ -58,7 +59,10 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
         id: m.id,
         homeTeam: m.home_team,
         awayTeam: m.away_team,
-        competition: m.league_name || 'Tous',
+        competition: normalizeCompetitionLabel(m.league_name, {
+            leagueId: m.league_id,
+            season: m.season,
+        }),
         kickoff: kickoffIso,
         status,
         odds: {
@@ -90,6 +94,8 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [selectedCompetition, setSelectedCompetition] = useState<string>('Tous');
+            const selectedCompetitionLeagueId = useMemo(() => getCompetitionLeagueId(selectedCompetition), [selectedCompetition]);
+
     const [sortBy, setSortBy] = useState<string>('kickoff');
     const [selectedBets, setSelectedBets] = useState<BetSelection[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
@@ -195,7 +201,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
 
     // Matches query (infinite)
     const pageSize = 20;
-    const { data, isLoading, error: matchesError, fetchNextPage, hasNextPage, isFetchingNextPage } = useMatchesInfiniteQuery(pageSize);
+    const { data, isLoading, error: matchesError, fetchNextPage, hasNextPage, isFetchingNextPage } = useMatchesInfiniteQuery(pageSize, { leagueId: selectedCompetitionLeagueId });
 
     const allApiMatches: ApiMatchReadModel[] = useMemo(() => {
         const pages = data?.pages ?? [];
@@ -213,7 +219,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
             list = list.filter((m) => (m.homeTeam + ' ' + m.awayTeam).toLowerCase().includes(term));
         }
 
-        if (selectedCompetition !== 'Tous') {
+        if (selectedCompetition !== 'Tous' && selectedCompetitionLeagueId == null) {
             list = list.filter((m) => m.competition === selectedCompetition);
         }
 
@@ -227,7 +233,7 @@ const MatchesSection = memo<MatchesSectionProps>(() => {
         }
 
         return copy;
-    }, [allUiMatches, searchTerm, selectedCompetition, sortBy]);
+    }, [allUiMatches, searchTerm, selectedCompetition, selectedCompetitionLeagueId, sortBy]);
 
     // Add to bet
     const handleAddToBet = useCallback((bet: BetSelection) => {

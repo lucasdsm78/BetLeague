@@ -21,19 +21,25 @@ class MatchRepositoryImpl(MatchRepository):
     def _upcoming_from_utc() -> datetime:
         return datetime.utcnow()
 
-    async def count_upcoming_matches(self) -> int:
+    @staticmethod
+    def _apply_upcoming_filters(stmt, *, now: datetime, league_id: int | None = None):
+        stmt = stmt.where(DBMatch.time >= now)
+        if league_id is not None:
+            stmt = stmt.where(DBMatch.league_id == league_id)
+        return stmt
+
+    async def count_upcoming_matches(self, league_id: int | None = None) -> int:
         now = self._upcoming_from_utc()
-        stmt = select(func.count()).select_from(DBMatch).where(DBMatch.time >= now)
+        stmt = self._apply_upcoming_filters(select(func.count()).select_from(DBMatch), now=now, league_id=league_id)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
 
-    async def find_matches_paginated(self, page: int, page_size: int) -> List[Match]:
+    async def find_matches_paginated(self, page: int, page_size: int, league_id: int | None = None) -> List[Match]:
         now = self._upcoming_from_utc()
         offset = (page - 1) * page_size
 
         stmt = (
-            select(DBMatch)
-            .where(DBMatch.time >= now)
+            self._apply_upcoming_filters(select(DBMatch), now=now, league_id=league_id)
             .order_by(DBMatch.time.asc())
             .offset(offset)
             .limit(page_size)
