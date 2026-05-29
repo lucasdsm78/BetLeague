@@ -11,6 +11,16 @@ _RATE_LIMIT_RETRIES = 2
 _RATE_LIMIT_WAIT = 61  # seconds — wait a full minute window
 
 
+def _retry_after_seconds(value: str | None) -> float:
+    if value is None or not str(value).strip():
+        return float(_RATE_LIMIT_WAIT)
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return float(_RATE_LIMIT_WAIT)
+    return parsed if parsed > 0 else float(_RATE_LIMIT_WAIT)
+
+
 class ApiSportsBaseClient:
 
     def __init__(self, base_url: str, api_key: str, timeout: float = 15.0):
@@ -119,14 +129,29 @@ class ApiSportsBaseClient:
                     response_preview = e.response.text[:200]
                 except Exception:
                     response_preview = None
+                retry_after = e.response.headers.get("Retry-After")
+                request_context = self._request_context(endpoint, params, attempt=attempt, request=e.request)
+                if e.response.status_code == 429 and attempt < _RATE_LIMIT_RETRIES:
+                    wait_s = _retry_after_seconds(retry_after)
+                    logger.warning(
+                        "api_sports.client.rate_limited",
+                        extra={
+                            **request_context,
+                            "wait_s": wait_s,
+                            "retry_after": retry_after,
+                            "response_preview": response_preview,
+                        },
+                    )
+                    await asyncio.sleep(wait_s)
+                    continue
                 logger.error(
                     "api_sports.client.http_error",
                     extra={
-                        **self._request_context(endpoint, params, attempt=attempt, request=e.request),
+                        **request_context,
                         "status_code": e.response.status_code,
                         "error_type": type(e).__name__,
                         "response_preview": response_preview,
-                        "retry_after": e.response.headers.get("Retry-After"),
+                        "retry_after": retry_after,
                     },
                 )
                 return {"response": [], "errors": [f"http_{e.response.status_code}"]}
