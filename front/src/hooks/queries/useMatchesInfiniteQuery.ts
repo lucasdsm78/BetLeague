@@ -7,12 +7,12 @@ import { matchesKeys } from './matchesKeys';
  * Infinite query pour /matches paginé.
  * Hypothèse: l'API renvoie { page, total_pages }.
  */
-export function useMatchesInfiniteQuery(pageSize: number, options?: { enabled?: boolean }) {
+export function useMatchesInfiniteQuery(pageSize: number, options?: { enabled?: boolean; leagueId?: number }) {
   return useInfiniteQuery<MatchesListResponse, Error>({
-    queryKey: [...matchesKeys.all, 'infinite', pageSize],
+    queryKey: [...matchesKeys.all, 'infinite', pageSize, options?.leagueId ?? 'all'],
     enabled: options?.enabled ?? true,
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => getMatchesPage(Number(pageParam), pageSize),
+    queryFn: ({ pageParam }) => getMatchesPage({ page: Number(pageParam), pageSize, leagueId: options?.leagueId }),
     getNextPageParam: (lastPage) => {
       const currentPage = lastPage.page ?? 1;
       const totalPages = lastPage.total_pages ?? 1;

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class MatchQueryUseCase(ABC):
 
     @abstractmethod
-    async def get_matches(self, email: str, page: int = 1, page_size: int = 20) -> MatchesListResponse:
+    async def get_matches(self, email: str, page: int = 1, page_size: int = 20, league_id: int | None = None) -> MatchesListResponse:
         raise NotImplementedError
 
 
@@ -29,7 +29,7 @@ class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    async def get_matches(self, email: str, page: int = 1, page_size: int = 20) -> MatchesListResponse:
+    async def get_matches(self, email: str, page: int = 1, page_size: int = 20, league_id: int | None = None) -> MatchesListResponse:
         user = await self.user_repository.find_by_email(email)
         if not user:
             logger.warning("match.query.list_rejected", extra={"email_hash": hash_identifier(email), "reason": "user_missing"})
@@ -43,12 +43,12 @@ class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
         if page_size > 100:
             page_size = 100
 
-        total = await self.match_repository.count_upcoming_matches()
+        total = await self.match_repository.count_upcoming_matches(league_id=league_id)
         total_pages = (total + page_size - 1) // page_size if page_size else 1
         if page > max(total_pages, 1):
             page = max(total_pages, 1)
 
-        matches = await self.match_repository.find_matches_paginated(page=page, page_size=page_size)
+        matches = await self.match_repository.find_matches_paginated(page=page, page_size=page_size, league_id=league_id)
         match_ids = [m.id for m in matches]
 
         odds_by_match_id: dict[int, list[MatchOdd]] = {}
@@ -73,6 +73,7 @@ class MatchQueryUseCaseImpl(MatchQueryUseCase, BaseModel):
                 "user_id": user.id,
                 "page": page,
                 "page_size": page_size,
+                "league_id": league_id,
                 "total": total,
                 "results_count": len(matches),
                 "match_ids_count": len(match_ids),

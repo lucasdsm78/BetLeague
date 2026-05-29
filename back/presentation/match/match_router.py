@@ -44,14 +44,15 @@ logger = logging.getLogger(__name__)
 )
 async def get_matches(
         sport: Optional[str] = Query(None, description="Filter by sport"),
+        league_id: int | None = Query(None, ge=1, description="Filter by league id"),
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100),
         match_query_usecase: MatchQueryUseCase = Depends(match_query_usecase),
         current_user: dict = Depends(current_user),
 ):
     try:
-        matches = await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size)
-        logger.info("match.http.list_succeeded", extra={"user_id": current_user.get('id'), "page": page, "page_size": page_size, "results_count": len(matches.matches)})
+        matches = await match_query_usecase.get_matches(current_user.get('email', ''), page=page, page_size=page_size, league_id=league_id)
+        logger.info("match.http.list_succeeded", extra={"user_id": current_user.get('id'), "league_id": league_id, "page": page, "page_size": page_size, "results_count": len(matches.matches)})
         return matches
     except UserNotFoundError as e:
         logger.warning("match.http.list_rejected", extra={"user_id": current_user.get('id'), "reason": "user_missing"})
