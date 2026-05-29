@@ -199,6 +199,85 @@ async def test_api_sports_base_client_request_error_logs_network_context(caplog:
 
 
 @pytest.mark.asyncio
+async def test_api_sports_base_client_retries_http_429_then_succeeds(monkeypatch: pytest.MonkeyPatch):
+    client = ApiSportsBaseClient(
+        base_url="https://v3.football.api-sports.io",
+        api_key="test-key",
+        timeout=12.0,
+    )
+
+    request = httpx.Request("GET", "https://v3.football.api-sports.io/fixtures?date=2026-05-03")
+    rate_limited_response = httpx.Response(
+        429,
+        request=request,
+        headers={"Retry-After": "0"},
+        json={"message": "Too Many Requests"},
+    )
+    success_response = httpx.Response(
+        200,
+        request=request,
+        json={"response": [{"fixture": {"id": 1}}], "errors": []},
+    )
+    responses = [rate_limited_response, success_response]
+    sleep_calls: list[float] = []
+
+    async def fake_get(*args, **kwargs):
+        response = responses.pop(0)
+        response.raise_for_status()
+        return response
+
+    async def fake_sleep(seconds: float):
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(client._client, "get", fake_get)
+    monkeypatch.setattr("infrastructure.services.api_sports.base_client.asyncio.sleep", fake_sleep)
+
+    try:
+        data = await client.get("/fixtures", params={"date": "2026-05-03"})
+    finally:
+        await client.close()
+
+    assert data == {"response": [{"fixture": {"id": 1}}], "errors": []}
+    assert sleep_calls == [football_fetch_service_module._REQUEST_DELAY if False else 61.0]
+
+
+@pytest.mark.asyncio
+async def test_api_sports_base_client_returns_http_429_after_retry_budget_exhausted(monkeypatch: pytest.MonkeyPatch):
+    client = ApiSportsBaseClient(
+        base_url="https://v3.football.api-sports.io",
+        api_key="test-key",
+        timeout=12.0,
+    )
+
+    request = httpx.Request("GET", "https://v3.football.api-sports.io/fixtures?date=2026-05-03")
+    responses = [
+        httpx.Response(429, request=request, headers={"Retry-After": "0"}, json={"message": "Too Many Requests"}),
+        httpx.Response(429, request=request, headers={"Retry-After": "0"}, json={"message": "Too Many Requests"}),
+        httpx.Response(429, request=request, headers={"Retry-After": "0"}, json={"message": "Too Many Requests"}),
+    ]
+    sleep_calls: list[float] = []
+
+    async def fake_get(*args, **kwargs):
+        response = responses.pop(0)
+        response.raise_for_status()
+        return response
+
+    async def fake_sleep(seconds: float):
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(client._client, "get", fake_get)
+    monkeypatch.setattr("infrastructure.services.api_sports.base_client.asyncio.sleep", fake_sleep)
+
+    try:
+        data = await client.get("/fixtures", params={"date": "2026-05-03"})
+    finally:
+        await client.close()
+
+    assert data == {"response": [], "errors": ["http_429"]}
+    assert sleep_calls == [61.0, 61.0]
+
+
+@pytest.mark.asyncio
 async def test_football_fetch_service_raises_when_primary_fixtures_fetch_fails():
     class FakeClient:
         async def get(self, endpoint: str, params=None):
