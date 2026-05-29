@@ -124,7 +124,7 @@ def test_settings_api_sports_league_ids_empty_string_falls_back_to_default():
         API_SPORTS_LEAGUE_IDS="",
     )
 
-    assert settings.api_sports_league_ids_set == frozenset({39, 61, 78, 135, 140})
+    assert settings.api_sports_league_ids_set == frozenset({1, 2, 39, 61, 78, 135, 140})
 
 
 def test_settings_api_sports_league_ids_trims_spaces():
@@ -148,8 +148,10 @@ def test_settings_api_sports_league_ids_trims_spaces():
     assert settings.api_sports_league_ids_set == frozenset({39, 61, 78})
 
 
-def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch():
+def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("API_SPORTS_FETCH_ODDS_DAYS_AHEAD", raising=False)
     settings = Settings(
+        _env_file=None,
         sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
         access_token_expire_minutes=15,
         refresh_token_expire_minutes=60,
@@ -167,6 +169,32 @@ def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch():
 
     assert settings.api_sports_fetch_odds_days_ahead == 0
     assert settings.api_sports_fetch_odds_max_fixtures_per_run == 30
+
+
+def test_settings_api_sports_world_cup_2026_prefetch_defaults(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("API_SPORTS_WORLD_CUP_2026_ENABLED", raising=False)
+    monkeypatch.delenv("API_SPORTS_WORLD_CUP_2026_FETCH_DAYS_AHEAD", raising=False)
+    monkeypatch.delenv("API_SPORTS_WORLD_CUP_2026_MAX_ODDS_FIXTURES_PER_RUN", raising=False)
+    settings = Settings(
+        _env_file=None,
+        sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
+        access_token_expire_minutes=15,
+        refresh_token_expire_minutes=60,
+        secret_key_token="secret",
+        secret_key_token_refresh="refresh",
+        encryption_key="enc",
+        api_football_data_token="token",
+        url_api_football_data="https://example.test/api",
+        private_key="PRIVATE",
+        public_key="PUBLIC",
+        stripe_api_key="stripe",
+        stripe_webhook_secret="whsec",
+        the_odds_api_api_key="odds",
+    )
+
+    assert settings.api_sports_world_cup_2026_enabled is True
+    assert settings.api_sports_world_cup_2026_fetch_days_ahead == 60
+    assert settings.api_sports_world_cup_2026_max_odds_fixtures_per_run == 64
 
 
 @pytest.mark.asyncio
@@ -383,6 +411,60 @@ async def test_football_fetch_service_reads_supported_odds_from_all_bookmakers(m
 
 
 @pytest.mark.asyncio
+async def test_football_fetch_service_filters_world_cup_by_target_season(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(football_fetch_service_module, "_REQUEST_DELAY", 0)
+
+    fixture_payloads = [
+        {
+            "fixture": {"id": 3001, "date": "2026-06-12T19:00:00Z", "status": {"short": "NS"}},
+            "league": {"id": 1, "name": "World Cup", "season": 2026},
+            "teams": {
+                "home": {"name": "France", "logo": "home.png"},
+                "away": {"name": "Germany", "logo": "away.png"},
+            },
+            "goals": {"home": None, "away": None},
+        },
+        {
+            "fixture": {"id": 3002, "date": "2022-12-18T15:00:00Z", "status": {"short": "NS"}},
+            "league": {"id": 1, "name": "World Cup", "season": 2022},
+            "teams": {
+                "home": {"name": "Argentina", "logo": "home.png"},
+                "away": {"name": "France", "logo": "away.png"},
+            },
+            "goals": {"home": None, "away": None},
+        },
+    ]
+
+    class FakeClient:
+        async def get(self, endpoint: str, params=None):
+            if endpoint == "/fixtures":
+                return {"response": fixture_payloads, "errors": []}
+            if endpoint == "/odds":
+                return {"response": [], "errors": []}
+            raise AssertionError(f"Unexpected endpoint: {endpoint}")
+
+    service = ApiSportsFootballFetchService(
+        client=FakeClient(),
+        league_ids=frozenset({1}),
+        league_seasons={1: 2026},
+        fetch_odds_until=date(2026, 6, 12),
+        max_odds_fixtures=5,
+    )
+
+    pairs = await service.get_upcoming_matches(
+        sport=Sport.FOOTBALL,
+        date_from=date(2026, 6, 12),
+        date_to=date(2026, 6, 12),
+    )
+
+    assert len(pairs) == 1
+    match, _ = pairs[0]
+    assert match.api_fixture_id == 3001
+    assert match.league_id == 1
+    assert match.season == 2026
+
+
+@pytest.mark.asyncio
 async def test_fetch_daily_matches_async_chains_root_cause(monkeypatch: pytest.MonkeyPatch):
     class FakeEngine:
         async def dispose(self):
@@ -509,4 +591,90 @@ async def test_fetch_daily_matches_async_clamps_aggressive_odds_configuration(mo
 
     assert captured_kwargs["max_odds_fixtures"] == celery_tasks_module._MAX_FETCH_ODDS_FIXTURES_PER_RUN
     assert captured_kwargs["fetch_odds_until"] == datetime.now(UTC).date() + timedelta(days=celery_tasks_module._MAX_FETCH_ODDS_DAYS_AHEAD)
+
+
+@pytest.mark.asyncio
+async def test_fetch_daily_matches_async_adds_world_cup_2026_prefetch(monkeypatch: pytest.MonkeyPatch):
+    captured_calls: list[dict[str, object]] = []
+
+    class FakeEngine:
+        async def dispose(self):
+            return None
+
+    class FakeSettings:
+        api_sports_football_url = "https://v3.football.api-sports.io"
+        api_sports_key = "test-key"
+        api_sports_league_ids_set = frozenset({1, 39})
+        api_sports_fetch_odds_days_ahead = 3
+        api_sports_fetch_odds_max_fixtures_per_run = 30
+        api_sports_world_cup_2026_enabled = True
+        api_sports_world_cup_2026_fetch_days_ahead = 60
+        api_sports_world_cup_2026_max_odds_fixtures_per_run = 64
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def close(self):
+            return None
+
+    class FakeFetchService:
+        def __init__(self, *args, **kwargs):
+            self.kwargs = kwargs
+
+        async def get_upcoming_matches(self, *args, **kwargs):
+            return []
+
+    class FakeUseCase:
+        def __init__(self, *args, **kwargs):
+            self.match_fetch_api = kwargs["match_fetch_api"]
+
+        async def fetch_and_store_matches(self, *args, **kwargs):
+            captured_calls.append({
+                "league_ids": getattr(self.match_fetch_api, "kwargs", {}).get("league_ids"),
+                "league_seasons": getattr(self.match_fetch_api, "kwargs", {}).get("league_seasons"),
+                "fetch_odds_until": getattr(self.match_fetch_api, "kwargs", {}).get("fetch_odds_until"),
+                "max_odds_fixtures": getattr(self.match_fetch_api, "kwargs", {}).get("max_odds_fixtures"),
+                "date_from": kwargs.get("date_from"),
+                "date_to": kwargs.get("date_to"),
+            })
+            return 0
+
+    fake_sport = types.SimpleNamespace(value="football")
+    fake_sport_module = types.ModuleType("domain.match.model.sport")
+    fake_sport_module.Sport = types.SimpleNamespace(FOOTBALL=fake_sport)
+
+    fake_models_module = types.ModuleType("infrastructure.postgresql.models")
+
+    fake_config_module = types.ModuleType("infrastructure.config")
+    fake_config_module.Settings = FakeSettings
+
+    fake_client_module = types.ModuleType("infrastructure.services.api_sports.base_client")
+    fake_client_module.ApiSportsBaseClient = FakeClient
+
+    fake_fetch_module = types.ModuleType("infrastructure.services.api_sports.football_fetch_service")
+    fake_fetch_module.ApiSportsFootballFetchService = FakeFetchService
+
+    fake_usecase_module = types.ModuleType("application.match.match_fetch_usecase")
+    fake_usecase_module.MatchFetchUseCaseImpl = FakeUseCase
+
+    monkeypatch.setattr(celery_tasks_module, "_make_session_factory", lambda: (FakeEngine(), lambda: None))
+    monkeypatch.setitem(sys.modules, "infrastructure.postgresql.models", fake_models_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.config", fake_config_module)
+    monkeypatch.setitem(sys.modules, "domain.match.model.sport", fake_sport_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.base_client", fake_client_module)
+    monkeypatch.setitem(sys.modules, "infrastructure.services.api_sports.football_fetch_service", fake_fetch_module)
+    monkeypatch.setitem(sys.modules, "application.match.match_fetch_usecase", fake_usecase_module)
+
+    await celery_tasks_module._fetch_daily_matches_async()
+
+    assert len(captured_calls) == 2
+    standard_call = next(call for call in captured_calls if call["league_seasons"] in (None, {}))
+    world_cup_call = next(call for call in captured_calls if call["league_seasons"] == {1: 2026})
+
+    assert standard_call["league_ids"] == frozenset({39})
+    assert world_cup_call["league_ids"] == frozenset({1})
+    assert world_cup_call["max_odds_fixtures"] == 64
+    assert world_cup_call["date_to"] == datetime.now(UTC).date() + timedelta(days=60)
+
 

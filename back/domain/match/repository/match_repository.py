@@ -20,11 +20,11 @@ class MatchRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def count_upcoming_matches(self) -> int:
+    async def count_upcoming_matches(self, league_id: int | None = None) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    async def find_matches_paginated(self, page: int, page_size: int) -> List[Match]:
+    async def find_matches_paginated(self, page: int, page_size: int, league_id: int | None = None) -> List[Match]:
         raise NotImplementedError
 
     @abstractmethod
