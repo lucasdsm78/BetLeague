@@ -15,8 +15,10 @@ from infrastructure.services.api_sports.base_client import ApiSportsBaseClient
 
 logger = logging.getLogger(__name__)
 
-# Top 5 European leagues (API-Sports IDs)
+# World Cup, UEFA Champions League and top 5 European leagues (API-Sports IDs)
 DEFAULT_LEAGUE_IDS: FrozenSet[int] = frozenset({
+    1,    # World Cup
+    2,    # UEFA Champions League
     39,   # Premier League (England)
     61,   # Ligue 1 (France)
     78,   # Bundesliga (Germany)

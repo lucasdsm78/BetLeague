@@ -17,12 +17,14 @@ export interface ApiMatchReadModel {
   updated_at?: number;
   sport?: string;
   league_name?: string | null;
+  league_id?: number | null;
   logo_home?: string | null;
   logo_away?: string | null;
   score_home?: number | null;
   score_away?: number | null;
   status?: string;
   winner?: string | null;
+  season?: number | null;
   odds?: ApiMatchOddReadModel[];
 }
 

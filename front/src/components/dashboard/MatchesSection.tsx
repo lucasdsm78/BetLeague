@@ -17,6 +17,7 @@ import FilterBar from './matches/FilterBar';
 import MatchCard, { type UiMatch } from './matches/MatchCard';
 import BetSidebarDesktop from './matches/BetSidebarDesktop';
 import BetDrawerMobile from './matches/BetDrawerMobile';
+import { normalizeCompetitionLabel } from './matches/competitionOptions';
 import type { BetSelection } from '../../types/entities/betting';
 
 // NOTE: les types UI (Match/Bet/etc.) et les composants UI ont été extraits dans /matches/**
@@ -58,7 +59,10 @@ const mapApiMatchToUi = (m: ApiMatchReadModel): UiMatch => {
         id: m.id,
         homeTeam: m.home_team,
         awayTeam: m.away_team,
-        competition: m.league_name || 'Tous',
+        competition: normalizeCompetitionLabel(m.league_name, {
+            leagueId: m.league_id,
+            season: m.season,
+        }),
         kickoff: kickoffIso,
         status,
         odds: {

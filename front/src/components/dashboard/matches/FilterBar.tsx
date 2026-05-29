@@ -1,5 +1,7 @@
 import React, { memo } from 'react';
 
+import { COMPETITIONS } from './competitionOptions';
+
 interface SortOption {
   value: string;
   label: string;
@@ -10,8 +12,6 @@ export const SORT_OPTIONS: SortOption[] = [
   { value: 'trending', label: 'Populaires' },
   { value: 'odds', label: 'Meilleures cotes' },
 ];
-
-export const COMPETITIONS = ['Tous', 'Ligue 1', 'Premier League', 'La Liga', 'Bundesliga', 'Champions League'];
 
 export interface FilterBarProps {
   searchTerm: string;
@@ -51,9 +51,9 @@ const FilterBar = memo<FilterBarProps>(function FilterBar({
           onChange={(e) => onCompetitionChange(e.target.value)}
           className="competition-select"
         >
-          {COMPETITIONS.map((comp) => (
-            <option key={comp} value={comp}>
-              {comp}
+          {COMPETITIONS.map((competition) => (
+            <option key={competition.value} value={competition.value}>
+              {competition.label}
             </option>
           ))}
         </select>
