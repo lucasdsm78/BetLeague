@@ -125,6 +125,9 @@ class Settings(BaseSettings):
     api_sports_league_ids: str = Field(default=DEFAULT_API_SPORTS_LEAGUE_IDS, validation_alias="API_SPORTS_LEAGUE_IDS")  # World Cup, UEFA Champions League, top 5 European leagues
     api_sports_fetch_odds_days_ahead: int = Field(default=0, validation_alias="API_SPORTS_FETCH_ODDS_DAYS_AHEAD")
     api_sports_fetch_odds_max_fixtures_per_run: int = Field(default=30, validation_alias="API_SPORTS_FETCH_ODDS_MAX_FIXTURES_PER_RUN")
+    api_sports_world_cup_2026_enabled: bool = Field(default=True, validation_alias="API_SPORTS_WORLD_CUP_2026_ENABLED")
+    api_sports_world_cup_2026_fetch_days_ahead: int = Field(default=60, validation_alias="API_SPORTS_WORLD_CUP_2026_FETCH_DAYS_AHEAD")
+    api_sports_world_cup_2026_max_odds_fixtures_per_run: int = Field(default=64, validation_alias="API_SPORTS_WORLD_CUP_2026_MAX_ODDS_FIXTURES_PER_RUN")
     api_sports_score_by_id_fallback_enabled: bool = Field(default=False, validation_alias="API_SPORTS_SCORE_BY_ID_FALLBACK_ENABLED")
     api_sports_score_by_id_fallback_max_fixtures: int = Field(default=2, validation_alias="API_SPORTS_SCORE_BY_ID_FALLBACK_MAX_FIXTURES")
     celery_broker_url: str = Field(default="redis://localhost:6379/1", validation_alias="CELERY_BROKER_URL")

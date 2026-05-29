@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 _MAX_FETCH_ODDS_DAYS_AHEAD = 7
 _MAX_FETCH_ODDS_FIXTURES_PER_RUN = 30
+_WORLD_CUP_2026_LEAGUE_ID = 1
+_WORLD_CUP_2026_SEASON = 2026
+_MAX_WORLD_CUP_2026_FETCH_DAYS_AHEAD = 120
+_MAX_WORLD_CUP_2026_ODDS_FIXTURES_PER_RUN = 128
 _LEAGUE_PAYOUT_LOCK_RELEASE_LUA = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('del', KEYS[1])
@@ -240,6 +244,7 @@ async def _fetch_daily_matches_async(*, task=None):
 
     try:
         league_ids = settings.api_sports_league_ids_set
+        world_cup_2026_enabled = bool(getattr(settings, "api_sports_world_cup_2026_enabled", True))
         logger.info(
             "celery.task.fetch_daily_matches.api_client_config",
             extra=_task_extra(
@@ -248,12 +253,23 @@ async def _fetch_daily_matches_async(*, task=None):
                 api_host=urlsplit(settings.api_sports_football_url).hostname,
                 api_key_configured=bool((settings.api_sports_key or "").strip()),
                 league_ids_count=len(league_ids),
+                world_cup_2026_enabled=world_cup_2026_enabled,
             ),
         )
         odds_days_ahead = _bounded_non_negative_int(
             getattr(settings, "api_sports_fetch_odds_days_ahead", 1),
             default=1,
             hard_cap=_MAX_FETCH_ODDS_DAYS_AHEAD,
+        )
+        world_cup_2026_fetch_days_ahead = _bounded_non_negative_int(
+            getattr(settings, "api_sports_world_cup_2026_fetch_days_ahead", 60),
+            default=60,
+            hard_cap=_MAX_WORLD_CUP_2026_FETCH_DAYS_AHEAD,
+        )
+        world_cup_2026_max_odds_fixtures = _bounded_non_negative_int(
+            getattr(settings, "api_sports_world_cup_2026_max_odds_fixtures_per_run", 64),
+            default=64,
+            hard_cap=_MAX_WORLD_CUP_2026_ODDS_FIXTURES_PER_RUN,
         )
         max_odds_fixtures = _bounded_non_negative_int(
             getattr(settings, "api_sports_fetch_odds_max_fixtures_per_run", 0),
@@ -262,16 +278,37 @@ async def _fetch_daily_matches_async(*, task=None):
         )
         today = _utc_today()
         odds_date_to = today + timedelta(days=odds_days_ahead)
-        fetch_service = ApiSportsFootballFetchService(
-            client=client,
-            league_ids=league_ids,
-            fetch_odds_until=odds_date_to,
-            max_odds_fixtures=max_odds_fixtures,
-        )
-        usecase = MatchFetchUseCaseImpl(
-            match_fetch_api=fetch_service,
-            session_factory=session_factory,
-        )
+        standard_league_ids = league_ids
+        world_cup_2026_usecase = None
+
+        if world_cup_2026_enabled and _WORLD_CUP_2026_LEAGUE_ID in league_ids:
+            standard_league_ids = frozenset(
+                league_id for league_id in league_ids if league_id != _WORLD_CUP_2026_LEAGUE_ID
+            )
+            world_cup_2026_fetch_service = ApiSportsFootballFetchService(
+                client=client,
+                league_ids=frozenset({_WORLD_CUP_2026_LEAGUE_ID}),
+                league_seasons={_WORLD_CUP_2026_LEAGUE_ID: _WORLD_CUP_2026_SEASON},
+                fetch_odds_until=today + timedelta(days=world_cup_2026_fetch_days_ahead),
+                max_odds_fixtures=world_cup_2026_max_odds_fixtures,
+            )
+            world_cup_2026_usecase = MatchFetchUseCaseImpl(
+                match_fetch_api=world_cup_2026_fetch_service,
+                session_factory=session_factory,
+            )
+
+        usecase = None
+        if standard_league_ids:
+            fetch_service = ApiSportsFootballFetchService(
+                client=client,
+                league_ids=standard_league_ids,
+                fetch_odds_until=odds_date_to,
+                max_odds_fixtures=max_odds_fixtures,
+            )
+            usecase = MatchFetchUseCaseImpl(
+                match_fetch_api=fetch_service,
+                session_factory=session_factory,
+            )
 
         date_from = today
         date_to = today + timedelta(days=7)
@@ -283,16 +320,36 @@ async def _fetch_daily_matches_async(*, task=None):
 
         for sport in sports_to_fetch:
             try:
-                count = await usecase.fetch_and_store_matches(
-                    sport=sport,
-                    date_from=date_from,
-                    date_to=date_to,
-                )
-                total_fetched += int(count)
-                logger.info(
-                    "celery.task.fetch_daily_matches.sport_finished",
-                    extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
-                )
+                if usecase is not None:
+                    count = await usecase.fetch_and_store_matches(
+                        sport=sport,
+                        date_from=date_from,
+                        date_to=date_to,
+                    )
+                    total_fetched += int(count)
+                    logger.info(
+                        "celery.task.fetch_daily_matches.sport_finished",
+                        extra=_task_extra(task, sport=sport.value, fetched_count=int(count)),
+                    )
+
+                if world_cup_2026_usecase is not None and sport == Sport.FOOTBALL:
+                    world_cup_count = await world_cup_2026_usecase.fetch_and_store_matches(
+                        sport=sport,
+                        date_from=date_from,
+                        date_to=today + timedelta(days=world_cup_2026_fetch_days_ahead),
+                    )
+                    total_fetched += int(world_cup_count)
+                    logger.info(
+                        "celery.task.fetch_daily_matches.world_cup_2026_finished",
+                        extra=_task_extra(
+                            task,
+                            sport=sport.value,
+                            league_id=_WORLD_CUP_2026_LEAGUE_ID,
+                            season=_WORLD_CUP_2026_SEASON,
+                            fetched_count=int(world_cup_count),
+                            days_ahead=world_cup_2026_fetch_days_ahead,
+                        ),
+                    )
             except Exception as exc:
                 logger.exception(
                     "celery.task.fetch_daily_matches.sport_failed",
