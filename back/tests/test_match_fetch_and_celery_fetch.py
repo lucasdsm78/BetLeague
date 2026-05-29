@@ -124,7 +124,7 @@ def test_settings_api_sports_league_ids_empty_string_falls_back_to_default():
         API_SPORTS_LEAGUE_IDS="",
     )
 
-    assert settings.api_sports_league_ids_set == frozenset({39, 61, 78, 135, 140})
+    assert settings.api_sports_league_ids_set == frozenset({1, 2, 39, 61, 78, 135, 140})
 
 
 def test_settings_api_sports_league_ids_trims_spaces():
@@ -148,8 +148,10 @@ def test_settings_api_sports_league_ids_trims_spaces():
     assert settings.api_sports_league_ids_set == frozenset({39, 61, 78})
 
 
-def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch():
+def test_settings_api_sports_odds_fetch_defaults_cover_full_daily_batch(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("API_SPORTS_FETCH_ODDS_DAYS_AHEAD", raising=False)
     settings = Settings(
+        _env_file=None,
         sqlalchemy_database_url="postgresql+asyncpg://user:pass@example.test/db",
         access_token_expire_minutes=15,
         refresh_token_expire_minutes=60,
