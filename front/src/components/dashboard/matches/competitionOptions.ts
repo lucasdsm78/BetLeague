@@ -5,6 +5,8 @@ export interface CompetitionOption {
 
 export const WORLD_CUP_2026_COMPETITION = 'Coupe du monde 2026';
 export const WORLD_CUP_2026_LEAGUE_ID = 1;
+export const CHAMPIONS_LEAGUE_COMPETITION = 'Ligue des champions';
+export const CHAMPIONS_LEAGUE_LEAGUE_ID = 2;
 
 interface CompetitionMetadata {
   leagueId?: number | null;
@@ -28,12 +30,19 @@ export const COMPETITIONS: CompetitionOption[] = [
   { value: 'La Liga', label: 'La Liga' },
   { value: 'Bundesliga', label: 'Bundesliga' },
   { value: 'Serie A', label: 'Serie A' },
-  { value: 'Ligue des champions', label: 'Ligue des champions' },
+  { value: CHAMPIONS_LEAGUE_COMPETITION, label: CHAMPIONS_LEAGUE_COMPETITION },
   { value: WORLD_CUP_2026_COMPETITION, label: WORLD_CUP_2026_COMPETITION },
 ];
 
 export function getCompetitionLeagueId(competition: string): number | undefined {
-  return competition === WORLD_CUP_2026_COMPETITION ? WORLD_CUP_2026_LEAGUE_ID : undefined;
+  switch (competition) {
+    case WORLD_CUP_2026_COMPETITION:
+      return WORLD_CUP_2026_LEAGUE_ID;
+    case CHAMPIONS_LEAGUE_COMPETITION:
+      return CHAMPIONS_LEAGUE_LEAGUE_ID;
+    default:
+      return undefined;
+  }
 }
 
 export function normalizeCompetitionLabel(competition?: string | null, metadata?: CompetitionMetadata): string {
@@ -51,6 +60,7 @@ export function normalizeCompetitionLabel(competition?: string | null, metadata?
 
   return COMPETITION_LABEL_BY_NORMALIZED_NAME[normalized.toLowerCase()] ?? normalized;
 }
+
 
 
 
